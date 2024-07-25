@@ -1,17 +1,10 @@
 # This file will be gathering information from the Yandex Webmaster API, and it will be
-# focused specifically in its keyword research capabilities.
+# focused specifically in its keyword and impression analysis capabilities.
 
 import json
-import os
-import urllib
 import requests
 
-# This way OAuthlib won't enforce HTTPS connections.
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
-from main import get_client_info
-from requests_oauthlib import OAuth2Session
-
+from main import get_client_info, get_token_oauth, import_token_json
 
 #  oauth2 = "https://oauth.yandex.com/authorize?response_type=code"
 #  & client_id=<app ID>
@@ -24,25 +17,9 @@ from requests_oauthlib import OAuth2Session
 # [& force_confirm=yes]
 # [& state=<arbitrary string>]
 
-def get_token_yandex(client_id_, uri_callback_, client_secret_) -> None:
-    oauth_session = OAuth2Session(client_id_, redirect_uri=uri_callback_, )
-    authorization_url, state = oauth_session.authorization_url('https://oauth.yandex.com/authorize?')
-    print(f'Please go to {authorization_url} and authorize access.')
-    authorization_response = input('Enter the full callback URL: ')
-    token = oauth_session.fetch_token(
-        'https://oauth.yandex.com/token',
-        authorization_response=authorization_response,
-        client_secret=client_secret_)
-    with open('token.json', 'w', encoding='utf-8') as t:
-        json.dump(token, t, ensure_ascii=False, indent=4)
-    return print("Token stored in project root. Ready to use!")
-
-
-def import_token_json() -> json:
-    with open('token.json', 'r', encoding='utf-8') as t:
-        imp_tokn = json.load(t)
-    return imp_tokn
-
+#
+authorization_url = "https://oauth.yandex.com/authorize?"
+token_url = "https://oauth.yandex.com/authorize?"
 
 # Gets the application client details from a json file for privacy reasons.
 cred_file = get_client_info()
@@ -55,7 +32,8 @@ uri_callback = "http://127.0.0.47:8888"
 
 generate_tkn = input("Generate new token? Y/N ")
 if generate_tkn.lower() == ("y" or "yes"):
-    get_token_yandex(client_id, uri_callback, client_secret)
+    get_token_oauth(client_id, uri_callback, client_secret,
+                    authorization_url, token_url)
 else:
     pass
 
