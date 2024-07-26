@@ -4,7 +4,10 @@
 import json
 import requests
 
-from main import get_client_info, get_token_oauth, import_token_json
+from main import (get_client_info,
+                  get_token_oauth,
+                  import_request_json,
+                  export_request_json)
 
 #  oauth2 = "https://oauth.yandex.com/authorize?response_type=code"
 #  & client_id=<app ID>
@@ -32,19 +35,21 @@ uri_callback = "http://127.0.0.47:8888"
 
 generate_tkn = input("Generate new token? Y/N ")
 if generate_tkn.lower() == ("y" or "yes"):
-    get_token_oauth(client_id, uri_callback, client_secret,
-                    authorization_url, token_url)
+    export_request_json(
+        "token",
+        get_token_oauth(client_id, uri_callback, client_secret,
+                        authorization_url, token_url), 4)
 else:
     pass
 
-token_json = import_token_json()
+token_json = import_request_json()
 
 base_url = "https://api.webmaster.yandex.net/v4/user/"
 headers_auth = {"Authorization": f"OAuth {token_json['access_token']}"}
 
-user_id = json.loads(requests.get(base_url, headers=headers_auth).content)
+user_id = requests.get(base_url, headers=headers_auth).json()
 
-hosts = json.loads(requests.get(f"{base_url}{user_id['user_id']}/hosts", headers=headers_auth).content)
+hosts = requests.get(f"{base_url}{user_id['user_id']}/hosts", headers=headers_auth).json()
 
 host_id = hosts['hosts'][0]['host_id']
 
