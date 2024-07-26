@@ -161,5 +161,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 
 .idea/
-token.json
+git_commit_summary.txt
 client_info.json
+sample.csv
+token.json
+wordpress_structure.json
+wp_posts.json
