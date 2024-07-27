@@ -100,8 +100,9 @@ def export_request_json(filename, stream, indent) -> None:
     return print("The file has been stored in project root. Ready to use!")
 
 
-def export_to_csv(nmedtpl_lst, filename, top_row_lst) -> None:
+def export_to_csv_nt(nmedtpl_lst, filename, top_row_lst) -> None:
     """
+    Helper function to dump the list of NamedTuples into a CSV file in project dir.
     :param nmedtpl_lst: list[namedtuple]
     :param filename: name (without csv extension)
     :param top_row_lst: list[str]
