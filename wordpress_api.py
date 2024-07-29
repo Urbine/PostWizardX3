@@ -203,7 +203,7 @@ endpoints = {
         "posts_url": "/posts",
         "per_page": "?per_page=",
         "fields": {"fields_base": "?_fields=",
-                   # fields are comma separated in the URL after the fields_base value.
+                   # fields are comma-separated in the URL after the fields_base value.
                    "fields": ["author", "id", "excerpt", "title", "link"]
                    }
     }
