@@ -149,10 +149,10 @@ def map_tags_post_urls(wp_posts_f, host_name=None) -> dict:
 
 def map_tags_posts(wp_posts_f, host_name=None, idd=None) -> dict:
     """
-    This function makes a {"Tag": ["post slug", ...]} dictionary.
+    This function makes a {"Tag": ["post slug", ...]} or {"Tag": ["post id", ...]} dictionary.
     :param wp_posts_f: WP Posts json
     :param host_name Optional set to None, hostname str if you want it as output.
-    :param idd (None) You can set this one to "y" or "yes" if you want the post ids
+    :param idd (Bool) You can set this one to True if you want the post ids
             instead of the slugs.
     :return: dict
     """
@@ -162,7 +162,7 @@ def map_tags_posts(wp_posts_f, host_name=None, idd=None) -> dict:
     for dic in wp_posts_f:
         for kw in dic['yoast_head_json']['schema']['@graph'][0]['keywords']:
             if kw in tags_c.keys():
-                if idd == ("y" or "yes"):
+                if idd is True:
                     tags_c[kw].append(dic['id'])
                     continue
                 else:
@@ -170,17 +170,27 @@ def map_tags_posts(wp_posts_f, host_name=None, idd=None) -> dict:
                     continue
     return tags_c
 
-# def unpack_tpl_excel(tupled_list):
-#     # tuple(map_tags_posts(wp_posts_f, idd='y').values())
-#     lst_to_break = tupled_list
-#     new_lst = []
-#     switch = True
-#     count = 0
-#
-#     for item in lst_to_break:
-#         new_lst.append(tuple(str(item)))
-#     while switch
-#     return new_lst
+def map_postsid_category(wp_posts_f, host_name=None) -> dict:
+    """
+    Associates post ID with a url.
+    :param wp_posts_f: Posts json
+    :param host_name: (str) your hostname (Optional param = None)
+    :return: dict
+    """
+    u_pack = zip([idd['id'] for idd in wp_posts_f],
+                 [url['yoast_head_json']['schema']['@graph'][0]['articleSection'] for url in wp_posts_f])
+    if host_name is not None:
+        return {idd: f"{host_name}/" + url for idd, url in u_pack}
+    else:
+        return {idd: cat for idd, cat in u_pack}
+
+def unpack_tpl_excel(tupled_list) -> None:
+    # tuple(map_tags_posts(wp_posts_f, idd='y').values())
+    lst_to_break = tupled_list
+    for item in tupled_list:
+        yield "".join(str(item))
+
+    return None
 
 
 # I want hostname as input()
@@ -220,7 +230,7 @@ imported_json = import_request_json("wp_posts")
 
 # pprint.pprint(tag_id_count_merger(imported_json))
 
-# ==== Post data structure ====
+# ==== WP Posts json data structure ====
 # title: imported_json[0]['title']['rendered']
 # description: imported_json[0]['content']['rendered']
 # tags text and category : imported_json[0]['class_list'] (prefixed with "tag-" and "category-")
@@ -250,43 +260,30 @@ def create_tag_report_excel(wp_posts_f, workbook_name) -> None:
     # Tag & Tag ID Fields & Videos Tagged
     tag_plus_tid = workbook.add_worksheet(name="Tag Fields & Videos Tagged")
 
-    tag_plus_tid.set_column('A:D', 20)
+    tag_plus_tid.set_column('A:C', 20)
+    tag_plus_tid.set_column('D:E', 90)
     tag_plus_tid.write_row('A1', ("Tag", "Tag ID", "Videos Tagged", "Tagged IDs"))
     tag_plus_tid.write_column('A2', tuple(tag_id_merger_dict(wp_posts_f).keys()))
     tag_plus_tid.write_column('B2', tuple(tag_id_merger_dict(wp_posts_f).values()))
     tag_plus_tid.write_column('C2', tuple(get_tags_num_count(wp_posts_f).values()))
-    tag_plus_tid.write_row('D2', tuple(unpack_tpl_excel(map_tags_posts(wp_posts_f, idd='y').values())))
+    tag_plus_tid.write_column('D2', unpack_tpl_excel(map_tags_posts(wp_posts_f, idd=True).values()))
 
     post_id_slug = workbook.add_worksheet(name="Post id & Post Slug")
-    post_id_slug.set_column('A:B', 20)
-    post_id_slug.write_row('A1', ("Post ID", "Post Slug"))
+    post_id_slug.set_column('A:A', 20)
+    post_id_slug.set_column('B:B', 80)
+    post_id_slug.set_column('C:C', 40)
+    post_id_slug.write_row('A1', ("Post ID", "Post Slug", "Post Category"))
     post_id_slug.write_column('A2', tuple(map_posts_by_id(wp_posts_f).keys()))
     post_id_slug.write_column('B2', tuple(map_posts_by_id(wp_posts_f).values()))
+    post_id_slug.write_column('C2', unpack_tpl_excel(map_postsid_category(wp_posts_f).values()))
 
     workbook.close()
 
     return None
 
+
 # print(tuple(unpack_tpl_excel(map_tags_posts(imported_json, idd='y').values())))
 
 create_tag_report_excel(imported_json, "tag_report_excel")
-
-# report_fields = ["tag", "tag_ID", "Videos_tagged", "Post_IDs", "urls"]
-# tags = tag_id_merger_dict(wp_posts_f).keys()
-#
-# tag_id = tag_id_merger_dict(wp_posts_f).values()
-#
-# videos_tagged = get_tags_num_count(wp_posts_f).values()
-#
-# url_s = map_tags_post_urls(wp_posts_f).values()
-#
-# post_ids = map_posts_by_id(wp_posts_f).keys()
-#
-# zipped_dta = zip(tags, tag_id, videos_tagged, post_ids, url_s)
-# Tag_Report = namedtuple("Tag_Report", ["tag", "tag_ID", "Videos_tagged", "Post_IDs", "urls"])
-# cooked = [Tag_Report(t, t_id, v_tggd, pids, u)
-#           for t, t_id, v_tggd, pids, u in zipped_dta]
-# return cooked
-
 
 # pprint.pprint(tag_id_merger_dict(imported_json)
