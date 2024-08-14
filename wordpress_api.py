@@ -211,11 +211,14 @@ endpoints = {
 
 # List of parameters that I intend to concatenate to the base URL.
 # /posts/?per_page=100
+p_per_page: int = 100
 params_posts_per_page = [endpoints["posts"]["posts_url"],
-                         endpoints["posts"]["per_page"], "100"]
+                         endpoints["posts"]["per_page"], str(p_per_page)]
 
 # Concatenate and get json
 if input("Want to fetch a new copy of the json file? Y/N: ").lower() == ("y" or "yes"):
+    # Set the max post per page to fetch
+    p_per_page = input("Max posts to fetch: ")
     # Modify the params parameter if needed.
     curl_clone = curl_wp_self_concat(base_url, params_posts_per_page)
     # Caching a copy of the request for analysis and performance gain.
