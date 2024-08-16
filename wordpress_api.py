@@ -1,6 +1,6 @@
 # This the first attempt at connecting the WordPress API to gather information
 # to streamline analytics and other processes.
-
+import json
 from collections import namedtuple
 import pprint
 import requests
@@ -26,6 +26,41 @@ def curl_wp_self_concat(wp_self, param_lst):
     app_pass_ = get_client_info()["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
     wp_self = wp_self + "".join(param_lst)
     return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"}).json()
+
+
+def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
+    """
+    :param hostname: hostname of your WP site.
+    :param params_dict: dictionary with the rest parameters in the URL.
+    :return: list[dict]
+    """
+    # Accumulation of dict elements for concatenation.
+    result_dict: list[dict] = []
+    base_url = f"https://{hostname}/wp-json/wp/v2"
+    # List of parameters that I intend to concatenate to the base URL.
+    # /posts/page=1
+    page_num: int = 1
+    params_posts = [params_dict["posts"]["posts_url"]]
+    page_num_param = False
+    while True:
+        curl_json = curl_wp_self_concat(base_url, params_posts)
+        try:
+            if curl_json["data"]["status"] == 400:
+                print(f"{'DONE':=^30}\n")
+                return result_dict
+        except TypeError:
+            print(f"Processing page #{page_num}")
+            page_num += 1
+            if page_num_param is False:
+                params_posts.append(params_dict["posts"]["page"])
+                params_posts.append(str(page_num))
+                page_num_param = True
+            else:
+                params_posts[-1] = str(page_num)
+                pass
+            for item in curl_json:
+                result_dict.append(item)
+
 
 
 # Tags and its IDs are repeated and must be isolated
@@ -170,6 +205,7 @@ def map_tags_posts(wp_posts_f, host_name=None, idd=None) -> dict:
                     continue
     return tags_c
 
+
 def map_postsid_category(wp_posts_f, host_name=None) -> dict:
     """
     Associates post ID with a url.
@@ -184,24 +220,26 @@ def map_postsid_category(wp_posts_f, host_name=None) -> dict:
     else:
         return {idd: cat for idd, cat in u_pack}
 
+
 def unpack_tpl_excel(tupled_list) -> None:
     # tuple(map_tags_posts(wp_posts_f, idd='y').values())
     lst_to_break = tupled_list
     for item in tupled_list:
-        yield "".join(str(item))
+        yield "".join(str(item)).strip("[']")
 
     return None
 
 
 # I want hostname as input()
-hostname = 'whoresmen.com'
-base_url = f"https://{hostname}/wp-json/wp/v2"
+hstname = 'whoresmen.com'
+b_url = f"https://{hstname}/wp-json/wp/v2"
 
-endpoints = {
+rest_params = {
     "users": "/users?",
     "posts": {
         "posts_url": "/posts",
         "per_page": "?per_page=",
+        "page": "?page=",
         "fields": {"fields_base": "?_fields=",
                    # fields are comma-separated in the URL after the fields_base value.
                    "fields": ["author", "id", "excerpt", "title", "link"]
@@ -209,20 +247,11 @@ endpoints = {
     }
 }
 
-# List of parameters that I intend to concatenate to the base URL.
-# /posts/?per_page=100
-p_per_page: int = 100
-params_posts_per_page = [endpoints["posts"]["posts_url"],
-                         endpoints["posts"]["per_page"], str(p_per_page)]
-
-# Concatenate and get json
 if input("Want to fetch a new copy of the json file? Y/N: ").lower() == ("y" or "yes"):
-    # Set the max post per page to fetch
-    p_per_page = input("Max posts to fetch: ")
     # Modify the params parameter if needed.
-    curl_clone = curl_wp_self_concat(base_url, params_posts_per_page)
+    all_posts = get_all_posts(hstname, rest_params)
     # Caching a copy of the request for analysis and performance gain.
-    export_request_json("wp_posts", curl_clone, 1)
+    export_request_json("wp_posts", all_posts, 1)
 else:
     print("Okay, using cached file from now on!\n")
     pass
@@ -289,4 +318,9 @@ def create_tag_report_excel(wp_posts_f, workbook_name) -> None:
 
 create_tag_report_excel(imported_json, "tag_report_excel")
 
-# pprint.pprint(tag_id_merger_dict(imported_json)
+# tag_ids_dict = tag_id_merger_dict(imported_json)
+# mp_po = map_posts_by_id(imported_json, hstname)
+# pprint.pprint(tag_ids_dict)
+# #print(p_per_page)
+# print(len(tag_ids_dict))
+# print(len(mp_po))
