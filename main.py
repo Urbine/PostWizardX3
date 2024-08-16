@@ -97,7 +97,7 @@ def export_request_json(filename, stream, indent) -> None:
     """
     with open(f'{filename}.json', 'w', encoding='utf-8') as t:
         json.dump(stream, t, ensure_ascii=False, indent=indent)
-    return print("The file has been stored in project root. Ready to use!")
+    return print("The JSON file has been stored in project root. Ready to use!\n")
 
 
 def export_to_csv_nt(nmedtpl_lst, filename, top_row_lst) -> None:
