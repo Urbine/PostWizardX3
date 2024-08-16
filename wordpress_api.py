@@ -2,6 +2,7 @@
 # to streamline analytics and other processes.
 import json
 from collections import namedtuple
+import os
 import pprint
 import requests
 import xlsxwriter
@@ -15,16 +16,16 @@ from main import (get_client_info,
 # curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit
 # In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/ENDPOINT
 
-def curl_wp_self_concat(wp_self, param_lst):
+def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> list[dict]:
     """
     Makes the GET request based on the curl mechanism as described on the docs.
     :param wp_self: (str) wp base url
     :param param_lst: (list -> str) list of URl params
     :return: json object
     """
-    username_ = get_client_info()["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
-    app_pass_ = get_client_info()["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
-    wp_self = wp_self + "".join(param_lst)
+    username_: str = get_client_info()["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
+    app_pass_: str = get_client_info()["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
+    wp_self: str = wp_self + "".join(param_lst)
     return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"}).json()
 
 
@@ -36,17 +37,18 @@ def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
     """
     # Accumulation of dict elements for concatenation.
     result_dict: list[dict] = []
-    base_url = f"https://{hostname}/wp-json/wp/v2"
+    base_url: str = f"https://{hostname}/wp-json/wp/v2"
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
     page_num: int = 1
-    params_posts = [params_dict["posts"]["posts_url"]]
-    page_num_param = False
+    params_posts: list[str] = [params_dict["posts"]["posts_url"]]
+    page_num_param: bool = False
+    print("\nWorking on it...\n")
     while True:
-        curl_json = curl_wp_self_concat(base_url, params_posts)
+        curl_json: list[dict] = curl_wp_self_concat(base_url, params_posts)
         try:
             if curl_json["data"]["status"] == 400:
-                print(f"{'DONE':=^30}\n")
+                print(f"\n{'DONE':=^30}\n")
                 return result_dict
         except TypeError:
             print(f"Processing page #{page_num}")
@@ -62,18 +64,17 @@ def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
                 result_dict.append(item)
 
 
-
 # Tags and its IDs are repeated and must be isolated
 # to count for the unique elements in each dictionary and merge them.
 
 # This assumes that Yoast is running in your WordPress installation.
-def get_tag_count(wp_posts_f) -> dict:
+def get_tag_count(wp_posts_f: list[dict]) -> dict:
     """
     Counts every occurrence of a tag in the entire posts json file.
     :param wp_posts_f: file with the posts information from WordPress.
     :return: (dict)
     """
-    tags_count = {}
+    tags_count: dict = {}
     for dic in wp_posts_f:
         for kw in dic['yoast_head_json']['schema']['@graph'][0]['keywords']:
             if kw in tags_count.keys():
@@ -85,14 +86,14 @@ def get_tag_count(wp_posts_f) -> dict:
     return tags_count
 
 
-def get_tags_num_count(wp_posts_f) -> dict:
+def get_tags_num_count(wp_posts_f: list[dict]) -> dict:
     """
     Counts the occurrences of tags, however, this function fetches the tag numbers
     not the actual names. This is necessary to match everything at a later routine.
     :param wp_posts_f: Posts json
     :return: dict
     """
-    tags_nums_count = {}
+    tags_nums_count: dict = {}
     for dic in wp_posts_f:
         for tag_num in dic["tags"]:
             if tag_num in tags_nums_count.keys():
@@ -110,7 +111,7 @@ def get_tags_num_count(wp_posts_f) -> dict:
 # I am creating a NamedTuple with this information. However, I want to leave this
 # dictionary function, just in case.
 
-def tag_id_merger_dict(wp_posts_f) -> dict:
+def tag_id_merger_dict(wp_posts_f: list[dict]) -> dict:
     """
     Returns a dictionary {"tag": "tag-id"} from the output from other functions.
     :param wp_posts_f:
@@ -120,7 +121,7 @@ def tag_id_merger_dict(wp_posts_f) -> dict:
                                            get_tags_num_count(wp_posts_f).keys())}
 
 
-def tag_id_count_merger(wp_posts_f) -> list:
+def tag_id_count_merger(wp_posts_f: list[dict]) -> list:
     """
        This function makes a list of namedtuples with fields ['title', 'ID', 'count'] .
        :param wp_posts_f: WP Posts Json
@@ -133,14 +134,14 @@ def tag_id_count_merger(wp_posts_f) -> list:
     return cooked
 
 
-def get_tag_id_pairs(wp_posts_f) -> dict:
+def get_tag_id_pairs(wp_posts_f: list[dict]) -> dict:
     """
     This function makes a {"tag": ["post id", ...]} dictionary.
     :param wp_posts_f: WP Posts Json
     :return: dict
     """
-    unique_tags = get_tag_count(wp_posts_f).keys()
-    tags_c = {kw: [] for kw in unique_tags}
+    unique_tags: list = get_tag_count(wp_posts_f).keys()
+    tags_c: dict = {kw: [] for kw in unique_tags}
     for dic in wp_posts_f:
         for kw in dic['yoast_head_json']['schema']['@graph'][0]['keywords']:
             if kw in tags_c.keys():
@@ -149,7 +150,7 @@ def get_tag_id_pairs(wp_posts_f) -> dict:
     return tags_c
 
 
-def map_posts_by_id(wp_posts_f, host_name=None) -> dict:
+def map_posts_by_id(wp_posts_f: list[dict], host_name=None) -> dict:
     """
     Associates post ID with a url.
     :param wp_posts_f: Posts json
@@ -164,7 +165,7 @@ def map_posts_by_id(wp_posts_f, host_name=None) -> dict:
         return {idd: url for idd, url in u_pack}
 
 
-def map_tags_post_urls(wp_posts_f, host_name=None) -> dict:
+def map_tags_post_urls(wp_posts_f: list[dict], host_name=None) -> dict:
     """
     This function makes a {"Tag": ["post slug", ...]} dictionary.
     :param wp_posts_f: WP Posts Json
@@ -182,7 +183,7 @@ def map_tags_post_urls(wp_posts_f, host_name=None) -> dict:
     return tags_c
 
 
-def map_tags_posts(wp_posts_f, host_name=None, idd=None) -> dict:
+def map_tags_posts(wp_posts_f: list[dict], host_name=None, idd=None) -> dict:
     """
     This function makes a {"Tag": ["post slug", ...]} or {"Tag": ["post id", ...]} dictionary.
     :param wp_posts_f: WP Posts json
@@ -191,9 +192,9 @@ def map_tags_posts(wp_posts_f, host_name=None, idd=None) -> dict:
             instead of the slugs.
     :return: dict
     """
-    mapped_ids = map_posts_by_id(wp_posts_f, host_name)
-    unique_tags = get_tag_count(wp_posts_f).keys()
-    tags_c = {kw: [] for kw in unique_tags}
+    mapped_ids: dict = map_posts_by_id(wp_posts_f, host_name)
+    unique_tags: list[str] = get_tag_count(wp_posts_f).keys()
+    tags_c: dict = {kw: [] for kw in unique_tags}
     for dic in wp_posts_f:
         for kw in dic['yoast_head_json']['schema']['@graph'][0]['keywords']:
             if kw in tags_c.keys():
@@ -206,22 +207,28 @@ def map_tags_posts(wp_posts_f, host_name=None, idd=None) -> dict:
     return tags_c
 
 
-def map_postsid_category(wp_posts_f, host_name=None) -> dict:
+def map_postsid_category(wp_posts_f: list[dict], host_name=None) -> dict:
     """
     Associates post ID with a url.
     :param wp_posts_f: Posts json
     :param host_name: (str) your hostname (Optional param = None)
     :return: dict
     """
-    u_pack = zip([idd['id'] for idd in wp_posts_f],
-                 [url['yoast_head_json']['schema']['@graph'][0]['articleSection'] for url in wp_posts_f])
+    u_pack: list[zip] = zip([idd['id'] for idd in wp_posts_f],
+                            [url['yoast_head_json']['schema']['@graph'][0]['articleSection'] for url in wp_posts_f])
     if host_name is not None:
         return {idd: f"{host_name}/" + url for idd, url in u_pack}
     else:
         return {idd: cat for idd, cat in u_pack}
 
 
-def unpack_tpl_excel(tupled_list) -> None:
+def unpack_tpl_excel(tupled_list: list[tuple]) -> None:
+    """
+    This function was created to write the contents of
+    another function into an .xlsx file cell appropriately.
+    :param tupled_list: list of tuples
+    :return:
+    """
     # tuple(map_tags_posts(wp_posts_f, idd='y').values())
     lst_to_break = tupled_list
     for item in tupled_list:
@@ -231,10 +238,10 @@ def unpack_tpl_excel(tupled_list) -> None:
 
 
 # I want hostname as input()
-hstname = 'whoresmen.com'
-b_url = f"https://{hstname}/wp-json/wp/v2"
+hstname: str = 'whoresmen.com'
+b_url: str = f"https://{hstname}/wp-json/wp/v2"
 
-rest_params = {
+rest_params: dict = {
     "users": "/users?",
     "posts": {
         "posts_url": "/posts",
@@ -247,9 +254,9 @@ rest_params = {
     }
 }
 
-if input("Want to fetch a new copy of the json file? Y/N: ").lower() == ("y" or "yes"):
+if input("Want to fetch a new copy of the WP JSON file? Y/N: ").lower() == ("y" or "yes"):
     # Modify the params parameter if needed.
-    all_posts = get_all_posts(hstname, rest_params)
+    all_posts: list[dict] = get_all_posts(hstname, rest_params)
     # Caching a copy of the request for analysis and performance gain.
     export_request_json("wp_posts", all_posts, 1)
 else:
@@ -257,7 +264,7 @@ else:
     pass
 
 # Loading local cache
-imported_json = import_request_json("wp_posts")
+imported_json: list[dict] = import_request_json("wp_posts")
 
 
 # pprint.pprint(tag_id_count_merger(imported_json))
@@ -280,7 +287,7 @@ imported_json = import_request_json("wp_posts")
 # This will generate a new file in project root.
 #export_to_csv_nt(tag_master_merger_ntpl(imported_json), "sample", ["Title", "Tag ID", "# of Taggings"])
 
-def create_tag_report_excel(wp_posts_f, workbook_name) -> None:
+def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str) -> None:
     """
     As its name points out this function writes the tagging information
     into an Excel .xlsx file
@@ -311,6 +318,7 @@ def create_tag_report_excel(wp_posts_f, workbook_name) -> None:
 
     workbook.close()
 
+    print(f"\nFind the new .xlsx file in {os.getcwd()}\n")
     return None
 
 
