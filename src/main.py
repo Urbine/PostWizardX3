@@ -20,7 +20,7 @@ def get_client_info() -> json:
     :return: json object
     """
     try:
-        with open('client_info.json', 'r', encoding='utf-8') as secrets:
+        with open('../client_info.json', 'r', encoding='utf-8') as secrets:
             client_info = json.load(secrets)
         return client_info
     except FileNotFoundError:

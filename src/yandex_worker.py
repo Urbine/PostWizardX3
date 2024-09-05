@@ -1,13 +1,12 @@
 # This file will be gathering information from the Yandex Webmaster API, and it will be
 # focused specifically in its keyword and impression analysis capabilities.
 
-import json
 import requests
 
-from main import (get_client_info,
-                  get_token_oauth,
-                  import_request_json,
-                  export_request_json)
+from src.main import (get_client_info,
+                      get_token_oauth,
+                      import_request_json,
+                      export_request_json)
 
 #  oauth2 = "https://oauth.yandex.com/authorize?response_type=code"
 #  & client_id=<app ID>
@@ -42,7 +41,7 @@ if generate_tkn.lower() == ("y" or "yes"):
 else:
     pass
 
-token_json = import_request_json()
+token_json = import_request_json("token")
 
 base_url = "https://api.webmaster.yandex.net/v4/user/"
 headers_auth = {"Authorization": f"OAuth {token_json['access_token']}"}
@@ -53,6 +52,7 @@ hosts = requests.get(f"{base_url}{user_id['user_id']}/hosts", headers=headers_au
 
 host_id = hosts['hosts'][0]['host_id']
 
+# Getting information about popular search queries
 # GET https://api.webmaster.yandex.net/v4/user/{user-id}/hosts/{host-id}/search-queries/popular
 #  ? order_by=<string> (REQUIRED)
 #  & [query_indicator=<string>]
@@ -62,9 +62,43 @@ host_id = hosts['hosts'][0]['host_id']
 #  & [offset=<int32>]
 #  & [limit=<int32>]
 
-order_by = ["TOTAL_SHOWS", "TOTAL_CLICKS"]
-popular_search_qs = (json.loads(requests.get(
+# Getting general statistics for all search queries
+# GET https://api.webmaster.yandex.net/v4/user/{user-id}/hosts/{host-id}/search-queries/all/history
+#  ? [query_indicator=<string>]
+#  & [device_type_indicator=<string>]
+#  & [date_from=<datetime>]
+#  & [date_to=<datetime>]
+
+# Getting general statistics for a search query
+# GET https://api.webmaster.yandex.net/v4/user/{user-id}/hosts/{host-id}/search-queries/{query-id}/history
+#  ? [query_indicator=<string>]
+#  & [device_type_indicator=<string>]
+#  & [date_from=<datetime>]
+#  & [date_to=<datetime>]
+
+
+
+# Query sorting order (ApiQueryOrderField)
+# and Query indicators (ApiQueryIndicator)
+api_qu_ind: dict = {
+    "t_shows": "TOTAL_SHOWS",
+    "t_clicks": "TOTAL_CLICKS",
+    "a_show_pos": "AVG_SHOW_POSITION",
+    "a_click_pos": "AVG_CLICK_POSITION"
+}
+
+# Device type indicators (ApiDeviceTypeIndicator)
+dev_type_ind: dict = {
+    "all": "ALL",
+    "pcs": "DESKTOP",
+    "ph_tab": "MOBILE_AND_TABLET",
+    "mob": "MOBILE",
+    "tabs": "TABLET"
+}
+
+order_by = [api_qu_ind["t_shows"], api_qu_ind["t_clicks"]]
+popular_search_qs = requests.get(
     f"{base_url}{user_id['user_id']}/hosts/{host_id}/search-queries/popular?order_by={order_by[1]}",
-    headers=headers_auth).content))
+    headers=headers_auth).json()
 
 print(popular_search_qs)

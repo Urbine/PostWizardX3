@@ -1,20 +1,17 @@
 # This the first attempt at connecting the WordPress API to gather information
 # to streamline analytics and other processes.
-import json
 from collections import namedtuple
 import os
-import pprint
 import requests
 import xlsxwriter
 
-from main import (get_client_info,
-                  export_request_json,
-                  import_request_json,
-                  export_to_csv_nt)
+from src.main import (get_client_info,
+                      export_request_json,
+                      import_request_json)
 
 
 # curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit
-# In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/ENDPOINT
+# In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS
 
 def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> list[dict]:
     """
@@ -59,7 +56,6 @@ def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
                 page_num_param = True
             else:
                 params_posts[-1] = str(page_num)
-                pass
             for item in curl_json:
                 result_dict.append(item)
 
@@ -224,16 +220,14 @@ def map_postsid_category(wp_posts_f: list[dict], host_name=None) -> dict:
 
 def unpack_tpl_excel(tupled_list: list[tuple]) -> None:
     """
-    This function was created to write the contents of
+    This function was created to write the tuple (by typecast) contents of
     another function into an .xlsx file cell appropriately.
     :param tupled_list: list of tuples
-    :return:
+    :return: None
     """
     # tuple(map_tags_posts(wp_posts_f, idd='y').values())
-    lst_to_break = tupled_list
     for item in tupled_list:
         yield "".join(str(item)).strip("[']")
-
     return None
 
 
@@ -241,6 +235,7 @@ def unpack_tpl_excel(tupled_list: list[tuple]) -> None:
 hstname: str = 'whoresmen.com'
 b_url: str = f"https://{hstname}/wp-json/wp/v2"
 
+# It is possible to add more REST parameters.
 rest_params: dict = {
     "users": "/users?",
     "posts": {
@@ -267,8 +262,6 @@ else:
 imported_json: list[dict] = import_request_json("wp_posts")
 
 
-# pprint.pprint(tag_id_count_merger(imported_json))
-
 # ==== WP Posts json data structure ====
 # title: imported_json[0]['title']['rendered']
 # description: imported_json[0]['content']['rendered']
@@ -285,6 +278,9 @@ imported_json: list[dict] = import_request_json("wp_posts")
 # =========== REPORTS ===========
 
 # This will generate a new file in project root.
+# The OS module will print the path at the end just in case.
+
+# CSV output is possible, not very effective though.
 #export_to_csv_nt(tag_master_merger_ntpl(imported_json), "sample", ["Title", "Tag ID", "# of Taggings"])
 
 def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str) -> None:
@@ -318,7 +314,7 @@ def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str) -> None:
 
     workbook.close()
 
-    print(f"\nFind the new .xlsx file in {os.getcwd()}\n")
+    print(f"\nFind the new .xlsx file in \n{os.getcwd()}\n")
     return None
 
 
