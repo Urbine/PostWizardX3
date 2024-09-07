@@ -1,5 +1,7 @@
 # Accessing MongerCash to get Hosted Videos and links
 import datetime
+from time import sleep
+
 from bs4 import BeautifulSoup
 
 from main import get_client_info
@@ -65,7 +67,7 @@ def combine_vid_elems(bs4_obj):
               extract_thumbnail(bs4_obj))
     return [vid_elem_lst for vid_elem_lst in page_vids]
 
-def get_dump_link(bs4_obj: BeautifulSoup):
+def get_xml_link(bs4_obj: BeautifulSoup):
     a_xml = bs4_obj.find_all('a',
                           attrs = {'title': 'Export as XML'})
     # There is only one link with this 'title attribute'
@@ -95,6 +97,8 @@ m_cash_hosted_vids = 'https://mongercash.com/internal.php?page=adtools&category=
 username = get_client_info()['MongerCash']['username']
 password = get_client_info()['MongerCash']['password']
 
+# prompt = input("Do you want to fetch a new")
+
 with web_driver as driver:
         # Go to URL
         url = m_cash_hosted_vids
@@ -116,6 +120,24 @@ with web_driver as driver:
         button_login.click()
         time.sleep(3)
 
+        # Partner select
+        website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
+        website_partner_select = Select(website_partner)
+        partner_options = website_partner_select.options
+        for num, opt in enumerate(partner_options, start=0):
+            print(f'{num}. {opt.text}')
+
+        selection = input("Enter a number and select a partner: ")
+        website_partner_select.select_by_index(int(selection))
+        time.sleep(1)
+        apply_changes_xpath = '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input'
+        apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
+        apply_changes_button.click()
+        time.sleep(3)
+
+        # Refresh the page to avoid loading status crashes in Chrome
+        driver.refresh()
+
         # Increase videos per page before dumping to XML
         vids_per_page = driver.find_element(By.ID, 'page-count-val')
 
@@ -127,17 +149,30 @@ with web_driver as driver:
             print(f'{num}. {opt.text}')
 
         selection = input("Enter a number and select an option: ")
-        vid_select.select_by_index(5)
+        vid_select.select_by_index(int(selection))
 
         #Locate update button to submit selected option
         update_submit_button = driver.find_element(By.ID, 'pageination-submit')
         update_submit_button.click()
         time.sleep(3)
-        print(driver.current_url)
+
+        driver.refresh()
 
         # Get the source after selecting the options
-        # since the website updates the xml with every valid click on the 'Update' button.
+        # since the website updates the xml  link with every valid click on the 'Update' button.
         soup = BeautifulSoup(driver.page_source, 'html.parser')
+        xml_link = 'https://mongercash.com/' + get_xml_link(soup)
+        driver.get(xml_link)
+
+        xml_source = BeautifulSoup(driver.page_source, 'lxml')
+        with open('../xml_dump.xml', 'w', encoding='utf-8')  as file:
+            file.write(str(xml_source))
+
+xml_elem_entry = xml_source.find_all('entry')
+
+for num, elem in enumerate(xml_elem_entry, start=1):
+    print(f'{num} - {xml_tag_text(elem, "title")}')
+
 
 # def get_select_txt(bs4_obj: BeautifulSoup, ID: str):
 #     select_elem = bs4_obj.find_all('select',
