@@ -5,7 +5,7 @@ import os
 import requests
 import xlsxwriter
 
-from src.main import (get_client_info,
+from main import (get_client_info,
                       export_request_json,
                       import_request_json)
 
@@ -253,13 +253,13 @@ if input("Want to fetch a new copy of the WP JSON file? Y/N: ").lower() == ("y" 
     # Modify the params parameter if needed.
     all_posts: list[dict] = get_all_posts(hstname, rest_params)
     # Caching a copy of the request for analysis and performance gain.
-    export_request_json("wp_posts", all_posts, 1)
+    export_request_json("wp_posts", all_posts, 1, parent=True)
 else:
     print("Okay, using cached file from now on!\n")
     pass
 
 # Loading local cache
-imported_json: list[dict] = import_request_json("wp_posts")
+imported_json: list[dict] = import_request_json("wp_posts", parent=True)
 
 
 # ==== WP Posts json data structure ====
@@ -283,15 +283,19 @@ imported_json: list[dict] = import_request_json("wp_posts")
 # CSV output is possible, not very effective though.
 #export_to_csv_nt(tag_master_merger_ntpl(imported_json), "sample", ["Title", "Tag ID", "# of Taggings"])
 
-def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str) -> None:
+def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: bool = False) -> None:
     """
     As its name points out this function writes the tagging information
     into an Excel .xlsx file
+    :param parent: Place the workbook in the parent directory if True, default False.
     :param wp_posts_f: WP Posts json
     :param workbook_name: (str) the workbook name without extension.
     :return: None
     """
-    workbook = xlsxwriter.Workbook(f'{workbook_name}.xlsx')
+    if parent:
+        workbook = xlsxwriter.Workbook(f'../{workbook_name}.xlsx')
+    else:
+        workbook = xlsxwriter.Workbook(f'./{workbook_name}.xlsx')
     # Tag & Tag ID Fields & Videos Tagged
     tag_plus_tid = workbook.add_worksheet(name="Tag Fields & Videos Tagged")
 
@@ -314,13 +318,18 @@ def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str) -> None:
 
     workbook.close()
 
-    print(f"\nFind the new .xlsx file in \n{os.getcwd()}\n")
+    if parent:
+        path_xlsx = os.path.dirname(os.getcwd())
+    else:
+        path_xlsx = os.getcwd()
+
+    print(f"\nFind the new .xlsx file in \n{path_xlsx}\n")
     return None
 
 
 # print(tuple(unpack_tpl_excel(map_tags_posts(imported_json, idd='y').values())))
 
-create_tag_report_excel(imported_json, "tag_report_excel")
+create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
 
 # tag_ids_dict = tag_id_merger_dict(imported_json)
 # mp_po = map_posts_by_id(imported_json, hstname)
