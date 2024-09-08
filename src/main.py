@@ -73,31 +73,50 @@ def access_url(url_raw):
     return page
 
 
-def import_request_json(filename) -> list:
+def import_request_json(filename, parent=False) -> list:
     """
-    :param filename: (str) filename without JSON extension
+    :param parent: Looks for the JSON file in the parent directory if True, default False.
+    :param filename: (str) filename
     :return: json object
     """
+    if parent:
+        parent_or_cwd = '../'
+    else:
+        parent_or_cwd = './'
+
+    if len(filename.split(".")) >= 2:
+        json_file = filename
+    elif filename == '':
+        raise RuntimeError("You need a JSON file to continue.")
+    else:
+        json_file = filename + '.json'
     try:
-        with open(f"{filename}.json", 'r', encoding='utf-8') as f:
+        with open(f"{parent_or_cwd}{json_file}", 'r', encoding='utf-8') as f:
             imp_json = json.load(f)
         return imp_json
     except FileNotFoundError:
         print("File not found! Double-check the filename.")
-        print("Don't add the .json extension to the function.")
         return None
 
 
-def export_request_json(filename, stream, indent) -> None:
+def export_request_json(filename, stream, indent, parent=False) -> None:
     """
     :param filename: (str) Filename without JSON extension.
     :param stream: (json) Data stream to export to JSON
     :param indent: (int) Indentation spaces
+    :param parent: (bool) Place file in parent directory if True, default False.
     :return: (None) print statement for console logging.
     """
+    if parent:
+        filename = "../" + filename
+        f_path = os.path.dirname(os.getcwd())
+    else:
+        filename = "./" + filename
+        f_path = os.getcwd()
+
     with open(f'{filename}.json', 'w', encoding='utf-8') as t:
         json.dump(stream, t, ensure_ascii=False, indent=indent)
-    return print("The JSON file has been stored in project root. Ready to use!\n")
+    return print(f"The JSON file has been stored in {f_path}. Ready to use!\n")
 
 
 def export_to_csv_nt(nmedtpl_lst, filename, top_row_lst) -> None:
