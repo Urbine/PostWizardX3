@@ -1,6 +1,6 @@
 from calendar import month_abbr
 from datetime import date
-import glob
+from main import search_files_by_ext
 import os
 import re
 import sqlite3
@@ -17,12 +17,6 @@ import sqlite3
 # 9.  Models - OK
 # 10. Site name - OK
 # 11. WP-Ready Slug - OK
-
-# Gets txt files in the project directory
-def get_txt_files():
-    return [route.split('/')[-1:][0]
-            for route in glob.glob(os.path.dirname(os.getcwd())+"/*.txt")]
-
 
 # the db names could be gathered via input
 # listed here for convenience
@@ -69,7 +63,8 @@ sum = 0
 months = [m for m in month_abbr]
 
 print("Available .txt files in the parent dir:\n")
-txt_files = get_txt_files()
+# Gets txt files in the project directory
+txt_files = search_files_by_ext('txt', parent=True)
 for fnum, f in enumerate(txt_files, start=1) :
     print(f'{fnum}. {f}')
 

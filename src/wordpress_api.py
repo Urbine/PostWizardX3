@@ -1,14 +1,20 @@
 # This the first attempt at connecting the WordPress API to gather information
 # to streamline analytics and other processes.
+import json
 from collections import namedtuple
 import os
+import pprint
+
 import requests
 import xlsxwriter
+from requests.auth import HTTPBasicAuth
 
 from main import (get_client_info,
-                      export_request_json,
-                      import_request_json)
-
+                    export_request_json,
+                    import_request_json,
+                    clean_filename,
+                    is_parent_dir_required,
+                    cwd_or_parent_path)
 
 # curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit
 # In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS
@@ -20,11 +26,26 @@ def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> list[dict]:
     :param param_lst: (list -> str) list of URl params
     :return: json object
     """
-    username_: str = get_client_info()["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
-    app_pass_: str = get_client_info()["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
+    client_info_file = get_client_info('client_info.json', parent=True)
+    username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
+    app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
     wp_self: str = wp_self + "".join(param_lst)
     return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"}).json()
 
+def wp_post_create(wp_self: str, param_lst: list[str], payload):
+    """
+    Makes the GET request based on the curl mechanism as described on the docs.
+    :param payload: dictionary with the post information.
+    :param wp_self: (str) wp base url
+    :param param_lst: (list -> str) list of URl params
+    :return: json object
+    """
+    client_info_file = get_client_info('client_info.json', parent=True)
+    username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
+    app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
+    auth_wp = HTTPBasicAuth(username_, app_pass_)
+    wp_self: str = wp_self + "".join(param_lst)
+    return requests.post(wp_self, json=payload, auth=auth_wp)
 
 def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
     """
@@ -136,7 +157,7 @@ def get_tag_id_pairs(wp_posts_f: list[dict]) -> dict:
     :param wp_posts_f: WP Posts Json
     :return: dict
     """
-    unique_tags: list = get_tag_count(wp_posts_f).keys()
+    unique_tags = get_tag_count(wp_posts_f).keys()
     tags_c: dict = {kw: [] for kw in unique_tags}
     for dic in wp_posts_f:
         for kw in dic['yoast_head_json']['schema']['@graph'][0]['keywords']:
@@ -189,7 +210,7 @@ def map_tags_posts(wp_posts_f: list[dict], host_name=None, idd=None) -> dict:
     :return: dict
     """
     mapped_ids: dict = map_posts_by_id(wp_posts_f, host_name)
-    unique_tags: list[str] = get_tag_count(wp_posts_f).keys()
+    unique_tags = get_tag_count(wp_posts_f).keys()
     tags_c: dict = {kw: [] for kw in unique_tags}
     for dic in wp_posts_f:
         for kw in dic['yoast_head_json']['schema']['@graph'][0]['keywords']:
@@ -210,7 +231,7 @@ def map_postsid_category(wp_posts_f: list[dict], host_name=None) -> dict:
     :param host_name: (str) your hostname (Optional param = None)
     :return: dict
     """
-    u_pack: list[zip] = zip([idd['id'] for idd in wp_posts_f],
+    u_pack = zip([idd['id'] for idd in wp_posts_f],
                             [url['yoast_head_json']['schema']['@graph'][0]['articleSection'] for url in wp_posts_f])
     if host_name is not None:
         return {idd: f"{host_name}/" + url for idd, url in u_pack}
@@ -218,7 +239,7 @@ def map_postsid_category(wp_posts_f: list[dict], host_name=None) -> dict:
         return {idd: cat for idd, cat in u_pack}
 
 
-def unpack_tpl_excel(tupled_list: list[tuple]) -> None:
+def unpack_tpl_excel(tupled_list) -> None:
     """
     This function was created to write the tuple (by typecast) contents of
     another function into an .xlsx file cell appropriately.
@@ -228,6 +249,51 @@ def unpack_tpl_excel(tupled_list: list[tuple]) -> None:
     # tuple(map_tags_posts(wp_posts_f, idd='y').values())
     for item in tupled_list:
         yield "".join(str(item)).strip("[']")
+    return None
+
+# =========== REPORTS ===========
+
+# This will generate a new .xlsx file in project root.
+# CSV output is possible, not very effective, though.
+#export_to_csv_nt(tag_master_merger_ntpl(imported_json),
+# "sample", ["Title", "Tag ID", "# of Taggings"])
+# create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
+def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: bool = False) -> None:
+    """
+    As its name points out this function writes the tagging information
+    into an Excel .xlsx file
+    :param parent: Place the workbook in the parent directory if True, default False.
+    :param wp_posts_f: WP Posts json
+    :param workbook_name: (str) the workbook name with or without extension.
+    :return: None
+    """
+    workbook_fname = clean_filename(workbook_name, '.xlsx')
+    dir_prefix = is_parent_dir_required(parent)
+
+    workbook = xlsxwriter.Workbook(f'{dir_prefix}{workbook_fname}')
+    # Tag & Tag ID Fields & Videos Tagged
+    tag_plus_tid = workbook.add_worksheet(name="Tag Fields & Videos Tagged")
+
+    tag_plus_tid.set_column('A:C', 20)
+    tag_plus_tid.set_column('D:E', 90)
+    tag_plus_tid.write_row('A1', ("Tag", "Tag ID", "Videos Tagged", "Tagged IDs"))
+    tag_plus_tid.write_column('A2', tuple(tag_id_merger_dict(wp_posts_f).keys()))
+    tag_plus_tid.write_column('B2', tuple(tag_id_merger_dict(wp_posts_f).values()))
+    tag_plus_tid.write_column('C2', tuple(get_tags_num_count(wp_posts_f).values()))
+    tag_plus_tid.write_column('D2', unpack_tpl_excel(map_tags_posts(wp_posts_f, idd=True).values()))
+
+    post_id_slug = workbook.add_worksheet(name="Post id & Post Slug")
+    post_id_slug.set_column('A:A', 20)
+    post_id_slug.set_column('B:B', 80)
+    post_id_slug.set_column('C:C', 40)
+    post_id_slug.write_row('A1', ("Post ID", "Post Slug", "Post Category"))
+    post_id_slug.write_column('A2', tuple(map_posts_by_id(wp_posts_f).keys()))
+    post_id_slug.write_column('B2', tuple(map_posts_by_id(wp_posts_f).values()))
+    post_id_slug.write_column('C2', unpack_tpl_excel(map_postsid_category(wp_posts_f).values()))
+
+    workbook.close()
+
+    print(f"\nFind the new .xlsx file in \n{cwd_or_parent_path(parent)}\n")
     return None
 
 
@@ -261,7 +327,6 @@ else:
 # Loading local cache
 imported_json: list[dict] = import_request_json("wp_posts", parent=True)
 
-
 # ==== WP Posts json data structure ====
 # title: imported_json[0]['title']['rendered']
 # description: imported_json[0]['content']['rendered']
@@ -275,65 +340,32 @@ imported_json: list[dict] = import_request_json("wp_posts", parent=True)
 # yoast category: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['articleSection']
 # =============================
 
-# =========== REPORTS ===========
-
-# This will generate a new file in project root.
-# The OS module will print the path at the end just in case.
-
-# CSV output is possible, not very effective though.
-#export_to_csv_nt(tag_master_merger_ntpl(imported_json), "sample", ["Title", "Tag ID", "# of Taggings"])
-
-def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: bool = False) -> None:
-    """
-    As its name points out this function writes the tagging information
-    into an Excel .xlsx file
-    :param parent: Place the workbook in the parent directory if True, default False.
-    :param wp_posts_f: WP Posts json
-    :param workbook_name: (str) the workbook name without extension.
-    :return: None
-    """
-    if parent:
-        workbook = xlsxwriter.Workbook(f'../{workbook_name}.xlsx')
-    else:
-        workbook = xlsxwriter.Workbook(f'./{workbook_name}.xlsx')
-    # Tag & Tag ID Fields & Videos Tagged
-    tag_plus_tid = workbook.add_worksheet(name="Tag Fields & Videos Tagged")
-
-    tag_plus_tid.set_column('A:C', 20)
-    tag_plus_tid.set_column('D:E', 90)
-    tag_plus_tid.write_row('A1', ("Tag", "Tag ID", "Videos Tagged", "Tagged IDs"))
-    tag_plus_tid.write_column('A2', tuple(tag_id_merger_dict(wp_posts_f).keys()))
-    tag_plus_tid.write_column('B2', tuple(tag_id_merger_dict(wp_posts_f).values()))
-    tag_plus_tid.write_column('C2', tuple(get_tags_num_count(wp_posts_f).values()))
-    tag_plus_tid.write_column('D2', unpack_tpl_excel(map_tags_posts(wp_posts_f, idd=True).values()))
-
-    post_id_slug = workbook.add_worksheet(name="Post id & Post Slug")
-    post_id_slug.set_column('A:A', 20)
-    post_id_slug.set_column('B:B', 80)
-    post_id_slug.set_column('C:C', 40)
-    post_id_slug.write_row('A1', ("Post ID", "Post Slug", "Post Category"))
-    post_id_slug.write_column('A2', tuple(map_posts_by_id(wp_posts_f).keys()))
-    post_id_slug.write_column('B2', tuple(map_posts_by_id(wp_posts_f).values()))
-    post_id_slug.write_column('C2', unpack_tpl_excel(map_postsid_category(wp_posts_f).values()))
-
-    workbook.close()
-
-    if parent:
-        path_xlsx = os.path.dirname(os.getcwd())
-    else:
-        path_xlsx = os.getcwd()
-
-    print(f"\nFind the new .xlsx file in \n{path_xlsx}\n")
-    return None
+# Using the WordPress module
+# client_info_file = get_client_info('client_info.json', parent=True)
+# user: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
+# passw: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
 
 
-# print(tuple(unpack_tpl_excel(map_tags_posts(imported_json, idd='y').values())))
+banner_tuktuk_patrol = "<figure class=\"wp-block-image size-large\"><a href=\"https://join.tuktukpatrol.com/track/MzAwMTc2NC4xLjE1LjQ1LjAuMTM4MjIuMC4wLjA\"><img decoding=\"async\" src=\"https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1\" alt=\"Skinny Thai Spintop | Tutuk Patrol on WhoresMen.com\"/></a></figure>"
 
-create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
 
-# tag_ids_dict = tag_id_merger_dict(imported_json)
-# mp_po = map_posts_by_id(imported_json, hstname)
-# pprint.pprint(tag_ids_dict)
-# #print(p_per_page)
-# print(len(tag_ids_dict))
-# print(len(mp_po))
+
+# +++++++ WP POST TESTING +++++++
+
+vid_name = "This is a test"
+vid_slug = "this-is-a-post-test"
+vid_description = "This is a brief description of a video that was pushed through the WP API"
+banner_tracking_url = "https://join.tuktukpatrol.com/track/MzAwMTc2NC4xLjE1LjQ1LjAuMTM4MjIuMC4wLjA"
+banner_url = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
+partner_name = "TukTuk Patrol"
+
+data = {
+    "title": f"{vid_name}",
+    "content" : f"{vid_description}",
+    "status" : "draft"
+}
+
+create_wp = wp_post_create(b_url, [rest_params['posts']['posts_url']], data)
+pprint.pprint(create_wp.json())
+
+# +++++++ WP PAYLOAD +++++++
