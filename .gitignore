@@ -162,8 +162,6 @@ cython_debug/
 
 .idea/
 
-.thumbnails/
-
 # Individual files
 git_commit_summary.txt
 client_info.json
@@ -179,4 +177,3 @@ partner_three_dump.db
 partner_three_dump.txt
 partner_two_dump.db
 partner_two_dump_file.txt
-WP_all_post_titles.db
