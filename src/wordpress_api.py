@@ -365,7 +365,7 @@ if input("Want to fetch a new copy of the WP Posts JSON file? Y/N: ").lower() ==
     # Caching a copy of the request for analysis and performance gain.
     export_request_json("wp_posts", all_posts, 1, parent=True)
     recent_json: list[dict] = import_request_json("wp_posts", parent=True)
-    update_published_titles_db('WP_all_titles_db', recent_json, parent=True)
+    update_published_titles_db('WP_all_post_titles_db', recent_json, parent=True)
 else:
     print("Okay, using cached file from now on!\n")
     pass
