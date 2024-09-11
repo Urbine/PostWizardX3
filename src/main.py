@@ -195,25 +195,11 @@ def export_to_csv_nt(nmedtpl_lst, filename, top_row_lst) -> None:
                 continue
     return None
 
-
-def database_select(parent=False) -> str:
-    available_dbs = search_files_by_ext('db', parent=parent)
-    print('\nHere are the available .db files:')
-    for num, db in enumerate(available_dbs, start=1):
-        print(f'{num}. {db}')
-
-    select_db = input('\nSelect your database now: ')
-    try:
-        return is_parent_dir_required(parent=parent) + available_dbs[int(select_db) - 1]
-    except IndexError:
-        raise RuntimeError('This program requires a database. Exiting...')
-
 if __name__ == '__main__':
     access_url()
     access_url_bs4()
     clean_filename()
     cwd_or_parent_path()
-    database_select()
     export_request_json()
     get_client_info()
     get_token_oauth()
