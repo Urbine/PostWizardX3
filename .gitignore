@@ -162,6 +162,8 @@ cython_debug/
 
 .idea/
 
+.thumbnails/
+
 # Individual files
 git_commit_summary.txt
 client_info.json
@@ -177,3 +179,4 @@ trike_patrol_dump.db
 trike_patrol_dump.txt
 tuktuk_patrol_dump.db
 tuktuk_patrol_dump_file.txt
+WP_all_post_titles.db
