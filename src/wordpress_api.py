@@ -6,15 +6,18 @@ import os
 import pprint
 
 import requests
+import sqlite3
+import time
 import xlsxwriter
 from requests.auth import HTTPBasicAuth
 
 from main import (get_client_info,
-                    export_request_json,
-                    import_request_json,
-                    clean_filename,
-                    is_parent_dir_required,
-                    cwd_or_parent_path)
+                  export_request_json,
+                  import_request_json,
+                  clean_filename,
+                  is_parent_dir_required,
+                  cwd_or_parent_path)
+
 
 # curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit
 # In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS
@@ -32,6 +35,7 @@ def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> list[dict]:
     wp_self: str = wp_self + "".join(param_lst)
     return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"}).json()
 
+
 def wp_post_create(wp_self: str, param_lst: list[str], payload):
     """
     Makes the GET request based on the curl mechanism as described on the docs.
@@ -45,7 +49,8 @@ def wp_post_create(wp_self: str, param_lst: list[str], payload):
     app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
     auth_wp = HTTPBasicAuth(username_, app_pass_)
     wp_self: str = wp_self + "".join(param_lst)
-    return requests.post(wp_self, json=payload, auth=auth_wp)
+    return requests.post(wp_self, json=payload, auth=auth_wp).status_code
+
 
 def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
     """
@@ -167,6 +172,13 @@ def get_tag_id_pairs(wp_posts_f: list[dict]) -> dict:
     return tags_c
 
 
+def get_post_titles_local(wp_posts_f: list[dict]):
+    all_titles = []
+    for post in wp_posts_f:
+        all_titles.append(post['title']['rendered'])
+    return all_titles
+
+
 def map_posts_by_id(wp_posts_f: list[dict], host_name=None) -> dict:
     """
     Associates post ID with a url.
@@ -232,7 +244,7 @@ def map_postsid_category(wp_posts_f: list[dict], host_name=None) -> dict:
     :return: dict
     """
     u_pack = zip([idd['id'] for idd in wp_posts_f],
-                            [url['yoast_head_json']['schema']['@graph'][0]['articleSection'] for url in wp_posts_f])
+                 [url['yoast_head_json']['schema']['@graph'][0]['articleSection'] for url in wp_posts_f])
     if host_name is not None:
         return {idd: f"{host_name}/" + url for idd, url in u_pack}
     else:
@@ -251,11 +263,12 @@ def unpack_tpl_excel(tupled_list) -> None:
         yield "".join(str(item)).strip("[']")
     return None
 
+
 # =========== REPORTS ===========
 
 # This will generate a new .xlsx file in project root.
 # CSV output is possible, not very effective, though.
-#export_to_csv_nt(tag_master_merger_ntpl(imported_json),
+# export_to_csv_nt(tag_master_merger_ntpl(imported_json),
 # "sample", ["Title", "Tag ID", "# of Taggings"])
 # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
 def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: bool = False) -> None:
@@ -297,6 +310,35 @@ def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: 
     return None
 
 
+def update_published_titles_db(db_name: str, wp_posts_f: list[dict], parent=False):
+    db_name = clean_filename(db_name, '.db')
+    db_full_name = f"{is_parent_dir_required(parent=parent)}{db_name}"
+
+    if os.path.exists(f'{db_full_name}'):
+        os.remove(f'{db_full_name}')
+
+    db = sqlite3.connect(f'{db_full_name}')
+    cur = db.cursor()
+    cur.execute('CREATE TABLE videos(count, title)')
+    vid_titles = get_post_titles_local(wp_posts_f)
+    for num, title in enumerate(vid_titles, start=1):
+        cur.execute('INSERT INTO videos VALUES (?, ?)', (num, title))
+        db.commit()
+    db.close()
+
+def upload_thumbnail(wp_self: str, param_lst: list[str], file_path: str, payload: dict):
+    client_info_file = get_client_info('client_info.json', parent=True)
+    username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
+    app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
+    auth_wp = HTTPBasicAuth(username_, app_pass_)
+    headers = {"Content-Disposition": f"attachment; filename={file_path}"}
+    wp_self: str = wp_self + "".join(param_lst)
+    with open(file_path, 'rb') as thumb:
+        request = requests.post(wp_self, files={'file': thumb}, auth=auth_wp)
+    image_json = request.json()
+    return requests.post(wp_self + "/" + str(image_json['id']), json=payload, auth=auth_wp).status_code
+
+
 # I want hostname as input()
 hstname: str = 'whoresmen.com'
 b_url: str = f"https://{hstname}/wp-json/wp/v2"
@@ -311,21 +353,26 @@ rest_params: dict = {
         "fields": {"fields_base": "?_fields=",
                    # fields are comma-separated in the URL after the fields_base value.
                    "fields": ["author", "id", "excerpt", "title", "link"]
-                   }
-    }
+                   },
+        "categories": "/categories"
+    },
+    "media": "/media",
 }
 
-if input("Want to fetch a new copy of the WP JSON file? Y/N: ").lower() == ("y" or "yes"):
+if input("Want to fetch a new copy of the WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
     # Modify the params parameter if needed.
     all_posts: list[dict] = get_all_posts(hstname, rest_params)
     # Caching a copy of the request for analysis and performance gain.
     export_request_json("wp_posts", all_posts, 1, parent=True)
+    recent_json: list[dict] = import_request_json("wp_posts", parent=True)
+    update_published_titles_db('WP_all_titles_db', recent_json, parent=True)
 else:
     print("Okay, using cached file from now on!\n")
     pass
 
 # Loading local cache
 imported_json: list[dict] = import_request_json("wp_posts", parent=True)
+
 
 # ==== WP Posts json data structure ====
 # title: imported_json[0]['title']['rendered']
@@ -340,32 +387,60 @@ imported_json: list[dict] = import_request_json("wp_posts", parent=True)
 # yoast category: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['articleSection']
 # =============================
 
-# Using the WordPress module
-# client_info_file = get_client_info('client_info.json', parent=True)
-# user: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
-# passw: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
+def get_all_categories(hostname: str, params_dict: dict) -> list[dict]:
+    """
+    :param hostname: hostname of your WP site.
+    :param params_dict: dictionary with the rest parameters in the URL.
+    :return: list[dict]
+    """
+    # Accumulation of dict elements for concatenation.
+    result_dict: list[dict] = []
+    base_url: str = f"https://{hostname}/wp-json/wp/v2"
+    # List of parameters that I intend to concatenate to the base URL.
+    # /posts/page=1
+    page_num: int = 1
+    params_posts: list[str] = [params_dict["posts"]["categories"]]
+    page_num_param: bool = False
+    print("\nWorking on it...\n")
+    while True:
+        curl_json: list[dict] = curl_wp_self_concat(base_url, params_posts)
+        try:
+            if curl_json["data"]["status"] == 400:
+                print(f"\n{'DONE':=^30}\n")
+                return result_dict
+        except TypeError:
+            print(f"Processing page #{page_num}")
+            page_num += 1
+            if page_num_param is False:
+                params_posts.append(params_dict["posts"]["page"])
+                params_posts.append(str(page_num))
+                page_num_param = True
+            else:
+                params_posts[-1] = str(page_num)
+            for item in curl_json:
+                result_dict.append(item)
 
 
-banner_tuktuk_patrol = "<figure class=\"wp-block-image size-large\"><a href=\"https://join.tuktukpatrol.com/track/MzAwMTc2NC4xLjE1LjQ1LjAuMTM4MjIuMC4wLjA\"><img decoding=\"async\" src=\"https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1\" alt=\"Skinny Thai Spintop | Tutuk Patrol on WhoresMen.com\"/></a></figure>"
+# categories = get_all_categories(hstname, rest_params)
+# export_request_json('wp_categories', categories, parent=True)
+
+
+# create_wp = wp_post_create(b_url, [rest_params['posts']['posts_url']], json_post)
+# pprint.pprint(create_wp.json())
+# print(create_wp.status_code)
+
+# get_post_titles_local(imported_json)
+
+img_payload = { "alt_text": "this is a new attachment",
+                "caption": "this is a new attachment",
+                "description": "This is a new attachment"}
+
+if __name__ == '__main__':
+    wp_post_create()
+    upload_thumbnail()
 
 
 
-# +++++++ WP POST TESTING +++++++
 
-vid_name = "This is a test"
-vid_slug = "this-is-a-post-test"
-vid_description = "This is a brief description of a video that was pushed through the WP API"
-banner_tracking_url = "https://join.tuktukpatrol.com/track/MzAwMTc2NC4xLjE1LjQ1LjAuMTM4MjIuMC4wLjA"
-banner_url = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
-partner_name = "TukTuk Patrol"
 
-data = {
-    "title": f"{vid_name}",
-    "content" : f"{vid_description}",
-    "status" : "draft"
-}
 
-create_wp = wp_post_create(b_url, [rest_params['posts']['posts_url']], data)
-pprint.pprint(create_wp.json())
-
-# +++++++ WP PAYLOAD +++++++
