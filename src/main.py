@@ -84,18 +84,19 @@ def get_client_info(filename: str, parent: bool) -> json:
         print("Don't add the .json extension to the function.")
         return None
 
-def search_files_by_ext(extension: str, parent=False) -> list[str]:
+def search_files_by_ext(extension: str, parent=False, folder='') -> list[str]:
     """
     This function returns a list of the .extension files in either parent
     or current directories.
     :param extension: with or without dot
     :param parent: Searches in the parent directory if True, default False.
+    :param folder: str folder name followed by '/'
     :return: list[str]
     """
     # uses the clean_filename function to receive extension with or without dot.
     search_files = clean_filename('*', extension)
     return [route.split('/')[-1:][0]
-            for route in glob.glob(is_parent_dir_required(parent)+ f'/{search_files}')]
+            for route in glob.glob(is_parent_dir_required(parent)+ f'/{folder}{search_files}')]
 
 
 def get_token_oauth(client_id_, uri_callback_, client_secret_, auth_url_, token_url_) -> json:
