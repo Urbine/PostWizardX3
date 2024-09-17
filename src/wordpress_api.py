@@ -313,7 +313,7 @@ def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: 
 def update_published_titles_db(db_name: str, wp_posts_f: list[dict], parent=False):
     db_name = clean_filename(db_name, '.db')
     db_full_name = f"{is_parent_dir_required(parent=parent)}{db_name}"
-
+    # SQLite can't overwrite an existing db with the same table.
     if os.path.exists(f'{db_full_name}'):
         os.remove(f'{db_full_name}')
 
@@ -365,7 +365,7 @@ if input("Want to fetch a new copy of the WP Posts JSON file? Y/N: ").lower() ==
     # Caching a copy of the request for analysis and performance gain.
     export_request_json("wp_posts", all_posts, 1, parent=True)
     recent_json: list[dict] = import_request_json("wp_posts", parent=True)
-    update_published_titles_db('WP_all_post_titles_db', recent_json, parent=True)
+    update_published_titles_db('WP_all_post_titles', recent_json, parent=True)
 else:
     print("Okay, using cached file from now on!\n")
     pass
@@ -430,10 +430,6 @@ def get_all_categories(hostname: str, params_dict: dict) -> list[dict]:
 # print(create_wp.status_code)
 
 # get_post_titles_local(imported_json)
-
-img_payload = { "alt_text": "this is a new attachment",
-                "caption": "this is a new attachment",
-                "description": "This is a new attachment"}
 
 if __name__ == '__main__':
     wp_post_create()
