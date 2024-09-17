@@ -1,20 +1,31 @@
+import os
+import pyperclip
 import random
+import re
 import requests
 import sqlite3
 
-from main import database_select
+from main import (database_select,
+                  search_files_by_ext,
+                  is_parent_dir_required,
+                  get_client_info)
 from wordpress_api import wp_post_create, upload_thumbnail
 
+
 print("Choose your Partner and WP databases:\n")
-db_connection_dump = sqlite3.connect(database_select(parent=True))
+db_dump_name = database_select(parent=True)
+db_connection_dump = sqlite3.connect(db_dump_name)
 cur_dump = db_connection_dump.cursor()
-print('\n')
-db_connection_wp = sqlite3.connect(database_select(parent=True))
+
+db_wp_name = database_select(parent=True)
+db_connection_wp = sqlite3.connect(db_wp_name)
 cur_wp = db_connection_wp.cursor()
 
+client_info = get_client_info('client_info.json', parent=True)
 # Videos table - db_connection_dump
 # CREATE TABLE
-#     videos(title,
+#     videos(
+#     title,
 #     description,
 #     model,
 #     tags,
@@ -23,33 +34,37 @@ cur_wp = db_connection_wp.cursor()
 #     source_url,
 #     thumbnail_url,
 #     tracking_url,
-#     wp_slug)
+#     wp_slug
+#     )
 
-query = """
-SELECT 
-title, 
-description,  
-tags,  
-duration, 
-source_url,
-thumbnail_url,
-tracking_url,
-wp_slug FROM videos ORDER BY date DESC
-"""
+# sample_query = """
+# SELECT
+# title,
+# description,
+# tags,
+# duration,
+# source_url,
+# thumbnail_url,
+# tracking_url,
+# wp_slug FROM videos ORDER BY date DESC
+# """
 
 def fetch_videos_db(sql_query: str, db_cursor):
     db_cursor.execute(sql_query)
     return db_cursor.fetchall()
 
-def is_published(title: str, db_cursor):
+
+def published(title: str, db_cursor) -> bool:
     search_vids = f'SELECT * FROM videos WHERE title="{title}"'
     if not db_cursor.execute(search_vids).fetchall():
         return False
     else:
         return True
 
+
 def get_banner(banner_lst: list[str]):
     return random.choice(banner_lst)
+
 
 def fetch_thumbnail(folder: str, slug: str, remote_res: str):
     thumbnail_dir = folder
@@ -58,6 +73,18 @@ def fetch_thumbnail(folder: str, slug: str, remote_res: str):
         img.write(remote_data.content)
     return remote_data.status_code
 
+def clean_thumbnails_cache(cache_folder: str, parent=False):
+    img_files = search_files_by_ext('.jpg',
+                                    parent=parent,
+                                    folder=cache_folder)
+    go_to_folder = is_parent_dir_required(parent=parent) + cache_folder
+    os.chdir(go_to_folder)
+    if len(img_files) > 1:
+        for img in img_files:
+            os.remove(img)
+    else:
+        return None
+
 def make_payload(vid_slug,
                  status_wp: str,
                  vid_name: str,
@@ -65,37 +92,58 @@ def make_payload(vid_slug,
                  banner_tracking_url: str,
                  banner_img: str,
                  partner_name: str) -> dict:
+    author = client_info['WordPress']['user_apps']['wordpress_api.py']['author']
     payload_post = {"slug": f"{vid_slug}",
-                     "status": f"{status_wp}",
-                     "type": "post",
-                     "link": f"https://whoresmen.com/{vid_slug}/",
-                     "title": f"{vid_name}",
-                     "content": f"<p>{vid_description}</p><figure class=\"wp-block-image size-large\"><a href=\"{banner_tracking_url}\"><img decoding=\"async\" src=\"{banner_img}\" alt=\"{vid_name} | {partner_name} on WhoresMen.com\"/></a></figure>",
-                     "excerpt": f"<p>{vid_description}</p>\n",
-                     "author": 1,
-                     "featured_media": 0}
+                    "status": f"{status_wp}",
+                    "type": "post",
+                    "link": f"https://whoresmen.com/{vid_slug}/",
+                    "title": f"{vid_name}",
+                    "content": f"<p>{vid_description}</p><figure class=\"wp-block-image size-large\"><a href=\"{banner_tracking_url}\"><img decoding=\"async\" src=\"{banner_img}\" alt=\"{vid_name} | {partner_name} on WhoresMen.com\"/></a></figure>",
+                    "excerpt": f"<p>{vid_description}</p>\n",
+                    "author": author,
+                    "featured_media": 0}
     return payload_post
+
+
+def make_img_payload(vid_title: str, vid_description: str):
+    img_payload = {"alt_text": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!",
+                   "caption": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!",
+                   "description": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!"}
+    return img_payload
+
 
 def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor_wp):
     all_vals = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
+    # Start a new session with a clear thumbnail cache.
+    # This is in case you're run the program after a traceback or end execution early.
+    clean_thumbnails_cache('thumbnails/', parent=True)
     partners = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
+    # Prints out at the end of the uploading session.
     videos_uploaded = 0
+    # You can keep on getting posts until this variable is equal to one.
+    total_elems = len(all_vals)
     print('\n')
     for num, partner in enumerate(partners, start=1):
         print(f"{num}. {partner}")
     try:
         partner_indx = input("\n\nSelect your partner: ")
-        partner = partners[int(partner_indx)-1]
-        banners = banner_lsts[int(partner_indx)-1]
+        partner = partners[int(partner_indx) - 1]
+        banners = banner_lsts[int(partner_indx) - 1]
     except IndexError:
         partner_indx = input("\n\nSelect your partner again: ")
         partner = partners[int(partner_indx) - 1]
         banners = banner_lsts[int(partner_indx) - 1]
 
+    if re.match(db_dump_name.split('_')[0].split('/')[1],
+                partner, flags=re.IGNORECASE):
+        pass
+    else:
+        raise RuntimeError("Be careful! Partner and database must match. Try again...")
+
     for vid in all_vals:
         (title, *fields) = vid
-        if not is_published(title,cursor_wp):
+        if not published(title, cursor_wp):
             description = fields[0]
             models = fields[1]
             tags = fields[2]
@@ -104,9 +152,10 @@ def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor
             source_url = fields[5]
             thumbnail_url = fields[6]
             tracking_url = fields[7]
+            # Tells Google the main content of the page.
             wp_slug = fields[8] + '-video'
             partner_name = partner
-            print("\nReview this post:\n")
+            print(f"\n{' Review this post ':*^30}\n")
             print(title)
             print(description)
             print(f"Duration: {duration}")
@@ -124,31 +173,65 @@ def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor
 
                 print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
                 print("--> Creating post on WordPress")
-                push_post = wp_post_create(wp_base_url,['/posts'], payload)
+                push_post = wp_post_create(wp_base_url, ['/posts'], payload)
                 print(f'--> WordPress status code: {push_post}')
                 print("--> Uploading thumbnail to WordPress Media...")
-                img_attrs = {"alt_text": f"{title} - {description}. Watch it now on WhoresMen.com",
-                            "caption": f"{title} - {description}. Watch it now on WhoresMen.com",
-                            "description": f"{title} - {description}. Watch it now on WhoresMen.com"}
-                upload_img = upload_thumbnail(wp_base_url,['/media'],
+                print("--> Adding image attributes on WordPress...")
+                img_attrs = make_img_payload(title, description)
+                upload_img = upload_thumbnail(wp_base_url, ['/media'],
                                               f"../thumbnails/{wp_slug}.jpg", img_attrs)
                 print(f'\n--> WordPress Media upload status code: {upload_img}')
-                print("--> Check the post and copy all you need from above.")
+                # Copy important information to the clipboard.
+                pyperclip.copy(tags + f',{partner.lower()}')
+                pyperclip.copy(source_url)
+                pyperclip.copy(title)
+                print("--> Check the post and paste all you need from your clipboard.")
                 videos_uploaded += 1
-                if input("\nNext post? -> Y/N: ").lower() == ('y' or 'yes'):
-                    continue
+                total_elems -= 1
+                if total_elems != 1:
+                    if input("\nNext post? -> Y/N: ").lower() == ('y' or 'yes'):
+                        total_elems -= 1
+                        continue
+                    else:
+                        print("\n--> Cleaning thumbnails cache now")
+                        clean_thumbnails_cache('thumbnails/', parent=True)
+                        print(f'You have created {videos_uploaded} posts in this session!')
+                        break
                 else:
-                    print("Exiting...")
+                    print("We have reviewed all posts for this query.")
+                    print("Try a different query and run me again.")
+                    print("\n--> Cleaning thumbnails cache now")
+                    clean_thumbnails_cache('thumbnails/', parent=True)
                     print(f'You have created {videos_uploaded} posts in this session!')
                     break
-            elif input("\nReview another post? -> Y/N: ").lower() == ('y' or 'yes'):
+            elif total_elems != 1:
+                if input("\nReview another post? -> Y/N: ").lower() == ('y' or 'yes'):
+                    total_elems -= 1
                     continue
+                else:
+                    print("\nWe have reviewed all posts for this query.")
+                    print("Try a different SQL query or partner. I am ready when you are. ")
+                    print("\n--> Cleaning thumbnails cache now")
+                    clean_thumbnails_cache('thumbnails/', parent=True)
+                    print(f'You have created {videos_uploaded} posts in this session!')
+                    break
             else:
-                print("Exiting...")
-                print(f'You have uploaded {videos_uploaded} videos in this session!')
-                break
+                if total_elems == 1:
+                    print("\nWe have reviewed all posts for this query.")
+                    print("Try a different SQL query or partner. I am ready when you are. ")
+                    print("\n--> Cleaning thumbnails cache now")
+                    clean_thumbnails_cache('thumbnails/', parent=True)
+                    print(f'You have created {videos_uploaded} posts in this session!')
+                    break
+                else:
+                    print("\n--> Cleaning thumbnails cache now")
+                    clean_thumbnails_cache('thumbnails/', parent=True)
+                    print(f'You have created {videos_uploaded} posts in this session!')
+                    break
         else:
+            total_elems -= 1
             continue
+
 
 banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
 banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tktkp-960x75.gif&amp;filename=9935_name.gif&amp;type=gif&amp;download=1"
@@ -165,7 +248,7 @@ banner_lst_tktk = [banner_tuktuk_1, banner_tuktuk_2, banner_tuktuk_3]
 banner_lst_trike = [banner_trike_1, banner_trike_2, banner_trike_3]
 banner_lists = [banner_lst_asd, banner_lst_tktk, banner_lst_trike]
 
-ideal_q = 'SELECT * FROM videos WHERE date>="2024" OR date>="2023"'
+# Alternative query: SELECT * FROM videos WHERE date>="2024" OR date>="2023"
+ideal_q = 'SELECT * FROM videos WHERE date>="2023" AND duration!="trailer"'
 
 video_upload_pilot(fetch_videos_db(ideal_q, cur_dump), banner_lists, cur_wp)
-

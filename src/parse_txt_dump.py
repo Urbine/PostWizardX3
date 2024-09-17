@@ -43,7 +43,8 @@ db_conn = sqlite3.connect(f"../{db_name}")
 cursor = db_conn.cursor()
 cursor.execute("""
 CREATE TABLE
-    videos(title,
+    videos(
+    title,
     description,
     model,
     tags,
@@ -52,7 +53,8 @@ CREATE TABLE
     source_url,
     thumbnail_url,
     tracking_url,
-    wp_slug)
+    wp_slug
+    )
 """)
 
 # This variable will count the video entries that will be inserted into the db
