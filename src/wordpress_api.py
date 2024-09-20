@@ -68,7 +68,7 @@ def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
     page_num_param: bool = False
     print("\nWorking on it...\n")
     while True:
-        curl_json: list[dict] = curl_wp_self_concat(base_url, params_posts)
+        curl_json: list[dict] = curl_wp_self_concat(base_url, params_posts,)
         try:
             if curl_json["data"]["status"] == 400:
                 print(f"\n{'DONE':=^30}\n")
@@ -126,6 +126,8 @@ def get_tags_num_count(wp_posts_f: list[dict]) -> dict:
                 continue
     return tags_nums_count
 
+def get_slugs(wp_posts_f: list[dict]) -> list[str]:
+    return [url['slug'] for url in wp_posts_f]
 
 # TODO: Code reuse, map unique keys and count or aggregate info.
 
@@ -243,6 +245,13 @@ def map_postsid_category(wp_posts_f: list[dict], host_name=None) -> dict:
     :param host_name: (str) your hostname (Optional param = None)
     :return: dict
     """
+    # In the case of KeyError, there is at least one post that hasn't been categorized in WordPress.
+    # Check the culprit with the following code:
+    # try:
+    #     for url in imported_json:
+    #         print(url['yoast_head_json']['schema']['@graph'][0]['articleSection'])
+    # except KeyError:
+    #     pprint.pprint(url)
     u_pack = zip([idd['id'] for idd in wp_posts_f],
                  [url['yoast_head_json']['schema']['@graph'][0]['articleSection'] for url in wp_posts_f])
     if host_name is not None:
@@ -261,7 +270,6 @@ def unpack_tpl_excel(tupled_list) -> None:
     # tuple(map_tags_posts(wp_posts_f, idd='y').values())
     for item in tupled_list:
         yield "".join(str(item)).strip("[']")
-    return None
 
 
 # =========== REPORTS ===========
@@ -319,10 +327,11 @@ def update_published_titles_db(db_name: str, wp_posts_f: list[dict], parent=Fals
 
     db = sqlite3.connect(f'{db_full_name}')
     cur = db.cursor()
-    cur.execute('CREATE TABLE videos(count, title)')
+    cur.execute('CREATE TABLE videos(title, wp_slug)')
+    vid_slugs = get_slugs(wp_posts_f)
     vid_titles = get_post_titles_local(wp_posts_f)
-    for num, title in enumerate(vid_titles, start=1):
-        cur.execute('INSERT INTO videos VALUES (?, ?)', (num, title))
+    for title, slug in zip(vid_titles, vid_slugs):
+        cur.execute('INSERT INTO videos VALUES (?, ?)', (title, slug))
         db.commit()
     db.close()
 
@@ -419,6 +428,9 @@ def get_all_categories(hostname: str, params_dict: dict) -> list[dict]:
                 params_posts[-1] = str(page_num)
             for item in curl_json:
                 result_dict.append(item)
+
+# Create the report here. Make sure to uncomment the following:
+# create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
 
 
 # categories = get_all_categories(hstname, rest_params)

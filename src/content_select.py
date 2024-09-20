@@ -1,5 +1,7 @@
 import os
-import pyperclip
+import time
+
+import pyclip
 import random
 import re
 import requests
@@ -12,7 +14,7 @@ from main import (database_select,
 from wordpress_api import wp_post_create, upload_thumbnail
 
 
-print("Choose your Partner and WP databases:\n")
+print("Choose your Partner and WP databases:")
 db_dump_name = database_select(parent=True)
 db_connection_dump = sqlite3.connect(db_dump_name)
 cur_dump = db_connection_dump.cursor()
@@ -52,6 +54,9 @@ client_info = get_client_info('client_info.json', parent=True)
 def fetch_videos_db(sql_query: str, db_cursor):
     db_cursor.execute(sql_query)
     return db_cursor.fetchall()
+
+def fetch_not_published():
+    ...
 
 
 def published(title: str, db_cursor) -> bool:
@@ -121,8 +126,6 @@ def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor
     partners = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
-    # You can keep on getting posts until this variable is equal to one.
-    total_elems = len(all_vals)
     print('\n')
     for num, partner in enumerate(partners, start=1):
         print(f"{num}. {partner}")
@@ -141,96 +144,131 @@ def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor
     else:
         raise RuntimeError("Be careful! Partner and database must match. Try again...")
 
-    for vid in all_vals:
-        (title, *fields) = vid
+    # This loop gets the items I am interested in.
+    not_published_yet = []
+    for elem in all_vals:
+        (title, *fields) = elem
         if not published(title, cursor_wp):
-            description = fields[0]
-            models = fields[1]
-            tags = fields[2]
-            date = fields[3]
-            duration = fields[4]
-            source_url = fields[5]
-            thumbnail_url = fields[6]
-            tracking_url = fields[7]
-            # Tells Google the main content of the page.
-            wp_slug = fields[8] + '-video'
-            partner_name = partner
-            print(f"\n{' Review this post ':*^30}\n")
-            print(title)
-            print(description)
-            print(f"Duration: {duration}")
-            print(f"Tags: {tags}")
-            print(f"Models: {models}")
-            print(f"Date: {date}")
-            print(f"Source URL: {source_url}")
-            if input('\nAdd post to WP? -> Y/N: ').lower() == ('y' or 'yes'):
-                print('\n--> Making payload...')
-                payload = make_payload(wp_slug, "draft", title,
-                                       description, tracking_url, get_banner(banners), partner_name)
-
-                print("--> Fetching thumbnail...")
-                img_name = fetch_thumbnail('../thumbnails', wp_slug, thumbnail_url)
-
-                print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
-                print("--> Creating post on WordPress")
-                push_post = wp_post_create(wp_base_url, ['/posts'], payload)
-                print(f'--> WordPress status code: {push_post}')
-                print("--> Uploading thumbnail to WordPress Media...")
-                print("--> Adding image attributes on WordPress...")
-                img_attrs = make_img_payload(title, description)
-                upload_img = upload_thumbnail(wp_base_url, ['/media'],
-                                              f"../thumbnails/{wp_slug}.jpg", img_attrs)
-                print(f'\n--> WordPress Media upload status code: {upload_img}')
-                # Copy important information to the clipboard.
-                pyperclip.copy(tags + f',{partner.lower()}')
-                pyperclip.copy(source_url)
-                pyperclip.copy(title)
-                print("--> Check the post and paste all you need from your clipboard.")
-                videos_uploaded += 1
-                total_elems -= 1
-                if total_elems != 1:
-                    if input("\nNext post? -> Y/N: ").lower() == ('y' or 'yes'):
-                        total_elems -= 1
-                        continue
-                    else:
-                        print("\n--> Cleaning thumbnails cache now")
-                        clean_thumbnails_cache('thumbnails/', parent=True)
-                        print(f'You have created {videos_uploaded} posts in this session!')
-                        break
-                else:
-                    print("We have reviewed all posts for this query.")
-                    print("Try a different query and run me again.")
-                    print("\n--> Cleaning thumbnails cache now")
-                    clean_thumbnails_cache('thumbnails/', parent=True)
-                    print(f'You have created {videos_uploaded} posts in this session!')
-                    break
-            elif total_elems != 1:
-                if input("\nReview another post? -> Y/N: ").lower() == ('y' or 'yes'):
-                    total_elems -= 1
-                    continue
-                else:
-                    print("\nWe have reviewed all posts for this query.")
-                    print("Try a different SQL query or partner. I am ready when you are. ")
-                    print("\n--> Cleaning thumbnails cache now")
-                    clean_thumbnails_cache('thumbnails/', parent=True)
-                    print(f'You have created {videos_uploaded} posts in this session!')
-                    break
-            else:
-                if total_elems == 1:
-                    print("\nWe have reviewed all posts for this query.")
-                    print("Try a different SQL query or partner. I am ready when you are. ")
-                    print("\n--> Cleaning thumbnails cache now")
-                    clean_thumbnails_cache('thumbnails/', parent=True)
-                    print(f'You have created {videos_uploaded} posts in this session!')
-                    break
-                else:
-                    print("\n--> Cleaning thumbnails cache now")
-                    clean_thumbnails_cache('thumbnails/', parent=True)
-                    print(f'You have created {videos_uploaded} posts in this session!')
-                    break
+            not_published_yet.append(elem)
         else:
-            total_elems -= 1
             continue
+    # You can keep on getting posts until this variable is equal to one.
+    total_elems = len(not_published_yet)
+    print(f"\nThere are {total_elems} to be published...")
+    for num, vid in enumerate(not_published_yet):
+        (title, *fields) = vid
+        # if not published(title, cursor_wp):
+        description = fields[0]
+        models = fields[1]
+        tags = fields[2]
+        date = fields[3]
+        duration = fields[4]
+        source_url = fields[5]
+        thumbnail_url = fields[6]
+        tracking_url = fields[7]
+        # Tells Google the main content of the page.
+        wp_slug = fields[8] + '-video'
+        partner_name = partner
+        print(f"\n{' Review this post ':*^30}\n")
+        print(title)
+        print(description)
+        print(f"Duration: {duration}")
+        print(f"Tags: {tags}")
+        print(f"Models: {models}")
+        print(f"Date: {date}")
+        print(f"Source URL: {source_url}")
+        # Centralized control flow
+        add_post = input('\nAdd post to WP? -> Y/N/ENTER to review next post: ').lower()
+        if add_post == ('y' or 'yes'):
+            add_post = True
+        elif add_post == ('n' or 'no'):
+            pyclip.detect_clipboard()
+            pyclip.clear()
+            print("\n--> Cleaning thumbnails cache now")
+            clean_thumbnails_cache('thumbnails/', parent=True)
+            print(f'You have created {videos_uploaded} posts in this session!')
+            break
+        else:
+            if num < total_elems - 1:
+                pyclip.detect_clipboard()
+                pyclip.clear()
+                continue
+            else:
+                pyclip.detect_clipboard()
+                pyclip.clear()
+                print("\nWe have reviewed all posts for this query.")
+                print("Try a different SQL query or partner. I am ready when you are. ")
+                print("\n--> Cleaning thumbnails cache now")
+                clean_thumbnails_cache('thumbnails/', parent=True)
+                print(f'You have created {videos_uploaded} posts in this session!')
+                break
+        if add_post:
+            print('\n--> Making payload...')
+            payload = make_payload(wp_slug, "draft", title,
+                                   description, tracking_url, get_banner(banners), partner_name)
+
+            print("--> Fetching thumbnail...")
+            img_name = fetch_thumbnail('../thumbnails', wp_slug, thumbnail_url)
+
+            print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
+            print("--> Creating post on WordPress")
+            push_post = wp_post_create(wp_base_url, ['/posts'], payload)
+            print(f'--> WordPress status code: {push_post}')
+            print("--> Uploading thumbnail to WordPress Media...")
+            print("--> Adding image attributes on WordPress...")
+            img_attrs = make_img_payload(title, description)
+            upload_img = upload_thumbnail(wp_base_url, ['/media'],
+                                          f"../thumbnails/{wp_slug}.jpg", img_attrs)
+            print(f'\n--> WordPress Media upload status code: {upload_img}')
+            # Copy important information to the clipboard.
+            # Some tag strings end with ';'
+            pyclip.detect_clipboard()
+            pyclip.copy(tags.strip(';') + f',{partner.lower()}')
+            pyclip.copy(models)
+            pyclip.copy(source_url)
+            pyclip.copy(title)
+            print("--> Check the post and paste all you need from your clipboard.")
+            videos_uploaded += 1
+            if num < total_elems - 1:
+                next_post = input("\nNext post? -> Y/N/ENTER to review next post: ").lower()
+                if next_post == ('y' or 'yes'):
+                    # Clears clipboard after every video.
+                    pyclip.clear()
+                    continue
+                elif next_post == ('n' or 'no'):
+                    # The terminating parts add this function to avoid tracebacks from pyclip
+                    pyclip.detect_clipboard()
+                    pyclip.clear()
+                    print("\n--> Cleaning thumbnails cache now")
+                    clean_thumbnails_cache('thumbnails/', parent=True)
+                    print(f'You have created {videos_uploaded} posts in this session!')
+                    break
+                else:
+                    pyclip.detect_clipboard()
+                    pyclip.clear()
+                    continue
+            else:
+                # Since we ran out of elements the script will end after adding it to WP
+                # So that it doesn't clear the clipboard automatically.
+                print("\nWe have reviewed all posts for this query.")
+                print("Try a different query and run me again.")
+                print("\n--> Cleaning thumbnails cache now")
+                clean_thumbnails_cache('thumbnails/', parent=True)
+                print(f'You have created {videos_uploaded} posts in this session!')
+                print("Waiting for 60 secs to clear the clipboard before you're done with the last post...")
+                time.sleep(60)
+                pyclip.detect_clipboard()
+                pyclip.clear()
+                break
+        else:
+            pyclip.detect_clipboard()
+            pyclip.clear()
+            print("\nWe have reviewed all posts for this query.")
+            print("Try a different SQL query or partner. I am ready when you are. ")
+            print("\n--> Cleaning thumbnails cache now")
+            clean_thumbnails_cache('thumbnails/', parent=True)
+            print(f'You have created {videos_uploaded} posts in this session!')
+            break
 
 
 banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
