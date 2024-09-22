@@ -4,7 +4,7 @@ from time import sleep
 
 from bs4 import BeautifulSoup
 
-from main import get_client_info
+import helpers
 import re
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
@@ -94,8 +94,8 @@ media_source_hosted_vids = 'https://media_source.com/internal.php?page=adtools&c
 
 # TODO: Use JSON notation to store user credentials
 #  so that no private information is pushed to GitHub. OK
-username = get_client_info()['MediaSource']['username']
-password = get_client_info()['MediaSource']['password']
+username = helpers.get_client_info()['MediaSource']['username']
+password = helpers.get_client_info()['MediaSource']['password']
 
 # prompt = input("Do you want to fetch a new")
 

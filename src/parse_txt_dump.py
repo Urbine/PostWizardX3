@@ -1,6 +1,6 @@
 from calendar import month_abbr
 from datetime import date
-from main import search_files_by_ext
+import helpers
 import os
 import re
 import sqlite3
@@ -66,7 +66,7 @@ months = [m for m in month_abbr]
 
 print("Available .txt files in the parent dir:\n")
 # Gets txt files in the project directory
-txt_files = search_files_by_ext('txt', parent=True)
+txt_files = helpers.search_files_by_ext('txt', parent=True)
 for fnum, f in enumerate(txt_files, start=1) :
     print(f'{fnum}. {f}')
 

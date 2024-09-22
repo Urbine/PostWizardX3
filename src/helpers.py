@@ -209,16 +209,17 @@ def database_select(parent=False) -> str:
     except IndexError:
         raise RuntimeError('This program requires a database. Exiting...')
 
-if __name__ == '__main__':
-    access_url()
-    access_url_bs4()
-    clean_filename()
-    cwd_or_parent_path()
-    database_select()
-    export_request_json()
-    get_client_info()
-    get_token_oauth()
-    import_request_json()
-    is_parent_dir_required()
-    search_files_by_ext()
+# Removing this as it is not necessary.
+# if __name__ == '__main__':
+#     access_url()
+#     access_url_bs4()
+#     clean_filename()
+#     cwd_or_parent_path()
+#     database_select()
+#     export_request_json()
+#     get_client_info()
+#     get_token_oauth()
+#     import_request_json()
+#     is_parent_dir_required()
+#     search_files_by_ext()
 
