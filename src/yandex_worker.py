@@ -1,12 +1,8 @@
 # This file will be gathering information from the Yandex Webmaster API, and it will be
 # focused specifically in its keyword and impression analysis capabilities.
 
+import helpers
 import requests
-
-from src.main import (get_client_info,
-                      get_token_oauth,
-                      import_request_json,
-                      export_request_json)
 
 #  oauth2 = "https://oauth.yandex.com/authorize?response_type=code"
 #  & client_id=<app ID>
@@ -24,7 +20,7 @@ authorization_url = "https://oauth.yandex.com/authorize?"
 token_url = "https://oauth.yandex.com/authorize?"
 
 # Gets the application client details from a json file for privacy reasons.
-cred_file = get_client_info()
+cred_file = helpers.get_client_info('client_info.json', parent=True)
 client_id = cred_file['Yandex']['client_id']
 client_secret = cred_file['Yandex']['client_secret']
 
@@ -34,14 +30,14 @@ uri_callback = "http://127.0.0.47:8888"
 
 generate_tkn = input("Generate new token? Y/N ")
 if generate_tkn.lower() == ("y" or "yes"):
-    export_request_json(
+    helpers.export_request_json(
         "token",
-        get_token_oauth(client_id, uri_callback, client_secret,
-                        authorization_url, token_url), 4)
+        helpers.get_token_oauth(client_id, uri_callback, client_secret,
+                        authorization_url, token_url), 4, parent=True)
 else:
     pass
 
-token_json = import_request_json("token")
+token_json = helpers.import_request_json("token", parent=True)
 
 base_url = "https://api.webmaster.yandex.net/v4/user/"
 headers_auth = {"Authorization": f"OAuth {token_json['access_token']}"}

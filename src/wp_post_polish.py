@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 
-from main import get_client_info
+import helpers
 import re
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
@@ -22,8 +22,8 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 web_driver = webdriver.Chrome(options=chrome_options)
 
 # Get login credential from the JSON file in the project root
-username = get_client_info()['WordPress']['wp_admin']['username']
-password = get_client_info()['WordPress']['wp_admin']['password']
+username = helpers.get_client_info('client_info.json',parent=True)['WordPress']['wp_admin']['username']
+password = helpers.get_client_info('client_info.json',parent=True)['WordPress']['wp_admin']['password']
 
 wp_admin_params = {
     'video_posts': '/edit.php',

@@ -4,7 +4,7 @@ from time import sleep
 
 from bs4 import BeautifulSoup
 
-from main import get_client_info
+import helpers
 import re
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
@@ -94,8 +94,8 @@ m_cash_hosted_vids = 'https://mongercash.com/internal.php?page=adtools&category=
 
 # TODO: Use JSON notation to store user credentials
 #  so that no private information is pushed to GitHub. OK
-username = get_client_info()['MongerCash']['username']
-password = get_client_info()['MongerCash']['password']
+username = helpers.get_client_info()['MongerCash']['username']
+password = helpers.get_client_info()['MongerCash']['password']
 
 # prompt = input("Do you want to fetch a new")
 

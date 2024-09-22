@@ -1,29 +1,26 @@
+import helpers
 import os
-import time
-
 import pyclip
 import random
 import re
 import requests
 import sqlite3
+import time
+import wordpress_api
 
-from main import (database_select,
-                  search_files_by_ext,
-                  is_parent_dir_required,
-                  get_client_info)
-from wordpress_api import wp_post_create, upload_thumbnail
+from urllib3.exceptions import MaxRetryError, SSLError
 
 
 print("Choose your Partner and WP databases:")
-db_dump_name = database_select(parent=True)
+db_dump_name = helpers.database_select(parent=True)
 db_connection_dump = sqlite3.connect(db_dump_name)
 cur_dump = db_connection_dump.cursor()
 
-db_wp_name = database_select(parent=True)
+db_wp_name = helpers.database_select(parent=True)
 db_connection_wp = sqlite3.connect(db_wp_name)
 cur_wp = db_connection_wp.cursor()
 
-client_info = get_client_info('client_info.json', parent=True)
+client_info = helpers.get_client_info('client_info.json', parent=True)
 # Videos table - db_connection_dump
 # CREATE TABLE
 #     videos(
@@ -79,10 +76,10 @@ def fetch_thumbnail(folder: str, slug: str, remote_res: str):
     return remote_data.status_code
 
 def clean_thumbnails_cache(cache_folder: str, parent=False):
-    img_files = search_files_by_ext('.jpg',
+    img_files = helpers.search_files_by_ext('.jpg',
                                     parent=parent,
                                     folder=cache_folder)
-    go_to_folder = is_parent_dir_required(parent=parent) + cache_folder
+    go_to_folder = helpers.is_parent_dir_required(parent=parent) + cache_folder
     os.chdir(go_to_folder)
     if len(img_files) > 1:
         for img in img_files:
@@ -176,6 +173,7 @@ def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor
         print(f"Tags: {tags}")
         print(f"Models: {models}")
         print(f"Date: {date}")
+        print(f"Thumbnail URL: {thumbnail_url}")
         print(f"Source URL: {source_url}")
         # Centralized control flow
         add_post = input('\nAdd post to WP? -> Y/N/ENTER to review next post: ').lower()
@@ -208,27 +206,38 @@ def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor
                                    description, tracking_url, get_banner(banners), partner_name)
 
             print("--> Fetching thumbnail...")
-            img_name = fetch_thumbnail('../thumbnails', wp_slug, thumbnail_url)
-
-            print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
-            print("--> Creating post on WordPress")
-            push_post = wp_post_create(wp_base_url, ['/posts'], payload)
-            print(f'--> WordPress status code: {push_post}')
-            print("--> Uploading thumbnail to WordPress Media...")
-            print("--> Adding image attributes on WordPress...")
-            img_attrs = make_img_payload(title, description)
-            upload_img = upload_thumbnail(wp_base_url, ['/media'],
-                                          f"../thumbnails/{wp_slug}.jpg", img_attrs)
-            print(f'\n--> WordPress Media upload status code: {upload_img}')
-            # Copy important information to the clipboard.
-            # Some tag strings end with ';'
-            pyclip.detect_clipboard()
-            pyclip.copy(tags.strip(';') + f',{partner.lower()}')
-            pyclip.copy(models)
-            pyclip.copy(source_url)
-            pyclip.copy(title)
-            print("--> Check the post and paste all you need from your clipboard.")
-            videos_uploaded += 1
+            try:
+                fetch_thumbnail('../thumbnails', wp_slug, thumbnail_url)
+                print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
+                print("--> Creating post on WordPress")
+                push_post = wordpress_api.wp_post_create(wp_base_url, ['/posts'], payload)
+                print(f'--> WordPress status code: {push_post}')
+                print("--> Uploading thumbnail to WordPress Media...")
+                print("--> Adding image attributes on WordPress...")
+                img_attrs = make_img_payload(title, description)
+                upload_img = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
+                                              f"../thumbnails/{wp_slug}.jpg", img_attrs)
+                print(f'\n--> WordPress Media upload status code: {upload_img}')
+                # Copy important information to the clipboard.
+                # Some tag strings end with ';'
+                pyclip.detect_clipboard()
+                pyclip.copy(tags.strip(';') + f',{partner.lower()}')
+                pyclip.copy(models)
+                pyclip.copy(source_url)
+                pyclip.copy(title)
+                print("--> Check the post and paste all you need from your clipboard.")
+                videos_uploaded += 1
+            except MaxRetryError or SSLError:
+                pyclip.detect_clipboard()
+                pyclip.clear()
+                print("* There was a connection error while processing this post... *")
+                if input("\nDo you want to continue? Y/N/ENTER to exit: ") == ('y' or 'yes'):
+                    continue
+                else:
+                    print("\n--> Cleaning thumbnails cache now")
+                    clean_thumbnails_cache('thumbnails/', parent=True)
+                    print(f'You have created {videos_uploaded} posts in this session!')
+                    break
             if num < total_elems - 1:
                 next_post = input("\nNext post? -> Y/N/ENTER to review next post: ").lower()
                 if next_post == ('y' or 'yes'):
@@ -288,5 +297,6 @@ banner_lists = [banner_lst_asd, banner_lst_tktk, banner_lst_trike]
 
 # Alternative query: SELECT * FROM videos WHERE date>="2024" OR date>="2023"
 ideal_q = 'SELECT * FROM videos WHERE date>="2023" AND duration!="trailer"'
+
 
 video_upload_pilot(fetch_videos_db(ideal_q, cur_dump), banner_lists, cur_wp)

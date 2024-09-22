@@ -2,6 +2,7 @@
 # to streamline analytics and other processes.
 import json
 from collections import namedtuple
+import helpers
 import os
 import pprint
 
@@ -10,14 +11,6 @@ import sqlite3
 import time
 import xlsxwriter
 from requests.auth import HTTPBasicAuth
-
-from main import (get_client_info,
-                  export_request_json,
-                  import_request_json,
-                  clean_filename,
-                  is_parent_dir_required,
-                  cwd_or_parent_path)
-
 
 # curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit
 # In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS
@@ -29,7 +22,7 @@ def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> list[dict]:
     :param param_lst: (list -> str) list of URl params
     :return: json object
     """
-    client_info_file = get_client_info('client_info.json', parent=True)
+    client_info_file = helpers.get_client_info('client_info.json', parent=True)
     username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
     app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
     wp_self: str = wp_self + "".join(param_lst)
@@ -44,7 +37,7 @@ def wp_post_create(wp_self: str, param_lst: list[str], payload):
     :param param_lst: (list -> str) list of URl params
     :return: json object
     """
-    client_info_file = get_client_info('client_info.json', parent=True)
+    client_info_file = helpers.get_client_info('client_info.json', parent=True)
     username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
     app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
     auth_wp = HTTPBasicAuth(username_, app_pass_)
@@ -288,8 +281,8 @@ def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: 
     :param workbook_name: (str) the workbook name with or without extension.
     :return: None
     """
-    workbook_fname = clean_filename(workbook_name, '.xlsx')
-    dir_prefix = is_parent_dir_required(parent)
+    workbook_fname = helpers.clean_filename(workbook_name, '.xlsx')
+    dir_prefix = helpers.is_parent_dir_required(parent)
 
     workbook = xlsxwriter.Workbook(f'{dir_prefix}{workbook_fname}')
     # Tag & Tag ID Fields & Videos Tagged
@@ -314,13 +307,13 @@ def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: 
 
     workbook.close()
 
-    print(f"\nFind the new .xlsx file in \n{cwd_or_parent_path(parent)}\n")
+    print(f"\nFind the new .xlsx file in \n{helpers.cwd_or_parent_path(parent)}\n")
     return None
 
 
 def update_published_titles_db(db_name: str, wp_posts_f: list[dict], parent=False):
-    db_name = clean_filename(db_name, '.db')
-    db_full_name = f"{is_parent_dir_required(parent=parent)}{db_name}"
+    db_name = helpers.clean_filename(db_name, '.db')
+    db_full_name = f"{helpers.is_parent_dir_required(parent=parent)}{db_name}"
     # SQLite can't overwrite an existing db with the same table.
     if os.path.exists(f'{db_full_name}'):
         os.remove(f'{db_full_name}')
@@ -336,7 +329,7 @@ def update_published_titles_db(db_name: str, wp_posts_f: list[dict], parent=Fals
     db.close()
 
 def upload_thumbnail(wp_self: str, param_lst: list[str], file_path: str, payload: dict):
-    client_info_file = get_client_info('client_info.json', parent=True)
+    client_info_file = helpers.get_client_info('client_info.json', parent=True)
     username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
     app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
     auth_wp = HTTPBasicAuth(username_, app_pass_)
@@ -347,55 +340,7 @@ def upload_thumbnail(wp_self: str, param_lst: list[str], file_path: str, payload
     image_json = request.json()
     return requests.post(wp_self + "/" + str(image_json['id']), json=payload, auth=auth_wp).status_code
 
-
-# I want hostname as input()
-hstname: str = 'whoresmen.com'
-b_url: str = f"https://{hstname}/wp-json/wp/v2"
-
-# It is possible to add more REST parameters.
-rest_params: dict = {
-    "users": "/users?",
-    "posts": {
-        "posts_url": "/posts",
-        "per_page": "?per_page=",
-        "page": "?page=",
-        "fields": {"fields_base": "?_fields=",
-                   # fields are comma-separated in the URL after the fields_base value.
-                   "fields": ["author", "id", "excerpt", "title", "link"]
-                   },
-        "categories": "/categories"
-    },
-    "media": "/media",
-}
-
-if input("Want to fetch a new copy of the WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
-    # Modify the params parameter if needed.
-    all_posts: list[dict] = get_all_posts(hstname, rest_params)
-    # Caching a copy of the request for analysis and performance gain.
-    export_request_json("wp_posts", all_posts, 1, parent=True)
-    recent_json: list[dict] = import_request_json("wp_posts", parent=True)
-    update_published_titles_db('WP_all_post_titles', recent_json, parent=True)
-else:
-    print("Okay, using cached file from now on!\n")
-    pass
-
-# Loading local cache
-imported_json: list[dict] = import_request_json("wp_posts", parent=True)
-
-
-# ==== WP Posts json data structure ====
-# title: imported_json[0]['title']['rendered']
-# description: imported_json[0]['content']['rendered']
-# tags text and category : imported_json[0]['class_list'] (prefixed with "tag-" and "category-")
-# slug: imported_json[0]['slug']
-# tag numbers: imported_json[0]['tags'] OK
-# link: imported_json[0]['link']
-# id: imported_json[0]['id']
-# yoast json: imported_json[0]['yoast_head_json'] (can get info without overhead)
-# yoast tags without prefix: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['keywords'] OK
-# yoast category: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['articleSection']
-# =============================
-
+# TODO: get_all_categories reuses some code and it does not work as expected.
 def get_all_categories(hostname: str, params_dict: dict) -> list[dict]:
     """
     :param hostname: hostname of your WP site.
@@ -429,26 +374,59 @@ def get_all_categories(hostname: str, params_dict: dict) -> list[dict]:
             for item in curl_json:
                 result_dict.append(item)
 
+# I want hostname as input()
+hstname: str = 'whoresmen.com'
+b_url: str = f"https://{hstname}/wp-json/wp/v2"
+
+# It is possible to add more REST parameters.
+rest_params: dict = {
+    "users": "/users?",
+    "posts": {
+        "posts_url": "/posts",
+        "per_page": "?per_page=",
+        "page": "?page=",
+        "fields": {"fields_base": "?_fields=",
+                   # fields are comma-separated in the URL after the fields_base value.
+                   "fields": ["author", "id", "excerpt", "title", "link"]
+                   },
+        "categories": "/categories"
+    },
+    "media": "/media",
+}
+
+if input("Want to fetch a new copy of the WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
+    # Modify the params parameter if needed.
+    all_posts: list[dict] = get_all_posts(hstname, rest_params)
+    # Caching a copy of the request for analysis and performance gain.
+    helpers.export_request_json("wp_posts", all_posts, 1, parent=True)
+    recent_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
+    update_published_titles_db('WP_all_post_titles', recent_json, parent=True)
+else:
+    print("Okay, using cached file from now on!\n")
+    pass
+
+# Loading local cache
+imported_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
+
 # Create the report here. Make sure to uncomment the following:
 # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
-
 
 # categories = get_all_categories(hstname, rest_params)
 # export_request_json('wp_categories', categories, parent=True)
 
-
+# --> Tests
 # create_wp = wp_post_create(b_url, [rest_params['posts']['posts_url']], json_post)
-# pprint.pprint(create_wp.json())
-# print(create_wp.status_code)
-
 # get_post_titles_local(imported_json)
 
-if __name__ == '__main__':
-    wp_post_create()
-    upload_thumbnail()
-
-
-
-
-
-
+# ==== WP Posts json data structure ====
+# title: imported_json[0]['title']['rendered']
+# description: imported_json[0]['content']['rendered']
+# tags text and category : imported_json[0]['class_list'] (prefixed with "tag-" and "category-")
+# slug: imported_json[0]['slug']
+# tag numbers: imported_json[0]['tags'] OK
+# link: imported_json[0]['link']
+# id: imported_json[0]['id']
+# yoast json: imported_json[0]['yoast_head_json'] (can get info without overhead)
+# yoast tags without prefix: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['keywords'] OK
+# yoast category: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['articleSection']
+# =============================
