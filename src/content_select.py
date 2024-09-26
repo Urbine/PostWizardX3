@@ -10,17 +10,6 @@ import wordpress_api
 
 from urllib3.exceptions import MaxRetryError, SSLError
 
-
-print("Choose your Partner and WP databases:")
-db_dump_name = helpers.database_select(parent=True)
-db_connection_dump = sqlite3.connect(db_dump_name)
-cur_dump = db_connection_dump.cursor()
-
-db_wp_name = helpers.database_select(parent=True)
-db_connection_wp = sqlite3.connect(db_wp_name)
-cur_wp = db_connection_wp.cursor()
-
-client_info = helpers.get_client_info('client_info.json', parent=True)
 # Videos table - db_connection_dump
 # CREATE TABLE
 #     videos(
@@ -114,13 +103,14 @@ def make_img_payload(vid_title: str, vid_description: str):
     return img_payload
 
 
-def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor_wp):
+def video_upload_pilot(videos: list[tuple],
+                       partners: list[str],
+                       banner_lsts: list[list[str]], cursor_wp):
     all_vals = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
     # This is in case you're run the program after a traceback or end execution early.
     clean_thumbnails_cache('thumbnails/', parent=True)
-    partners = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
     print('\n')
@@ -279,24 +269,37 @@ def video_upload_pilot(videos: list[tuple], banner_lsts: list[list[str]], cursor
             print(f'You have created {videos_uploaded} posts in this session!')
             break
 
+if __name__ == '__main__':
+    print("Choose your Partner and WP databases:")
+    db_dump_name = helpers.filename_select('db', parent=True)
+    db_connection_dump = sqlite3.connect(db_dump_name)
+    cur_dump = db_connection_dump.cursor()
 
-banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
-banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tktkp-960x75.gif&amp;filename=9935_name.gif&amp;type=gif&amp;download=1"
-banner_tuktuk_3 = "https://mongercash.com/view_banner.php?name=tktkp-850x80.jpg&amp;filename=9934_name.jpg&amp;type=jpg&amp;download=1"
-banner_asd_1 = "https://mongercash.com/view_banner.php?name=asd638x60.gif&amp;filename=7654_name.gif&amp;type=gif&amp;download=1"
-banner_asd_2 = "https://mongercash.com/view_banner.php?name=asd850x80.gif&amp;filename=7655_name.gif&amp;type=gif&amp;download=1"
-banner_asd_3 = "https://mongercash.com/view_banner.php?name=asd-728x90.gif&amp;filename=9876_name.gif&amp;type=gif&amp;download=1"
-banner_trike_1 = "https://mongercash.com/view_banner.php?name=tp-728x90.gif&amp;filename=9924_name.gif&amp;type=gif&amp;download=1"
-banner_trike_2 = "https://mongercash.com/view_banner.php?name=tp-770x76.gif&amp;filename=9926_name.gif&amp;type=gif&amp;download=1"
-banner_trike_3 = "https://mongercash.com/view_banner.php?name=trike%20patrol%20850x80.gif&amp;filename=7675_name.gif&amp;type=gif&amp;download=1"
+    db_wp_name = helpers.filename_select('db', parent=True)
+    db_connection_wp = sqlite3.connect(db_wp_name)
+    cur_wp = db_connection_wp.cursor()
 
-banner_lst_asd = [banner_asd_1, banner_asd_2, banner_asd_3]
-banner_lst_tktk = [banner_tuktuk_1, banner_tuktuk_2, banner_tuktuk_3]
-banner_lst_trike = [banner_trike_1, banner_trike_2, banner_trike_3]
-banner_lists = [banner_lst_asd, banner_lst_tktk, banner_lst_trike]
+    client_info = helpers.get_client_info('client_info.json', parent=True)
 
-# Alternative query: SELECT * FROM videos WHERE date>="2024" OR date>="2023"
-ideal_q = 'SELECT * FROM videos WHERE date>="2023" AND duration!="trailer"'
+    banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
+    banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tktkp-960x75.gif&amp;filename=9935_name.gif&amp;type=gif&amp;download=1"
+    banner_tuktuk_3 = "https://mongercash.com/view_banner.php?name=tktkp-850x80.jpg&amp;filename=9934_name.jpg&amp;type=jpg&amp;download=1"
+    banner_asd_1 = "https://mongercash.com/view_banner.php?name=asd638x60.gif&amp;filename=7654_name.gif&amp;type=gif&amp;download=1"
+    banner_asd_2 = "https://mongercash.com/view_banner.php?name=asd850x80.gif&amp;filename=7655_name.gif&amp;type=gif&amp;download=1"
+    banner_asd_3 = "https://mongercash.com/view_banner.php?name=asd-728x90.gif&amp;filename=9876_name.gif&amp;type=gif&amp;download=1"
+    banner_trike_1 = "https://mongercash.com/view_banner.php?name=tp-728x90.gif&amp;filename=9924_name.gif&amp;type=gif&amp;download=1"
+    banner_trike_2 = "https://mongercash.com/view_banner.php?name=tp-770x76.gif&amp;filename=9926_name.gif&amp;type=gif&amp;download=1"
+    banner_trike_3 = "https://mongercash.com/view_banner.php?name=trike%20patrol%20850x80.gif&amp;filename=7675_name.gif&amp;type=gif&amp;download=1"
 
+    banner_lst_asd = [banner_asd_1, banner_asd_2, banner_asd_3]
+    banner_lst_tktk = [banner_tuktuk_1, banner_tuktuk_2, banner_tuktuk_3]
+    banner_lst_trike = [banner_trike_1, banner_trike_2, banner_trike_3]
+    banner_lists = [banner_lst_asd, banner_lst_tktk, banner_lst_trike]
 
-video_upload_pilot(fetch_videos_db(ideal_q, cur_dump), banner_lists, cur_wp)
+    # Alternative query: SELECT * FROM videos WHERE date>="2024" OR date>="2023"
+    ideal_q = 'SELECT * FROM videos WHERE date>="2023" AND duration!="trailer"'
+
+    partnerz = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
+
+    video_upload_pilot(fetch_videos_db(ideal_q, cur_dump),
+                       banner_lists, partnerz, cur_wp)

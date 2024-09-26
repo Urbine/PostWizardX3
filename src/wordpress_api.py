@@ -1,6 +1,7 @@
 # This the first attempt at connecting the WordPress API to gather information
 # to streamline analytics and other processes.
 import json
+import re
 from collections import namedtuple
 import helpers
 import os
@@ -11,6 +12,7 @@ import sqlite3
 import time
 import xlsxwriter
 from requests.auth import HTTPBasicAuth
+
 
 # curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit
 # In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS
@@ -264,6 +266,10 @@ def unpack_tpl_excel(tupled_list) -> None:
     for item in tupled_list:
         yield "".join(str(item)).strip("[']")
 
+def get_post_models(wp_posts_f: list[dict]):
+    models = [[" ".join(cls_lst.split('-')[1:]).title() for cls_lst in elem['class_list']
+             if re.match("pornstars", cls_lst)] for elem in wp_posts_f]
+    return [",".join(model) if len(model)!=0 else None for model in models]
 
 # =========== REPORTS ===========
 
@@ -307,7 +313,7 @@ def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: 
 
     workbook.close()
 
-    print(f"\nFind the new .xlsx file in \n{helpers.cwd_or_parent_path(parent)}\n")
+    print(f"\nFind the new .xlsx file in \n{helpers.cwd_or_parent_path(parent=parent)}\n")
     return None
 
 
@@ -315,16 +321,16 @@ def update_published_titles_db(db_name: str, wp_posts_f: list[dict], parent=Fals
     db_name = helpers.clean_filename(db_name, '.db')
     db_full_name = f"{helpers.is_parent_dir_required(parent=parent)}{db_name}"
     # SQLite can't overwrite an existing db with the same table.
-    if os.path.exists(f'{db_full_name}'):
-        os.remove(f'{db_full_name}')
-
+    helpers.if_exists_remove(db_full_name)
     db = sqlite3.connect(f'{db_full_name}')
     cur = db.cursor()
-    cur.execute('CREATE TABLE videos(title, wp_slug)')
+    cur.execute('CREATE TABLE videos(title, models, wp_slug)')
     vid_slugs = get_slugs(wp_posts_f)
     vid_titles = get_post_titles_local(wp_posts_f)
-    for title, slug in zip(vid_titles, vid_slugs):
-        cur.execute('INSERT INTO videos VALUES (?, ?)', (title, slug))
+    vid_models = get_post_models(wp_posts_f)
+    for title, models ,slug in zip(vid_titles, vid_models, vid_slugs):
+        cur.execute('INSERT INTO videos VALUES (?, ?, ?)',
+                    (title, models, slug))
         db.commit()
     db.close()
 
@@ -407,6 +413,10 @@ else:
 
 # Loading local cache
 imported_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
+
+# for num, p in enumerate(posts, start=1) :
+#     print(f'{num}. {p}')
+
 
 # Create the report here. Make sure to uncomment the following:
 # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)

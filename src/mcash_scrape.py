@@ -77,12 +77,78 @@ def xml_tag_text(bs4_xml: BeautifulSoup, elem_tag: str):
     title = bs4_xml.find(elem_tag)
     return title.text
 
+def get_page_source_flow(url_: str,
+                         c_info: tuple,
+                         webdrv: webdriver) -> BeautifulSoup:
+    # Captures the source outside the context manager.
+    source_html = None
+    with webdrv as driver:
+            # Go to URL
+            print(f"Getting options from {url_}")
+            print("Please wait...\n")
+            driver.get(url_)
+
+            # Find element by its ID
+            username_box = driver.find_element(By.ID, 'user')
+            pass_box = driver.find_element(By.ID, 'password')
+
+            # Authenticate / Send keys
+            username_box.send_keys(c_info[0])
+            pass_box.send_keys(c_info[1])
+            time.sleep(1)
+
+            # Get Button Class
+            button_login = driver.find_element(By.ID, 'head-login')
+
+            # Click on the login Button
+            button_login.click()
+            time.sleep(1)
+
+            # Partner select
+            website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
+            website_partner_select = Select(website_partner)
+            partner_options = website_partner_select.options
+            for num, opt in enumerate(partner_options, start=0):
+                print(f'{num}. {opt.text}')
+
+            selection = input("Enter a number and select a partner: ")
+            website_partner_select.select_by_index(int(selection))
+            time.sleep(1)
+            apply_changes_xpath = '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input'
+            apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
+            apply_changes_button.click()
+            time.sleep(1)
+
+            # Refresh the page to avoid loading status crashes in Chrome
+            driver.refresh()
+
+            # Increase videos per page before dumping to XML
+            vids_per_page = driver.find_element(By.ID, 'page-count-val')
+
+            vid_select = Select(vids_per_page)
+            selected_options = vid_select.options
+
+            # select_by_index seems to work with 0-indexing.
+            for num, opt in enumerate(selected_options, start=0):
+                print(f'{num}. {opt.text}')
+
+            selection = input("Enter a number and select an option: ")
+            vid_select.select_by_index(int(selection))
+
+            #Locate update button to submit selected option
+            update_submit_button = driver.find_element(By.ID, 'pageination-submit')
+            update_submit_button.click()
+            time.sleep(1)
+
+            driver.refresh()
+            source_html = BeautifulSoup(driver.page_source, 'html.parser')
+    return source_html
 
 # ==== Execution space ====
 
 # Configure Chrome's Path and arguments
 chrome_options = webdriver.ChromeOptions()
-# chrome_options.binary_location = "/opt/google/chrome/google-chrome"
+chrome_options.binary_location = "/opt/google/chrome/google-chrome"
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 chrome_options.add_argument("--headless")
@@ -90,88 +156,28 @@ chrome_options.add_argument("--headless")
 # Initialize the webdriver
 web_driver = webdriver.Chrome(options=chrome_options)
 
-m_cash_hosted_vids = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23'
-
 # TODO: Use JSON notation to store user credentials
 #  so that no private information is pushed to GitHub. OK
-username = helpers.get_client_info()['MongerCash']['username']
-password = helpers.get_client_info()['MongerCash']['password']
+username = helpers.get_client_info('client_info.json',
+                                   parent=True)['MongerCash']['username']
 
-# prompt = input("Do you want to fetch a new")
+password = helpers.get_client_info('client_info.json',
+                                   parent=True)['MongerCash']['password']
 
-with web_driver as driver:
-        # Go to URL
-        url = m_cash_hosted_vids
-        driver.get(url)
 
-        # Find element by its ID
-        username_box = driver.find_element(By.ID, 'user')
-        pass_box = driver.find_element(By.ID, 'password')
+if __name__ == '__main__':
+    m_cash_hosted_vids = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23'
+    m_cash_downloadable_sets = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=4'
 
-        # Authenticate / Send keys
-        username_box.send_keys(username)
-        pass_box.send_keys(password)
-        time.sleep(1)
+    html_source= get_page_source_flow(m_cash_downloadable_sets,
+                                      (username, password), web_driver)
 
-        # Get Button Class
-        button_login = driver.find_element(By.ID, 'head-login')
+    source_fname = input("Enter a filename for your source: ")
+    helpers.write_to_file(source_fname,'html', html_source, parent=True)
 
-        # Click on the login Button
-        button_login.click()
-        time.sleep(3)
 
-        # Partner select
-        website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
-        website_partner_select = Select(website_partner)
-        partner_options = website_partner_select.options
-        for num, opt in enumerate(partner_options, start=0):
-            print(f'{num}. {opt.text}')
-
-        selection = input("Enter a number and select a partner: ")
-        website_partner_select.select_by_index(int(selection))
-        time.sleep(1)
-        apply_changes_xpath = '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input'
-        apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
-        apply_changes_button.click()
-        time.sleep(3)
-
-        # Refresh the page to avoid loading status crashes in Chrome
-        driver.refresh()
-
-        # Increase videos per page before dumping to XML
-        vids_per_page = driver.find_element(By.ID, 'page-count-val')
-
-        vid_select = Select(vids_per_page)
-        selected_options = vid_select.options
-
-        # select_by_index seems to work with 0-indexing.
-        for num, opt in enumerate(selected_options, start=0):
-            print(f'{num}. {opt.text}')
-
-        selection = input("Enter a number and select an option: ")
-        vid_select.select_by_index(int(selection))
-
-        #Locate update button to submit selected option
-        update_submit_button = driver.find_element(By.ID, 'pageination-submit')
-        update_submit_button.click()
-        time.sleep(3)
-
-        driver.refresh()
-
-        # Get the source after selecting the options
-        # since the website updates the xml  link with every valid click on the 'Update' button.
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        xml_link = 'https://mongercash.com/' + get_xml_link(soup)
-        driver.get(xml_link)
-
-        xml_source = BeautifulSoup(driver.page_source, 'lxml')
-        with open('../xml_dump.xml', 'w', encoding='utf-8')  as file:
-            file.write(str(xml_source))
-
-xml_elem_entry = xml_source.find_all('entry')
-
-for num, elem in enumerate(xml_elem_entry, start=1):
-    print(f'{num} - {xml_tag_text(elem, "title")}')
+# for num, elem in enumerate(xml_elem_entry, start=1):
+#     print(f'{num} - {xml_tag_text(elem, "title")}')
 
 
 # def get_select_txt(bs4_obj: BeautifulSoup, ID: str):
