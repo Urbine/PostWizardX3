@@ -163,23 +163,14 @@ cython_debug/
 .idea/
 
 .thumbnails/*
+.tmp/*
 
 # Individual files
-git_commit_summary.txt
-client_info.json
-complete_tag_rep.csv
-sample.csv
-tag_report_excel.xlsx
-token.json
-wordpress_structure.json
-wp_posts.json
-partner_one_dump.db
-partner_one_dump.txt
-partner_three_dump.db
-partner_three_dump.txt
-partner_two_dump.db
-partner_two_dump_file.txt
-WP_all_post_titles.db
-WP_all_titles_db.db
-post.json
-
+!requirements.txt
+*.txt
+*.csv
+*.xlsx
+*.db
+*.json
+*.html
+*.jpg
