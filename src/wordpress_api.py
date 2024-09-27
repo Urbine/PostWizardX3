@@ -47,8 +47,9 @@ def wp_post_create(wp_self: str, param_lst: list[str], payload):
     return requests.post(wp_self, json=payload, auth=auth_wp).status_code
 
 
-def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
+def get_all_posts(hostname: str, params_dict: dict, endpoint: str) -> list[dict]:
     """
+    :param endpoint: endpoint key within the params dict.
     :param hostname: hostname of your WP site.
     :param params_dict: dictionary with the rest parameters in the URL.
     :return: list[dict]
@@ -59,7 +60,7 @@ def get_all_posts(hostname: str, params_dict: dict) -> list[dict]:
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
     page_num: int = 1
-    params_posts: list[str] = [params_dict["posts"]["posts_url"]]
+    params_posts: list[str] = [params_dict["posts"][endpoint]]
     page_num_param: bool = False
     print("\nWorking on it...\n")
     while True:
@@ -169,10 +170,13 @@ def get_tag_id_pairs(wp_posts_f: list[dict]) -> dict:
     return tags_c
 
 
-def get_post_titles_local(wp_posts_f: list[dict]):
+def get_post_titles_local(wp_posts_f: list[dict], yoast:bool = False):
     all_titles = []
     for post in wp_posts_f:
-        all_titles.append(post['title']['rendered'])
+        if yoast:
+            all_titles.append(" ".join(post['yoast_head_json']['title'].split(" ")[:-2]))
+        else:
+            all_titles.append(post['title']['rendered'])
     return all_titles
 
 
@@ -317,21 +321,36 @@ def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: 
     return None
 
 
-def update_published_titles_db(db_name: str, wp_posts_f: list[dict], parent=False):
+def update_published_titles_db(db_name: str,
+                               wp_posts_f: list[dict],
+                               parent: bool=False,
+                               photosets:bool = False,
+                               yoast:bool = False):
     db_name = helpers.clean_filename(db_name, '.db')
     db_full_name = f"{helpers.is_parent_dir_required(parent=parent)}{db_name}"
     # SQLite can't overwrite an existing db with the same table.
     helpers.if_exists_remove(db_full_name)
     db = sqlite3.connect(f'{db_full_name}')
     cur = db.cursor()
-    cur.execute('CREATE TABLE videos(title, models, wp_slug)')
-    vid_slugs = get_slugs(wp_posts_f)
-    vid_titles = get_post_titles_local(wp_posts_f)
-    vid_models = get_post_models(wp_posts_f)
-    for title, models ,slug in zip(vid_titles, vid_models, vid_slugs):
-        cur.execute('INSERT INTO videos VALUES (?, ?, ?)',
-                    (title, models, slug))
-        db.commit()
+    if photos:
+        cur.execute('CREATE TABLE sets(title, model, wp_slug)')
+        vid_slugs = get_slugs(wp_posts_f)
+        vid_titles = get_post_titles_local(wp_posts_f, yoast = yoast)
+        for title, slug in zip(vid_titles, vid_slugs):
+            model = title.split(" ")[0]
+            cur.execute('INSERT INTO sets VALUES (?, ?, ?)',
+                        (title.title(), model, slug))
+            db.commit()
+    else:
+        cur.execute('CREATE TABLE videos(title, models, wp_slug)')
+        vid_slugs = get_slugs(wp_posts_f)
+        vid_titles = get_post_titles_local(wp_posts_f)
+        vid_models = get_post_models(wp_posts_f)
+        # TODO: REFACTOR THIS! DRY!
+        for title, models ,slug in zip(vid_titles, vid_models, vid_slugs):
+            cur.execute('INSERT INTO videos VALUES (?, ?, ?)',
+                        (title, models, slug))
+            db.commit()
     db.close()
 
 def upload_thumbnail(wp_self: str, param_lst: list[str], file_path: str, payload: dict):
@@ -389,6 +408,7 @@ rest_params: dict = {
     "users": "/users?",
     "posts": {
         "posts_url": "/posts",
+        "photos": "/photos",
         "per_page": "?per_page=",
         "page": "?page=",
         "fields": {"fields_base": "?_fields=",
@@ -402,21 +422,33 @@ rest_params: dict = {
 
 if input("Want to fetch a new copy of the WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
     # Modify the params parameter if needed.
-    all_posts: list[dict] = get_all_posts(hstname, rest_params)
+    all_posts: list[dict] = get_all_posts(hstname, rest_params, 'posts_url')
     # Caching a copy of the request for analysis and performance gain.
     helpers.export_request_json("wp_posts", all_posts, 1, parent=True)
-    recent_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
-    update_published_titles_db('WP_all_post_titles', recent_json, parent=True)
+    posts_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
+    # Get photo galleries posts
+    photos = get_all_posts(hstname, rest_params, 'photos')
+    # There is local caching for photo posts too.
+    helpers.export_request_json('wp_photos', photos, parent=True)
+    photos_json = helpers.import_request_json('wp_photos', parent=True)
+    update_published_titles_db('WP_all_post_titles', posts_json, parent=True)
+    update_published_titles_db('WP_all_photo_sets', photos_json,
+                               parent=True, photosets=True)
 else:
-    print("Okay, using cached file from now on!\n")
+    print("Okay, using cached files from now on!\n")
     pass
 
-# Loading local cache
-imported_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
+if __name__=='__main__':
+    # Loading local cache
+    imported_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
 
-# for num, p in enumerate(posts, start=1) :
-#     print(f'{num}. {p}')
-
+    # for num, p in enumerate(posts, start=1) :
+    #     print(f'{num}. {p}')
+    photos = get_all_posts(hstname, rest_params, 'photos')
+    helpers.export_request_json('wp_photos', photos, parent=True)
+    ph_json = helpers.import_request_json('wp_photos', parent=True)
+    update_published_titles_db('WP_all_photo_sets',
+                               ph_json, parent=True, photosets=True, yoast = True)
 
 # Create the report here. Make sure to uncomment the following:
 # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
