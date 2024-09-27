@@ -41,10 +41,6 @@ def fetch_videos_db(sql_query: str, db_cursor):
     db_cursor.execute(sql_query)
     return db_cursor.fetchall()
 
-def fetch_not_published():
-    ...
-
-
 def published(table: str, title: str, db_cursor) -> bool:
     search_vids = f'SELECT * FROM {table} WHERE title="{title}"'
     if not db_cursor.execute(search_vids).fetchall():
@@ -106,11 +102,13 @@ def make_img_payload(vid_title: str, vid_description: str):
 
 def video_upload_pilot(videos: list[tuple],
                        partners: list[str],
-                       banner_lsts: list[list[str]], cursor_wp):
+                       banner_lsts: list[list[str]],
+                       partner_db_name: str,
+                       cursor_wp):
     all_vals = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
-    # This is in case you're run the program after a traceback or end execution early.
+    # This is in case you run the program after a traceback or end execution early.
     clean_thumbnails_cache('thumbnails/', parent=True)
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
@@ -126,7 +124,7 @@ def video_upload_pilot(videos: list[tuple],
         partner = partners[int(partner_indx) - 1]
         banners = banner_lsts[int(partner_indx) - 1]
 
-    if re.match(db_dump_name.split('_')[0].split('/')[1],
+    if re.match(partner_db_name.split('_')[0],
                 partner, flags=re.IGNORECASE):
         pass
     else:
@@ -272,12 +270,13 @@ def video_upload_pilot(videos: list[tuple],
 
 if __name__ == '__main__':
     print("Choose your Partner and WP databases:")
+    parent_wd = helpers.is_parent_dir_required(parent=True)
     db_dump_name = helpers.filename_select('db', parent=True)
-    db_connection_dump = sqlite3.connect(db_dump_name)
+    db_connection_dump = sqlite3.connect(f'{parent_wd}{db_dump_name}')
     cur_dump = db_connection_dump.cursor()
 
     db_wp_name = helpers.filename_select('db', parent=True)
-    db_connection_wp = sqlite3.connect(db_wp_name)
+    db_connection_wp = sqlite3.connect(f'{parent_wd}{db_wp_name}')
     cur_wp = db_connection_wp.cursor()
 
     client_info = helpers.get_client_info('client_info.json', parent=True)
@@ -303,4 +302,4 @@ if __name__ == '__main__':
     partnerz = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
 
     video_upload_pilot(fetch_videos_db(ideal_q, cur_dump),
-                       banner_lists, partnerz, cur_wp)
+                       partnerz, banner_lists, db_dump_name, cur_wp)

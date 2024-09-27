@@ -1,25 +1,32 @@
-# This the first attempt at connecting the WordPress API to gather information
-# to streamline analytics and other processes.
-import json
-import re
-from collections import namedtuple
-import helpers
-import os
-import pprint
+"""
+This module connects to the WordPress API to gather information
+and streamline data analysis and other processes.
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
 
+"""
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__email__  = "yohamg@programmer.net"
+
+import re
 import requests
 import sqlite3
-import time
-import xlsxwriter
+from collections import namedtuple
 from requests.auth import HTTPBasicAuth
 
 
-# curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit
-# In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS
+# Third-party modules
+import xlsxwriter
 
-def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> list[dict]:
-    """
-    Makes the GET request based on the curl mechanism as described on the docs.
+# Local implementations
+import helpers
+
+
+def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> requests:
+    """Makes the GET request based on the curl mechanism as described on the docs.
+    curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit
+    In other words: curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS
+
     :param wp_self: (str) wp base url
     :param param_lst: (list -> str) list of URl params
     :return: json object
@@ -28,12 +35,10 @@ def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> list[dict]:
     username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["username"]
     app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"]["app_password"]
     wp_self: str = wp_self + "".join(param_lst)
-    return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"}).json()
-
+    return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"})
 
 def wp_post_create(wp_self: str, param_lst: list[str], payload):
-    """
-    Makes the GET request based on the curl mechanism as described on the docs.
+    """Makes the POST request based on the mechanism as described on the docs.
     :param payload: dictionary with the post information.
     :param wp_self: (str) wp base url
     :param param_lst: (list -> str) list of URl params
@@ -64,23 +69,21 @@ def get_all_posts(hostname: str, params_dict: dict, endpoint: str) -> list[dict]
     page_num_param: bool = False
     print("\nWorking on it...\n")
     while True:
-        curl_json: list[dict] = curl_wp_self_concat(base_url, params_posts,)
-        try:
-            if curl_json["data"]["status"] == 400:
-                print(f"\n{'DONE':=^30}\n")
-                return result_dict
-        except TypeError:
-            print(f"Processing page #{page_num}")
+        curl_json = curl_wp_self_concat(base_url, params_posts)
+        if curl_json.status_code == 400:
+            print(f"\n{'DONE':=^30}\n")
+            return result_dict
+        else:
+            print(f"--> Processing page #{page_num}")
             page_num += 1
             if page_num_param is False:
-                params_posts.append(params_dict["posts"]["page"])
+                params_posts.append(params_dict['posts']['page'])
                 params_posts.append(str(page_num))
                 page_num_param = True
             else:
                 params_posts[-1] = str(page_num)
-            for item in curl_json:
+            for item in curl_json.json():
                 result_dict.append(item)
-
 
 # Tags and its IDs are repeated and must be isolated
 # to count for the unique elements in each dictionary and merge them.
@@ -330,9 +333,9 @@ def update_published_titles_db(db_name: str,
     db_full_name = f"{helpers.is_parent_dir_required(parent=parent)}{db_name}"
     # SQLite can't overwrite an existing db with the same table.
     helpers.if_exists_remove(db_full_name)
-    db = sqlite3.connect(f'{db_full_name}')
+    db = sqlite3.connect(db_full_name)
     cur = db.cursor()
-    if photos:
+    if photosets:
         cur.execute('CREATE TABLE sets(title, model, wp_slug)')
         vid_slugs = get_slugs(wp_posts_f)
         vid_titles = get_post_titles_local(wp_posts_f, yoast = yoast)
@@ -426,12 +429,13 @@ if input("Want to fetch a new copy of the WP Posts JSON file? Y/N: ").lower() ==
     # Caching a copy of the request for analysis and performance gain.
     helpers.export_request_json("wp_posts", all_posts, 1, parent=True)
     posts_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
+    update_published_titles_db('WP_all_post_titles', posts_json, parent=True)
     # Get photo galleries posts
+    print("\n** Getting photo galleries posts **")
     photos = get_all_posts(hstname, rest_params, 'photos')
     # There is local caching for photo posts too.
     helpers.export_request_json('wp_photos', photos, parent=True)
     photos_json = helpers.import_request_json('wp_photos', parent=True)
-    update_published_titles_db('WP_all_post_titles', posts_json, parent=True)
     update_published_titles_db('WP_all_photo_sets', photos_json,
                                parent=True, photosets=True)
 else:
@@ -442,28 +446,17 @@ if __name__=='__main__':
     # Loading local cache
     imported_json: list[dict] = helpers.import_request_json("wp_posts", parent=True)
 
-    # for num, p in enumerate(posts, start=1) :
-    #     print(f'{num}. {p}')
-    photos = get_all_posts(hstname, rest_params, 'photos')
-    helpers.export_request_json('wp_photos', photos, parent=True)
-    ph_json = helpers.import_request_json('wp_photos', parent=True)
-    update_published_titles_db('WP_all_photo_sets',
-                               ph_json, parent=True, photosets=True, yoast = True)
 
-# Create the report here. Make sure to uncomment the following:
-# create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
+    # Create the report here. Make sure to uncomment the following:
+    # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
 
-# categories = get_all_categories(hstname, rest_params)
-# export_request_json('wp_categories', categories, parent=True)
-
-# --> Tests
-# create_wp = wp_post_create(b_url, [rest_params['posts']['posts_url']], json_post)
-# get_post_titles_local(imported_json)
+    # categories = get_all_categories(hstname, rest_params)
+    # export_request_json('wp_categories', categories, parent=True)
 
 # ==== WP Posts json data structure ====
 # title: imported_json[0]['title']['rendered']
 # description: imported_json[0]['content']['rendered']
-# tags text and category : imported_json[0]['class_list'] (prefixed with "tag-" and "category-")
+# tags text, category, and models: imported_json[0]['class_list'] (prefixed with "tag-" and "category-")
 # slug: imported_json[0]['slug']
 # tag numbers: imported_json[0]['tags'] OK
 # link: imported_json[0]['link']
