@@ -45,8 +45,8 @@ def fetch_not_published():
     ...
 
 
-def published(title: str, db_cursor) -> bool:
-    search_vids = f'SELECT * FROM videos WHERE title="{title}"'
+def published(table: str, title: str, db_cursor) -> bool:
+    search_vids = f'SELECT * FROM {table} WHERE title="{title}"'
     if not db_cursor.execute(search_vids).fetchall():
         return False
     else:
@@ -83,7 +83,8 @@ def make_payload(vid_slug,
                  banner_tracking_url: str,
                  banner_img: str,
                  partner_name: str) -> dict:
-    author = client_info['WordPress']['user_apps']['wordpress_api.py']['author']
+    author = helpers.get_client_info('client_info',
+                                     parent=True)['WordPress']['user_apps']['wordpress_api.py']['author']
     payload_post = {"slug": f"{vid_slug}",
                     "status": f"{status_wp}",
                     "type": "post",
@@ -135,7 +136,7 @@ def video_upload_pilot(videos: list[tuple],
     not_published_yet = []
     for elem in all_vals:
         (title, *fields) = elem
-        if not published(title, cursor_wp):
+        if not published('videos', title, cursor_wp):
             not_published_yet.append(elem)
         else:
             continue
