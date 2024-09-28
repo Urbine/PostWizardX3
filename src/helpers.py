@@ -1,4 +1,14 @@
-# This code will be used by several files in this project.
+"""
+This module stores the helper functions that collaborate
+with other local implementations.
+This file also adds bits of reusable business logic from other modules.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+
+"""
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__email__  = "yohamg@programmer.net"
 
 import csv
 import glob
@@ -19,7 +29,7 @@ from requests_oauthlib import OAuth2Session
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 def access_url_bs4(url_to_bs4: str) -> BeautifulSoup:
-    """
+    """Accesses a URL and returns a BeautifulSoup object that's ready to parse.
     :param url_to_bs4: (str) URL
     :return: bs4.BeautifulSoup object
     """
@@ -30,7 +40,7 @@ def access_url_bs4(url_to_bs4: str) -> BeautifulSoup:
     return BeautifulSoup(page, 'html.parser')
 
 def access_url(url_raw: str):
-    """
+    """ Accesses a URL and returns a http.client.HTTPResponse object
     :param url_raw: (str) URL
     :return: http.client.HTTPResponse object
     """
@@ -41,64 +51,96 @@ def access_url(url_raw: str):
     return page
 
 def clean_filename(filename: str, extension: str=None) -> str:
-    """
-    This function gets a clear filename and handles filenames with and
-    without extension and avoid breaking functions that work with filenames.
+    """This function handles filenames with and without extension
+    and avoids breaking functions that work with filenames and paths.
+    Here you can pass filenames with or without extension and enforce a file type
+    without expecting a user to pass in a correct filename.extension every time.
+
+    In case that you don't pass an extension, the function will return the filename without
+    any modifications. I call that a 'trust' mode.
+
     :param filename: str -> self-explanatory
     :param extension: str -> self-explanatory
     :return: str (New filename)
     """
-    if filename is None:
-        raise RuntimeError(f'You need a filename to continue.')
+    # This has some applications to avoid additional logic or error handling
+    # in other functions.
+    # TODO: Fix clean_filename('com.example', 'com') and clean_filename('plares.co', '.uk')
+
+    if filename == '':
+        return filename
+    elif not isinstance(filename, str):
+        raise TypeError("Filename must be a string.")
+    elif not isinstance(extension, str):
+        raise TypeError("Extension must be a string.")
+    else:
+        pass
 
     if re.findall("[.+]", extension):
-        pass
-    # This is a kind of "trust" mode.
+        if re.findall(extension.split('.')[0], filename):
+            return filename.split('.')[0] + extension
+        else:
+            return filename + extension
     elif extension is None:
+        # This is a kind of "trust" mode.
         return filename
+    elif re.findall(extension, filename):
+        if re.findall("[.+]", filename):
+            return filename.split('.')[0] + '.' + extension
+        else:
+            return filename + '.' + extension
     else:
-        extension = '.' + extension
+        return filename + '.' + extension
 
-    if len(filename.split(".")) >= 2:
-        # The user entered a value which included an extension.
-        # and the extension must match what I need.
-        return filename.split(".")[0] + extension
+
+def clean_path(folder: str, prefix: bool = False):
+    if folder == '':
+        return folder
+    elif not isinstance(folder, str):
+        raise TypeError("Filename must be a string.")
     else:
-        return filename + extension
+        pass
+
+    if prefix:
+        return '/' + folder + '/'
+    else:
+        return folder + '/'
+
 
 def cwd_or_parent_path(parent: bool=False) -> str:
-    """
-    This function gets a text that works with other functions to point out
-    where files are being stored (parent directory or current directory).
+    """This function gets an absolute path that works with other functions to point out
+    where files are being stored (parent or current working directory).
     :param parent: bool that will be gathered by parent functions.
-    :return: str
+    :return: str: absolute path string, not a path object.
     """
     if parent:
         return os.path.dirname(os.getcwd())
     else:
         return os.getcwd()
 
-def db_creation_helper(db_suggestions: list[str]) -> str:
+def filename_creation_helper(suggestions: list[str], extension: str='') -> str:
+    """Takes a list of suggested filenames or creates a custom filename from user input.
+    a user can type in just a filename without extension and the function will validate
+    it to provide the correct name as needed.
+    :param suggestions: list with the suggested filenames
+    :param extension: file extension depending on what kind of file you want the user to create.
+    :return: Filename either suggested or validated from user input.
     """
-    Takes a list of suggested names or creates a custom .db file.
-    :param db_suggestions: list with the suggested db names
-    :return: db name either suggested or customised
-    """
-    db_name_suggest = db_suggestions
-    print('Suggested database names:\n')
-    for num, db in enumerate(db_name_suggest, start=1):
-        print(f'{num}. {db}')
+    name_suggest = suggestions
+    print('Suggested filenames:\n')
+    for num, file in enumerate(name_suggest, start=1):
+        print(f'{num}. {file}')
 
-    db_name_select = input('\nPick a number to create your database or else type in a name now: ')
+    name_select = input('\nPick a number to create your file or else type in a name now: ')
     try:
-        return db_name_suggest[int(db_name_select) - 1]
+        return name_suggest[int(name_select) - 1]
     except ValueError or IndexError:
-        if len(db_name_select.split(".")) >= 2:
-            return db_name_select
-        elif db_name_select == '':
+        if len(name_select.split(".")) >= 2:
+            return name_select
+        elif name_select == '':
             raise RuntimeError("You really need a database name to continue.")
         else:
-            return db_name_select + '.db'
+            return clean_filename(name_select, extension)
 
 def filename_select(extension: str, parent: bool=False) -> str:
     """
@@ -109,7 +151,7 @@ def filename_select(extension: str, parent: bool=False) -> str:
     If you want to access the file from a parent dir,
     either let the destination function handle it for you or specify it yourself.
     """
-    available_files = search_files_by_ext(extension, parent=parent)
+    available_files = search_files_by_ext(extension, folder='', parent=parent)
     print(f'\nHere are the available {extension} files:')
     for num, file in enumerate(available_files, start=1):
         print(f'{num}. {file}')
@@ -124,11 +166,11 @@ def export_request_json(filename: str,
                         stream,
                         indent: int = 1,
                         parent: bool=False) -> None:
-    """
-    :param filename: (str) Filename without JSON extension.
+    """ This function writes a JSON file to either your parent or current working dir
+    :param filename: (str) Filename with or without JSON extension.
     :param stream: (json) Data stream to export to JSON
     :param indent: (int) Indentation spaces. Default 1
-    :param parent: (bool) Place file in parent directory if True, default False.
+    :param parent: (bool) Place file in parent directory if True. Default False.
     :return: (None) print statement for console logging.
     """
     f_name = clean_filename(filename,'.json')
@@ -141,8 +183,7 @@ def export_request_json(filename: str,
 
 
 def export_to_csv_nt(nmedtpl_lst: list, filename: str, top_row_lst: list[str]) -> None:
-    """
-    Helper function to dump the list of NamedTuples into a CSV file in project dir.
+    """Helper function to dump a list of NamedTuples into a CSV file in current working dir.
     :param nmedtpl_lst: list[namedtuple]
     :param filename: name (without csv extension)
     :param top_row_lst: list[str]
@@ -163,7 +204,8 @@ def get_token_oauth(client_id_: str,
                     client_secret_: str,
                     auth_url_: str,
                     token_url_: str) -> json:
-    """
+    """ Uses the OAuth2Session module from requests_oauthlib to obtain an
+    authentication token for compatible APIs. All parameters are self-explanatory.
     :param client_id_: (str)
     :param uri_callback_: (str)
     :param client_secret_: (str)
@@ -181,21 +223,11 @@ def get_token_oauth(client_id_: str,
         client_secret=client_secret_)
     return token
 
-def if_exists_remove(fname: str):
-    """
-    Removes a file if it exists.
-    :param fname: File name
-    :return: Returns none if the file does not exist
-    """
-    if os.path.exists(fname):
-        os.remove(fname)
-    else:
-        return None
-
 def is_parent_dir_required(parent: bool) -> str:
     """
-    This function gets a text that works with other functions to modify the
-    where files are being stored (parent directory or current directory).
+    This function returns a string to be used as a relative path that works
+    with other functions to modify the where files are being stored
+    or located (either parent or current working directory).
     :param parent: bool that will be gathered by parent functions.
     :return: str. Empty string in case the parent variable is not provided.
     """
@@ -205,6 +237,19 @@ def is_parent_dir_required(parent: bool) -> str:
         return ''
     else:
         return './'
+
+
+def if_exists_remove(fname: str, parent: bool = False):
+    """Removes a file only if it exists in either parent or current working directory.
+    :param parent: Set to 'True' if you need to look for your file in the parent dir.
+    :param fname: File name
+    :return: Returns none if the file does not exist
+    """
+    if os.path.exists(fname):
+        os.remove(fname)
+    else:
+        return None
+
 
 def get_client_info(filename: str, parent: bool=False):
     """
@@ -221,25 +266,28 @@ def get_client_info(filename: str, parent: bool=False):
         print("File not found! Double-check the filename.")
         return None
 
-def import_request_json(filename: str, parent: bool=False) -> list:
-    """
+def import_request_json(filename: str, parent: bool=False):
+    """ This function makes it possible to assign a JSON file from storage to a variable.
     :param parent: Looks for the JSON file in the parent directory if True, default False.
     :param filename: (str) filename
     :return: json object
     """
     parent_or_cwd = is_parent_dir_required(parent)
-    json_file = clean_filename(filename, '.json')
+    json_file = clean_filename(filename, 'json')
 
     try:
         with open(f"{parent_or_cwd}{json_file}", 'r', encoding='utf-8') as f:
             imp_json = json.load(f)
         return imp_json
     except FileNotFoundError:
+        print(parent_or_cwd)
+        print(json_file)
         print("File not found! Double-check the filename.")
         return None
 
-def load_from_file(filename: str, extension: str, parent=False) -> str:
-    """
+def load_from_file(filename: str, extension: str, parent=False):
+    """ Loads the content of any file that could be read with the file.read()
+    Not suitable for files that require special handling by modules or classes.
     :param extension: file extension of the file to be read
     :param parent: Looks for the file in the parent directory if True, default False.
     :param filename: (str) filename
@@ -256,14 +304,13 @@ def load_from_file(filename: str, extension: str, parent=False) -> str:
         return None
 
 def parse_date_to_iso(full_date: str, m_abbr: bool=False) -> date:
-    """
-    Break down the date and convert it to ISO format to get a datetime.date object.
-    important: 'from calendar import month_abbr, month_name' is required.
+    """Breaks down the full date string and converts it to ISO format to get a datetime.date object.
+    important: Make sure to import 'from calendar import month_abbr, month_name' as it is required.
     :param full_date: date_full is 'Aug 20th, 2024' or 'August 20th, 2024'.
-    :param m_abbr: Set to True if you provide a month abbreviation, default set to False ().
+    :param m_abbr: Set to True if you provide a month abbreviation e.g. 'Aug', default set to False ().
     :return: date object (ISO format)
     """
-    # Lists month_abbr and month_name provided by the Calendar library in Python.
+    # Lists month_abbr and month_name provided by the built-in Calendar library in Python.
     if m_abbr:
         months = [m for m in month_abbr]
     else:
@@ -284,21 +331,29 @@ def parse_date_to_iso(full_date: str, m_abbr: bool=False) -> date:
 
     return date.fromisoformat(year + month_num + day)
 
-def search_files_by_ext(extension: str, parent: bool = False, folder:str = '') -> list[str]:
-    """
-    This function returns a list of the .extension files in either parent
-    or current directories.
+def search_files_by_ext(extension: str, folder:str, parent: bool = False) -> list[str]:
+    """This function searches for files with the specified extension
+    and returns a list with the files in either parent or current working directories.
     :param extension: with or without dot
     :param parent: Searches in the parent directory if True, default False.
-    :param folder: str folder name followed by '/'
+    :param folder: str folder name
     :return: list[str]
     """
     # uses the clean_filename function to receive extension with or without dot.
     search_files = clean_filename('*', extension)
+    clean_folder = clean_path(folder)
     return [route.split('/')[-1:][0]
-            for route in glob.glob(is_parent_dir_required(parent)+ f'/{folder}/{search_files}')]
+            for route in glob.glob(is_parent_dir_required(parent)+ f'/{clean_folder}{search_files}')]
 
 def write_to_file(filename: str, extension: str, stream, parent: bool=False) -> None:
+    """
+
+    :param filename:
+    :param extension:
+    :param stream:
+    :param parent:
+    :return:
+    """
     f_name = clean_filename(filename, extension)
     with open(f'{is_parent_dir_required(parent=parent)}{f_name}', 'w', encoding='utf-8') as file:
         file.write(str(stream))
