@@ -1,9 +1,21 @@
-from calendar import month_abbr, month_name
-from datetime import date
-import helpers
+"""
+This module parses a specific type of .txt file
+called dumps. Those files contain important video metadata that will be
+inserted into a database for later use.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+
+"""
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__email__ = "yohamg@programmer.net"
+
 import os
 import re
 import sqlite3
+
+# Local implementations
+import helpers
 
 # Fields I need
 # 1.  Video title  - OK
@@ -24,7 +36,7 @@ db_name_suggest = ["asian_sex_diary_dump.db",
                    "trike_patrol_dump.db",
                    "tuktuk_patrol_dump.db"]
 
-db_name = helpers.db_creation_helper(db_name_suggest)
+db_name = helpers.filename_creation_helper(db_name_suggest, extension='db')
 
 db_conn = sqlite3.connect(f"{helpers.is_parent_dir_required(parent=True)}{db_name}")
 cursor = db_conn.cursor()
@@ -52,13 +64,13 @@ sum = 0
 
 print("Available .txt files in the parent dir:\n")
 # Gets txt files in the project directory
-txt_files = helpers.search_files_by_ext('txt', parent=True)
-for fnum, f in enumerate(txt_files, start=1) :
+txt_files = helpers.search_files_by_ext('txt', '', parent=True)
+for fnum, f in enumerate(txt_files, start=1):
     print(f'{fnum}. {f}')
 
 file_select = input("\nPick a txt to parse: ")
 try:
-    dump_file_name = txt_files[int(file_select)-1]
+    dump_file_name = txt_files[int(file_select) - 1]
 except IndexError:
     raise IndexError(f'There are {len(txt_files)} .txt files in {os.path.dirname(os.getcwd())}\nTry again!')
 
@@ -128,7 +140,7 @@ with (open(f'../{dump_file_name}', 'r', encoding='utf-8') as dump_file):
                           wp_slug)
 
             cursor.execute("INSERT INTO videos VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        all_values)
+                           all_values)
             db_conn.commit()
 
             sum = sum + 1
@@ -140,4 +152,3 @@ with (open(f'../{dump_file_name}', 'r', encoding='utf-8') as dump_file):
 
 db_path = f'{os.path.dirname(os.getcwd())}/{db_name}'
 print(f'{sum} video entries have been processed from {dump_file_name} and inserted into\n{db_path}')
-

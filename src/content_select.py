@@ -1,4 +1,4 @@
-import helpers
+
 import os
 import pyclip
 import random
@@ -6,9 +6,14 @@ import re
 import requests
 import sqlite3
 import time
-import wordpress_api
 
 from urllib3.exceptions import MaxRetryError, SSLError
+
+# Local implementations
+import helpers
+import wordpress_api
+
+
 
 # Videos table - db_connection_dump
 # CREATE TABLE
@@ -52,23 +57,76 @@ def published(table: str, title: str, db_cursor) -> bool:
 def get_banner(banner_lst: list[str]):
     return random.choice(banner_lst)
 
+def get_model_id(wp_posts_f: list[dict], model: str):
+    model_tracking = wordpress_api.map_model_id(wp_posts_f)
+    if model in model_tracking.keys():
+        return model_tracking[model]
+    else:
+        return None
 
-def fetch_thumbnail(folder: str, slug: str, remote_res: str):
-    thumbnail_dir = folder
+
+def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str]) -> list[int]:
+    tag_tracking = wordpress_api.tag_id_merger_dict(wp_posts_f)
+    # I am using a set to enforce uniqueness.
+    # Also, I want to match tags that could contain
+    # uppercase letters in the dict from WordPress.
+    # I will match them with Regex here to avoid touching the datasource.
+    matched_keys = [wptag for wptag in tag_tracking.keys()
+                    for tag in tag_lst if re.fullmatch(tag, wptag, flags=re.IGNORECASE)]
+    # The function will return a reversed list of matches.
+    return list({tag_tracking[tag] for tag in matched_keys})
+
+def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]):
+    model_tracking = wordpress_api.map_model_id(wp_posts_f)
+    return list({model_tracking[model.title()] for model in model_lst if model.title() in model_tracking.keys()})
+
+def get_dict_key(tag_dic: dict, tag_id: int):
+    for tname, tid in tag_dic.items():
+        if tag_id == tid:
+            return tname
+    return None
+
+def identify_missing(wp_data_dic: dict,
+                     data_lst: list[str],
+                     data_ids: list[int],
+                     ignore_case: bool = False):
+    # Assumes we have x items and x ids
+    if len(data_lst) == len(data_ids):
+        return None
+    else:
+        # If we have less or more items on either side, we've got a problem.
+        not_found = []
+        for item in data_lst:
+            if  ignore_case:
+                item = item.lower()
+                tags = [tag.lower() for tag in wp_data_dic.keys()]
+                if item not in tags:
+                    not_found.append(item)
+            else:
+                try:
+                    wp_data_dic[item]
+                except KeyError:
+                    not_found.append(item)
+        return not_found
+
+
+
+def fetch_thumbnail(folder: str, slug: str, remote_res: str, parent: bool = False):
+    thumbnail_dir = f'{helpers.is_parent_dir_required(parent=parent)}{folder}'
     remote_data = requests.get(remote_res)
-    with open(f"{folder}/{slug}.jpg", 'wb') as img:
+    with open(f"{thumbnail_dir}/{slug}.jpg", 'wb') as img:
         img.write(remote_data.content)
     return remote_data.status_code
 
-def clean_thumbnails_cache(cache_folder: str, parent=False):
-    img_files = helpers.search_files_by_ext('.jpg',
+def clean_file_cache(cache_folder: str, file_ext: str, parent=False):
+    cache_files = helpers.search_files_by_ext(file_ext,
                                     parent=parent,
                                     folder=cache_folder)
     go_to_folder = helpers.is_parent_dir_required(parent=parent) + cache_folder
     os.chdir(go_to_folder)
-    if len(img_files) > 1:
-        for img in img_files:
-            os.remove(img)
+    if len(cache_files) > 1:
+        for file in cache_files:
+            os.remove(file)
     else:
         return None
 
@@ -78,7 +136,9 @@ def make_payload(vid_slug,
                  vid_description: str,
                  banner_tracking_url: str,
                  banner_img: str,
-                 partner_name: str) -> dict:
+                 partner_name: str,
+                 tag_int_lst: list[int],
+                 model_int_lst: list[int]) -> dict:
     author = helpers.get_client_info('client_info',
                                      parent=True)['WordPress']['user_apps']['wordpress_api.py']['author']
     payload_post = {"slug": f"{vid_slug}",
@@ -89,7 +149,9 @@ def make_payload(vid_slug,
                     "content": f"<p>{vid_description}</p><figure class=\"wp-block-image size-large\"><a href=\"{banner_tracking_url}\"><img decoding=\"async\" src=\"{banner_img}\" alt=\"{vid_name} | {partner_name} on WhoresMen.com\"/></a></figure>",
                     "excerpt": f"<p>{vid_description}</p>\n",
                     "author": author,
-                    "featured_media": 0}
+                    "featured_media": 0,
+                    "tags": tag_int_lst,
+                    "pornstars": model_int_lst}
     return payload_post
 
 
@@ -104,12 +166,13 @@ def video_upload_pilot(videos: list[tuple],
                        partners: list[str],
                        banner_lsts: list[list[str]],
                        partner_db_name: str,
-                       cursor_wp):
+                       cursor_wp: sqlite3,
+                       wp_posts_f: list[dict]):
     all_vals = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
     # This is in case you run the program after a traceback or end execution early.
-    clean_thumbnails_cache('thumbnails/', parent=True)
+    clean_file_cache('thumbnails/', '.jpg' ,parent=True)
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
     print('\n')
@@ -140,7 +203,7 @@ def video_upload_pilot(videos: list[tuple],
             continue
     # You can keep on getting posts until this variable is equal to one.
     total_elems = len(not_published_yet)
-    print(f"\nThere are {total_elems} to be published...")
+    print(f"\nThere are {total_elems} videos to be published...")
     for num, vid in enumerate(not_published_yet):
         (title, *fields) = vid
         # if not published(title, cursor_wp):
@@ -172,7 +235,7 @@ def video_upload_pilot(videos: list[tuple],
             pyclip.detect_clipboard()
             pyclip.clear()
             print("\n--> Cleaning thumbnails cache now")
-            clean_thumbnails_cache('thumbnails/', parent=True)
+            clean_file_cache('thumbnails' ,'.jpg', parent=True)
             print(f'You have created {videos_uploaded} posts in this session!')
             break
         else:
@@ -186,17 +249,60 @@ def video_upload_pilot(videos: list[tuple],
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different SQL query or partner. I am ready when you are. ")
                 print("\n--> Cleaning thumbnails cache now")
-                clean_thumbnails_cache('thumbnails/', parent=True)
+                clean_file_cache('thumbnails' ,'.jpg', parent=True)
                 print(f'You have created {videos_uploaded} posts in this session!')
                 break
         if add_post:
             print('\n--> Making payload...')
-            payload = make_payload(wp_slug, "draft", title,
-                                   description, tracking_url, get_banner(banners), partner_name)
+            tag_prep = tags.split(',')
+            tag_prep.append(partner.lower())
+            tag_ints = get_tag_ids(wp_posts_f, tag_prep)
+            all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
+            tag_check = identify_missing(all_tags_wp, tag_prep,
+                                          tag_ints, ignore_case=True)
+            if tag_check is None:
+                # All tags have been found and mapped to their IDs.
+                pass
+            else:
+                # You've hit a snag.
+                for tag in tag_check:
+                    print(f'ATTENTION --> Tag: {tag} not on WordPress.')
+                    print('--> Copying missing tag to your system clipboard.')
+                    print("Paste it into the tags field as soon as possible...")
+                    pyclip.detect_clipboard()
+                    pyclip.copy(tag)
+
+            model_prep = models.split(',')
+            # The would-be 'models_ints'
+            calling_models = get_model_ids(wp_posts_f, model_prep)
+            all_models_wp = wordpress_api.map_model_id(wp_posts_f)
+            new_models = identify_missing(all_models_wp, model_prep, calling_models)
+
+            if new_models is None:
+                # All model have been found and located.
+                pass
+            else:
+                # There's a new girl in town.
+                for girl in new_models:
+                    print(f'ATTENTION --> Model: {girl} not on WordPress.')
+                    print('--> Copying missing model name to your system clipboard.')
+                    print("If you add this one, you won't see me here again. <3")
+                    pyclip.detect_clipboard()
+                    pyclip.copy(girl)
+
+            payload = make_payload(wp_slug,
+                                   "draft",
+                                   title,
+                                   description,
+                                   tracking_url,
+                                   get_banner(banners),
+                                   partner_name,
+                                   tag_ints,
+                                   calling_models)
 
             print("--> Fetching thumbnail...")
             try:
-                fetch_thumbnail('../thumbnails', wp_slug, thumbnail_url)
+                fetch_thumbnail('thumbnails', wp_slug, thumbnail_url, parent=True)
                 print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
                 print("--> Creating post on WordPress")
                 push_post = wordpress_api.wp_post_create(wp_base_url, ['/posts'], payload)
@@ -210,8 +316,6 @@ def video_upload_pilot(videos: list[tuple],
                 # Copy important information to the clipboard.
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
-                pyclip.copy(tags.strip(';') + f',{partner.lower()}')
-                pyclip.copy(models)
                 pyclip.copy(source_url)
                 pyclip.copy(title)
                 print("--> Check the post and paste all you need from your clipboard.")
@@ -224,7 +328,7 @@ def video_upload_pilot(videos: list[tuple],
                     continue
                 else:
                     print("\n--> Cleaning thumbnails cache now")
-                    clean_thumbnails_cache('thumbnails/', parent=True)
+                    clean_file_cache('thumbnails' ,'.jpg', parent=True)
                     print(f'You have created {videos_uploaded} posts in this session!')
                     break
             if num < total_elems - 1:
@@ -238,7 +342,7 @@ def video_upload_pilot(videos: list[tuple],
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     print("\n--> Cleaning thumbnails cache now")
-                    clean_thumbnails_cache('thumbnails/', parent=True)
+                    clean_file_cache('thumbnails' ,'.jpg', parent=True)
                     print(f'You have created {videos_uploaded} posts in this session!')
                     break
                 else:
@@ -251,7 +355,7 @@ def video_upload_pilot(videos: list[tuple],
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different query and run me again.")
                 print("\n--> Cleaning thumbnails cache now")
-                clean_thumbnails_cache('thumbnails/', parent=True)
+                clean_file_cache('thumbnails' ,'jpg', parent=True)
                 print(f'You have created {videos_uploaded} posts in this session!')
                 print("Waiting for 60 secs to clear the clipboard before you're done with the last post...")
                 time.sleep(60)
@@ -264,7 +368,7 @@ def video_upload_pilot(videos: list[tuple],
             print("\nWe have reviewed all posts for this query.")
             print("Try a different SQL query or partner. I am ready when you are. ")
             print("\n--> Cleaning thumbnails cache now")
-            clean_thumbnails_cache('thumbnails/', parent=True)
+            clean_file_cache('thumbnails' ,'.jpg', parent=True)
             print(f'You have created {videos_uploaded} posts in this session!')
             break
 
@@ -279,7 +383,7 @@ if __name__ == '__main__':
     db_connection_wp = sqlite3.connect(f'{parent_wd}{db_wp_name}')
     cur_wp = db_connection_wp.cursor()
 
-    client_info = helpers.get_client_info('client_info.json', parent=True)
+    client_info = helpers.get_client_info('client_info', parent=True)
 
     banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
     banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tktkp-960x75.gif&amp;filename=9935_name.gif&amp;type=gif&amp;download=1"
@@ -301,5 +405,9 @@ if __name__ == '__main__':
 
     partnerz = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
 
+    # TODO: Send numeric tags with the payload data.
+
+    imported_json = helpers.import_request_json("wp_posts", parent=True)
+
     video_upload_pilot(fetch_videos_db(ideal_q, cur_dump),
-                       partnerz, banner_lists, db_dump_name, cur_wp)
+                       partnerz, banner_lists, db_dump_name, cur_wp, imported_json)

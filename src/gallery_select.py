@@ -60,20 +60,22 @@ def fetch_zip(dwn_dir: str, remote_res: str, parent=False):
             # Click on the login Button
             button_login.click()
             print("--> Downloading...")
+    time.sleep(5)
     print(f"--> Fetched file {helpers.search_files_by_ext('zip', parent=True, folder='tmp')[0]}")
     return None
 
-def extract_zip(zip_path: str, extr_dir: str):
-    get_zip = helpers.search_files_by_ext('zip', folder=zip_path)
+def extract_zip(zip_path: str, extr_dir: str, parent: bool=False):
+    get_zip = helpers.search_files_by_ext('zip', folder=zip_path, parent=parent)
+
     try:
         with zipfile.ZipFile(f'{zip_path}/{get_zip[0]}', 'r') as zipf:
             zipf.extractall(path=extr_dir)
         print(f"--> Extracted files from {get_zip[0]} in folder {extr_dir}")
         print(f"--> Tidying up...")
         shutil.rmtree(f'{extr_dir}/__MACOSX')
-        helpers.if_exists_remove(f'{zip_path}/{get_zip[0]}')
+        content_select.clean_file_cache('tmp', '.zip', parent=parent)
     except IndexError or zipfile.BadZipfile:
-        helpers.if_exists_remove(f'{zip_path}/{get_zip[0]}')
+        content_select.clean_file_cache('tmp', '.zip', parent=parent)
         return None
 
 def make_gallery_payload(gal_title: str, iternum:int):
@@ -134,7 +136,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
     # This is in case you run the program after a traceback or end execution early.
-    content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+    content_select.clean_file_cache('thumbnails','.jpg', parent=True)
     # Prints out at the end of the uploading session.
     galleries_uploaded = 0
     print('\n')
@@ -173,7 +175,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
             continue
     # You can keep on getting sets until this variable is equal to one.
     total_elems = len(not_published_yet)
-    print(f"\nThere are {total_elems} to be published...")
+    print(f"\nThere are {total_elems} sets to be published...")
     for num, photo in enumerate(not_published_yet):
         (title, *fields) = photo
         # if not published(title, cursor_wp):
@@ -193,7 +195,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
             pyclip.detect_clipboard()
             pyclip.clear()
             print("\n--> Cleaning thumbnails cache now")
-            content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+            content_select.clean_file_cache('thumbnails','.jpg', parent=True)
             print(f'You have created {galleries_uploaded} sets in this session!')
             break
         else:
@@ -207,7 +209,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 print("\nWe have reviewed all sets for this query.")
                 print("Try a different SQL query or partner. I am ready when you are. ")
                 print("\n--> Cleaning thumbnails cache now")
-                content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+                content_select.clean_file_cache('thumbnails','.jpg', parent=True)
                 print(f'You have created {galleries_uploaded} sets in this session!')
                 break
         if add_post:
@@ -216,13 +218,12 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
 
             try:
                 fetch_zip('/tmp', download_url, parent=True)
-                extract_zip('../tmp', '../thumbnails')
+                extract_zip('../tmp', '../thumbnails', parent=True)
 
                 print("--> Creating set on WordPress")
                 push_post = wordpress_api.wp_post_create(wp_base_url, ['/photos'], payload)
                 print(f'--> WordPress status code: {push_post}')
                 print("--> Adding image attributes on WordPress...")
-                img_attrs = make_gallery_payload(title)
                 thumbnails = helpers.search_files_by_ext('jpg', parent=True, folder='thumbnails')
                 print(f"--> Uploading set with {len(thumbnails)} images to WordPress Media...")
                 print("--> Adding image attributes on WordPress...")
@@ -240,20 +241,20 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
             except MaxRetryError or SSLError:
                 pyclip.detect_clipboard()
                 pyclip.clear()
-                content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+                content_select.clean_file_cache('thumbnails','.jpg', parent=True)
                 print("* There was a connection error while processing this set... *")
                 if input("\nDo you want to continue? Y/N/ENTER to exit: ") == ('y' or 'yes'):
                     continue
                 else:
                     print("\n--> Cleaning thumbnails cache now")
-                    content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+                    content_select.clean_file_cache('thumbnails','.jpg', parent=True)
                     print(f'You have created {galleries_uploaded} set in this session!')
                     break
             if num < total_elems - 1:
                 next_post = input("\nNext set? -> Y/N/ENTER to review next set: ").lower()
                 if next_post == ('y' or 'yes'):
                     # Clears clipboard after every video.
-                    content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+                    content_select.clean_file_cache('thumbnails','.jpg', parent=True)
                     pyclip.clear()
                     continue
                 elif next_post == ('n' or 'no'):
@@ -261,7 +262,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     print("\n--> Cleaning thumbnails cache now")
-                    content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+                    content_select.clean_file_cache('thumbnails','.jpg', parent=True)
                     print(f'You have created {galleries_uploaded} sets in this session!')
                     break
                 else:
@@ -274,7 +275,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 print("\nWe have reviewed all sets for this query.")
                 print("Try a different query and run me again.")
                 print("\n--> Cleaning thumbnails cache now")
-                content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+                content_select.clean_file_cache('thumbnails','.jpg', parent=True)
                 print(f'You have created {galleries_uploaded} sets in this session!')
                 print("Waiting for 60 secs to clear the clipboard before you're done with the last set...")
                 time.sleep(60)
@@ -287,7 +288,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
             print("\nWe have reviewed all sets for this query.")
             print("Try a different SQL query or partner. I am ready when you are. ")
             print("\n--> Cleaning thumbnails cache now")
-            content_select.clean_thumbnails_cache('thumbnails/', parent=True)
+            content_select.clean_file_cache('thumbnails','.jpg', parent=True)
             print(f'You have created {galleries_uploaded} sets in this session!')
             break
 
