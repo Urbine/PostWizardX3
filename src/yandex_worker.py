@@ -37,7 +37,7 @@ if generate_tkn.lower() == ("y" or "yes"):
 else:
     pass
 
-token_json = helpers.import_request_json("token", parent=True)
+token_json = helpers.load_json_ctx("token", parent=True)
 
 base_url = "https://api.webmaster.yandex.net/v4/user/"
 headers_auth = {"Authorization": f"OAuth {token_json['access_token']}"}

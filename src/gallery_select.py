@@ -2,6 +2,7 @@
 This module is a photo gallery upload assistant.
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
+
 """
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__  = "yohamg@programmer.net"
