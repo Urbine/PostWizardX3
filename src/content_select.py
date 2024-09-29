@@ -1,8 +1,8 @@
 """
-This module connects to the WordPress API to gather information
-and streamline data analysis and other processes.
+
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
+
 """
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
@@ -413,9 +413,7 @@ if __name__ == '__main__':
 
     partnerz = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
 
-    # TODO: Send numeric tags with the payload data.
-
-    imported_json = helpers.import_request_json("wp_posts", parent=True)
+    imported_json = helpers.load_json_ctx("wp_posts", parent=True)
 
     video_upload_pilot(fetch_videos_db(ideal_q, cur_dump),
                        partnerz, banner_lists, db_dump_name, cur_wp, imported_json)

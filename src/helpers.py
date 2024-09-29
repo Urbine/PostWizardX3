@@ -5,6 +5,7 @@ This file also adds bits of reusable business logic from other modules.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
+
 """
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__  = "yohamg@programmer.net"
@@ -164,7 +165,7 @@ def filename_select(extension: str, parent: bool=False) -> str:
 def export_request_json(filename: str,
                         stream,
                         indent: int = 1,
-                        parent: bool=False) -> None:
+                        parent: bool=False) -> str:
     """ This function writes a JSON file to either your parent or current working dir
     :param filename: (str) Filename with or without JSON extension.
     :param stream: (json) Data stream to export to JSON
@@ -178,7 +179,7 @@ def export_request_json(filename: str,
 
     with open(f'{filename}', 'w', encoding='utf-8') as t:
         json.dump(stream, t, ensure_ascii=False, indent=indent)
-    return print(f"The JSON file has been stored in {f_path}. Ready to use!\n")
+    return f_path
 
 
 def export_to_csv_nt(nmedtpl_lst: list, filename: str, top_row_lst: list[str]) -> None:
@@ -265,8 +266,9 @@ def get_client_info(filename: str, parent: bool=False):
         print("File not found! Double-check the filename.")
         return None
 
-def import_request_json(filename: str, parent: bool=False):
+def load_json_ctx(filename: str, parent: bool=False, log_err: bool = False):
     """ This function makes it possible to assign a JSON file from storage to a variable.
+    :param logerr: True if you want to print error information, default False.
     :param parent: Looks for the JSON file in the parent directory if True, default False.
     :param filename: (str) filename
     :return: json object
@@ -279,9 +281,8 @@ def import_request_json(filename: str, parent: bool=False):
             imp_json = json.load(f)
         return imp_json
     except FileNotFoundError:
-        print(parent_or_cwd)
-        print(json_file)
-        print("File not found! Double-check the filename.")
+        if log_err:
+            print(f"File {parent_or_cwd}{json_file} not found! Double-check the filename.")
         return None
 
 def load_from_file(filename: str, extension: str, parent=False):
