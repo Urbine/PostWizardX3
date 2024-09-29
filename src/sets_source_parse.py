@@ -3,7 +3,6 @@ This module parses source code and creates a photo set database
 from MongerCash.
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__  = "yohamg@programmer.net"

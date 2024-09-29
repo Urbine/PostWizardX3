@@ -3,7 +3,6 @@ This module connects to the WordPress API to gather information
 and streamline data analysis and other processes.
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"

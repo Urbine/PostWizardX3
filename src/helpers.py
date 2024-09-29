@@ -5,7 +5,6 @@ This file also adds bits of reusable business logic from other modules.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__  = "yohamg@programmer.net"
