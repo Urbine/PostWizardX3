@@ -31,3 +31,5 @@ raw_descriptions = wordpress_api.get_post_descriptions(import_wp_cache, yoast=Tr
 categories = wordpress_api.get_post_category(import_wp_cache)
 train_set = zip(titles, clean_descriptions(raw_descriptions), categories)
 pprint.pprint(list(train_set))
+
+# A more accurate way to train a classifier could be done with the help of tags.

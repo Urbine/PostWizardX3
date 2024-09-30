@@ -9,8 +9,11 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
 import datetime
+import os
 import pprint
 import re
+from pydoc import pager
+
 import requests
 import sqlite3
 from collections import namedtuple
@@ -58,10 +61,12 @@ def wp_post_create(wp_self: str, param_lst: list[str], payload):
 def create_wp_local_cache(hostname: str,
                           params_dict: dict,
                           endpoint: str,
-                          wp_filename: str) -> list[dict]:
+                          wp_filename: str,
+                          parent: bool = False) -> list[dict]:
     """ Gets all posts from your WP Site.
     It does this by fetching every page with 10 posts each and concatenating the JSON
     responses to return a single list of dict elements.
+    :param parent: True if your config file will be located in parent dir. Default False
     :param wp_filename: File name of your new wp_cache_file
     :param endpoint: endpoint key within the params dict.
     :param hostname: hostname of your WP site.
@@ -74,26 +79,28 @@ def create_wp_local_cache(hostname: str,
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
     page_num: int = 1
+    x_wp_total = 0
+    x_wp_totalpages = 0
     params_posts: list[str] = [params_dict["posts"][endpoint]]
     page_num_param: bool = False
-    print(f"\nCreating WordPress {helpers.clean_filename(wp_filename)} cache file...\n")
+    print(f"\nCreating WordPress {helpers.clean_filename(wp_filename, 'json')} cache file...\n")
     while True:
         curl_json = curl_wp_self_concat(base_url, params_posts)
-        headers = curl_json.headers
-        x_wp_total = int(headers['x-wp-total'])
-        x_wp_totalpages = int(headers['x-wp-totalpages'])
         if curl_json.status_code == 400:
             # Assumes that no config file exists.
             local_cache_config(wp_filename,
                                x_wp_totalpages,
                                x_wp_total,
-                               parent=True)
+                               parent=parent)
             print(f"\n{'DONE':=^30}\n")
             return result_dict
         else:
             print(f"--> Processing page #{page_num}")
             page_num += 1
             if page_num_param is False:
+                headers = curl_json.headers
+                x_wp_total += int(headers['x-wp-total'])
+                x_wp_totalpages += int(headers['x-wp-totalpages'])
                 params_posts.append(params_dict['posts']['page'])
                 params_posts.append(str(page_num))
                 page_num_param = True
@@ -328,12 +335,14 @@ def get_post_category(wp_posts_f: list[dict]):
                    if re.match("category", cls_lst)] for elem in wp_posts_f]
     return [category[0] for category in categories]
 
+
 def get_post_descriptions(wp_posts_f: list[dict], yoast: bool = False):
     if yoast:
         return [item['yoast_head_json']['description'] for item in wp_posts_f]
     else:
         return [item['excerpt']['rendered'].strip('\n').strip('<p>').strip('</p>')
-                        for item in wp_posts_f]
+                for item in wp_posts_f]
+
 
 # Reusable version of map_model_id
 def map_class_list_id(wp_posts_f: list[dict], match_word: str, key_wp: str) -> dict:
@@ -404,7 +413,7 @@ def update_published_titles_db(db_name: str,
     db_name = helpers.clean_filename(db_name, '.db')
     db_full_name = f"{helpers.is_parent_dir_required(parent=parent)}{db_name}"
     # SQLite3 can't overwrite an existing db with the same table.
-    helpers.if_exists_remove(db_full_name)
+    helpers.if_exists_remove(db_full_name, parent=parent)
     db = sqlite3.connect(db_full_name)
     cur = db.cursor()
     if photosets:
@@ -448,23 +457,38 @@ def local_cache_config(wp_filename: str,
                        parent: bool = False) -> str:
     wp_cache_filename = 'wp_cache_config.json'
     wp_filename = helpers.clean_filename(wp_filename, '.json')
-    new_config = {
-        wp_filename: wp_filename,
-        'cached_pages': wp_curr_page,
-        'total_posts': total_posts,
-        'last_updated': str(datetime.date.today())
-    }
-    conf_path = helpers.export_request_json(wp_cache_filename,
-                                            new_config,
-                                            indent=2,
-                                            parent=True)
-    return conf_path
+    locate_conf = helpers.search_files_by_ext('.json', '', parent=parent)
+    create_new = [{
+        wp_filename: {
+            'cached_pages': wp_curr_page,
+            'total_posts': total_posts,
+            'last_updated': str(datetime.date.today())
+        }
+    }]
+    if wp_cache_filename in locate_conf:
+        existing_file = helpers.load_json_ctx(wp_cache_filename, parent=parent)
+        for item in existing_file:
+            item.update({wp_filename: {
+                'cached_pages': wp_curr_page,
+                'total_posts': total_posts,
+                'last_updated': str(datetime.date.today())
+            }})
+
+        return helpers.export_request_json(wp_cache_filename,
+                                           existing_file,
+                                           indent=2,
+                                           parent=parent)
+    else:
+        return helpers.export_request_json(wp_cache_filename,
+                                           create_new,
+                                           indent=2,
+                                           parent=parent)
 
 
 def update_json_cache(hostname: str,
                       params_dict: dict,
                       endpoint: str,
-                      config_dict: dict,
+                      config_dict: list[dict],
                       wp_filename: str,
                       parent: bool = False) -> list[dict]:
     """ Updates the local wp cache files for processing.
@@ -484,18 +508,18 @@ def update_json_cache(hostname: str,
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
     params_posts: list[str] = [params_dict["posts"][endpoint]]
-    total_posts = config['total_posts']
+    x_wp_total = 0
+    x_wp_totalpages = 0
+    clean_fname = helpers.clean_filename(wp_filename, '.json')
     # The loop will add 1 to page num when the first request is successful.
-    page_num = config['cached_pages'] - 1
+    page_num = [dic[clean_fname]['cached_pages'] for dic in config
+                if clean_fname in dic.keys()][0] - 1
     result_dict = helpers.load_json_ctx(wp_filename, parent=parent)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []
     page_num_param: bool = False
     while True:
         curl_json = curl_wp_self_concat(base_url, params_posts)
-        headers = curl_json.headers
-        x_wp_total = int(headers['x-wp-total'])
-        x_wp_totalpages = int(headers['x-wp-totalpages'])
         if curl_json.status_code == 400:
             diff = x_wp_total - total_elems
             if diff == 0:
@@ -505,15 +529,17 @@ def update_json_cache(hostname: str,
                 add_list.reverse()
                 for recent in add_list:
                     result_dict.insert(0, recent)
-
             local_cache_config(wp_filename,
-                               x_wp_totalpages,
+                               page_num,
                                x_wp_total,
                                parent=parent)
             return result_dict
         else:
             page_num += 1
             if page_num_param is False:
+                headers = curl_json.headers
+                x_wp_total += int(headers['x-wp-total'])
+                x_wp_totalpages += int(headers['x-wp-totalpages'])
                 params_posts.append(params_dict['posts']['page'])
                 params_posts.append(str(page_num))
                 page_num_param = True
@@ -536,13 +562,15 @@ def upgrade_wp_local_cache(hostname: str,
                                                 params_dict,
                                                 endpoint,
                                                 l_config,
-                                                wp_filename)
+                                                wp_filename,
+                                                parent=True)
 
     else:
         updated_local_cache = create_wp_local_cache(hostname,
                                                     params_dict,
                                                     endpoint,
-                                                    wp_filename)
+                                                    wp_filename,
+                                                    parent=True)
 
     helpers.export_request_json(wp_filename, updated_local_cache, 1, parent=parent)
     local_json: list[dict] = helpers.load_json_ctx(wp_filename, parent=True)
@@ -596,6 +624,7 @@ else:
 if __name__ == '__main__':
     # Loading local cache
     imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
+    print(len(imported_json))
 
     # Create the report here. Make sure to uncomment the following:
     # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
@@ -608,15 +637,15 @@ if __name__ == '__main__':
 
     # print(get_post_descriptions(imported_json, yoast=True))
 
-# ==== WP Posts json data structure ====
-# title: imported_json[0]['title']['rendered']
-# description: imported_json[0]['content']['rendered']
-# tags text, category, and models: imported_json[0]['class_list'] (prefixed with "tag-" and "category-")
-# slug: imported_json[0]['slug']
-# tag numbers: imported_json[0]['tags'] OK
-# link: imported_json[0]['link']
-# id: imported_json[0]['id']
-# yoast json: imported_json[0]['yoast_head_json'] (can get info without overhead)
-# yoast tags without prefix: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['keywords'] OK
-# yoast category: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['articleSection']
-# =============================
+    # ==== WP Posts json data structure ====
+    # title: imported_json[0]['title']['rendered']
+    # description: imported_json[0]['content']['rendered']
+    # tags text, category, and models: imported_json[0]['class_list'] (prefixed with "tag-" and "category-")
+    # slug: imported_json[0]['slug']
+    # tag numbers: imported_json[0]['tags'] OK
+    # link: imported_json[0]['link']
+    # id: imported_json[0]['id']
+    # yoast json: imported_json[0]['yoast_head_json'] (can get info without overhead)
+    # yoast tags without prefix: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['keywords'] OK
+    # yoast category: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['articleSection']
+    # =============================
