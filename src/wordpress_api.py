@@ -14,6 +14,7 @@ import re
 import requests
 import sqlite3
 from collections import namedtuple
+
 from requests.auth import HTTPBasicAuth
 
 # Third-party modules
@@ -54,10 +55,14 @@ def wp_post_create(wp_self: str, param_lst: list[str], payload):
     return requests.post(wp_self, json=payload, auth=auth_wp).status_code
 
 
-def get_all_posts(hostname: str, params_dict: dict, endpoint: str) -> list[dict]:
+def create_wp_local_cache(hostname: str,
+                          params_dict: dict,
+                          endpoint: str,
+                          wp_filename: str) -> list[dict]:
     """ Gets all posts from your WP Site.
     It does this by fetching every page with 10 posts each and concatenating the JSON
     responses to return a single list of dict elements.
+    :param wp_filename: File name of your new wp_cache_file
     :param endpoint: endpoint key within the params dict.
     :param hostname: hostname of your WP site.
     :param params_dict: dictionary with the rest parameters in the URL.
@@ -71,10 +76,18 @@ def get_all_posts(hostname: str, params_dict: dict, endpoint: str) -> list[dict]
     page_num: int = 1
     params_posts: list[str] = [params_dict["posts"][endpoint]]
     page_num_param: bool = False
-    print("\nWorking on it...\n")
+    print(f"\nCreating WordPress {helpers.clean_filename(wp_filename)} cache file...\n")
     while True:
         curl_json = curl_wp_self_concat(base_url, params_posts)
+        headers = curl_json.headers
+        x_wp_total = int(headers['x-wp-total'])
+        x_wp_totalpages = int(headers['x-wp-totalpages'])
         if curl_json.status_code == 400:
+            # Assumes that no config file exists.
+            local_cache_config(wp_filename,
+                               x_wp_totalpages,
+                               x_wp_total,
+                               parent=True)
             print(f"\n{'DONE':=^30}\n")
             return result_dict
         else:
@@ -323,13 +336,11 @@ def map_model_id(wp_posts_f: list[dict]):
     return result_dict
 
 
-# =========== REPORTS ===========
-
-# This will generate a new .xlsx file in project root.
 # CSV output is possible, not very effective, though.
 # export_to_csv_nt(tag_master_merger_ntpl(imported_json),
 # "sample", ["Title", "Tag ID", "# of Taggings"])
-# create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
+
+
 def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: bool = False) -> None:
     """
     As its name points out this function writes the tagging information
@@ -438,10 +449,13 @@ def update_json_cache(hostname: str,
                    params_dict: dict,
                    endpoint: str,
                    config_dict: dict,
-                   wp_filename: str) -> list[dict]:
-    """ Gets all posts from your WP Site.
-    It does this by fetching every page with 10 posts each and concatenating the JSON
-    responses to return a single list of dict elements.
+                   wp_filename: str,
+                   parent: bool = False) -> list[dict]:
+    """ Updates the local wp cache files for processing.
+    It does this by fetching the last page cached and calculating the
+    difference between the total elements variable from the HTTP request and
+    the reported items in the local configuration file.
+    :param parent: True if the config and cache files are in the parent dir.
     :param wp_filename: Where you stored your cached WordPress post data.
     :param config_dict: Configuration file in JSON format (loaded as dict) .
     :param endpoint: Endpoint key within the params dict.
@@ -449,22 +463,23 @@ def update_json_cache(hostname: str,
     :param params_dict: Dictionary with the rest parameters in the URL.
     :return: list[dict]
     """
-    # Accumulation of dict elements for concatenation.
     config = config_dict
     base_url: str = f"https://{hostname}/wp-json/wp/v2"
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
     params_posts: list[str] = [params_dict["posts"][endpoint]]
-    status_call = curl_wp_self_concat(base_url, params_posts)
-    headers = status_call.headers
-    x_wp_total = int(headers['x-wp-total'])
-    page_num = int(headers['x-wp-totalpages'])
-    result_dict = helpers.load_json_ctx(wp_filename, parent=True)
+    total_posts = config['total_posts']
+    # The loop will add 1 to page num when the first request is successful.
+    page_num = config['cached_pages'] - 1
+    result_dict = helpers.load_json_ctx(wp_filename, parent=parent)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []
     page_num_param: bool = False
     while True:
         curl_json = curl_wp_self_concat(base_url, params_posts)
+        headers = curl_json.headers
+        x_wp_total = int(headers['x-wp-total'])
+        x_wp_totalpages = int(headers['x-wp-totalpages'])
         if curl_json.status_code == 400:
             diff = x_wp_total - total_elems
             if diff == 0:
@@ -476,9 +491,9 @@ def update_json_cache(hostname: str,
                     result_dict.insert(0, recent)
 
             local_cache_config(wp_filename,
-                               page_num,
+                               x_wp_totalpages,
                                x_wp_total,
-                               parent=True)
+                               parent=parent)
             return result_dict
         else:
             page_num += 1
@@ -497,11 +512,26 @@ def upgrade_wp_local_cache(hostname: str,
                            params_dict: dict,
                            endpoint: str,
                            wp_filename: str,
+                           wp_db_name: str,
                            cached: bool = False,
                            parent: bool = False) -> None:
-    load_config = helpers.load_json_ctx('wp_cache_config.json', parent=parent)
-    updated_cache = update_json_cache(hostname, params_dict, endpoint ,load_config, wp_filename)
-    helpers.export_request_json(wp_filename, updated_cache, 1, parent=parent)
+    l_config = helpers.load_json_ctx('wp_cache_config.json', parent=parent)
+    if cached:
+        updated_local_cache = update_json_cache(hostname,
+                                                params_dict,
+                                                endpoint,
+                                                l_config,
+                                                wp_filename)
+
+    else:
+        updated_local_cache = create_wp_local_cache(hostname,
+                                                    params_dict,
+                                                    endpoint,
+                                                    wp_filename)
+
+    helpers.export_request_json(wp_filename, updated_local_cache, 1, parent=parent)
+    local_json: list[dict] = helpers.load_json_ctx(wp_filename, parent=True)
+    update_published_titles_db(wp_db_name, local_json, parent=True)
     return None
 
 
@@ -526,34 +556,32 @@ rest_params: dict = {
     "media": "/media",
 }
 
-if input("Want to fetch a new copy of the WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
+if input("Do you want to update your WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
     # Modify the params parameter if needed.
-    #all_posts: list[dict] = get_all_posts(hstname, rest_params, 'posts_url')
     upgrade_wp_local_cache(hstname,
                            rest_params,
                            'posts_url',
                            'wp_posts',
+                           'WP_all_post_titles',
+                           cached=True,
                            parent=True)
-    # Caching a copy of the request for analysis and performance gain.
-    #helpers.export_request_json("wp_posts", all_posts, 1, parent=True)
-    #posts_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
-    #update_published_titles_db('WP_all_post_titles', posts_json, parent=True)
-    # Get photo galleries posts
-    # print("\n** Getting photo galleries posts **")
-    #photos = get_all_posts(hstname, rest_params, 'photos')
-    # There is local caching for photo posts too.
-    #helpers.export_request_json('wp_photos', photos, parent=True)
-    #photos_json = helpers.load_json_ctx('wp_photos', parent=True)
-    #update_published_titles_db('WP_all_photo_sets', photos_json,
-    #                           parent=True, photosets=True)
+
+    upgrade_wp_local_cache(hstname,
+                           rest_params,
+                           'photos',
+                           'wp_photos',
+                           'WP_all_photo_sets',
+                           cached=True,
+                           parent=True)
+
 else:
     print("Okay, using cached files from now on!\n")
     pass
 
 
-#if __name__ == '__main__':
+if __name__ == '__main__':
     # Loading local cache
-    # imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
+    imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
 
     # Create the report here. Make sure to uncomment the following:
     # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
