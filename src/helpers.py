@@ -174,10 +174,10 @@ def export_request_json(filename: str,
     :return: (None) print statement for console logging.
     """
     f_name = clean_filename(filename,'.json')
-    filename = is_parent_dir_required(parent) + f_name
+    dest_dir = is_parent_dir_required(parent)
     f_path = cwd_or_parent_path(parent)
 
-    with open(f'{filename}', 'w', encoding='utf-8') as t:
+    with open(f'{dest_dir}{f_name}', 'w', encoding='utf-8') as t:
         json.dump(stream, t, ensure_ascii=False, indent=indent)
     return f_path
 
@@ -241,12 +241,13 @@ def is_parent_dir_required(parent: bool) -> str:
 
 def if_exists_remove(fname: str, parent: bool = False):
     """Removes a file only if it exists in either parent or current working directory.
-    :param parent: Set to 'True' if you need to look for your file in the parent dir.
+    :param parent: True if the file is located in the parent dir. Default false.
     :param fname: File name
-    :return: Returns none if the file does not exist
+    :return: Returns none if the file does not exist or is removed.
     """
-    if os.path.exists(fname):
-        os.remove(fname)
+    cwd_or_parent = cwd_or_parent_path(parent=parent)
+    if os.path.exists(f'{cwd_or_parent}{fname}'):
+        os.remove(f'{cwd_or_parent}{fname}')
     else:
         return None
 

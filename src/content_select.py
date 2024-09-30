@@ -303,7 +303,7 @@ def video_upload_pilot(videos: list[tuple],
                 for girl in new_models:
                     print(f'ATTENTION --> Model: {girl} not on WordPress.')
                     print('--> Copying missing model name to your system clipboard.')
-                    print("If you add this one, you won't see me here again. <3")
+                    print("* If you add this one, you won't see me here again. <3 *")
                     pyclip.detect_clipboard()
                     pyclip.copy(girl)
 
