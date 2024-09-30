@@ -1,8 +1,8 @@
 import unittest
 
 
-class MyTestCase(unittest.TestCase):
-    def test_something(self):
+class TestCleanFilename(unittest.TestCase):
+    def test_clean_filename(self):
         self.assertEqual(True, False)  # add assertion here
 
 
