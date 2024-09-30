@@ -22,7 +22,6 @@ import helpers
 import wordpress_api
 
 
-
 # Videos table - db_connection_dump
 # CREATE TABLE
 #     videos(
@@ -54,6 +53,7 @@ def fetch_videos_db(sql_query: str, db_cursor):
     db_cursor.execute(sql_query)
     return db_cursor.fetchall()
 
+
 def published(table: str, title: str, db_cursor) -> bool:
     search_vids = f'SELECT * FROM {table} WHERE title="{title}"'
     if not db_cursor.execute(search_vids).fetchall():
@@ -65,8 +65,11 @@ def published(table: str, title: str, db_cursor) -> bool:
 def get_banner(banner_lst: list[str]):
     return random.choice(banner_lst)
 
+
 def get_model_id(wp_posts_f: list[dict], model: str):
-    model_tracking = wordpress_api.map_model_id(wp_posts_f)
+    model_tracking = wordpress_api.map_class_list_id(wp_posts_f,
+                                                     'pornstars',
+                                                     'pornstars')
     if model in model_tracking.keys():
         return model_tracking[model]
     else:
@@ -84,15 +87,19 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str]) -> list[int]:
     # The function will return a reversed list of matches.
     return list({tag_tracking[tag] for tag in matched_keys})
 
+
 def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]):
-    model_tracking = wordpress_api.map_model_id(wp_posts_f)
-    return list({model_tracking[model.title()] for model in model_lst if model.title() in model_tracking.keys()})
+    model_tracking = wordpress_api.map_class_list_id(wp_posts_f,'pornstars','pornstars')
+    return list({model_tracking[model.title()] for model in model_lst
+                 if model.title() in model_tracking.keys()})
+
 
 def get_dict_key(tag_dic: dict, tag_id: int):
     for tname, tid in tag_dic.items():
         if tag_id == tid:
             return tname
     return None
+
 
 def identify_missing(wp_data_dic: dict,
                      data_lst: list[str],
@@ -105,7 +112,7 @@ def identify_missing(wp_data_dic: dict,
         # If we have less or more items on either side, we've got a problem.
         not_found = []
         for item in data_lst:
-            if  ignore_case:
+            if ignore_case:
                 item = item.lower()
                 tags = [tag.lower() for tag in wp_data_dic.keys()]
                 if item not in tags:
@@ -118,7 +125,6 @@ def identify_missing(wp_data_dic: dict,
         return not_found
 
 
-
 def fetch_thumbnail(folder: str, slug: str, remote_res: str, parent: bool = False):
     thumbnail_dir = f'{helpers.is_parent_dir_required(parent=parent)}{folder}'
     remote_data = requests.get(remote_res)
@@ -126,10 +132,11 @@ def fetch_thumbnail(folder: str, slug: str, remote_res: str, parent: bool = Fals
         img.write(remote_data.content)
     return remote_data.status_code
 
+
 def clean_file_cache(cache_folder: str, file_ext: str, parent=False):
     cache_files = helpers.search_files_by_ext(file_ext,
-                                    parent=parent,
-                                    folder=cache_folder)
+                                              parent=parent,
+                                              folder=cache_folder)
     go_to_folder = helpers.is_parent_dir_required(parent=parent) + cache_folder
     os.chdir(go_to_folder)
     if len(cache_files) > 1:
@@ -137,6 +144,7 @@ def clean_file_cache(cache_folder: str, file_ext: str, parent=False):
             os.remove(file)
     else:
         return None
+
 
 def make_payload(vid_slug,
                  status_wp: str,
@@ -180,7 +188,7 @@ def video_upload_pilot(videos: list[tuple],
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
     # This is in case you run the program after a traceback or end execution early.
-    clean_file_cache('thumbnails/', '.jpg' ,parent=True)
+    clean_file_cache('thumbnails/', '.jpg', parent=True)
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
     print('\n')
@@ -243,7 +251,7 @@ def video_upload_pilot(videos: list[tuple],
             pyclip.detect_clipboard()
             pyclip.clear()
             print("\n--> Cleaning thumbnails cache now")
-            clean_file_cache('thumbnails' ,'.jpg', parent=True)
+            clean_file_cache('thumbnails', '.jpg', parent=True)
             print(f'You have created {videos_uploaded} posts in this session!')
             break
         else:
@@ -257,7 +265,7 @@ def video_upload_pilot(videos: list[tuple],
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different SQL query or partner. I am ready when you are. ")
                 print("\n--> Cleaning thumbnails cache now")
-                clean_file_cache('thumbnails' ,'.jpg', parent=True)
+                clean_file_cache('thumbnails', '.jpg', parent=True)
                 print(f'You have created {videos_uploaded} posts in this session!')
                 break
         if add_post:
@@ -267,7 +275,7 @@ def video_upload_pilot(videos: list[tuple],
             tag_ints = get_tag_ids(wp_posts_f, tag_prep)
             all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
             tag_check = identify_missing(all_tags_wp, tag_prep,
-                                          tag_ints, ignore_case=True)
+                                         tag_ints, ignore_case=True)
             if tag_check is None:
                 # All tags have been found and mapped to their IDs.
                 pass
@@ -283,7 +291,8 @@ def video_upload_pilot(videos: list[tuple],
             model_prep = models.split(',')
             # The would-be 'models_ints'
             calling_models = get_model_ids(wp_posts_f, model_prep)
-            all_models_wp = wordpress_api.map_model_id(wp_posts_f)
+            all_models_wp = wordpress_api.map_class_list_id(wp_posts_f,
+                                                            'pornstars', 'pornstars')
             new_models = identify_missing(all_models_wp, model_prep, calling_models)
 
             if new_models is None:
@@ -319,7 +328,7 @@ def video_upload_pilot(videos: list[tuple],
                 print("--> Adding image attributes on WordPress...")
                 img_attrs = make_img_payload(title, description)
                 upload_img = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
-                                              f"../thumbnails/{wp_slug}.jpg", img_attrs)
+                                                            f"../thumbnails/{wp_slug}.jpg", img_attrs)
                 print(f'\n--> WordPress Media upload status code: {upload_img}')
                 # Copy important information to the clipboard.
                 # Some tag strings end with ';'
@@ -336,7 +345,7 @@ def video_upload_pilot(videos: list[tuple],
                     continue
                 else:
                     print("\n--> Cleaning thumbnails cache now")
-                    clean_file_cache('thumbnails' ,'.jpg', parent=True)
+                    clean_file_cache('thumbnails', '.jpg', parent=True)
                     print(f'You have created {videos_uploaded} posts in this session!')
                     break
             if num < total_elems - 1:
@@ -350,7 +359,7 @@ def video_upload_pilot(videos: list[tuple],
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     print("\n--> Cleaning thumbnails cache now")
-                    clean_file_cache('thumbnails' ,'.jpg', parent=True)
+                    clean_file_cache('thumbnails', '.jpg', parent=True)
                     print(f'You have created {videos_uploaded} posts in this session!')
                     break
                 else:
@@ -363,7 +372,7 @@ def video_upload_pilot(videos: list[tuple],
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different query and run me again.")
                 print("\n--> Cleaning thumbnails cache now")
-                clean_file_cache('thumbnails' ,'jpg', parent=True)
+                clean_file_cache('thumbnails', 'jpg', parent=True)
                 print(f'You have created {videos_uploaded} posts in this session!')
                 print("Waiting for 60 secs to clear the clipboard before you're done with the last post...")
                 time.sleep(60)
@@ -376,9 +385,10 @@ def video_upload_pilot(videos: list[tuple],
             print("\nWe have reviewed all posts for this query.")
             print("Try a different SQL query or partner. I am ready when you are. ")
             print("\n--> Cleaning thumbnails cache now")
-            clean_file_cache('thumbnails' ,'.jpg', parent=True)
+            clean_file_cache('thumbnails', '.jpg', parent=True)
             print(f'You have created {videos_uploaded} posts in this session!')
             break
+
 
 if __name__ == '__main__':
     print("Choose your Partner and WP databases:")

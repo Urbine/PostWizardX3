@@ -321,16 +321,31 @@ def get_post_models(wp_posts_f: list[dict]):
     return [",".join(model) if len(model) != 0 else None for model in models]
 
 
-def map_model_id(wp_posts_f: list[dict]):
+# It assumes that each post has only one category, so that's why I am not join
+# them with commas with a list comprehension.
+def get_post_category(wp_posts_f: list[dict]):
+    categories = [[" ".join(cls_lst.split('-')[1:]).title() for cls_lst in elem['class_list']
+                   if re.match("category", cls_lst)] for elem in wp_posts_f]
+    return [category[0] for category in categories]
+
+def get_post_descriptions(wp_posts_f: list[dict], yoast: bool = False):
+    if yoast:
+        return [item['yoast_head_json']['description'] for item in wp_posts_f]
+    else:
+        return [item['excerpt']['rendered'].strip('\n').strip('<p>').strip('</p>')
+                        for item in wp_posts_f]
+
+# Reusable version of map_model_id
+def map_class_list_id(wp_posts_f: list[dict], match_word: str, key_wp: str) -> dict:
     result_dict = {}
     for elem in wp_posts_f:
         for item in elem['class_list']:
-            if re.match("pornstars", item):
-                pornstar = " ".join(item.split('-')[1:]).title()
-                if pornstar not in result_dict.keys():
-                    # In theory, if the video has at least one pornstar
-                    # elem['pornstar'] should not be empty or None.
-                    result_dict[pornstar] = elem['pornstars'][0]
+            if re.match(match_word, item):
+                kw = " ".join(item.split('-')[1:]).title()
+                if kw not in result_dict.keys():
+                    # elem[key_wp] should not be empty or None.
+                    # If each and every video have such class_list elements.
+                    result_dict[kw] = elem[key_wp][0]
             else:
                 continue
     return result_dict
@@ -341,7 +356,8 @@ def map_model_id(wp_posts_f: list[dict]):
 # "sample", ["Title", "Tag ID", "# of Taggings"])
 
 
-def create_tag_report_excel(wp_posts_f: list[dict], workbook_name: str, parent: bool = False) -> None:
+def create_tag_report_excel(wp_posts_f: list[dict],
+                            workbook_name: str, parent: bool = False) -> None:
     """
     As its name points out this function writes the tagging information
     into an Excel .xlsx file
@@ -446,11 +462,11 @@ def local_cache_config(wp_filename: str,
 
 
 def update_json_cache(hostname: str,
-                   params_dict: dict,
-                   endpoint: str,
-                   config_dict: dict,
-                   wp_filename: str,
-                   parent: bool = False) -> list[dict]:
+                      params_dict: dict,
+                      endpoint: str,
+                      config_dict: dict,
+                      wp_filename: str,
+                      parent: bool = False) -> list[dict]:
     """ Updates the local wp cache files for processing.
     It does this by fetching the last page cached and calculating the
     difference between the total elements variable from the HTTP request and
@@ -505,7 +521,6 @@ def update_json_cache(hostname: str,
                 params_posts[-1] = str(page_num)
             for item in curl_json.json():
                 recent_posts.append(item)
-
 
 
 def upgrade_wp_local_cache(hostname: str,
@@ -578,7 +593,6 @@ else:
     print("Okay, using cached files from now on!\n")
     pass
 
-
 if __name__ == '__main__':
     # Loading local cache
     imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
@@ -588,6 +602,11 @@ if __name__ == '__main__':
 
     # categories = get_all_categories(hstname, rest_params)
     # export_request_json('wp_categories', categories, parent=True)
+
+    # pprint.pprint(map_class_list_id(imported_json, 'category', 'categories'))
+    # pprint.pprint(map_class_list_id(imported_json, 'pornstars', 'pornstars'))
+
+    # print(get_post_descriptions(imported_json, yoast=True))
 
 # ==== WP Posts json data structure ====
 # title: imported_json[0]['title']['rendered']
