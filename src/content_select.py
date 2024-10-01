@@ -12,10 +12,10 @@ import pyclip
 import random
 import re
 import requests
-import sqlite3
 import time
+import sqlite3
 
-from urllib3.exceptions import MaxRetryError, SSLError
+from requests.exceptions import ConnectionError, SSLError
 
 # Local implementations
 import helpers
@@ -54,7 +54,9 @@ def fetch_videos_db(sql_query: str, db_cursor):
     return db_cursor.fetchall()
 
 
-def published(table: str, title: str, db_cursor) -> bool:
+def published(table: str,
+              title: str,
+              db_cursor: sqlite3) -> bool:
     search_vids = f'SELECT * FROM {table} WHERE title="{title}"'
     if not db_cursor.execute(search_vids).fetchall():
         return False
@@ -67,14 +69,20 @@ def get_banner(banner_lst: list[str]):
 
 
 def get_model_id(wp_posts_f: list[dict], model: str):
-    model_tracking = wordpress_api.map_class_list_id(wp_posts_f,
-                                                     'pornstars',
-                                                     'pornstars')
+    model_tracking = wordpress_api.map_wp_model_id(wp_posts_f, 'pornstars', 'pornstars')
     if model in model_tracking.keys():
         return model_tracking[model]
     else:
         return None
 
+
+def published_json(title: str, wp_posts_f: list[dict]):
+    post_titles = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
+    results = [vid_name for vid_name in post_titles if re.match(title, vid_name)]
+    if results:
+        return True
+    else:
+        return False
 
 def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str]) -> list[int]:
     tag_tracking = wordpress_api.tag_id_merger_dict(wp_posts_f)
@@ -89,9 +97,9 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str]) -> list[int]:
 
 
 def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]):
-    model_tracking = wordpress_api.map_class_list_id(wp_posts_f,'pornstars','pornstars')
-    return list({model_tracking[model.title()] for model in model_lst
-                 if model.title() in model_tracking.keys()})
+    model_tracking = wordpress_api.map_wp_model_id(wp_posts_f, 'pornstars', 'pornstars')
+    return list({model_tracking[model.title().strip()] for model in model_lst
+                 if model.title().strip() in model_tracking.keys()})
 
 
 def get_dict_key(tag_dic: dict, tag_id: int):
@@ -131,7 +139,6 @@ def fetch_thumbnail(folder: str, slug: str, remote_res: str, parent: bool = Fals
     with open(f"{thumbnail_dir}/{slug}.jpg", 'wb') as img:
         img.write(remote_data.content)
     return remote_data.status_code
-
 
 def clean_file_cache(cache_folder: str, file_ext: str, parent=False):
     cache_files = helpers.search_files_by_ext(file_ext,
@@ -177,13 +184,32 @@ def make_img_payload(vid_title: str, vid_description: str):
                    "description": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!"}
     return img_payload
 
+def hot_file_sync(wp_filename,parent=False):
+    wp_filename = helpers.clean_filename(wp_filename, 'json')
+    host = wordpress_api.hstname
+    params_d = wordpress_api.rest_params
+    config_json = helpers.load_json_ctx('wp_cache_config.json', parent=parent)
+    endpoint = 'posts_url'
+    sync_changes = wordpress_api.update_json_cache(host, params_d, endpoint,
+                                                   config_json, wp_filename, parent=parent)
+    # Reload config
+    config_json = helpers.load_json_ctx('wp_cache_config.json', parent=parent)
+    if len(sync_changes) == config_json[0][wp_filename]['total_posts']:
+        helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
+        return True
+    else:
+        return False
+
 
 def video_upload_pilot(videos: list[tuple],
                        partners: list[str],
                        banner_lsts: list[list[str]],
                        partner_db_name: str,
-                       cursor_wp: sqlite3,
-                       wp_posts_f: list[dict]):
+                       wp_posts_f: list[dict],
+                       hot_sync_mode: bool = False,
+                       cursor_wp: sqlite3 = None,):
+    print('\nWarming up... ^‿^\n')
+    hot_file_sync('wp_posts.json', parent=True)
     all_vals = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
@@ -213,7 +239,7 @@ def video_upload_pilot(videos: list[tuple],
     not_published_yet = []
     for elem in all_vals:
         (title, *fields) = elem
-        if not published('videos', title, cursor_wp):
+        if not published_json(title, wp_posts_f):
             not_published_yet.append(elem)
         else:
             continue
@@ -291,8 +317,7 @@ def video_upload_pilot(videos: list[tuple],
             model_prep = models.split(',')
             # The would-be 'models_ints'
             calling_models = get_model_ids(wp_posts_f, model_prep)
-            all_models_wp = wordpress_api.map_class_list_id(wp_posts_f,
-                                                            'pornstars', 'pornstars')
+            all_models_wp = wordpress_api.map_wp_model_id(wp_posts_f, 'pornstars', 'pornstars')
             new_models = identify_missing(all_models_wp, model_prep, calling_models)
 
             if new_models is None:
@@ -301,9 +326,9 @@ def video_upload_pilot(videos: list[tuple],
             else:
                 # There's a new girl in town.
                 for girl in new_models:
-                    print(f'ATTENTION --> Model: {girl} not on WordPress.')
+                    print(f'ATTENTION! --> Model: {girl} not on WordPress.')
                     print('--> Copying missing model name to your system clipboard.')
-                    print("* If you add this one, you won't see me here again. <3 *")
+                    print("Paste it into the Pornstars field as soon as possible...")
                     pyclip.detect_clipboard()
                     pyclip.copy(girl)
 
@@ -337,7 +362,7 @@ def video_upload_pilot(videos: list[tuple],
                 pyclip.copy(title)
                 print("--> Check the post and paste all you need from your clipboard.")
                 videos_uploaded += 1
-            except MaxRetryError or SSLError:
+            except SSLError:
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 print("* There was a connection error while processing this post... *")
@@ -353,7 +378,21 @@ def video_upload_pilot(videos: list[tuple],
                 if next_post == ('y' or 'yes'):
                     # Clears clipboard after every video.
                     pyclip.clear()
-                    continue
+                    if hot_sync_mode:
+                        print("\n==> Syncing and caching changes... ᕕ(⎚‿⎚)ᕗ")
+                        try:
+                            sync = hot_file_sync('wp_posts', parent=True)
+                        except ConnectionError:
+                            print("Hot File Sync encountered a ConnectionError.")
+                            print("Going to next post. I will fetch your changes in a next try.")
+                            sync = True
+                        if sync:
+                            continue
+                        else:
+                            print("ERROR: WP JSON Sync failed. Create a new cache and config files.")
+                            clean_file_cache('thumbnails', '.jpg', parent=True)
+                    else:
+                        continue
                 elif next_post == ('n' or 'no'):
                     # The terminating parts add this function to avoid tracebacks from pyclip
                     pyclip.detect_clipboard()
@@ -397,9 +436,9 @@ if __name__ == '__main__':
     db_connection_dump = sqlite3.connect(f'{parent_wd}{db_dump_name}')
     cur_dump = db_connection_dump.cursor()
 
-    db_wp_name = helpers.filename_select('db', parent=True)
-    db_connection_wp = sqlite3.connect(f'{parent_wd}{db_wp_name}')
-    cur_wp = db_connection_wp.cursor()
+    # db_wp_name = helpers.filename_select('db', parent=True)
+    # db_connection_wp = sqlite3.connect(f'{parent_wd}{db_wp_name}')
+    # cur_wp = db_connection_wp.cursor()
 
     client_info = helpers.get_client_info('client_info', parent=True)
 
@@ -419,11 +458,11 @@ if __name__ == '__main__':
     banner_lists = [banner_lst_asd, banner_lst_tktk, banner_lst_trike]
 
     # Alternative query: SELECT * FROM videos WHERE date>="2024" OR date>="2023"
-    ideal_q = 'SELECT * FROM videos WHERE date>="2023" AND duration!="trailer"'
+    ideal_q = 'SELECT * FROM videos WHERE date>="2022" AND duration!="trailer"'
 
     partnerz = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
 
     imported_json = helpers.load_json_ctx("wp_posts", parent=True)
 
     video_upload_pilot(fetch_videos_db(ideal_q, cur_dump),
-                       partnerz, banner_lists, db_dump_name, cur_wp, imported_json)
+                       partnerz, banner_lists, db_dump_name, imported_json, hot_sync_mode=True)

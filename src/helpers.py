@@ -239,15 +239,13 @@ def is_parent_dir_required(parent: bool) -> str:
         return './'
 
 
-def if_exists_remove(fname: str, parent: bool = False):
+def if_exists_remove(fname: str):
     """Removes a file only if it exists in either parent or current working directory.
-    :param parent: True if the file is located in the parent dir. Default false.
     :param fname: File name
     :return: Returns none if the file does not exist or is removed.
     """
-    cwd_or_parent = cwd_or_parent_path(parent=parent)
-    if os.path.exists(f'{cwd_or_parent}{fname}'):
-        os.remove(f'{cwd_or_parent}{fname}')
+    if os.path.exists(fname):
+        os.remove(fname)
     else:
         return None
 
@@ -328,7 +326,7 @@ def parse_date_to_iso(full_date: str, m_abbr: bool=False) -> date:
     day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
 
     if int(day) <= 9:
-        day_date = '0' + day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+        day = '0' + day_nth.strip("".join(re.findall("[a-z]", day_nth)))
 
     return date.fromisoformat(year + month_num + day)
 

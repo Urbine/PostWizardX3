@@ -9,10 +9,8 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
 import datetime
-import os
 import pprint
 import re
-from pydoc import pager
 
 import requests
 import sqlite3
@@ -344,17 +342,16 @@ def get_post_descriptions(wp_posts_f: list[dict], yoast: bool = False):
                 for item in wp_posts_f]
 
 
-# Reusable version of map_model_id
-def map_class_list_id(wp_posts_f: list[dict], match_word: str, key_wp: str) -> dict:
+def map_wp_model_id(wp_posts_f: list[dict], match_word: str, key_wp: str) -> dict:
     result_dict = {}
     for elem in wp_posts_f:
-        for item in elem['class_list']:
-            if re.match(match_word, item):
-                kw = " ".join(item.split('-')[1:]).title()
-                if kw not in result_dict.keys():
-                    # elem[key_wp] should not be empty or None.
-                    # If each and every video have such class_list elements.
-                    result_dict[kw] = elem[key_wp][0]
+        kw = [" ".join(model.split('-')[1:]).title() for model in elem['class_list']
+              if re.findall(match_word, model)]
+        model_ids = elem[key_wp]
+        for model in zip(kw, model_ids):
+            (name, wp_id) = model
+            if name not in result_dict.keys():
+                result_dict[name] = wp_id
             else:
                 continue
     return result_dict
@@ -413,7 +410,7 @@ def update_published_titles_db(db_name: str,
     db_name = helpers.clean_filename(db_name, '.db')
     db_full_name = f"{helpers.is_parent_dir_required(parent=parent)}{db_name}"
     # SQLite3 can't overwrite an existing db with the same table.
-    helpers.if_exists_remove(db_full_name, parent=parent)
+    helpers.if_exists_remove(db_full_name)
     db = sqlite3.connect(db_full_name)
     cur = db.cursor()
     if photosets:
@@ -574,7 +571,7 @@ def upgrade_wp_local_cache(hostname: str,
 
     helpers.export_request_json(wp_filename, updated_local_cache, 1, parent=parent)
     local_json: list[dict] = helpers.load_json_ctx(wp_filename, parent=True)
-    update_published_titles_db(wp_db_name, local_json, parent=True)
+    update_published_titles_db(wp_db_name, local_json, parent=True, yoast=True)
     return None
 
 
@@ -599,32 +596,33 @@ rest_params: dict = {
     "media": "/media",
 }
 
-if input("Do you want to update your WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
-    # Modify the params parameter if needed.
-    upgrade_wp_local_cache(hstname,
-                           rest_params,
-                           'posts_url',
-                           'wp_posts',
-                           'WP_all_post_titles',
-                           cached=True,
-                           parent=True)
-
-    upgrade_wp_local_cache(hstname,
-                           rest_params,
-                           'photos',
-                           'wp_photos',
-                           'WP_all_photo_sets',
-                           cached=True,
-                           parent=True)
-
-else:
-    print("Okay, using cached files from now on!\n")
-    pass
 
 if __name__ == '__main__':
+    if input("Do you want to update your WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
+        # Modify the params parameter if needed.
+        upgrade_wp_local_cache(hstname,
+                               rest_params,
+                               'posts_url',
+                               'wp_posts',
+                               'WP_all_post_titles',
+                               cached=True,
+                               parent=True)
+
+        upgrade_wp_local_cache(hstname,
+                               rest_params,
+                               'photos',
+                               'wp_photos',
+                               'WP_all_photo_sets',
+                               cached=True,
+                               parent=True)
+
+    else:
+        print("Okay, using cached files from now on!\n")
+        pass
+
     # Loading local cache
     imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
-    print(len(imported_json))
+    wp_post_len: int = len(imported_json)
 
     # Create the report here. Make sure to uncomment the following:
     # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
@@ -633,7 +631,7 @@ if __name__ == '__main__':
     # export_request_json('wp_categories', categories, parent=True)
 
     # pprint.pprint(map_class_list_id(imported_json, 'category', 'categories'))
-    # pprint.pprint(map_class_list_id(imported_json, 'pornstars', 'pornstars'))
+    pprint.pprint(map_wp_model_id(imported_json, 'pornstars', 'pornstars'))
 
     # print(get_post_descriptions(imported_json, yoast=True))
 
