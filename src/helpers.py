@@ -1,20 +1,26 @@
 """
 This module stores the helper functions that collaborate
 with other local implementations.
-This file also adds bits of reusable business logic from other modules.
+
+The file also adds bits of reusable business logic from other modules.
+
+If I catch myself repeating blocks of code or just wish to use a function
+to make processes more standardised or straightforward, then the helpers
+module must have a reusable implementation.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
 
 """
 __author__ = "Yoham Gabriel Urbine@GitHub"
-__email__  = "yohamg@programmer.net"
+__email__ = "yohamg@programmer.net"
 
 import csv
 import glob
 import json
 import os
 import re
+import sqlite3
 import urllib
 import urllib.request
 import urllib.error
@@ -28,6 +34,7 @@ from requests_oauthlib import OAuth2Session
 # This way OAuthlib won't enforce HTTPS connections.
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
+
 def access_url_bs4(url_to_bs4: str) -> BeautifulSoup:
     """Accesses a URL and returns a BeautifulSoup object that's ready to parse.
     :param url_to_bs4: (str) URL
@@ -38,6 +45,7 @@ def access_url_bs4(url_to_bs4: str) -> BeautifulSoup:
     request = urllib.request.Request(url_to_bs4, None, headers)
     page = urllib.request.urlopen(request)
     return BeautifulSoup(page, 'html.parser')
+
 
 def access_url(url_raw: str):
     """ Accesses a URL and returns a http.client.HTTPResponse object
@@ -50,7 +58,8 @@ def access_url(url_raw: str):
     page = urllib.request.urlopen(request)
     return page
 
-def clean_filename(filename: str, extension: str=None) -> str:
+
+def clean_filename(filename: str, extension: str = None) -> str:
     """This function handles filenames with and without extension
     and avoids breaking functions that work with filenames and paths.
     Here you can pass filenames with or without extension and enforce a file type
@@ -107,7 +116,7 @@ def clean_path(folder: str, prefix: bool = False):
         return folder + '/'
 
 
-def cwd_or_parent_path(parent: bool=False) -> str:
+def cwd_or_parent_path(parent: bool = False) -> str:
     """This function gets an absolute path that works with other functions to point out
     where files are being stored (parent or current working directory).
     :param parent: bool that will be gathered by parent functions.
@@ -118,7 +127,8 @@ def cwd_or_parent_path(parent: bool=False) -> str:
     else:
         return os.getcwd()
 
-def filename_creation_helper(suggestions: list[str], extension: str='') -> str:
+
+def filename_creation_helper(suggestions: list[str], extension: str = '') -> str:
     """Takes a list of suggested filenames or creates a custom filename from user input.
     a user can type in just a filename without extension and the function will validate
     it to provide the correct name as needed.
@@ -142,7 +152,8 @@ def filename_creation_helper(suggestions: list[str], extension: str='') -> str:
         else:
             return clean_filename(name_select, extension)
 
-def filename_select(extension: str, parent: bool=False) -> str:
+
+def filename_select(extension: str, parent: bool = False) -> str:
     """
     Gives you a list of files with a certain extension.
     :param extension: File extension of the files that interest you.
@@ -162,10 +173,11 @@ def filename_select(extension: str, parent: bool=False) -> str:
     except IndexError:
         raise RuntimeError(f'This program requires a {extension} file. Exiting...')
 
+
 def export_request_json(filename: str,
                         stream,
                         indent: int = 1,
-                        parent: bool=False) -> str:
+                        parent: bool = False) -> str:
     """ This function writes a JSON file to either your parent or current working dir
     :param filename: (str) Filename with or without JSON extension.
     :param stream: (json) Data stream to export to JSON
@@ -173,7 +185,7 @@ def export_request_json(filename: str,
     :param parent: (bool) Place file in parent directory if True. Default False.
     :return: (None) print statement for console logging.
     """
-    f_name = clean_filename(filename,'.json')
+    f_name = clean_filename(filename, '.json')
     dest_dir = is_parent_dir_required(parent)
     f_path = cwd_or_parent_path(parent)
 
@@ -199,6 +211,7 @@ def export_to_csv_nt(nmedtpl_lst: list, filename: str, top_row_lst: list[str]) -
                 continue
     return None
 
+
 def get_token_oauth(client_id_: str,
                     uri_callback_: str,
                     client_secret_: str,
@@ -222,6 +235,7 @@ def get_token_oauth(client_id_: str,
         authorization_response=authorization_response,
         client_secret=client_secret_)
     return token
+
 
 def is_parent_dir_required(parent: bool) -> str:
     """
@@ -250,8 +264,10 @@ def if_exists_remove(fname: str):
         return None
 
 
-def get_client_info(filename: str, parent: bool=False):
-    """
+def get_client_info(filename: str, parent: bool = False):
+    """This function handles API secrets in a way that completely eliminates the need
+    to use them inside the code. It can be any JSON file that you create for that purpose and,
+    most importantly, placed in .gitignore to avoid pushing sensitive info to GitHub or GitLab.
     :return: json object
     """
     f_name = clean_filename(filename, '.json')
@@ -265,7 +281,8 @@ def get_client_info(filename: str, parent: bool=False):
         print("File not found! Double-check the filename.")
         return None
 
-def load_json_ctx(filename: str, parent: bool=False, log_err: bool = False):
+
+def load_json_ctx(filename: str, parent: bool = False, log_err: bool = False):
     """ This function makes it possible to assign a JSON file from storage to a variable.
     :param logerr: True if you want to print error information, default False.
     :param parent: Looks for the JSON file in the parent directory if True, default False.
@@ -283,6 +300,7 @@ def load_json_ctx(filename: str, parent: bool=False, log_err: bool = False):
         if log_err:
             print(f"File {parent_or_cwd}{json_file} not found! Double-check the filename.")
         return None
+
 
 def load_from_file(filename: str, extension: str, parent=False):
     """ Loads the content of any file that could be read with the file.read()
@@ -302,7 +320,8 @@ def load_from_file(filename: str, extension: str, parent=False):
         print("File not found! Double-check the filename.")
         return None
 
-def parse_date_to_iso(full_date: str, m_abbr: bool=False) -> date:
+
+def parse_date_to_iso(full_date: str, m_abbr: bool = False) -> date:
     """Breaks down the full date string and converts it to ISO format to get a datetime.date object.
     important: Make sure to import 'from calendar import month_abbr, month_name' as it is required.
     :param full_date: date_full is 'Aug 20th, 2024' or 'August 20th, 2024'.
@@ -330,7 +349,8 @@ def parse_date_to_iso(full_date: str, m_abbr: bool=False) -> date:
 
     return date.fromisoformat(year + month_num + day)
 
-def search_files_by_ext(extension: str, folder:str, parent: bool = False) -> list[str]:
+
+def search_files_by_ext(extension: str, folder: str, parent: bool = False) -> list[str]:
     """This function searches for files with the specified extension
     and returns a list with the files in either parent or current working directories.
     :param extension: with or without dot
@@ -342,16 +362,20 @@ def search_files_by_ext(extension: str, folder:str, parent: bool = False) -> lis
     search_files = clean_filename('*', extension)
     clean_folder = clean_path(folder)
     return [route.split('/')[-1:][0]
-            for route in glob.glob(is_parent_dir_required(parent)+ f'/{clean_folder}{search_files}')]
+            for route in glob.glob(is_parent_dir_required(parent) + f'/{clean_folder}{search_files}')]
 
-def write_to_file(filename: str, extension: str, stream, parent: bool=False) -> None:
-    """
 
-    :param filename:
-    :param extension:
-    :param stream:
-    :param parent:
-    :return:
+def write_to_file(filename: str, extension: str, stream, parent: bool = False) -> None:
+    """ Write to file initializes a context manager to write a stream of data to a file with
+    an extension specified by the user. This helper function reduces the need to repeat the code
+    needed for this kind of operation.
+    The function uses a relative path and the parent parameter
+    will dictate whether the file is located alongside the source file.
+    :param filename: -> Self-explanatory. Handles filenames with or without extension.
+    :param extension: File extension that will be enforced for the file type.
+    :param stream: stream data or data structure to be writen or converted into a file.
+    :param parent: True if you want to write this file in the parent directory instead. Default False.
+    :return: None -> It creates the file
     """
     f_name = clean_filename(filename, extension)
     with open(f'{is_parent_dir_required(parent=parent)}{f_name}', 'w', encoding='utf-8') as file:
@@ -359,3 +383,20 @@ def write_to_file(filename: str, extension: str, stream, parent: bool=False) -> 
     print(f'Created file {f_name} in {cwd_or_parent_path(parent=parent)}')
     return None
 
+
+def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
+    """Fetch videos takes a SQL query in string format and returns the data
+    in a list of tuples. In case there is no data, the function returns None.
+    :param sql_query: SQL Query string.
+    :param db_cursor: Database connection cursor.
+    :return: list[tuple]
+    """
+    db_cursor.execute(sql_query)
+    return db_cursor.fetchall()
+
+def get_dict_key(source_dic: dict, value: int):
+    """This function retrieves the key from a dictionary if the value is associated with one."""
+    for tname, tid in source_dic.items():
+        if value == tid:
+            return tname
+    return None
