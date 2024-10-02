@@ -1,6 +1,12 @@
 """
 This module connects to the WordPress API to gather information
 and streamline data analysis and other processes.
+It specialises in the handling and filtering of WordPress Post information,
+managing local caching and reporting of an active site.
+
+It was created with the notion of the perfect assistant to keep a site clean and
+derive insights based on multiple data extraction methods developed here.
+
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
 
