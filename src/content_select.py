@@ -115,10 +115,10 @@ def filter_published(all_videos: list[tuple], wp_posts_f: list[dict]) -> list[tu
     not_published: list[tuple] = []
     for elem in all_videos:
         (title, *fields) = elem
-        if not published_json(title, wp_posts_f):
-            not_published.append(elem)
-        else:
+        if published_json(title, wp_posts_f):
             continue
+        else:
+            not_published.append(elem)
     return not_published
 
 
@@ -255,7 +255,7 @@ def clean_file_cache(cache_folder: str, file_ext: str, parent=False) -> None:
                                                          folder=cache_folder)
     go_to_folder: str = helpers.is_parent_dir_required(parent=parent) + cache_folder
     os.chdir(go_to_folder)
-    if len(cache_files) > 1:
+    if len(cache_files) >= 1:
         for file in cache_files:
             os.remove(file)
     else:
@@ -323,15 +323,16 @@ def make_img_payload(vid_title: str, vid_description: str) -> dict[str: str]:
     return img_payload
 
 
-def hot_file_sync(wp_filename, parent=False) -> bool:
-    """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using during runtime
-    and allows for collaborative efficiency since two people can be uploading videos simultaneously with a
-    minimal risk of duplicating an upload. This function leverages the power of the caching mechanism defined
+def hot_file_sync(wp_filename, endpoint: str, parent=False) -> bool:
+    """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
+    datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
+    This function leverages the power of the caching mechanism defined
     in wordpress_api.py that dynamically appends new items in order and keeps track of cached pages with the
     total count of posts at the time of update. hot_file_sync just updates the JSON cache of the WP site and
     reloads the local cache configuration file to validate the changes. Hot Sync will write the changes once the
     new changes are validated and compared with the local config file.
     In other words, if it isn't right, the WP post file remains untouched.
+    :param endpoint: endpoint for your WordPress file just pass in 'posts_url' for posts and 'photos' for photos.
     :param wp_filename: name of the WP Posts JSON file with or without extension.
     :param parent: True if the file is located in the parent dir. Default is False.
     :return: bool (True if everything went well or False if the validation failed)
@@ -340,7 +341,6 @@ def hot_file_sync(wp_filename, parent=False) -> bool:
     host = wordpress_api.hstname
     params_d = wordpress_api.rest_params
     config_json = helpers.load_json_ctx('wp_cache_config.json', parent=parent)
-    endpoint = 'posts_url'
     sync_changes = wordpress_api.update_json_cache(host, params_d, endpoint,
                                                    config_json, wp_filename, parent=parent)
     # Reload config
@@ -418,8 +418,8 @@ def video_upload_pilot(videos: list[tuple],
     :param hot_sync_mode: True if you want Hot Sync after each post upload. Default False.
     :return: None
     """
-    print('\n==> Warming up... ^‿^ ')
-    hot_file_sync('wp_posts.json', parent=True)
+    print('\n==> Warming up... ┌(◎_◎)┘ ')
+    hot_file_sync('wp_posts.json','posts_url', parent=True)
     all_vals: list[tuple] = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
@@ -448,7 +448,7 @@ def video_upload_pilot(videos: list[tuple],
     # You can keep on getting posts until this variable is equal to one.
     total_elems = len(not_published_yet)
     print(f"\nThere are {total_elems} videos to be published...")
-    for num, vid in enumerate(not_published_yet):
+    for num, vid in enumerate(not_published_yet[:]):
         (title, *fields) = vid
         description = fields[0]
         models = fields[1]
@@ -582,7 +582,7 @@ def video_upload_pilot(videos: list[tuple],
                     if hot_sync_mode:
                         print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
                         try:
-                            sync = hot_file_sync('wp_posts', parent=True)
+                            sync = hot_file_sync('wp_posts','posts_url', parent=True)
                         except ConnectionError:
                             print("Hot File Sync encountered a ConnectionError.")
                             print("Going to next post. I will fetch your changes in a next try.")
@@ -654,16 +654,21 @@ if __name__ == '__main__':
     banner_trike_1 = "https://mongercash.com/view_banner.php?name=tp-728x90.gif&amp;filename=9924_name.gif&amp;type=gif&amp;download=1"
     banner_trike_2 = "https://mongercash.com/view_banner.php?name=tp-770x76.gif&amp;filename=9926_name.gif&amp;type=gif&amp;download=1"
     banner_trike_3 = "https://mongercash.com/view_banner.php?name=trike%20patrol%20850x80.gif&amp;filename=7675_name.gif&amp;type=gif&amp;download=1"
+    banner_euro_1 = "https://mongercash.com/view_banner.php?name=esd-730x90-1.png&filename=12419_name.png&type=png&download=1"
+    banner_euro_2 = "https://mongercash.com/view_banner.php?name=esd-660x60-2.png&filename=12421_name.png&type=png&download=1"
+    banner_euro_3 = "https://mongercash.com/view_banner.php?name=esd-876x75-1.png&filename=12416_name.png&type=png&download=1"
+
 
     banner_lst_asd = [banner_asd_1, banner_asd_2, banner_asd_3]
     banner_lst_tktk = [banner_tuktuk_1, banner_tuktuk_2, banner_tuktuk_3]
     banner_lst_trike = [banner_trike_1, banner_trike_2, banner_trike_3]
-    banner_lists = [banner_lst_asd, banner_lst_tktk, banner_lst_trike]
+    banner_lst_esd = [banner_euro_1, banner_euro_2, banner_euro_3]
+    banner_lists = [banner_lst_asd, banner_lst_tktk, banner_lst_trike, banner_lst_esd]
 
     # Alternative query: SELECT * FROM videos WHERE date>="2024" OR date>="2023"
     ideal_q = 'SELECT * FROM videos WHERE date>="2022" AND duration!="trailer"'
 
-    partnerz = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol"]
+    partnerz = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol", "Euro Sex Diary"]
 
     imported_json = helpers.load_json_ctx("wp_posts", parent=True)
     db_all_vids = helpers.fetch_data_sql(ideal_q, cur_dump)

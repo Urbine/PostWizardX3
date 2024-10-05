@@ -30,6 +30,7 @@ from datetime import date
 from bs4 import BeautifulSoup
 from calendar import month_abbr, month_name
 from requests_oauthlib import OAuth2Session
+from sqlite3 import OperationalError
 
 # This way OAuthlib won't enforce HTTPS connections.
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -321,10 +322,13 @@ def load_from_file(filename: str, extension: str, parent=False):
         return None
 
 
-def parse_date_to_iso(full_date: str, m_abbr: bool = False) -> date:
+def parse_date_to_iso(full_date: str,
+                      zero_day: bool = False,
+                      m_abbr: bool = False) -> date:
     """Breaks down the full date string and converts it to ISO format to get a datetime.date object.
     important: Make sure to import 'from calendar import month_abbr, month_name' as it is required.
     :param full_date: date_full is 'Aug 20th, 2024' or 'August 20th, 2024'.
+    :param zero_day: True if your date already has a zero in days less than 10. Default: False
     :param m_abbr: Set to True if you provide a month abbreviation e.g. 'Aug', default set to False ().
     :return: date object (ISO format)
     """
@@ -338,14 +342,19 @@ def parse_date_to_iso(full_date: str, m_abbr: bool = False) -> date:
     month_num = str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     # The date ISO format requires that single numbers are preceded by a 0.
+
     if int(month_num) <= 9:
         month_num = '0' + str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     day_nth = str(full_date.split(",")[0].split(" ")[1])
     day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
 
-    if int(day) <= 9:
-        day = '0' + day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+    if zero_day:
+        if int(day) <= 9:
+            day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+    else:
+        if int(day) <= 9:
+            day = '0' + day_nth.strip("".join(re.findall("[a-z]", day_nth)))
 
     return date.fromisoformat(year + month_num + day)
 
@@ -362,7 +371,8 @@ def search_files_by_ext(extension: str, folder: str, parent: bool = False) -> li
     search_files = clean_filename('*', extension)
     clean_folder = clean_path(folder)
     return [route.split('/')[-1:][0]
-            for route in glob.glob(is_parent_dir_required(parent) + f'/{clean_folder}{search_files}')]
+            for route in glob.glob(is_parent_dir_required(parent)
+                                   + f'{clean_folder}{search_files}')]
 
 
 def write_to_file(filename: str, extension: str, stream, parent: bool = False) -> None:
@@ -394,9 +404,19 @@ def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
     db_cursor.execute(sql_query)
     return db_cursor.fetchall()
 
+
 def get_dict_key(source_dic: dict, value: int):
     """This function retrieves the key from a dictionary if the value is associated with one."""
     for tname, tid in source_dic.items():
         if value == tid:
             return tname
     return None
+
+
+def get_from_db(cur: sqlite3, field: str, table: str):
+    """This function gets a field from a table in a SQLite database"""
+    qry = f'SELECT {field} from {table}'
+    try:
+        return cur.execute(qry).fetchall()
+    except OperationalError:
+        return None

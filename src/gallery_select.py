@@ -64,18 +64,16 @@ def fetch_zip(dwn_dir: str, remote_res: str, parent=False):
     print(f"--> Fetched file {helpers.search_files_by_ext('zip', parent=True, folder='tmp')[0]}")
     return None
 
-def extract_zip(zip_path: str, extr_dir: str, parent: bool=False):
-    get_zip = helpers.search_files_by_ext('zip', folder=zip_path, parent=parent)
-
+def extract_zip(zip_path: str, extr_dir: str):
+    get_zip = helpers.search_files_by_ext('zip', folder=zip_path)
     try:
         with zipfile.ZipFile(f'{zip_path}/{get_zip[0]}', 'r') as zipf:
             zipf.extractall(path=extr_dir)
         print(f"--> Extracted files from {get_zip[0]} in folder {extr_dir}")
         print(f"--> Tidying up...")
         shutil.rmtree(f'{extr_dir}/__MACOSX')
-        content_select.clean_file_cache('tmp', '.zip', parent=parent)
     except IndexError or zipfile.BadZipfile:
-        content_select.clean_file_cache('tmp', '.zip', parent=parent)
+        content_select.clean_file_cache(zip_path, '.zip')
         return None
 
 def make_gallery_payload(gal_title: str, iternum:int):
@@ -124,19 +122,49 @@ def make_photos_payload(status_wp: str, set_name: str, partner_name: str) -> dic
     return payload_post
 
 
-def gallery_upload_pilot(cur_prtner: sqlite3,
-                         cur_wp_po: sqlite3,
-                         cur_wp_ph: sqlite3,
-                         partners: list[str],
-                         db_name_prtner: str):
-    partners = partners
+def filter_relevant(all_galleries: list[tuple],
+                    wp_posts_f: list[dict], wp_photos_f: list[dict]) -> list[tuple]:
+    # Relevancy algorithm.
     # Lists unique models whose videos where already published on the site.
-    models_set = get_model_set(cur_wp_po, 'videos')
+    models_set = set(wordpress_api.map_wp_model_id(wp_posts_f,
+                                                   'pornstars',
+                                                   'pornstars').keys())
+    not_published_yet = []
+    for elem in all_galleries:
+        (title, *fields) = elem
+        model_in_set = False
+        title_split = title.split(" ")
+        for word in title_split:
+            if word not in models_set:
+                continue
+            else:
+                model_in_set = True
+                break
+
+        if (not content_select.published_json(title, wp_photos_f)
+            and model_in_set):
+            not_published_yet.append(elem)
+        else:
+            continue
+    return not_published_yet
+
+
+
+def gallery_upload_pilot(cur_prtner: sqlite3,
+                         wp_posts_f: list[dict],
+                         wp_photos_f: list[dict],
+                         partners: list[str],
+                         db_name_prtner: str,
+                         hot_sync_mode: bool = False):
+    print('==> Warming up... ┌(◎_◎)┘')
+    content_select.hot_file_sync('wp_photos','photos', parent=True)
+    partners = partners
     all_galleries = get_from_db(cur_prtner, '*', 'sets')
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
     # This is in case you run the program after a traceback or end execution early.
     content_select.clean_file_cache('thumbnails','.jpg', parent=True)
+    content_select.clean_file_cache('tmp', '.zip', parent=True)
     # Prints out at the end of the uploading session.
     galleries_uploaded = 0
     print('\n')
@@ -154,29 +182,12 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
         pass
     else:
         raise RuntimeError("Be careful! Partner and database must match. Try again...")
+    not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
 
-    # Relevancy algorithm.
-    not_published_yet = []
-    for elem in all_galleries:
-        (title, *fields) = elem
-        model_in_set = False
-        title_split = title.split(" ")
-        for word in title_split:
-            if word not in models_set:
-                continue
-            else:
-                model_in_set = True
-                break
-
-        if (not content_select.published('sets', title, cur_wp_ph)
-            and model_in_set):
-            not_published_yet.append(elem)
-        else:
-            continue
     # You can keep on getting sets until this variable is equal to one.
     total_elems = len(not_published_yet)
     print(f"\nThere are {total_elems} sets to be published...")
-    for num, photo in enumerate(not_published_yet):
+    for num, photo in enumerate(not_published_yet[:]):
         (title, *fields) = photo
         # if not published(title, cursor_wp):
         title = title
@@ -218,7 +229,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
 
             try:
                 fetch_zip('/tmp', download_url, parent=True)
-                extract_zip('../tmp', '../thumbnails', parent=True)
+                extract_zip('../tmp', '../thumbnails')
 
                 print("--> Creating set on WordPress")
                 push_post = wordpress_api.wp_post_create(wp_base_url, ['/photos'], payload)
@@ -255,14 +266,22 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 if next_post == ('y' or 'yes'):
                     # Clears clipboard after every video.
                     content_select.clean_file_cache('thumbnails','.jpg', parent=True)
+                    content_select.clean_file_cache('tmp', '.zip', parent=True)
                     pyclip.clear()
-                    continue
+                    if hot_sync_mode:
+                        print('==> Syncing and Caching changes. ᕕ(◎_◎)ᕗ')
+                        content_select.hot_file_sync('wp_photos', 'photos', parent=True)
+                        not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
+                        continue
+                    else:
+                        continue
                 elif next_post == ('n' or 'no'):
                     # The terminating parts add this function to avoid tracebacks from pyclip
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     print("\n--> Cleaning thumbnails cache now")
                     content_select.clean_file_cache('thumbnails','.jpg', parent=True)
+                    content_select.clean_file_cache('tmp', '.zip', parent=True)
                     print(f'You have created {galleries_uploaded} sets in this session!')
                     break
                 else:
@@ -292,24 +311,29 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
             print(f'You have created {galleries_uploaded} sets in this session!')
             break
 
+if __name__ == '__main__':
 
-print(' *** Select your partner photo set DB: ***')
-db_name_partner = helpers.filename_select('db', parent = True)
-db_partner = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_name_partner}')
-cur_partner = db_partner.cursor()
+    print(' *** Select your partner photo set DB: ***')
+    db_name_partner = helpers.filename_select('db', parent = True)
+    db_partner = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_name_partner}')
+    cur_partner = db_partner.cursor()
 
-print('\n *** Select your WP All Posts DB: ***')
-db_wp_1 = helpers.filename_select('db', parent = True)
-db_wp_posts = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_wp_1}')
-cur_wp_posts = db_wp_posts.cursor()
+    # print('\n *** Select your WP All Posts DB: ***')
+    # db_wp_1 = helpers.filename_select('db', parent = True)
+    # db_wp_posts = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_wp_1}')
+    # cur_wp_posts = db_wp_posts.cursor()
 
-print('\n *** Select your WP Photos DB: ***')
-db_wp_2 = helpers.filename_select('db', parent = True)
-db_wp_photos = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_wp_2}')
-cur_wp_photos = db_wp_photos.cursor()
+    # print('\n *** Select your WP Photos DB: ***')
+    # db_wp_2 = helpers.filename_select('db', parent = True)
+    # db_wp_photos = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_wp_2}')
+    # cur_wp_photos = db_wp_photos.cursor()
 
-partnerz = ['Asian Sex Diary', 'Tuktuk Patrol', 'Trike Patrol']
+    imported_json_photos = helpers.load_json_ctx('wp_photos', parent=True)
+    imported_json_posts = helpers.load_json_ctx('wp_posts', parent=True)
 
-gallery_upload_pilot(cur_partner, cur_wp_posts, cur_wp_photos, partnerz, db_name_partner)
+    partnerz = ['Asian Sex Diary', 'Tuktuk Patrol', 'Trike Patrol']
+
+    gallery_upload_pilot(cur_partner, imported_json_posts,
+                         imported_json_photos, partnerz, db_name_partner, hot_sync_mode=True)
 
 

@@ -619,7 +619,7 @@ if __name__ == '__main__':
                                'photos',
                                'wp_photos',
                                'WP_all_photo_sets',
-                               cached=True,
+                               cached=False,
                                parent=True)
 
     else:
@@ -628,7 +628,7 @@ if __name__ == '__main__':
 
     # Loading local cache
     imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
-    wp_post_len: int = len(imported_json)
+    # wp_post_len: int = len(imported_json)
 
     # Create the report here. Make sure to uncomment the following:
     # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
@@ -637,7 +637,7 @@ if __name__ == '__main__':
     # export_request_json('wp_categories', categories, parent=True)
 
     # pprint.pprint(map_class_list_id(imported_json, 'category', 'categories'))
-    pprint.pprint(map_wp_model_id(imported_json, 'pornstars', 'pornstars'))
+    # pprint.pprint(map_wp_model_id(imported_json, 'pornstars', 'pornstars'))
 
     # print(get_post_descriptions(imported_json, yoast=True))
 
