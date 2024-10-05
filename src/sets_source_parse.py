@@ -38,7 +38,8 @@ def parse_dates(soup_html: BeautifulSoup) -> list[datetime.date]:
     """
     dates = soup_html.find_all('td',
                                attrs={'class': 'tab-column col_1 center-align'})
-    return [helpers.parse_date_to_iso(td.text) for td in dates]
+    return [helpers.parse_date_to_iso(td.text.strip(), zero_day=True, m_abbr=False)
+            for td in dates]
 
 def parse_links(soup_html: BeautifulSoup) -> list[str]:
     """Parses all photo set links from the source file or BeautifulSoup
