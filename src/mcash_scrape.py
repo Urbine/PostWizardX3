@@ -138,7 +138,7 @@ def get_page_source_flow(url_: str,
             #Locate update button to submit selected option
             update_submit_button = driver.find_element(By.ID, 'pageination-submit')
             update_submit_button.click()
-            time.sleep(1)
+            time.sleep(3)
 
             driver.refresh()
             source_html = BeautifulSoup(driver.page_source, 'html.parser')

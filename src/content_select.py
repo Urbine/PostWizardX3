@@ -7,7 +7,10 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
+import glob
 import os
+import shutil
+
 import pyclip
 import random
 import re
@@ -157,7 +160,7 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str]) -> list[int]:
     :param tag_lst: list[str] a list of tags
     :return: list[int]
     """
-    tag_tracking: dict[str: int] = wordpress_api.tag_id_merger_dict(wp_posts_f)
+    tag_tracking: dict[str, int] = wordpress_api.tag_id_merger_dict(wp_posts_f)
     # I will match them with Regex here to avoid touching the datasource.
     matched_keys = [wptag for wptag in tag_tracking.keys()
                     for tag in tag_lst if re.fullmatch(tag, wptag, flags=re.IGNORECASE)]
@@ -177,7 +180,7 @@ def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]) -> list[int]:
     :param model_lst: list[str] model names
     :return: list[int]
     """
-    model_tracking: dict[str: int] = wordpress_api.map_wp_model_id(wp_posts_f,
+    model_tracking: dict[str, int] = wordpress_api.map_wp_model_id(wp_posts_f,
                                                                    'pornstars', 'pornstars')
     return list({model_tracking[model.title().strip()] for model in model_lst
                  if model.title().strip() in model_tracking.keys()})
@@ -253,14 +256,18 @@ def clean_file_cache(cache_folder: str, file_ext: str, parent=False) -> None:
     cache_files: list[str] = helpers.search_files_by_ext(file_ext,
                                                          parent=parent,
                                                          folder=cache_folder)
+
     go_to_folder: str = helpers.is_parent_dir_required(parent=parent) + cache_folder
-    os.chdir(go_to_folder)
-    if len(cache_files) >= 1:
+    folders = glob.glob(f'{go_to_folder}/*')
+    if cache_files:
+        os.chdir(go_to_folder)
         for file in cache_files:
             os.remove(file)
-    else:
-        return None
+    elif folders:
+        for folder in folders:
+            shutil.rmtree(folder)
 
+    return None
 
 def make_payload(vid_slug,
                  status_wp: str,
@@ -307,15 +314,15 @@ def make_payload(vid_slug,
     return payload_post
 
 
-def make_img_payload(vid_title: str, vid_description: str) -> dict[str: str]:
+def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
     """Similar to the make_payload function, this one makes the payload for the video thumbnails,
     it gives them the video description and focus key phrase, which is the video title plus a call to
     action in case that ALT text appears on the image search vertical, and they want to watch the video.
     :param vid_title: self-explanatory
     :param vid_description: self-explanatory
-    :return: dict[str: str]
+    :return: dict[str, str]
     """
-    img_payload: dict[str: str] = {
+    img_payload: dict[str, str] = {
         "alt_text": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!",
         "caption": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!",
         "description": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!"
@@ -511,7 +518,7 @@ def video_upload_pilot(videos: list[tuple],
                 for tag in tag_check:
                     print(f'ATTENTION --> Tag: {tag} not on WordPress.')
                     print('--> Copying missing tag to your system clipboard.')
-                    print("Paste it into the tags field as soon as possible...")
+                    print("Paste it into the tags field as soon as possible...\n")
                     pyclip.detect_clipboard()
                     pyclip.copy(tag)
 
@@ -529,7 +536,7 @@ def video_upload_pilot(videos: list[tuple],
                 for girl in new_models:
                     print(f'ATTENTION! --> Model: {girl} not on WordPress.')
                     print('--> Copying missing model name to your system clipboard.')
-                    print("Paste it into the Pornstars field as soon as possible...")
+                    print("Paste it into the Pornstars field as soon as possible...\n")
                     pyclip.detect_clipboard()
                     pyclip.copy(girl)
 
@@ -547,15 +554,24 @@ def video_upload_pilot(videos: list[tuple],
             try:
                 fetch_thumbnail('thumbnails', wp_slug, thumbnail_url, parent=True)
                 print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
-                print("--> Creating post on WordPress")
-                push_post = wordpress_api.wp_post_create(wp_base_url, ['/posts'], payload)
-                print(f'--> WordPress status code: {push_post}')
                 print("--> Uploading thumbnail to WordPress Media...")
                 print("--> Adding image attributes on WordPress...")
                 img_attrs = make_img_payload(title, description)
                 upload_img = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
                                                             f"../thumbnails/{wp_slug}.jpg", img_attrs)
+
+                # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
+                # upload_thumbnail will report a 500 status code when this is the case.
+                if upload_img == 500:
+                    print("It is possible that this thumbnail is defective. Check the Thumbnail manually.")
+                    print("--> Proceeding to the next post...\n")
+                    continue
+                else:
+                    pass
                 print(f'\n--> WordPress Media upload status code: {upload_img}')
+                print("--> Creating post on WordPress")
+                push_post = wordpress_api.wp_post_create(wp_base_url, ['/posts'], payload)
+                print(f'--> WordPress status code: {push_post}')
                 # Copy important information to the clipboard.
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
@@ -646,32 +662,48 @@ if __name__ == '__main__':
     client_info = helpers.get_client_info('client_info', parent=True)
 
     banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
-    banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tktkp-960x75.gif&amp;filename=9935_name.gif&amp;type=gif&amp;download=1"
+    banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tuktuk620x77.jpg&filename=7664_name.jpg&type=jpg&download=1"
     banner_tuktuk_3 = "https://mongercash.com/view_banner.php?name=tktkp-850x80.jpg&amp;filename=9934_name.jpg&amp;type=jpg&amp;download=1"
-    banner_asd_1 = "https://mongercash.com/view_banner.php?name=asd638x60.gif&amp;filename=7654_name.gif&amp;type=gif&amp;download=1"
-    banner_asd_2 = "https://mongercash.com/view_banner.php?name=asd850x80.gif&amp;filename=7655_name.gif&amp;type=gif&amp;download=1"
-    banner_asd_3 = "https://mongercash.com/view_banner.php?name=asd-728x90.gif&amp;filename=9876_name.gif&amp;type=gif&amp;download=1"
+
+    banner_asd_1 = "https://mongercash.com/view_banner.php?name=asd-640x90.gif&filename=6377_name.gif&type=gif&download=1"
+    banner_asd_2 = "https://mongercash.com/view_banner.php?name=asd-header-970x170.png&filename=6871_name.png&type=png&download=1"
+    banner_asd_3 = "https://mongercash.com/view_banner.php?name=asd-channel-footer-950%20x%20250.png&filename=6864_name.png&type=png&download=1"
+
     banner_trike_1 = "https://mongercash.com/view_banner.php?name=tp-728x90.gif&amp;filename=9924_name.gif&amp;type=gif&amp;download=1"
-    banner_trike_2 = "https://mongercash.com/view_banner.php?name=tp-770x76.gif&amp;filename=9926_name.gif&amp;type=gif&amp;download=1"
+    banner_trike_2 = "https://mongercash.com/view_banner.php?name=tp-850x80.jpg&filename=9921_name.jpg&type=jpg&download=1"
     banner_trike_3 = "https://mongercash.com/view_banner.php?name=trike%20patrol%20850x80.gif&amp;filename=7675_name.gif&amp;type=gif&amp;download=1"
+
     banner_euro_1 = "https://mongercash.com/view_banner.php?name=esd-730x90-1.png&filename=12419_name.png&type=png&download=1"
-    banner_euro_2 = "https://mongercash.com/view_banner.php?name=esd-660x60-2.png&filename=12421_name.png&type=png&download=1"
+    banner_euro_2 = "https://mongercash.com/view_banner.php?name=esd-1323x270-2.png&filename=12414_name.png&type=png&download=1"
     banner_euro_3 = "https://mongercash.com/view_banner.php?name=esd-876x75-1.png&filename=12416_name.png&type=png&download=1"
+
+    banner_paradise_1 = "https://mongercash.com/view_banner.php?name=1323x270.jpg&filename=8879_name.jpg&type=jpg&download=1"
 
 
     banner_lst_asd = [banner_asd_1, banner_asd_2, banner_asd_3]
     banner_lst_tktk = [banner_tuktuk_1, banner_tuktuk_2, banner_tuktuk_3]
     banner_lst_trike = [banner_trike_1, banner_trike_2, banner_trike_3]
     banner_lst_esd = [banner_euro_1, banner_euro_2, banner_euro_3]
-    banner_lists = [banner_lst_asd, banner_lst_tktk, banner_lst_trike, banner_lst_esd]
+    banner_lst_paradise = [banner_paradise_1]
+
+    banner_lists = [banner_lst_asd,
+                    banner_lst_tktk,
+                    banner_lst_trike,
+                    banner_lst_esd,
+                    banner_lst_paradise]
 
     # Alternative query: SELECT * FROM videos WHERE date>="2024" OR date>="2023"
     ideal_q = 'SELECT * FROM videos WHERE date>="2022" AND duration!="trailer"'
+    alt_query = 'SELECT * FROM videos ORDER BY date DESC'
 
-    partnerz = ["Asian Sex Diary", "TukTuk Patrol", "Trike Patrol", "Euro Sex Diary"]
+    partnerz = ["Asian Sex Diary",
+                "TukTuk Patrol",
+                "Trike Patrol",
+                "Euro Sex Diary",
+                "Paradise GFs"]
 
     imported_json = helpers.load_json_ctx("wp_posts", parent=True)
-    db_all_vids = helpers.fetch_data_sql(ideal_q, cur_dump)
+    db_all_vids = helpers.fetch_data_sql(alt_query, cur_dump)
 
     video_upload_pilot(db_all_vids, partnerz, banner_lists,
                        db_dump_name, imported_json, hot_sync_mode=True)

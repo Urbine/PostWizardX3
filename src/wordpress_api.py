@@ -9,7 +9,7 @@ derive insights based on multiple data extraction methods developed here.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
+ 
 """
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
@@ -63,7 +63,7 @@ def wp_post_create(wp_self: str, param_lst: list[str], payload):
 
 
 def create_wp_local_cache(hostname: str,
-                          params_dict: dict,
+                          params_dict: dict[str, str],
                           endpoint: str,
                           wp_filename: str,
                           parent: bool = False) -> list[dict]:
@@ -449,9 +449,12 @@ def upload_thumbnail(wp_self: str, param_lst: list[str], file_path: str, payload
     wp_self: str = wp_self + "".join(param_lst)
     with open(file_path, 'rb') as thumb:
         request = requests.post(wp_self, files={'file': thumb}, auth=auth_wp)
-    image_json = request.json()
-    return requests.post(wp_self + "/" + str(image_json['id']),
-                         json=payload, auth=auth_wp).status_code
+    try:
+        image_json = request.json()
+        return requests.post(wp_self + "/" + str(image_json['id']),
+                             json=payload, auth=auth_wp).status_code
+    except KeyError:
+        return request.status_code
 
 
 def local_cache_config(wp_filename: str,
