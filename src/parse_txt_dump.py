@@ -100,7 +100,7 @@ with (open(f'../{dump_file_name}', 'r', encoding='utf-8') as dump_file):
 
             # Break down the date and convert it to ISO format to get a date object.
             # dump_line[5] is initially 'Aug 20th, 2024' but I want a datetime.date object.
-            date = helpers.parse_date_to_iso(dump_line[5], m_abbr=True)
+            date = str(helpers.parse_date_to_iso(dump_line[5], m_abbr=True))
 
             # The duration comes at the end of source urls.
             pre_duration = dump_line[6].split('/')[-1:][0].split('_')
