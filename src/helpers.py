@@ -359,7 +359,10 @@ def parse_date_to_iso(full_date: str,
     return date.fromisoformat(year + month_num + day)
 
 
-def search_files_by_ext(extension: str, folder: str, parent: bool = False) -> list[str]:
+def search_files_by_ext(extension: str,
+                        folder: str,
+                        recursive: bool = False,
+                        parent: bool = False) -> list[str]:
     """This function searches for files with the specified extension
     and returns a list with the files in either parent or current working directories.
     :param extension: with or without dot
@@ -369,10 +372,13 @@ def search_files_by_ext(extension: str, folder: str, parent: bool = False) -> li
     """
     # uses the clean_filename function to receive extension with or without dot.
     search_files = clean_filename('*', extension)
-    clean_folder = clean_path(folder)
-    return [route.split('/')[-1:][0]
-            for route in glob.glob(is_parent_dir_required(parent)
-                                   + f'{clean_folder}{search_files}')]
+    if recursive:
+        return glob.glob(is_parent_dir_required(parent)
+                                       + f'{folder}/*/{search_files}', recursive=True)
+    else:
+        return [route.split('/')[-1:][0]
+                for route in glob.glob(is_parent_dir_required(parent)
+                                       + f'{folder}/{search_files}')]
 
 
 def write_to_file(filename: str, extension: str, stream, parent: bool = False) -> None:
