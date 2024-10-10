@@ -93,8 +93,10 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
     :return: True if one or more matches is found, False if the result is None.
     """
     post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
-    results: list[str] = [vid_name for vid_name in post_titles if re.match(title, vid_name)]
-    if results:
+    comp_title = re.compile(title)
+    results: list[str] = [vid_name for vid_name in post_titles
+                          if re.match(comp_title, vid_name)]
+    if len(results) >= 1:
         return True
     else:
         return False
@@ -269,6 +271,7 @@ def clean_file_cache(cache_folder: str, file_ext: str, parent=False) -> None:
 
     return None
 
+
 def make_payload(vid_slug,
                  status_wp: str,
                  vid_name: str,
@@ -328,6 +331,27 @@ def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
         "description": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!"
     }
     return img_payload
+
+
+def make_slug(partner: str, model: str, title: str, content: str) -> str:
+    """ This function is a new approach to the generation of slugs inspired by the slug making
+    mechanism from gallery_select.py. It takes in strings that will be transformed into URL slugs
+    that will help us optimise the permalinks for SEO purposes.
+    :param partner: video partner/brand
+    :param model: video model
+    :param title: Video title
+    :param content: the type of content, in this file it is simply `video` but it could be `pics`
+                    this parameter tells Google about the main content of the page.
+    :return: formatted string of a WordPress-ready URL slug.
+    """
+    filter_words = {'at', '&', 'and'}
+    title_sl = "-".join([word.lower() for word in title.lower().split()
+                         if (re.match(r"[\w+]", word, flags=re.IGNORECASE)
+                             and word.lower() not in filter_words)])
+    partner_sl = "-".join(partner.lower().split())
+    model_sl = "".join(['-'.join(name.split(' ')) for name in
+                         [model.lower() for model in model.split(',')]])
+    return f'{partner_sl}-{model_sl}-{title_sl}-{content}'
 
 
 def hot_file_sync(wp_filename, endpoint: str, parent=False) -> bool:
@@ -426,7 +450,7 @@ def video_upload_pilot(videos: list[tuple],
     :return: None
     """
     print('\n==> Warming up... ┌(◎_◎)┘ ')
-    hot_file_sync('wp_posts.json','posts_url', parent=True)
+    hot_file_sync('wp_posts.json', 'posts_url', parent=True)
     all_vals: list[tuple] = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
@@ -465,8 +489,6 @@ def video_upload_pilot(videos: list[tuple],
         source_url = fields[5]
         thumbnail_url = fields[6]
         tracking_url = fields[7]
-        # Tells Google the main content of the page.
-        wp_slug = fields[8] + '-video'
         partner_name = partner
         print(f"\n{' Review this post ':*^30}\n")
         print(title)
@@ -503,6 +525,21 @@ def video_upload_pilot(videos: list[tuple],
                 print(f'You have created {videos_uploaded} posts in this session!')
                 break
         if add_post:
+            slugs = [f'{fields[8]}-video', make_slug(partner, models, title, 'video')]
+            print("--> Available slugs:")
+
+            for n, slug in enumerate(slugs, start=1):
+                print(f'{n}. -> {slug}')
+
+            match input('\nSelect your slug: '):
+                case '1':
+                    wp_slug = slugs[0]
+                case '2':
+                    wp_slug = slugs[1]
+                case _:
+                    # Smart slug by default.
+                    wp_slug = slugs[1]
+
             print('\n--> Making payload...')
             tag_prep = tags.split(',')
             tag_prep.append(partner.lower())
@@ -568,7 +605,7 @@ def video_upload_pilot(videos: list[tuple],
                     continue
                 else:
                     pass
-                print(f'\n--> WordPress Media upload status code: {upload_img}')
+                print(f'--> WordPress Media upload status code: {upload_img}')
                 print("--> Creating post on WordPress")
                 push_post = wordpress_api.wp_post_create(wp_base_url, ['/posts'], payload)
                 print(f'--> WordPress status code: {push_post}')
@@ -598,7 +635,7 @@ def video_upload_pilot(videos: list[tuple],
                     if hot_sync_mode:
                         print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
                         try:
-                            sync = hot_file_sync('wp_posts','posts_url', parent=True)
+                            sync = hot_file_sync('wp_posts', 'posts_url', parent=True)
                         except ConnectionError:
                             print("Hot File Sync encountered a ConnectionError.")
                             print("Going to next post. I will fetch your changes in a next try.")
@@ -679,7 +716,6 @@ if __name__ == '__main__':
 
     banner_paradise_1 = "https://mongercash.com/view_banner.php?name=1323x270.jpg&filename=8879_name.jpg&type=jpg&download=1"
 
-
     banner_lst_asd = [banner_asd_1, banner_asd_2, banner_asd_3]
     banner_lst_tktk = [banner_tuktuk_1, banner_tuktuk_2, banner_tuktuk_3]
     banner_lst_trike = [banner_trike_1, banner_trike_2, banner_trike_3]
@@ -694,7 +730,7 @@ if __name__ == '__main__':
 
     # Alternative query: SELECT * FROM videos WHERE date>="2024" OR date>="2023"
     ideal_q = 'SELECT * FROM videos WHERE date>="2022" AND duration!="trailer"'
-    alt_query = 'SELECT * FROM videos ORDER BY date DESC'
+    alt_query = 'SELECT * FROM videos WHERE duration!="trailer" ORDER BY date DESC'
 
     partnerz = ["Asian Sex Diary",
                 "TukTuk Patrol",

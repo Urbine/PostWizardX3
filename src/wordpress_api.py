@@ -519,7 +519,7 @@ def update_json_cache(hostname: str,
     clean_fname = helpers.clean_filename(wp_filename, '.json')
     # The loop will add 1 to page num when the first request is successful.
     page_num = [dic[clean_fname]['cached_pages'] for dic in config
-                if clean_fname in dic.keys()][0] - 1
+                if clean_fname in dic.keys()][0] - 2
     result_dict = helpers.load_json_ctx(wp_filename, parent=parent)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []
@@ -552,8 +552,10 @@ def update_json_cache(hostname: str,
             else:
                 params_posts[-1] = str(page_num)
             for item in curl_json.json():
-                recent_posts.append(item)
-
+                if item not in result_dict:
+                    recent_posts.append(item)
+                else:
+                    continue
 
 def upgrade_wp_local_cache(hostname: str,
                            params_dict: dict,

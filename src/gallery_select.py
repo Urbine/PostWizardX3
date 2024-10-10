@@ -79,8 +79,9 @@ def extract_zip(zip_path: str, extr_dir: str):
         except FileNotFoundError:
             # Sometimes, this can blow up if that directory is not there.
             pass
+        finally:
+            content_select.clean_file_cache(zip_path, '.zip')
     except IndexError or zipfile.BadZipfile:
-        content_select.clean_file_cache(zip_path, '.zip')
         return None
 
 
