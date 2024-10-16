@@ -13,6 +13,7 @@ __email__ = "yohamg@programmer.net"
 import os
 import re
 import sqlite3
+import datetime
 
 # Local implementations
 import helpers
@@ -32,9 +33,9 @@ import helpers
 
 # the db names could be gathered via input
 # listed here for convenience
-db_name_suggest = ["partner_one_dump.db",
-                   "partner_three_dump.db",
-                   "partner_two_dump.db"]
+db_name_suggest = [f'partner_a-vids-{datetime.date.today()}.db',
+                   f'partner3-vids_{datetime.date.today()}.db',
+                   f'partner2-vids-{datetime.date.today()}.db']
 
 db_name = helpers.filename_creation_helper(db_name_suggest, extension='db')
 

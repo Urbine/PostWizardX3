@@ -12,7 +12,7 @@ __email__  = "yohamg@programmer.net"
 import os
 import re
 import sqlite3
-from datetime import datetime
+import datetime
 
 # Third-party library
 from bs4 import BeautifulSoup
@@ -85,8 +85,8 @@ source = helpers.load_from_file(html_filename,
 
 soup = BeautifulSoup(source,'html.parser')
 
-db_name_suggest = ["partner_one_photo_sets.db",
-                       "partner3_photo_sets.db",
-                       "partner2_photo_sets.db"]
+db_name_suggest = [f'partner_a-photo-{datetime.date.today()}.db',
+                   f'partner3-photo-{datetime.date.today()}.db',
+                   f'partner2-photo-{datetime.date.today()}.db']
 
 db_generate(soup, db_name_suggest)
