@@ -189,11 +189,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
         partner_indx = input("\n\nSelect your partner again: ")
         partner = partners[int(partner_indx) - 1]
 
-    if re.match(db_name_prtner.split('_')[0],
-                partner, flags=re.IGNORECASE):
-        pass
-    else:
-        raise RuntimeError("Be careful! Partner and database must match. Try again...")
+    content_select.select_guard(db_name_prtner, partner)
     if relevancy_on:
         not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
     else:
@@ -247,11 +243,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 fetch_zip('/tmp', download_url, parent=True)
                 extract_zip('../tmp', '../thumbnails')
 
-                print("--> Creating set on WordPress")
-                push_post = wordpress_api.wp_post_create(wp_base_url, ['/photos'], payload)
-                print(f'--> WordPress status code: {push_post}')
                 print("--> Adding image attributes on WordPress...")
-
                 thumbnails = helpers.search_files_by_ext('jpg', parent=True, folder='thumbnails')
                 if len(thumbnails) == 0:
                     # Assumes the thumbnails are contained in a directory
@@ -267,9 +259,14 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                     status_code = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
                                                                  f"../thumbnails/{image}", img_attrs)
                     print(f"* Image {number} --> Status code: {status_code}")
+                print("--> Creating set on WordPress")
+                push_post = wordpress_api.wp_post_create(wp_base_url, ['/photos'], payload)
+                print(f'--> WordPress status code: {push_post}')
                 # Copy important information to the clipboard.
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
+                # This is the main tag for galleries
+                pyclip.copy(partner.lower())
                 pyclip.copy(title)
                 print("--> Check the set and paste your focus phrase on WP.")
                 galleries_uploaded += 1
@@ -360,7 +357,7 @@ if __name__ == '__main__':
     imported_json_photos = helpers.load_json_ctx('wp_photos', parent=True)
     imported_json_posts = helpers.load_json_ctx('wp_posts', parent=True)
 
-    partnerz = ['Asian Sex Diary', 'Tuktuk Patrol', 'Trike Patrol']
+    partnerz = ['Asian Sex Diary', 'Tuktuk Patrol', 'Trike Patrol', 'Euro Sex Diary']
 
     gallery_upload_pilot(cur_partner, imported_json_posts,
                          imported_json_photos, partnerz, db_name_partner, hot_sync_mode=True, relevancy_on=False)

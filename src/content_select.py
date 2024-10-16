@@ -350,7 +350,7 @@ def make_slug(partner: str, model: str, title: str, content: str) -> str:
                              and word.lower() not in filter_words)])
     partner_sl = "-".join(partner.lower().split())
     model_sl = "".join(['-'.join(name.split(' ')) for name in
-                         [model.lower() for model in model.split(',')]])
+                        [model.lower() for model in model.split(',')]])
     return f'{partner_sl}-{model_sl}-{title_sl}-{content}'
 
 
@@ -381,6 +381,27 @@ def hot_file_sync(wp_filename, endpoint: str, parent=False) -> bool:
         return True
     else:
         return False
+
+def select_guard(db_name: str, partner: str) -> None:
+    """ This function protects the user by matching the first
+    occurrence of the partner's name in the database that the user selected.
+    Avoiding issues at this stage is crucial because, if a certain user selects an
+    incorrect database, the program will either crash or send incorrect record details to
+    WordPress, and that could be a huge issue considering that each partner offering has
+    proprietary banners and tracking links.
+    :param db_name: user-selected database name
+    :param partner: user-selected partner offering
+    :return: None
+    """
+    # Find the split character as I just need to get the first word of the name
+    # to match it with partner selected by the user
+    match_regex = re.findall(r'[\W_]', db_name)[0]
+    try:
+        assert(re.match(db_name.strip().split(match_regex)[0], partner, flags=re.IGNORECASE))
+    except AssertionError:
+        print("\nBe careful! Partner and database must match. Re-run...")
+        print(f'You selected {db_name} for partner {partner}.')
+        quit()
 
 
 def video_upload_pilot(videos: list[tuple],
@@ -470,11 +491,7 @@ def video_upload_pilot(videos: list[tuple],
         partner = partners[int(partner_indx) - 1]
         banners = banner_lsts[int(partner_indx) - 1]
 
-    if re.match(partner_db_name.split('_')[0],
-                partner, flags=re.IGNORECASE):
-        pass
-    else:
-        raise RuntimeError("Be careful! Partner and database must match. Try again...")
+    select_guard(partner_db_name, partner)
     not_published_yet = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
     total_elems = len(not_published_yet)
@@ -632,23 +649,20 @@ def video_upload_pilot(videos: list[tuple],
                 if next_post == ('y' or 'yes'):
                     # Clears clipboard after every video.
                     pyclip.clear()
-                    if hot_sync_mode:
-                        print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
-                        try:
-                            sync = hot_file_sync('wp_posts', 'posts_url', parent=True)
-                        except ConnectionError:
-                            print("Hot File Sync encountered a ConnectionError.")
-                            print("Going to next post. I will fetch your changes in a next try.")
-                            print("If you want to update again, relaunch the bot.")
-                            sync = True
-                        if sync:
-                            not_published_yet = filter_published(all_vals, wp_posts_f)
-                            continue
-                        else:
-                            print("ERROR: WP JSON Sync failed. Look at the files and report this.")
-                            clean_file_cache('thumbnails', '.jpg', parent=True)
-                    else:
+                    print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
+                    try:
+                        sync = hot_file_sync('wp_posts', 'posts_url', parent=True)
+                    except ConnectionError:
+                        print("Hot File Sync encountered a ConnectionError.")
+                        print("Going to next post. I will fetch your changes in a next try.")
+                        print("If you want to update again, relaunch the bot.")
+                        sync = True
+                    if sync:
+                        not_published_yet = filter_published(all_vals, wp_posts_f)
                         continue
+                    else:
+                        print("ERROR: WP JSON Sync failed. Look at the files and report this.")
+                        clean_file_cache('thumbnails', '.jpg', parent=True)
                 elif next_post == ('n' or 'no'):
                     # The terminating parts add this function to avoid tracebacks from pyclip
                     pyclip.detect_clipboard()

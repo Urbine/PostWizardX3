@@ -79,7 +79,7 @@ def xml_tag_text(bs4_xml: BeautifulSoup, elem_tag: str):
 
 def get_page_source_flow(url_: str,
                          c_info: tuple,
-                         webdrv: webdriver) -> BeautifulSoup:
+                         webdrv: webdriver) -> tuple[BeautifulSoup, str]:
     # Captures the source outside the context manager.
     source_html = None
     with webdrv as driver:
@@ -102,7 +102,12 @@ def get_page_source_flow(url_: str,
 
             # Click on the login Button
             button_login.click()
-            time.sleep(1)
+            time.sleep(3)
+
+            # This assumes that 3 seconds is more than enough to get the options.
+            # In testing, this webpage seems to extend the loading time
+            # required, which impacts performance.
+            driver.execute_script("window.stop();")
 
             # Partner select
             website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
@@ -113,6 +118,7 @@ def get_page_source_flow(url_: str,
 
             selection = input("Enter a number and select a partner: ")
             website_partner_select.select_by_index(int(selection))
+            partner_name = '-'.join(partner_options[int(selection)].text.split('-')[:-1][0].lower().split(' '))
             time.sleep(1)
             apply_changes_xpath = '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input'
             apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
@@ -138,11 +144,11 @@ def get_page_source_flow(url_: str,
             #Locate update button to submit selected option
             update_submit_button = driver.find_element(By.ID, 'pageination-submit')
             update_submit_button.click()
-            time.sleep(3)
+            time.sleep(5)
 
-            driver.refresh()
             source_html = BeautifulSoup(driver.page_source, 'html.parser')
-    return source_html
+
+    return source_html, f'{partner_name}{datetime.date.today()}'
 
 # ==== Execution space ====
 
@@ -172,8 +178,7 @@ if __name__ == '__main__':
     html_source= get_page_source_flow(m_cash_downloadable_sets,
                                       (username, password), web_driver)
 
-    source_fname = input("Enter a filename for your source: ")
-    helpers.write_to_file(source_fname,'html', html_source, parent=True)
+    helpers.write_to_file(html_source[1],'html', html_source[0], parent=True)
 
 
 # for num, elem in enumerate(xml_elem_entry, start=1):
