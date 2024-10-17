@@ -244,7 +244,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 extract_zip('../tmp', '../thumbnails')
 
                 print("--> Adding image attributes on WordPress...")
-                thumbnails = helpers.search_files_by_ext('jpg', parent=True, folder='thumbnails')
+                thumbnails = helpers.search_files_by_ext('*', parent=True, folder='thumbnails')
                 if len(thumbnails) == 0:
                     # Assumes the thumbnails are contained in a directory
                     # This could be caused by the archive extraction
