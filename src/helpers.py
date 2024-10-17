@@ -94,6 +94,9 @@ def clean_filename(filename: str, extension: str = None) -> str:
     elif extension is None:
         # This is a kind of "trust" mode.
         return filename
+    elif filename == extension:
+        # If filename and extension are the same, I simply give it back:
+        return filename + '.' + extension
     elif re.findall(extension, filename):
         if re.findall("[.+]", filename):
             return filename.split('.')[0] + '.' + extension

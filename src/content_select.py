@@ -266,9 +266,13 @@ def clean_file_cache(cache_folder: str, file_ext: str, parent=False) -> None:
         for file in cache_files:
             os.remove(file)
     elif folders:
-        for folder in folders:
-            shutil.rmtree(folder)
-
+        for item in folders:
+            try:
+                shutil.rmtree(item)
+            except NotADirectoryError:
+                os.remove(item)
+            finally:
+                continue
     return None
 
 
