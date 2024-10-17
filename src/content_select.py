@@ -348,9 +348,11 @@ def make_slug(partner: str, model: str, title: str, content: str) -> str:
     title_sl = "-".join([word.lower() for word in title.lower().split()
                          if (re.match(r"[\w+]", word, flags=re.IGNORECASE)
                              and word.lower() not in filter_words)])
+
     partner_sl = "-".join(partner.lower().split())
-    model_sl = "".join(['-'.join(name.split(' ')) for name in
+    model_sl = "-".join(['-'.join(name.split(' ')) for name in
                         [model.lower() for model in model.split(',')]])
+
     return f'{partner_sl}-{model_sl}-{title_sl}-{content}'
 
 
@@ -391,7 +393,7 @@ def select_guard(db_name: str, partner: str) -> None:
     proprietary banners and tracking links.
     :param db_name: user-selected database name
     :param partner: user-selected partner offering
-    :return: None
+    :return: None / If the assertion fails the execution will stop gracefully.
     """
     # Find the split character as I just need to get the first word of the name
     # to match it with partner selected by the user
@@ -543,7 +545,7 @@ def video_upload_pilot(videos: list[tuple],
                 break
         if add_post:
             slugs = [f'{fields[8]}-video', make_slug(partner, models, title, 'video')]
-            print("--> Available slugs:")
+            print("\n--> Available slugs:")
 
             for n, slug in enumerate(slugs, start=1):
                 print(f'{n}. -> {slug}')
@@ -577,7 +579,7 @@ def video_upload_pilot(videos: list[tuple],
                     pyclip.copy(tag)
 
             model_prep = models.split(',')
-            # The would-be 'models_ints'
+            # The would-be `models_ints`
             calling_models = get_model_ids(wp_posts_f, model_prep)
             all_models_wp = wordpress_api.map_wp_model_id(wp_posts_f, 'pornstars', 'pornstars')
             new_models = identify_missing(all_models_wp, model_prep, calling_models)
