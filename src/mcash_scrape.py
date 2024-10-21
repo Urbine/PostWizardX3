@@ -151,24 +151,24 @@ def get_page_source_flow(url_: str,
 
     return source_html, f'{partner_name}{datetime.date.today()}'
 
-# ==== Execution space ====
-# Cache folder for downloads
-cache_folder = '../tmp'
-
-# Initialize the webdriver
-web_driver = helpers.get_webdriver(cache_folder, headless=True)
-web_driver_gecko = helpers.get_webdriver(cache_folder, headless=True, gecko=True)
-
-# TODO: Use JSON notation to store user credentials
-#  so that no private information is pushed to GitHub. OK
-username = helpers.get_client_info('client_info.json',
-                                   parent=True)['MongerCash']['username']
-
-password = helpers.get_client_info('client_info.json',
-                                   parent=True)['MongerCash']['password']
-
 
 if __name__ == '__main__':
+    # ==== Execution space ====
+    # Cache folder for downloads
+    cache_folder = '../tmp'
+
+    # Initialize the webdriver
+    web_driver = helpers.get_webdriver(cache_folder, headless=True)
+    web_driver_gecko = helpers.get_webdriver(cache_folder, headless=True, gecko=True)
+
+    # TODO: Use JSON notation to store user credentials
+    #  so that no private information is pushed to GitHub. OK
+    username = helpers.get_client_info('client_info.json',
+                                       parent=True)['MongerCash']['username']
+
+    password = helpers.get_client_info('client_info.json',
+                                       parent=True)['MongerCash']['password']
+
     m_cash_hosted_vids = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23'
     m_cash_downloadable_sets = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=4'
 

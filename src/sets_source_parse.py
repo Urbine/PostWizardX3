@@ -53,7 +53,8 @@ def parse_links(soup_html: BeautifulSoup) -> list[str]:
     return [f"{base_url}{td.attrs['href']}" for td in ziptool_links
             if re.match('zip_tool', td.attrs['href'])]
 
-def db_generate(soup_html: BeautifulSoup, db_suggest: list[str]):
+def db_generate(soup_html: BeautifulSoup, db_suggest: list[str],
+                parent: bool = False):
     """ As its name describes, it puts all the information that previous
     functions returned into a SQLite db.
     :param soup_html: BeautifulSoup object
@@ -64,29 +65,32 @@ def db_generate(soup_html: BeautifulSoup, db_suggest: list[str]):
     set_dates = parse_dates(soup_html)
     set_links = parse_links(soup_html)
     db_name = helpers.filename_creation_helper(db_suggest, extension = 'db')
-    db_conn = sqlite3.connect(f"{helpers.is_parent_dir_required(parent=True)}{db_name}")
+    db_conn = sqlite3.connect(f"{helpers.is_parent_dir_required(parent=parent)}{db_name}")
     cursor = db_conn.cursor()
     cursor.execute("CREATE TABLE sets(title, date, link)")
     # Sum of entered into the db.
-    sum = 0
+    total_photosets = 0
     all_values = zip(set_titles, set_dates, set_links)
     for vals in all_values:
         cursor.execute("INSERT INTO sets VALUES(?, ?, ?)", vals)
         db_conn.commit()
-        sum += 1
+        total_photosets += 1
+
     db_conn.close()
-    db_path = f'{os.path.dirname(os.getcwd())}/{db_name}'
-    clean_fname = helpers.clean_filename(html_filename,"html")
-    print(f'\n{sum} photo set entries have been processed from {clean_fname} and inserted into\n{db_path}')
+    db_path = f'{helpers.cwd_or_parent_path(parent=parent)}/{db_name}'
 
-html_filename = helpers.filename_select('html', parent=True)
-source = helpers.load_from_file(html_filename,
-                                'html', parent=True)
+    return db_path, total_photosets
 
-soup = BeautifulSoup(source,'html.parser')
+if __name__ == '__main__':
+    html_filename = helpers.filename_select('html', parent=True)
+    source = helpers.load_from_file(html_filename,
+                                    'html', parent=True)
 
-db_name_suggest = [f'asian-sex-diary-photo-{datetime.date.today()}.db',
-                   f'trike-patrol-photo-{datetime.date.today()}.db',
-                   f'tuktuk-patrol-photo-{datetime.date.today()}.db']
+    soup = BeautifulSoup(source,'html.parser')
 
-db_generate(soup, db_name_suggest)
+    db_name_suggest = [f'asian-sex-diary-photo-{datetime.date.today()}.db',
+                       f'trike-patrol-photo-{datetime.date.today()}.db',
+                       f'tuktuk-patrol-photo-{datetime.date.today()}.db']
+
+    result = db_generate(soup, db_name_suggest)
+    print(f'\n{result[1]} photo set entries have been processed and inserted into\n{result[0]}')
