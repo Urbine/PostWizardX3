@@ -366,9 +366,10 @@ def parse_date_to_iso(full_date: str,
 def search_files_by_ext(extension: str,
                         folder: str,
                         recursive: bool = False,
-                        parent: bool = False) -> list[str]:
+                        parent = False) -> list[str]:
     """This function searches for files with the specified extension
     and returns a list with the files in either parent or current working directories.
+    :param recursive: Recursive file search.
     :param extension: with or without dot
     :param parent: Searches in the parent directory if True, default False.
     :param folder: str folder name
@@ -389,7 +390,7 @@ def write_to_file(filename: str,
                   folder: str,
                   extension: str,
                   stream,
-                  parent: bool = False) -> None:
+                  parent = None) -> None:
     """ Write to file initializes a context manager to write a stream of data to a file with
     an extension specified by the user. This helper function reduces the need to repeat the code
     needed for this kind of operation.
@@ -405,7 +406,7 @@ def write_to_file(filename: str,
     f_name = clean_filename(filename, extension)
     with open(f'{is_parent_dir_required(parent=parent)}{folder}/{f_name}', 'w', encoding='utf-8') as file:
         file.write(str(stream))
-    print(f'Created file {f_name} in {cwd_or_parent_path(parent=parent)}')
+    print(f'Created file {f_name} in {folder}')
     return None
 
 
