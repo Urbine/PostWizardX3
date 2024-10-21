@@ -19,7 +19,7 @@ from requests import ConnectionError
 
 # Third-party modules
 import pyclip
-from selenium import webdriver
+from selenium import webdriver # Imported for type annotations
 from selenium.webdriver.common.by import By
 
 # Local implementations
@@ -30,13 +30,7 @@ import wordpress_api
 
 def fetch_zip(dwn_dir: str, remote_res: str, parent=False):
     download_dir = f'{helpers.cwd_or_parent_path(parent=parent)}/{dwn_dir}'
-    options = webdriver.FirefoxOptions()
-    options.set_preference("browser.download.folderList", 2)
-    options.set_preference("browser.download.manager.showWhenStarting", False)
-    options.set_preference("browser.download.dir", download_dir)
-    options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/octet-stream")
-    options.enable_downloads = True
-    webdrv = webdriver.Firefox(options=options)
+    webdrv: webdriver = helpers.get_webdriver(download_dir, gecko=True)
     username = helpers.get_client_info('client_info.json',
                                        parent=True)['MongerCash']['username']
 

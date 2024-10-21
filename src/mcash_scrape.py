@@ -1,5 +1,6 @@
 # Accessing MongerCash to get Hosted Videos and links
 import datetime
+from linecache import cache
 from time import sleep
 
 from bs4 import BeautifulSoup
@@ -151,16 +152,12 @@ def get_page_source_flow(url_: str,
     return source_html, f'{partner_name}{datetime.date.today()}'
 
 # ==== Execution space ====
-
-# Configure Chrome's Path and arguments
-chrome_options = webdriver.ChromeOptions()
-chrome_options.binary_location = "/opt/google/chrome/google-chrome"
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--disable-dev-shm-usage")
-chrome_options.add_argument("--headless")
+# Cache folder for downloads
+cache_folder = '../tmp'
 
 # Initialize the webdriver
-web_driver = webdriver.Chrome(options=chrome_options)
+web_driver = helpers.get_webdriver(cache_folder, headless=True)
+web_driver_gecko = helpers.get_webdriver(cache_folder, headless=True, gecko=True)
 
 # TODO: Use JSON notation to store user credentials
 #  so that no private information is pushed to GitHub. OK
@@ -178,7 +175,7 @@ if __name__ == '__main__':
     html_source= get_page_source_flow(m_cash_downloadable_sets,
                                       (username, password), web_driver)
 
-    helpers.write_to_file(html_source[1],'html', html_source[0], parent=True)
+    helpers.write_to_file(html_source[1],'tmp','html', html_source[0], parent=True)
 
 
 # for num, elem in enumerate(xml_elem_entry, start=1):

@@ -30,6 +30,7 @@ from datetime import date
 from bs4 import BeautifulSoup
 from calendar import month_abbr, month_name
 from requests_oauthlib import OAuth2Session
+from selenium import webdriver
 from sqlite3 import OperationalError
 
 # This way OAuthlib won't enforce HTTPS connections.
@@ -384,20 +385,25 @@ def search_files_by_ext(extension: str,
                                        + f'{folder}/{search_files}')]
 
 
-def write_to_file(filename: str, extension: str, stream, parent: bool = False) -> None:
+def write_to_file(filename: str,
+                  folder: str,
+                  extension: str,
+                  stream,
+                  parent: bool = False) -> None:
     """ Write to file initializes a context manager to write a stream of data to a file with
     an extension specified by the user. This helper function reduces the need to repeat the code
     needed for this kind of operation.
     The function uses a relative path and the parent parameter
     will dictate whether the file is located alongside the source file.
     :param filename: -> Self-explanatory. Handles filenames with or without extension.
+    :param folder: Destination folder for the file.
     :param extension: File extension that will be enforced for the file type.
     :param stream: stream data or data structure to be writen or converted into a file.
     :param parent: True if you want to write this file in the parent directory instead. Default False.
     :return: None -> It creates the file
     """
     f_name = clean_filename(filename, extension)
-    with open(f'{is_parent_dir_required(parent=parent)}{f_name}', 'w', encoding='utf-8') as file:
+    with open(f'{is_parent_dir_required(parent=parent)}{folder}/{f_name}', 'w', encoding='utf-8') as file:
         file.write(str(stream))
     print(f'Created file {f_name} in {cwd_or_parent_path(parent=parent)}')
     return None
@@ -429,3 +435,39 @@ def get_from_db(cur: sqlite3, field: str, table: str):
         return cur.execute(qry).fetchall()
     except OperationalError:
         return None
+
+
+def get_webdriver(download_folder: str, headless: bool = False, gecko: bool = False):
+    # Configure Chrome's Path and arguments
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.binary_location = "/opt/google/chrome/google-chrome"
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    prefs = {
+        "download.default_directory": f"{download_folder}",  # Replace with your folder path
+        "download.prompt_for_download": False,  # Automatically download without the prompt
+        "download.directory_upgrade": True,  # Overwrite if the file exists
+        "safebrowsing.enabled": True  # Ignore security warnings
+    }
+
+    chrome_options.add_experimental_option("prefs", prefs)
+
+    # Configure the Firefox (Gecko) Driver
+    gecko_options = webdriver.FirefoxOptions()
+    gecko_options.set_preference("browser.download.folderList", 2)
+    gecko_options.set_preference("browser.download.manager.showWhenStarting", False)
+    gecko_options.set_preference("browser.download.dir", download_folder)
+    gecko_options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/octet-stream")
+    gecko_options.enable_downloads = True
+    if headless and not gecko:
+        chrome_options.add_argument("--headless")
+    elif headless and gecko:
+        gecko_options.add_argument("--headless")
+    else:
+        pass
+
+    if gecko:
+        return webdriver.Firefox(options=gecko_options)
+    else:
+        return webdriver.Chrome(options=chrome_options)

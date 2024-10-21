@@ -2,21 +2,23 @@
 
 import datetime
 
-from selenium import webdriver
+from selenium import webdriver # Imported for type annotations
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By
 import time
 
 # Local implementations
 import helpers
+from src.content_select import clean_file_cache
 
 
 # ==== Functions ====
 
 def get_vid_dump_flow(url_: str,
+                      write_folder: str,
                       c_info: tuple,
                       webdrv: webdriver,
-                      parent: bool = True) -> None:
+                      parent: bool = True) -> str:
     # Captures the source outside the context manager.
     source_html = None
     with (webdrv as driver):
@@ -120,22 +122,16 @@ def get_vid_dump_flow(url_: str,
         # Create a name for out dump file.
         dump_name = f'{partner_name}{datetime.date.today()}'
 
-        helpers.write_to_file(dump_name, 'txt', dump_content, parent=parent)
+        helpers.write_to_file(dump_name, write_folder ,'txt', dump_content, parent=parent)
 
-    return None
+    return dump_name
 
 
 # ==== Execution space ====
 
-# Configure Chrome's Path and arguments
-chrome_options = webdriver.ChromeOptions()
-chrome_options.binary_location = "/opt/google/chrome/google-chrome"
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--disable-dev-shm-usage")
-chrome_options.add_argument("--headless")
-
 # Initialize the webdriver
-web_driver = webdriver.Chrome(options=chrome_options)
+web_driver = helpers.get_webdriver('../tmp')
+web_driver_gecko = helpers.get_webdriver('../tmp', gecko=True)
 
 # TODO: Use JSON notation to store user credentials
 #  so that no private information is pushed to GitHub. OK
@@ -148,5 +144,5 @@ password = helpers.get_client_info('client_info.json',
 if __name__ == '__main__':
     m_cash_vids_dump = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump'
 
-    get_vid_dump_flow(m_cash_vids_dump,
+    get_vid_dump_flow(m_cash_vids_dump, 'tmp',
                       (username, password), web_driver)
