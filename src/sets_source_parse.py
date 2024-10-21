@@ -20,6 +20,7 @@ from bs4 import BeautifulSoup
 # Local implementation
 import helpers
 
+
 def parse_titles(soup_html: BeautifulSoup) -> list[str]:
     """ Parses all photo set titles from the source file or BeautifulSoup
     element provided.
@@ -53,19 +54,24 @@ def parse_links(soup_html: BeautifulSoup) -> list[str]:
     return [f"{base_url}{td.attrs['href']}" for td in ziptool_links
             if re.match('zip_tool', td.attrs['href'])]
 
-def db_generate(soup_html: BeautifulSoup, db_suggest: list[str],
+def db_generate(soup_html: BeautifulSoup, db_suggest,
                 parent: bool = False):
     """ As its name describes, it puts all the information that previous
     functions returned into a SQLite db.
     :param soup_html: BeautifulSoup object
-    :param db_suggest: List with name suggestions for your db files.
+    :param db_suggest: List with name suggestions for your db files or string.
     :return:
     """
     set_titles = parse_titles(soup_html)
     set_dates = parse_dates(soup_html)
     set_links = parse_links(soup_html)
-    db_name = helpers.filename_creation_helper(db_suggest, extension = 'db')
-    db_conn = sqlite3.connect(f"{helpers.is_parent_dir_required(parent=parent)}{db_name}")
+
+    if isinstance(db_suggest, list):
+        d_name = helpers.filename_creation_helper(db_suggest, extension = 'db')
+    else:
+        d_name = helpers.clean_filename(db_suggest, 'db')
+
+    db_conn = sqlite3.connect(f"{helpers.is_parent_dir_required(parent=parent)}{d_name}")
     cursor = db_conn.cursor()
     cursor.execute("CREATE TABLE sets(title, date, link)")
     # Sum of entered into the db.
@@ -77,7 +83,7 @@ def db_generate(soup_html: BeautifulSoup, db_suggest: list[str],
         total_photosets += 1
 
     db_conn.close()
-    db_path = f'{helpers.cwd_or_parent_path(parent=parent)}/{db_name}'
+    db_path = f'{helpers.cwd_or_parent_path(parent=parent)}/{d_name}'
 
     return db_path, total_photosets
 
