@@ -289,7 +289,7 @@ def get_client_info(filename: str, parent: bool = False):
 
 def load_json_ctx(filename: str, parent: bool = False, log_err: bool = False):
     """ This function makes it possible to assign a JSON file from storage to a variable.
-    :param logerr: True if you want to print error information, default False.
+    :param log_err: True if you want to print error information, default False.
     :param parent: Looks for the JSON file in the parent directory if True, default False.
     :param filename: (str) filename
     :return: json object
@@ -307,19 +307,25 @@ def load_json_ctx(filename: str, parent: bool = False, log_err: bool = False):
         return None
 
 
-def load_from_file(filename: str, extension: str, parent=False):
+def load_from_file(filename: str, extension: str, dirname: str = '', parent=False):
     """ Loads the content of any file that could be read with the file.read()
     Not suitable for files that require special handling by modules or classes.
+    :param filename: (str) filename
+    :param dirname: directory, if there is any.
     :param extension: file extension of the file to be read
     :param parent: Looks for the file in the parent directory if True, default False.
-    :param filename: (str) filename
+
     :return: str
     """
     parent_or_cwd = is_parent_dir_required(parent)
     file = clean_filename(filename, extension)
+    if dirname:
+        path = f'{dirname}/{file}'
+    else:
+        path = f'{parent_or_cwd}{file}'
 
     try:
-        with open(f"{parent_or_cwd}{file}", 'r', encoding='utf-8') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             return f.read()
     except FileNotFoundError:
         print("File not found! Double-check the filename.")
@@ -366,7 +372,7 @@ def parse_date_to_iso(full_date: str,
 def search_files_by_ext(extension: str,
                         folder: str,
                         recursive: bool = False,
-                        parent = False) -> list[str]:
+                        parent=False) -> list[str]:
     """This function searches for files with the specified extension
     and returns a list with the files in either parent or current working directories.
     :param recursive: Recursive file search.
@@ -379,7 +385,7 @@ def search_files_by_ext(extension: str,
     search_files = clean_filename('*', extension)
     if recursive:
         return glob.glob(is_parent_dir_required(parent)
-                                       + f'{folder}/*/{search_files}', recursive=True)
+                         + f'{folder}/*/{search_files}', recursive=True)
     else:
         return [route.split('/')[-1:][0]
                 for route in glob.glob(is_parent_dir_required(parent)
@@ -390,7 +396,7 @@ def write_to_file(filename: str,
                   folder: str,
                   extension: str,
                   stream,
-                  parent = None) -> None:
+                  parent=None) -> None:
     """ Write to file initializes a context manager to write a stream of data to a file with
     an extension specified by the user. This helper function reduces the need to repeat the code
     needed for this kind of operation.
@@ -438,37 +444,59 @@ def get_from_db(cur: sqlite3, field: str, table: str):
         return None
 
 
-def get_webdriver(download_folder: str, headless: bool = False, gecko: bool = False):
-    # Configure Chrome's Path and arguments
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.binary_location = "/opt/google/chrome/google-chrome"
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-
-    prefs = {
-        "download.default_directory": f"{download_folder}",  # Replace with your folder path
-        "download.prompt_for_download": False,  # Automatically download without the prompt
-        "download.directory_upgrade": True,  # Overwrite if the file exists
-        "safebrowsing.enabled": True  # Ignore security warnings
-    }
-
-    chrome_options.add_experimental_option("prefs", prefs)
-
-    # Configure the Firefox (Gecko) Driver
-    gecko_options = webdriver.FirefoxOptions()
-    gecko_options.set_preference("browser.download.folderList", 2)
-    gecko_options.set_preference("browser.download.manager.showWhenStarting", False)
-    gecko_options.set_preference("browser.download.dir", download_folder)
-    gecko_options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/octet-stream")
-    gecko_options.enable_downloads = True
-    if headless and not gecko:
-        chrome_options.add_argument("--headless")
-    elif headless and gecko:
-        gecko_options.add_argument("--headless")
-    else:
-        pass
-
+def get_webdriver(download_folder: str, headless: bool = False,
+                  gecko: bool = False) -> webdriver:
     if gecko:
+        # Configure the Firefox (Gecko) Driver
+        gecko_options = webdriver.FirefoxOptions()
+        gecko_options.set_preference("browser.download.folderList", 2)
+        gecko_options.set_preference("browser.download.manager.showWhenStarting", False)
+        gecko_options.set_preference("browser.download.dir", download_folder)
+        gecko_options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/octet-stream")
+        gecko_options.enable_downloads = True
+
+        if headless:
+            gecko_options.add_argument("--headless")
+        else:
+            pass
+
         return webdriver.Firefox(options=gecko_options)
+
     else:
+        # Configure Chrome's Path and arguments
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.binary_location = "/opt/google/chrome/google-chrome"
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        prefs = {
+            "download.default_directory": f"{download_folder}",  # Replace with your folder path
+            "download.prompt_for_download": False,  # Automatically download without the prompt
+            "download.directory_upgrade": True,  # Overwrite if the file exists
+            "safebrowsing.enabled": True  # Ignore security warnings
+        }
+
+        chrome_options.add_experimental_option("prefs", prefs)
+
+        if headless:
+            chrome_options.add_argument("--headless")
+        else:
+            pass
+
         return webdriver.Chrome(options=chrome_options)
+
+
+def match_list(hint: str, items: list) -> int:
+    for item in items:
+        if isinstance(item, str):
+            # Item must be kept intact in case I want to look for it in the list.
+            # In this case it doesn't matter, however, re.match looks for matches in `inter`
+            inter = item
+        else:
+            # in case I am passing a list of WebElement items.
+            inter = item.text
+        if re.match(hint, inter, flags=re.IGNORECASE):
+            # I get an index regardless of type
+            return items.index(item)
+        else:
+            continue

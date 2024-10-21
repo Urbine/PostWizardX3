@@ -1,6 +1,7 @@
 import argparse
+import datetime
 import sqlite3
-import sys
+import time
 import warnings
 
 # Local implementations
@@ -11,8 +12,7 @@ import mcash_dump_create
 import parse_txt_dump
 import sets_source_parse
 
-
-print('Welcome to the mcash local update wizard')
+print('Welcome to the MongerCash local update wizard')
 
 """ *** Steps to update the database from MongerCash ***
 (if I were to do it manually)
@@ -30,6 +30,9 @@ arg_parser = argparse.ArgumentParser(description="mcash local update wizard argu
 
 arg_parser.add_argument('temp_dir', type=str,
                         help='Relative or absolute path to your temp directory')
+
+arg_parser.add_argument('--hint', type=str,
+                        help='This parameter receives the first word of the partner offer for matching')
 
 arg_parser.add_argument('--parent', action='store_true',
                         help='Set if you want the resulting files to be located in the parent dir.')
@@ -50,8 +53,8 @@ if args.silent:
 else:
     pass
 
-m_cash_hosted_vids = mcash_scrape.m_cash_hosted_vids
-m_cash_downloadable_sets = mcash_scrape.m_cash_downloadable_sets
+m_cash_downloadable_sets = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=4'
+m_cash_vids_dump = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump'
 
 temp_dir = args.temp_dir
 webdriver = helpers.get_webdriver(temp_dir, headless=args.headless, gecko=args.gecko)
@@ -64,21 +67,31 @@ password = helpers.get_client_info('client_info.json',
 
 # Fetching
 
-dump_file_name = mcash_dump_create.get_vid_dump_flow(m_cash_hosted_vids, temp_dir,
-                      (username, password), webdriver)
+dump_file_name = mcash_dump_create.get_vid_dump_flow(m_cash_vids_dump,
+                                                     temp_dir,
+                                                     (username, password),
+                                                     webdriver,
+                                                     parent=None,
+                                                     partner_hint=args.hint)
 
 # Test if the file contains characters and it is not empty.
 # If the file is empty, it means that something went wrong with the webdriver.
-load_dump_file = helpers.load_from_file(f'{temp_dir}/dump_file_name', 'txt')
+load_dump_file = helpers.load_from_file(dump_file_name, 'txt', dirname=temp_dir,parent=None)
 while len(load_dump_file) == 0:
     warnings.warn('The content of the dump file is empty, retrying...', UserWarning)
-    dump_file_name = mcash_dump_create.get_vid_dump_flow(m_cash_hosted_vids, temp_dir,
-                      (username, password), webdriver)
-    load_dump_file = helpers.load_from_file(f'{temp_dir}/dump_file_name', 'txt')
+    dump_file_name = mcash_dump_create.get_vid_dump_flow(m_cash_vids_dump,
+                                                         temp_dir,
+                                                         (username, password),
+                                                         webdriver,
+                                                         parent=None,
+                                                         partner_hint=args.hint)
+    load_dump_file = helpers.load_from_file(dump_file_name, 'txt', dirname=temp_dir, parent=None)
     continue
 
+# webdriver gets a second assignment to avoid connection pool issues.
+webdriver = helpers.get_webdriver(temp_dir, headless=args.headless, gecko=args.gecko)
 photoset_source = mcash_scrape.get_page_source_flow(m_cash_downloadable_sets,
-                                                    (username, password), webdriver)
+                                                    (username, password), webdriver, partner_hint=args.hint)
 
 # Just like the text dump, the source code could be empty and I need to test it.
 while len(photoset_source[0]) == 0:
@@ -88,8 +101,8 @@ while len(photoset_source[0]) == 0:
     continue
 
 # Parsing video txt dump:
-db_name_suggest = parse_txt_dump.db_name_suggest
-db_name = helpers.filename_creation_helper(db_name_suggest, extension='db')
+
+db_name = helpers.clean_filename(dump_file_name, 'db')
 db_conn = sqlite3.connect(f"{helpers.is_parent_dir_required(parent=args.parent)}{db_name}")
 cursor = db_conn.cursor()
 cursor.execute("""
@@ -109,17 +122,12 @@ CREATE TABLE
 """)
 
 parsing = parse_txt_dump.parse_txt_dump(dump_file_name, db_name,
-                                        db_conn, cursor, parent=args.parent)
-warnings.warn(f'{parsing[1]} video entries have been processed from {dump_file_name} and inserted into\n{parsing[0]}',
-              UserWarning)
+                                        db_conn, cursor, dirname=temp_dir, parent=args.parent)
+print(f'{parsing[1]} video entries have been processed from {dump_file_name} and inserted into\n{parsing[0]}\n')
 
-parsing_photos = sets_source_parse.db_generate(photoset_source[0],
-                                               sets_source_parse.db_name_suggest, parent=args.parent)
-warnings.warn(f'{parsing_photos[1]} photo set entries have been processed and inserted into\n{parsing_photos[0]}',
-              UserWarning)
+parsing_photos = sets_source_parse.db_generate(photoset_source[0], photoset_source[1], parent=args.parent)
+print(f'{parsing_photos[1]} photo set entries have been processed and inserted into\n{parsing_photos[0]}\n')
 
 # Tidy up
-warnings.warn(f'Cleaning temporary directory {temp_dir}', UserWarning)
-content_select.clean_file_cache(temp_dir,'*', parent=None)
-
-
+print(f'Cleaning temporary directory {temp_dir}')
+content_select.clean_file_cache(temp_dir, '*', parent=None)

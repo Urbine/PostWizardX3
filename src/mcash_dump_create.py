@@ -9,16 +9,19 @@ import time
 
 # Local implementations
 import helpers
-from src.content_select import clean_file_cache
 
 
 # ==== Functions ====
+def get_partner_name(partner_options: list, select_num: int):
+    return '-'.join(partner_options[select_num].text.split('-')[:-1][0].lower().split(' '))
+
 
 def get_vid_dump_flow(url_: str,
                       write_folder: str,
                       c_info: tuple,
                       webdrv: webdriver,
-                      parent: bool = True) -> str:
+                      parent = False,
+                      partner_hint: str = None) -> str:
     # Captures the source outside the context manager.
     source_html = None
     with (webdrv as driver):
@@ -47,12 +50,16 @@ def get_vid_dump_flow(url_: str,
         website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
-        for num, opt in enumerate(partner_options, start=0):
-            print(f'{num}. {opt.text}')
+        if partner_hint:
+            selection = helpers.match_list(partner_hint, partner_options)
+        else:
+            for num, opt in enumerate(partner_options, start=0):
+                print(f'{num}. {opt.text}')
 
-        selection = input("\nEnter a number and select a partner: ")
+            selection = input("\nEnter a number and select a partner: ")
+
         website_partner_select.select_by_index(int(selection))
-        partner_name = '-'.join(partner_options[int(selection)].text.split('-')[:-1][0].lower().split(' '))
+        partner_name = get_partner_name(partner_options, int(selection))
 
         time.sleep(1)
         apply_changes_xpath = '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input'
@@ -120,28 +127,27 @@ def get_vid_dump_flow(url_: str,
         dump_content = dump_txtarea.text
 
         # Create a name for out dump file.
-        dump_name = f'{partner_name}{datetime.date.today()}'
+        dump_name = f'{partner_name}vids-{datetime.date.today()}'
 
         helpers.write_to_file(dump_name, write_folder ,'txt', dump_content, parent=parent)
 
     return dump_name
 
 
-# ==== Execution space ====
-
-# Initialize the webdriver
-web_driver = helpers.get_webdriver('../tmp')
-web_driver_gecko = helpers.get_webdriver('../tmp', gecko=True)
-
-# TODO: Use JSON notation to store user credentials
-#  so that no private information is pushed to GitHub. OK
-username = helpers.get_client_info('client_info.json',
-                                   parent=True)['MongerCash']['username']
-
-password = helpers.get_client_info('client_info.json',
-                                   parent=True)['MongerCash']['password']
-
 if __name__ == '__main__':
+    # ==== Execution space ====
+
+    # Initialize the webdriver
+    web_driver = helpers.get_webdriver('../tmp')
+    web_driver_gecko = helpers.get_webdriver('../tmp', gecko=True)
+
+    # TODO: Use JSON notation to store user credentials
+    #  so that no private information is pushed to GitHub. OK
+    username = helpers.get_client_info('client_info.json',
+                                       parent=True)['MongerCash']['username']
+
+    password = helpers.get_client_info('client_info.json',
+                                       parent=True)['MongerCash']['password']
     m_cash_vids_dump = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump'
 
     get_vid_dump_flow(m_cash_vids_dump, 'tmp',

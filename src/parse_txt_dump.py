@@ -38,10 +38,14 @@ import helpers
 # Dump format: Dump with | (Select this one on MongerCash)
 # name | description | models | tags | site_name | date | source | thumbnail | tracking
 def parse_txt_dump(filename: str, d_name: str, d_conn: sqlite3,
-                   d_cur: sqlite3, parent: bool = False):
+                   d_cur: sqlite3, dirname: str = '', parent: bool = False):
+    if dirname:
+        path = f"{dirname}/{helpers.clean_filename(filename, 'txt')}"
+    else:
+        path = f"{helpers.is_parent_dir_required(parent=parent)}{helpers.clean_filename(filename, 'txt')}"
+
     total_entries = 0
-    with (open(f'{helpers.is_parent_dir_required(parent=parent)}{filename}',
-               'r', encoding='utf-8') as dump_file):
+    with open(path,'r', encoding='utf-8') as dump_file:
         for line in dump_file.readlines():
             try:
                 dump_line = line.split('|')
@@ -113,7 +117,7 @@ def parse_txt_dump(filename: str, d_name: str, d_conn: sqlite3,
                 d_conn.close()
                 break
 
-        return f'{os.path.dirname(os.getcwd())}/{db_name}', total_entries
+        return f'{os.path.dirname(os.getcwd())}/{d_name}', total_entries
 
 
 if __name__ == '__main__':
@@ -159,6 +163,6 @@ if __name__ == '__main__':
     except IndexError:
         raise IndexError(f'There are {len(txt_files)} .txt files in {os.path.dirname(os.getcwd())}\nTry again!')
 
-    parsing = parse_txt_dump(dump_file_name, cursor, db_conn, parent=True)
+    parsing = parse_txt_dump(dump_file_name, db_name ,cursor, db_conn, parent=True)
 
     print(f'{parsing[1]} video entries have been processed from {dump_file_name} and inserted into\n{parsing[0]}')

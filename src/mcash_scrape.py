@@ -1,11 +1,13 @@
 # Accessing MongerCash to get Hosted Videos and links
 import datetime
 from linecache import cache
+from select import select
 from time import sleep
 
 from bs4 import BeautifulSoup
 
 import helpers
+import mcash_dump_create
 import re
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
@@ -80,10 +82,12 @@ def xml_tag_text(bs4_xml: BeautifulSoup, elem_tag: str):
 
 def get_page_source_flow(url_: str,
                          c_info: tuple,
-                         webdrv: webdriver) -> tuple[BeautifulSoup, str]:
+                         webdrv: webdriver,
+                         partner_hint: str = None) -> tuple[BeautifulSoup, str]:
     # Captures the source outside the context manager.
     source_html = None
     with webdrv as driver:
+
             # Go to URL
             print(f"Getting options from {url_}")
             print("Please wait...\n")
@@ -114,12 +118,17 @@ def get_page_source_flow(url_: str,
             website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
             website_partner_select = Select(website_partner)
             partner_options = website_partner_select.options
-            for num, opt in enumerate(partner_options, start=0):
-                print(f'{num}. {opt.text}')
 
-            selection = input("Enter a number and select a partner: ")
+            if partner_hint:
+                selection = helpers.match_list(partner_hint, partner_options)
+            else:
+                for num, opt in enumerate(partner_options, start=0):
+                    print(f'{num}. {opt.text}')
+
+                selection = input("Enter a number and select a partner: ")
+
             website_partner_select.select_by_index(int(selection))
-            partner_name = '-'.join(partner_options[int(selection)].text.split('-')[:-1][0].lower().split(' '))
+            partner_name = mcash_dump_create.get_partner_name(partner_options, int(selection))
             time.sleep(1)
             apply_changes_xpath = '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input'
             apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
@@ -133,14 +142,16 @@ def get_page_source_flow(url_: str,
             vids_per_page = driver.find_element(By.ID, 'page-count-val')
 
             vid_select = Select(vids_per_page)
-            selected_options = vid_select.options
 
+            # selected_options = vid_select.options
             # select_by_index seems to work with 0-indexing.
-            for num, opt in enumerate(selected_options, start=0):
-                print(f'{num}. {opt.text}')
+            # for num, opt in enumerate(selected_options, start=0):
+            #     print(f'{num}. {opt.text}')
+            #
+            # selection = input("Enter a number and select an option: ")
 
-            selection = input("Enter a number and select an option: ")
-            vid_select.select_by_index(int(selection))
+            # Selecting `Show All` by default in index 5
+            vid_select.select_by_index(5)
 
             #Locate update button to submit selected option
             update_submit_button = driver.find_element(By.ID, 'pageination-submit')
@@ -149,7 +160,7 @@ def get_page_source_flow(url_: str,
 
             source_html = BeautifulSoup(driver.page_source, 'html.parser')
 
-    return source_html, f'{partner_name}{datetime.date.today()}'
+    return source_html, f'{partner_name}photos-{datetime.date.today()}'
 
 
 if __name__ == '__main__':
