@@ -495,6 +495,7 @@ def match_list(hint: str, items: list) -> int:
         else:
             # in case I am passing a list of WebElement items.
             inter = item.text
+
         if re.match(hint, inter, flags=re.IGNORECASE):
             # I get an index regardless of type
             return items.index(item)
