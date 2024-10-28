@@ -93,12 +93,15 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
     :return: True if one or more matches is found, False if the result is None.
     """
     post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
-    comp_title = re.compile(title)
-    results: list[str] = [vid_name for vid_name in post_titles
-                          if re.match(comp_title, vid_name)]
-    if len(results) >= 1:
-        return True
-    else:
+    try:
+        comp_title = re.compile(title)
+        results: list[str] = [vid_name for vid_name in post_titles
+                              if re.match(comp_title, vid_name)]
+        if len(results) >= 1:
+            return True
+        else:
+            return False
+    except re.error:
         return False
 
 
@@ -228,21 +231,31 @@ def identify_missing(wp_data_dic: dict,
         return not_found
 
 
-def fetch_thumbnail(folder: str, slug: str, remote_res: str, parent: bool = False) -> int:
+def fetch_thumbnail(folder: str,
+                    slug: str,
+                    remote_res: str,
+                    parent: bool = False,
+                    thumbnail_name: str = '') -> int:
     """This function handles the renaming and fetching of thumbnails that will be uploaded to
     WordPress as media attachments. It dynamically renames the thumbnails by taking in a URL slug to
     conform with SEO best-practices. Returns a status code of 200 if the operation was successful
     (fetching the file from a remote source). It also has the ability to store the image using a
     relative path.
+
     :param folder: thumbnails dir
     :param slug: URL slug
     :param remote_res: thumbnail download URL
     :param parent: True if you want to access "folder" in the parent dir. Default False.
+    :param thumbnail_name: used in case the user wants to upload different thumbnails and wishes to keep the names.
     :return: int (status code from requests)
     """
     thumbnail_dir: str = f'{helpers.is_parent_dir_required(parent=parent)}{folder}'
     remote_data: requests = requests.get(remote_res)
-    with open(f"{thumbnail_dir}/{slug}.jpg", 'wb') as img:
+    if thumbnail_name != '':
+        name = f"-{thumbnail_name.split('.')[0]}"
+    else:
+        name = thumbnail_name
+    with open(f"{thumbnail_dir}/{slug}{name}.jpg", 'wb') as img:
         img.write(remote_data.content)
     return remote_data.status_code
 
@@ -321,6 +334,44 @@ def make_payload(vid_slug,
     return payload_post
 
 
+def make_payload_simple(vid_slug,
+                        status_wp: str,
+                        vid_name: str,
+                        vid_description: str,
+                        tag_int_lst: list[int],
+                        model_int_lst: list[int], categs: list[int] = None) -> dict:
+    """ Makes a simple WordPress JSON payload with the supplied values.
+    :param vid_slug: url slug optimized by the job control function and database parsing algo (not in this module).
+    :param status_wp: in this case, it is just the str "draft". It could be "publish" but it requires review.
+    :param vid_name: self-explanatory
+    :param vid_description: self-explanatory
+    :param tag_int_lst: tag ID list
+    :param model_int_lst: model ID list
+    :param categs: list of category integers provided as optional parameter.
+    :return: dict
+    """
+    # Added an author field to the client_info file.
+    author: int = helpers.get_client_info('client_info',
+                                          parent=True)['WordPress']['user_apps']['wordpress_api.py']['author']
+    payload_post: dict = {"slug": f"{vid_slug}",
+                          "status": f"{status_wp}",
+                          "type": "post",
+                          "title": f"{vid_name}",
+                          "content": f"<p>{vid_description}",
+                          "excerpt": f"<p>{vid_description}</p>\n",
+                          "author": author,
+                          "featured_media": 0,
+                          "tags": tag_int_lst,
+                          "pornstars": model_int_lst}
+
+    if categs is not None:
+        payload_post["categories"] = categs
+    else:
+        pass
+
+    return payload_post
+
+
 def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
     """Similar to the make_payload function, this one makes the payload for the video thumbnails,
     it gives them the video description and focus key phrase, which is the video title plus a call to
@@ -355,8 +406,8 @@ def make_slug(partner: str, model: str, title: str, content: str) -> str:
 
     partner_sl = "-".join(partner.lower().split())
     model_sl = "-".join(['-'.join(name.split(' ')) for name in
-                        [model.lower() for model in model.split(',')]])
-
+                         [model.lower() for model in model.split(',')]])
+    content = f'-{content}' if content !='' or None else ''
     return f'{partner_sl}-{model_sl}-{title_sl}-{content}'
 
 
@@ -388,6 +439,22 @@ def hot_file_sync(wp_filename, endpoint: str, parent=False) -> bool:
     else:
         return False
 
+
+def partner_select(partner_lst: list[str], banner_lsts: list[list[str]]) -> tuple[str, list[str]]:
+    print('\n')
+    for num, partner in enumerate(partner_lst, start=1):
+        print(f"{num}. {partner}")
+    try:
+        partner_indx = input("\n\nSelect your partner: ")
+        partner = partner_lst[int(partner_indx) - 1]
+        banners = banner_lsts[int(partner_indx) - 1]
+    except IndexError:
+        partner_indx = input("\n\nSelect your partner again: ")
+        partner = partner_lst[int(partner_indx) - 1]
+        banners = banner_lsts[int(partner_indx) - 1]
+    return partner, banners
+
+
 def select_guard(db_name: str, partner: str) -> None:
     """ This function protects the user by matching the first
     occurrence of the partner's name in the database that the user selected.
@@ -403,7 +470,7 @@ def select_guard(db_name: str, partner: str) -> None:
     # to match it with partner selected by the user
     match_regex = re.findall(r'[\W_]', db_name)[0]
     try:
-        assert(re.match(db_name.strip().split(match_regex)[0], partner, flags=re.IGNORECASE))
+        assert (re.match(db_name.strip().split(match_regex)[0], partner, flags=re.IGNORECASE))
     except AssertionError:
         print("\nBe careful! Partner and database must match. Re-run...")
         print(f'You selected {db_name} for partner {partner}.')
@@ -485,18 +552,8 @@ def video_upload_pilot(videos: list[tuple],
     clean_file_cache('thumbnails/', '.jpg', parent=True)
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
-    print('\n')
-    for num, partner in enumerate(partners, start=1):
-        print(f"{num}. {partner}")
-    try:
-        partner_indx = input("\n\nSelect your partner: ")
-        partner = partners[int(partner_indx) - 1]
-        banners = banner_lsts[int(partner_indx) - 1]
-    except IndexError:
-        partner_indx = input("\n\nSelect your partner again: ")
-        partner = partners[int(partner_indx) - 1]
-        banners = banner_lsts[int(partner_indx) - 1]
 
+    partner, banners = partner_select(partners, banner_lsts)
     select_guard(partner_db_name, partner)
     not_published_yet = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
@@ -707,10 +764,7 @@ def video_upload_pilot(videos: list[tuple],
 
 if __name__ == '__main__':
     print("Choose your Partner DB:")
-    parent_wd = helpers.is_parent_dir_required(parent=True)
-    db_dump_name = helpers.filename_select('db', parent=True)
-    db_connection_dump = sqlite3.connect(f'{parent_wd}{db_dump_name}')
-    cur_dump = db_connection_dump.cursor()
+    db_conn, cur_dump, db_dump_name = helpers.get_project_db(parent=True)
 
     # db_wp_name = helpers.filename_select('db', parent=True)
     # db_connection_wp = sqlite3.connect(f'{parent_wd}{db_wp_name}')

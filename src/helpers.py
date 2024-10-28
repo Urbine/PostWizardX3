@@ -31,7 +31,7 @@ from bs4 import BeautifulSoup
 from calendar import month_abbr, month_name
 from requests_oauthlib import OAuth2Session
 from selenium import webdriver
-from sqlite3 import OperationalError
+from sqlite3 import OperationalError, Connection, Cursor
 
 # This way OAuthlib won't enforce HTTPS connections.
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -443,6 +443,11 @@ def get_from_db(cur: sqlite3, field: str, table: str):
     except OperationalError:
         return None
 
+def get_project_db(parent: bool = False) -> tuple[Connection, Cursor, str]:
+    db_filename = filename_select('db', parent=parent)
+    db_new_conn = sqlite3.connect(f'{is_parent_dir_required(parent=parent)}{db_filename}')
+    db_new_cur = db_new_conn.cursor()
+    return db_new_conn, db_new_cur, db_filename
 
 def get_webdriver(download_folder: str, headless: bool = False,
                   gecko: bool = False) -> webdriver:
@@ -501,3 +506,5 @@ def match_list(hint: str, items: list) -> int:
             return items.index(item)
         else:
             continue
+
+

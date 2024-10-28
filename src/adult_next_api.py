@@ -29,41 +29,41 @@ def construct_api_dump_url(base_url: str,
     sorting = f'sorting={sort_crit}&'  # rating, popularity, duration, post_date, ID
     limit = f'limit={url_limit}'
     sep_param = f'&csv_separator={sep}&'
-    if days != '': days = f'days={days}&'
+    days = f'days={days}&' if days != '' else days
 
     # Column Fields
-    _ID = 'id'
-    _title = 'title'
-    _description = 'description'
-    _link = 'link'
-    _duration = 'duration'  # seconds
-    _rating = 'rating'
-    _added_time = 'post_date'
-    _categories = 'categories'
-    _tags = 'tags'
-    _model = 'models'
-    _embed_code = 'embed'
-    _thumbnail_prefix = 'screenshots_prefix'  # Attaches to main to fetch thumbnail.
-    _main_thumbnail = 'main_screenshot'  # Thumbnail ID obtained from removing the img extension
-    _thumbnails = 'screenshots'
-    _video_thumbnail_url = 'preview_url'
+    ID_ = 'id'
+    title = 'title'
+    description = 'description'
+    link = 'link'
+    duration = 'duration'  # seconds
+    rating = 'rating'
+    added_time = 'post_date'
+    categories = 'categories'
+    tags = 'tags'
+    model = 'models'
+    embed_code = 'embed'
+    thumbnail_prefix = 'screenshots_prefix'  # Attaches to main to fetch thumbnail.
+    main_thumbnail = 'main_screenshot'  # Thumbnail ID obtained from removing the img extension
+    thumbnails = 'screenshots'
+    video_thumbnail_url = 'preview_url'
 
     column_lst = [
-        _ID,
-        _title,
-        _description,
-        _link,
-        _duration,
-        _rating,
-        _added_time,
-        _categories,
-        _tags,
-        _model,
-        _embed_code,
-        _thumbnail_prefix,
-        _main_thumbnail,
-        _thumbnails,
-        _video_thumbnail_url
+        ID_,
+        title,
+        description,
+        link,
+        duration,
+        rating,
+        added_time,
+        categories,
+        tags,
+        model,
+        embed_code,
+        thumbnail_prefix,
+        main_thumbnail,
+        thumbnails,
+        video_thumbnail_url
     ]
 
     csv_columns = f'csv_columns={sep.join(column_lst)}'
@@ -134,7 +134,7 @@ def adult_next_dump_parse(filename: str,
                 # Custom db fields
 
                 # As mentioned in other modules, slugs have to contain the content type
-                wp_slug = f"{partner}-{website_link.split('/')[-2:][0]}-video"
+                wp_slug = f"{website_link.split('/')[-2:][0]}-{partner}-video"
 
                 all_values = (id_,
                               title,
@@ -158,7 +158,7 @@ def adult_next_dump_parse(filename: str,
                 total_entries += 1
 
     db_conn.close()
-    return print(total_entries)
+    return f'Inserted a total of {total_entries} video entries into {db_name}'
 
 
 if __name__ == '__main__':
@@ -175,5 +175,6 @@ if __name__ == '__main__':
 
     partners = ['abjav']
 
-    adult_next_dump_parse('abjav-dump', '../tmp',
+    result = adult_next_dump_parse('abjav-dump', '../tmp',
                           partners[0], '|', parent=True)
+    print(result)
