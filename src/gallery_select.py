@@ -127,6 +127,27 @@ def make_photos_payload(status_wp: str, set_name: str, partner_name: str) -> dic
                     "featured_media": 0}
     return payload_post
 
+def upload_image_set(wp_base_url: str,
+                     ext: str,
+                     folder: str,
+                     title: str,
+                     parent: bool=False) -> None:
+    thumbnails = helpers.search_files_by_ext(ext, parent=parent, folder=folder)
+    if len(thumbnails) == 0:
+        # Assumes the thumbnails are contained in a directory
+        # This could be caused by the archive extraction
+        files = helpers.search_files_by_ext('jpg', recursive=True, parent=parent, folder=folder)
+        thumbnails = ["/".join(path.split('/')[-2:]) for path in files]
+
+    print(f"--> Uploading set with {len(thumbnails)} images to WordPress Media...")
+    print("--> Adding image attributes on WordPress...")
+    thumbnails.sort()
+    for number, image in enumerate(thumbnails, start=1):
+        img_attrs = make_gallery_payload(title, number)
+        status_code = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
+                                                     f"../{folder}/{image}", img_attrs)
+        print(f"* Image {number} --> Status code: {status_code}")
+    return None
 
 def filter_relevant(all_galleries: list[tuple],
                     wp_posts_f: list[dict], wp_photos_f: list[dict]) -> list[tuple]:
@@ -238,21 +259,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 extract_zip('../tmp', '../thumbnails')
 
                 print("--> Adding image attributes on WordPress...")
-                thumbnails = helpers.search_files_by_ext('*', parent=True, folder='thumbnails')
-                if len(thumbnails) == 0:
-                    # Assumes the thumbnails are contained in a directory
-                    # This could be caused by the archive extraction
-                    files = helpers.search_files_by_ext('jpg', recursive=True, parent=True, folder='thumbnails')
-                    thumbnails = ["/".join(path.split('/')[-2:]) for path in files]
-
-                print(f"--> Uploading set with {len(thumbnails)} images to WordPress Media...")
-                print("--> Adding image attributes on WordPress...")
-                thumbnails.sort()
-                for number, image in enumerate(thumbnails, start=1):
-                    img_attrs = make_gallery_payload(title, number)
-                    status_code = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
-                                                                 f"../thumbnails/{image}", img_attrs)
-                    print(f"* Image {number} --> Status code: {status_code}")
+                upload_image_set(wp_base_url, '*', 'thumbnails', title, parent=True)
                 print("--> Creating set on WordPress")
                 push_post = wordpress_api.wp_post_create(wp_base_url, ['/photos'], payload)
                 print(f'--> WordPress status code: {push_post}')
@@ -334,9 +341,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
 
 if __name__ == '__main__':
     print(' *** Select your partner photo set DB: ***')
-    db_name_partner = helpers.filename_select('db', parent=True)
-    db_partner = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_name_partner}')
-    cur_partner = db_partner.cursor()
+    db_partner, cur_partner, db_name_partner = helpers.get_project_db(parent=True)
 
     # print('\n *** Select your WP All Posts DB: ***')
     # db_wp_1 = helpers.filename_select('db', parent = True)
