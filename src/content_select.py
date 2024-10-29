@@ -93,17 +93,13 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
     :return: True if one or more matches is found, False if the result is None.
     """
     post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
-    try:
-        comp_title = re.compile(title)
-        results: list[str] = [vid_name for vid_name in post_titles
-                              if re.match(comp_title, vid_name)]
-        if len(results) >= 1:
-            return True
-        else:
-            return False
-    except re.error:
+    comp_title = re.compile(title)
+    results: list[str] = [vid_name for vid_name in post_titles
+                          if re.match(comp_title, vid_name)]
+    if len(results) >= 1:
+        return True
+    else:
         return False
-
 
 def filter_published(all_videos: list[tuple], wp_posts_f: list[dict]) -> list[tuple]:
     """filter_published does its filtering work based on the published_json function.
@@ -388,7 +384,7 @@ def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
     return img_payload
 
 
-def make_slug(partner: str, model: str, title: str, content: str) -> str:
+def make_slug(partner: str, model: str, title: str, content: str, reverse: bool = False) -> str:
     """ This function is a new approach to the generation of slugs inspired by the slug making
     mechanism from gallery_select.py. It takes in strings that will be transformed into URL slugs
     that will help us optimise the permalinks for SEO purposes.
@@ -397,6 +393,7 @@ def make_slug(partner: str, model: str, title: str, content: str) -> str:
     :param title: Video title
     :param content: the type of content, in this file it is simply `video` but it could be `pics`
                     this parameter tells Google about the main content of the page.
+    :param reverse: True if you want to place the video title in front of the permalink. Default False
     :return: formatted string of a WordPress-ready URL slug.
     """
     filter_words = {'at', '&', 'and'}
@@ -408,7 +405,12 @@ def make_slug(partner: str, model: str, title: str, content: str) -> str:
     model_sl = "-".join(['-'.join(name.split(' ')) for name in
                          [model.lower() for model in model.split(',')]])
     content = f'-{content}' if content !='' or None else ''
-    return f'{partner_sl}-{model_sl}-{title_sl}-{content}'
+    if reverse:
+        return f'{title_sl}-{partner_sl}-{model_sl}{content}'
+    else:
+        return f'{partner_sl}-{model_sl}-{title_sl}{content}'
+
+
 
 
 def hot_file_sync(wp_filename, endpoint: str, parent=False) -> bool:
@@ -605,8 +607,11 @@ def video_upload_pilot(videos: list[tuple],
                 print(f'You have created {videos_uploaded} posts in this session!')
                 break
         if add_post:
-            slugs = [f'{fields[8]}-video', make_slug(partner, models, title, 'video')]
-            print("\n--> Available slugs:")
+            slugs = [f'{fields[8]}-video',
+                     make_slug(partner, models, title, 'video'),
+                     make_slug(partner, models, title, 'video', reverse=True)]
+
+            print("\n--> Available slugs:\n")
 
             for n, slug in enumerate(slugs, start=1):
                 print(f'{n}. -> {slug}')
@@ -616,9 +621,11 @@ def video_upload_pilot(videos: list[tuple],
                     wp_slug = slugs[0]
                 case '2':
                     wp_slug = slugs[1]
+                case '3':
+                    wp_slug = slugs[2]
                 case _:
-                    # Smart slug by default.
-                    wp_slug = slugs[1]
+                    # Smart slug by default (reversed).
+                    wp_slug = slugs[2]
 
             print('\n--> Making payload...')
             tag_prep = tags.split(',')
