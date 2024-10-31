@@ -135,7 +135,7 @@ def get_banner(banner_lst: list[str]) -> str:
     return random.choice(banner_lst)
 
 
-def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str]) -> list[int]:
+def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list[int]:
     """ WordPress uses integers to identify several elements that posts share like models or tags.
     This function is equipped to deal with inconsistencies that are inherent to the way that WP
     handles its tags; for example, some tags can have the same meaning but differ in case.
@@ -159,9 +159,21 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str]) -> list[int]:
     WordPress will sort them for you automatically, it always does (thankfully).
     :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
     :param tag_lst: list[str] a list of tags
+    :param preset: as this function is used for three terms, the presets supported are
+           `models`,  `tags`, `photos`
     :return: list[int]
     """
-    tag_tracking: dict[str, int] = wordpress_api.tag_id_merger_dict(wp_posts_f)
+    match preset:
+        case 'models':
+            preset = ('pornstars', 'pornstars')
+        case 'tags':
+            preset = ('tag', 'tags')
+        case 'photos':
+            preset = ('photos_tag', 'photos_tag')
+        case _:
+            raise ValueError('Unsupported parameter')
+
+    tag_tracking: dict[str, int] = wordpress_api.map_wp_class_id(wp_posts_f, preset[0], preset[1])
     # I will match them with Regex here to avoid touching the datasource.
     matched_keys = [wptag for wptag in tag_tracking.keys()
                     for tag in tag_lst if re.fullmatch(tag, wptag, flags=re.IGNORECASE)]
@@ -181,8 +193,7 @@ def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]) -> list[int]:
     :param model_lst: list[str] model names
     :return: list[int]
     """
-    model_tracking: dict[str, int] = wordpress_api.map_wp_model_id(wp_posts_f,
-                                                                   'pornstars', 'pornstars')
+    model_tracking: dict[str, int] = wordpress_api.map_wp_class_id(wp_posts_f, 'pornstars', 'pornstars')
     return list({model_tracking[model.title().strip()] for model in model_lst
                  if model.title().strip() in model_tracking.keys()})
 
@@ -630,7 +641,7 @@ def video_upload_pilot(videos: list[tuple],
             print('\n--> Making payload...')
             tag_prep = tags.split(',')
             tag_prep.append(partner.lower())
-            tag_ints = get_tag_ids(wp_posts_f, tag_prep)
+            tag_ints = get_tag_ids(wp_posts_f, tag_prep, 'tags')
             all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
             tag_check = identify_missing(all_tags_wp, tag_prep,
                                          tag_ints, ignore_case=True)
@@ -649,7 +660,7 @@ def video_upload_pilot(videos: list[tuple],
             model_prep = models.split(',')
             # The would-be `models_ints`
             calling_models = get_model_ids(wp_posts_f, model_prep)
-            all_models_wp = wordpress_api.map_wp_model_id(wp_posts_f, 'pornstars', 'pornstars')
+            all_models_wp = wordpress_api.map_wp_class_id(wp_posts_f, 'pornstars', 'pornstars')
             new_models = identify_missing(all_models_wp, model_prep, calling_models)
 
             if new_models is None:

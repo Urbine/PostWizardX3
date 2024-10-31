@@ -8,7 +8,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
 # Std Library
-import os
+import argparse
 import re
 import shutil
 import sqlite3
@@ -28,9 +28,9 @@ import helpers
 import wordpress_api
 
 
-def fetch_zip(dwn_dir: str, remote_res: str, parent=False):
+def fetch_zip(dwn_dir: str, remote_res: str, parent=False, gecko: bool = False):
     download_dir = f'{helpers.cwd_or_parent_path(parent=parent)}/{dwn_dir}'
-    webdrv: webdriver = helpers.get_webdriver(download_dir, gecko=True)
+    webdrv: webdriver = helpers.get_webdriver(download_dir, gecko=gecko)
     username = helpers.get_client_info('client_info.json',
                                        parent=True)['MongerCash']['username']
 
@@ -56,6 +56,14 @@ def fetch_zip(dwn_dir: str, remote_res: str, parent=False):
         # Click on the login Button
         button_login.click()
         print("--> Downloading...")
+
+        if not gecko:
+            # Chrome exits after authenticating and before completing pending downloads.
+            # On the other hand, Gecko does not need additional time.
+            time.sleep(30)
+        else:
+            pass
+
     time.sleep(5)
     print(f"--> Fetched file {helpers.search_files_by_ext('zip', parent=True, folder='tmp')[0]}")
     return None
@@ -107,7 +115,7 @@ def get_model_set(db_cursor: sqlite3, table: str):
             (model.split(',') if re.findall('[,+]', model) else [model])}
 
 
-def make_photos_payload(status_wp: str, set_name: str, partner_name: str) -> dict:
+def make_photos_payload(status_wp: str, set_name: str, partner_name: str, tags: list[int]) -> dict:
     filter_words = {'on', 'in', 'at', '&', 'and'}
     no_partner_name = [word for word in set_name.split(" ")
                        if word not in set(partner_name.split(" "))]
@@ -124,7 +132,8 @@ def make_photos_payload(status_wp: str, set_name: str, partner_name: str) -> dic
                     "link": f"https://whoresmen.com/{final_slug}/",
                     "title": f"{set_name}",
                     "author": author,
-                    "featured_media": 0}
+                    "featured_media": 0,
+                    "photos_tag": tags}
     return payload_post
 
 def upload_image_set(wp_base_url: str,
@@ -153,9 +162,7 @@ def filter_relevant(all_galleries: list[tuple],
                     wp_posts_f: list[dict], wp_photos_f: list[dict]) -> list[tuple]:
     # Relevancy algorithm.
     # Lists unique models whose videos where already published on the site.
-    models_set = set(wordpress_api.map_wp_model_id(wp_posts_f,
-                                                   'pornstars',
-                                                   'pornstars').keys())
+    models_set = set(wordpress_api.map_wp_class_id(wp_posts_f, 'pornstars', 'pornstars').keys())
     not_published_yet = []
     for elem in all_galleries:
         (title, *fields) = elem
@@ -182,7 +189,8 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                          partners: list[str],
                          db_name_prtner: str,
                          hot_sync_mode: bool = False,
-                         relevancy_on: bool = False):
+                         relevancy_on: bool = False,
+                         gecko: bool = False):
     print('==> Warming up... ┌(◎_◎)┘')
     content_select.hot_file_sync('wp_photos', 'photos', parent=True)
     partners = partners
@@ -252,10 +260,11 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 break
         if add_post:
             print('\n--> Making payload...')
-            payload = make_photos_payload('draft', title, partner_name)
+            tag_list = content_select.get_tag_ids(wp_photos_f, [partner_name], 'photos')
+            payload = make_photos_payload('draft', title, partner_name, tag_list)
 
             try:
-                fetch_zip('/tmp', download_url, parent=True)
+                fetch_zip('/tmp', download_url, parent=True, gecko=gecko)
                 extract_zip('../tmp', '../thumbnails')
 
                 print("--> Adding image attributes on WordPress...")
@@ -340,6 +349,13 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
 
 
 if __name__ == '__main__':
+    arg_parser = argparse.ArgumentParser(description='Additional tweaks for gallery_select.py')
+
+    arg_parser.add_argument('--gecko', action='store_true',
+                            help='Use the gecko webdriver for the browser automation steps.')
+
+    args = arg_parser.parse_args()
+
     print(' *** Select your partner photo set DB: ***')
     db_partner, cur_partner, db_name_partner = helpers.get_project_db(parent=True)
 
@@ -358,5 +374,11 @@ if __name__ == '__main__':
 
     partnerz = ['Asian Sex Diary', 'Tuktuk Patrol', 'Trike Patrol', 'Euro Sex Diary']
 
-    gallery_upload_pilot(cur_partner, imported_json_posts,
-                         imported_json_photos, partnerz, db_name_partner, hot_sync_mode=True, relevancy_on=False)
+    gallery_upload_pilot(cur_partner,
+                         imported_json_posts,
+                         imported_json_photos,
+                         partnerz,
+                         db_name_partner,
+                         hot_sync_mode=True,
+                         relevancy_on=False,
+                         gecko=args.gecko)

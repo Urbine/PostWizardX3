@@ -177,7 +177,7 @@ for num, vid in enumerate(videos):
         model_prep = model.split(',')
         # The would-be `models_ints`
         calling_models = content_select.get_model_ids(wp_posts_f, model_prep)
-        all_models_wp = wordpress_api.map_wp_model_id(wp_posts_f, 'pornstars', 'pornstars')
+        all_models_wp = wordpress_api.map_wp_class_id(wp_posts_f, 'pornstars', 'pornstars')
         new_models = content_select.identify_missing(all_models_wp, model_prep, calling_models)
 
         if new_models is None:
