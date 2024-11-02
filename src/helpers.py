@@ -287,6 +287,16 @@ def get_client_info(filename: str, parent: bool = False):
         return None
 
 
+def get_duration(seconds: int) -> tuple[int, int, int]:
+    """Takes the number of seconds and calculates its duration in hours, minutes, and seconds.
+    :param seconds: integer
+    :return: tuple of hours, minutes, seconds
+    """
+    hours, remainder = divmod(seconds, 3600)  # 3600 seconds in an hour
+    minutes, seconds = divmod(remainder, 60)  # 60 seconds in a minute
+    return hours, minutes, seconds
+
+
 def load_json_ctx(filename: str, parent: bool = False, log_err: bool = False):
     """ This function makes it possible to assign a JSON file from storage to a variable.
     :param log_err: True if you want to print error information, default False.
@@ -427,16 +437,25 @@ def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
     return db_cursor.fetchall()
 
 
-def get_dict_key(source_dic: dict, value: int):
-    """This function retrieves the key from a dictionary if the value is associated with one."""
+def get_dict_key(source_dic: dict, value: int) -> str | int | None:
+    """ This function retrieves the key from a dictionary if the value is associated with one.
+    :param source_dic: key lookup dictionary
+    :param value: value to query
+    :return: str | int | None / depending on the results and datatype of the key.
+    """
     for tname, tid in source_dic.items():
         if value == tid:
             return tname
     return None
 
 
-def get_from_db(cur: sqlite3, field: str, table: str):
-    """This function gets a field from a table in a SQLite database"""
+def get_from_db(cur: sqlite3, field: str, table: str) -> list[tuple] | None:
+    """ This function gets a field from a table in a SQLite database.
+    :param cur: database cursor
+    :param field: database column/field
+    :param table: database table
+    :return: List of tuples with the values or None in case of operational error.
+    """
     qry = f'SELECT {field} from {table}'
     try:
         return cur.execute(qry).fetchall()

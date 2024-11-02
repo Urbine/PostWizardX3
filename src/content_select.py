@@ -454,6 +454,12 @@ def hot_file_sync(wp_filename, endpoint: str, parent=False) -> bool:
 
 
 def partner_select(partner_lst: list[str], banner_lsts: list[list[str]]) -> tuple[str, list[str]]:
+    """ Selects partner and banner list based on their index order.
+    As this function is based on index and order of elements, both lists should have the same number of elements.
+    :param partner_lst: list of str - partner offers
+    :param banner_lsts: banner list of banners list[list[str]] to select from.
+    :return: tuple(partner_name, banner_list)
+    """
     print('\n')
     for num, partner in enumerate(partner_lst, start=1):
         print(f"{num}. {partner}")
@@ -781,6 +787,7 @@ def video_upload_pilot(videos: list[tuple],
 
 
 if __name__ == '__main__':
+
     print("Choose your Partner DB:")
     db_conn, cur_dump, db_dump_name = helpers.get_project_db(parent=True)
 
