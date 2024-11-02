@@ -14,8 +14,8 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
+import argparse
 import datetime
-import pprint
 import re
 
 import requests
@@ -29,6 +29,7 @@ import xlsxwriter
 
 # Local implementations
 import helpers
+from custom_exceptions import NoSuitableArgument
 
 
 def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> requests:
@@ -765,30 +766,57 @@ rest_params: dict = {
 }
 
 if __name__ == '__main__':
-    if input("Do you want to update your WP Posts JSON file? Y/N: ").lower() == ("y" or "yes"):
-        # Modify the params parameter if needed.
-        upgrade_wp_local_cache(hstname,
-                               rest_params,
-                               'posts_url',
-                               'wp_posts',
-                               'WP_all_post_titles',
-                               cached=True,
-                               parent=True)
 
-        upgrade_wp_local_cache(hstname,
-                               rest_params,
-                               'photos',
-                               'wp_photos',
-                               'WP_all_photo_sets',
-                               cached=False,
-                               parent=True)
+    args_parser = argparse.ArgumentParser(description='WordPress API Local Module')
+
+    args_parser.add_argument('--cached', action='store_true',
+                      help="""Select this flag if you already have a cached copy of your JSON file.
+                      In case you need to recreate your config files, database or JSON files use do not set this flag. 
+                      Using this flag will allow you to recreate the config and database with cached data.""")
+
+
+    args_parser.add_argument('--parent', action='store_true',
+                      help='Place the output of these functions in the relative parent directory.')
+
+    args_parser.add_argument('--posts', action='store_true',
+                             help='Update the wp_posts local cache or associated files (db/config).')
+
+    args_parser.add_argument('--photos', action='store_true',
+                             help='Update the wp_photos local cache or associated files (db/config).')
+
+    args = args_parser.parse_args()
+
+    # Standardizing db names for consistency
+    DB_NAME_POSTS = f'wp-posts-{datetime.date.today()}'
+    DB_NAME_PHOTOS = f'wp-photos-{datetime.date.today()}'
+
+    CACHE_NAME_POSTS = 'wp_posts'
+    CACHE_NAME_PHOTOS = 'wp_photos'
+
+    if args.posts:
+        endpoint_key = 'posts_url'
+        wp_filename = CACHE_NAME_POSTS
+        wp_db_name = DB_NAME_POSTS
+
+    elif args.photos:
+        endpoint_key = 'photos'
+        wp_filename = CACHE_NAME_PHOTOS
+        wp_db_name = DB_NAME_PHOTOS
 
     else:
-        print("Okay, using cached files from now on!\n")
-        pass
+        program_name = __file__.split('/')[-1:][0]
+        raise NoSuitableArgument(f"No arguments have been provided. Run {program_name} --help for options.")
+
+    upgrade_wp_local_cache(hstname,
+                           rest_params,
+                           endpoint_key,
+                           wp_filename,
+                           wp_db_name,
+                           cached=args.cached,
+                           parent=args.parent)
 
     # Loading local cache
-    imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
+    # imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
     # wp_post_len: int = len(imported_json)
 
     # Create the report here. Make sure to uncomment the following:
@@ -796,11 +824,6 @@ if __name__ == '__main__':
 
     # categories = get_all_categories(hstname, rest_params)
     # export_request_json('wp_categories', categories, parent=True)
-
-    # pprint.pprint(map_class_list_id(imported_json, 'category', 'categories'))
-    # pprint.pprint(map_wp_model_id(imported_json, 'pornstars', 'pornstars'))
-
-    # print(get_post_descriptions(imported_json, yoast=True))
 
     # ==== WP Posts json data structure ====
     # title: imported_json[0]['title']['rendered']

@@ -36,11 +36,6 @@ partner = partners[0]
 # 0. https://vv2.abjav.com/c2/videos/353000/353878/353878_tr.mp4
 # 0. abjav-uncensored-x-personal-shooting4-video
 
-def get_duration(seconds: int) -> tuple[int, int, int]:
-    hours, remainder = divmod(seconds, 3600)  # 3600 seconds in an hour
-    minutes, seconds = divmod(remainder, 60)  # 60 seconds in a minute
-    return hours, minutes, seconds
-
 def filter_tags(tgs: str, filter_lst: list[str]):
     t_split = tgs.split(',')
     new_set = set({})
@@ -104,7 +99,7 @@ for num, vid in enumerate(videos):
     print(f"\n{'Review the following video':*^30}")
     print(f"Title: {title}")
     print(f"Description: {description}")
-    hs, mins, secs = get_duration(int(duration))
+    hs, mins, secs = helpers.get_duration(int(duration))
     print(f"Duration: \nHours: {hs} \nMinutes: {mins} \nSeconds: {secs}")  # From seconds to hours to minutes
     print(f"Rating: {rating}")
     print(f"Date: {date}")
