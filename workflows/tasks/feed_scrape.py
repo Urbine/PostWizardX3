@@ -120,7 +120,7 @@ def get_page_source_flow(url_: str,
             partner_options = website_partner_select.options
 
             if partner_hint:
-                selection = helpers.match_list(partner_hint, partner_options)
+                selection = helpers.match_list_single(partner_hint, partner_options, ignore_case=True)
             else:
                 for num, opt in enumerate(partner_options, start=0):
                     print(f'{num}. {opt.text}')
