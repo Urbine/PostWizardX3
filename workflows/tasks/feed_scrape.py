@@ -1,20 +1,14 @@
 # Accessing MediaSource to get Hosted Videos and links
 import datetime
-from linecache import cache
-from select import select
-from time import sleep
 
 from bs4 import BeautifulSoup
 
-import helpers
-import feed_dump_create
-import re
+from common import helpers
+from tasks import MEDIA_SOURCE_PASSWD, MEDIA_SOURCE_USERNAME, get_partner_name
+
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-import pprint
-import xml
 
 import time
 
@@ -128,7 +122,7 @@ def get_page_source_flow(url_: str,
                 selection = input("Enter a number and select a partner: ")
 
             website_partner_select.select_by_index(int(selection))
-            partner_name = feed_dump_create.get_partner_name(partner_options, int(selection))
+            partner_name = get_partner_name(partner_options, int(selection))
             time.sleep(1)
             apply_changes_xpath = '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input'
             apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
@@ -162,6 +156,8 @@ def get_page_source_flow(url_: str,
 
     return source_html, f'{partner_name}photos-{datetime.date.today()}'
 
+MEDIA_SOURCE_HOSTED_URL = 'https://media_source.com/internal.php?page=adtools&category=3&typeid=23'
+FEED_SETS_URL = 'https://media_source.com/internal.php?page=adtools&category=3&typeid=4'
 
 if __name__ == '__main__':
     # ==== Execution space ====
@@ -174,19 +170,13 @@ if __name__ == '__main__':
 
     # TODO: Use JSON notation to store user credentials
     #  so that no private information is pushed to GitHub. OK
-    username = helpers.get_client_info('client_info.json',
-                                       parent=True)['MediaSource']['username']
+    username = MEDIA_SOURCE_USERNAME
+    password = MEDIA_SOURCE_PASSWD
 
-    password = helpers.get_client_info('client_info.json',
-                                       parent=True)['MediaSource']['password']
-
-    media_source_hosted_vids = 'https://media_source.com/internal.php?page=adtools&category=3&typeid=23'
-    media_source_downloadable_sets = 'https://media_source.com/internal.php?page=adtools&category=3&typeid=4'
-
-    html_source= get_page_source_flow(media_source_downloadable_sets,
+    html_source= get_page_source_flow(FEED_SETS_URL,
                                       (username, password), web_driver)
 
-    helpers.write_to_file(html_source[1],'tmp','html', html_source[0], parent=True)
+    helpers.write_to_file(html_source[1], 'tmp', 'html', html_source[0], parent=True)
 
 
 # for num, elem in enumerate(xml_elem_entry, start=1):

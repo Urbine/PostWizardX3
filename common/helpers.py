@@ -134,6 +134,17 @@ def cwd_or_parent_path(parent: bool = False) -> str:
         return os.getcwd()
 
 
+def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
+    """Fetch videos takes a SQL query in string format and returns the data
+    in a list of tuples. In case there is no data, the function returns None.
+    :param sql_query: SQL Query string.
+    :param db_cursor: Database connection cursor.
+    :return: list[tuple]
+    """
+    db_cursor.execute(sql_query)
+    return db_cursor.fetchall()
+
+
 def filename_creation_helper(suggestions: list[str], extension: str = '') -> str:
     """Takes a list of suggested filenames or creates a custom filename from user input.
     a user can type in just a filename without extension and the function will validate
@@ -259,32 +270,25 @@ def is_parent_dir_required(parent: bool) -> str:
         return './'
 
 
-def if_exists_remove(fname: str):
-    """Removes a file only if it exists in either parent or current working directory.
-    :param fname: File name
-    :return: Returns none if the file does not exist or is removed.
-    """
-    if os.path.exists(fname):
-        os.remove(fname)
-    else:
-        return None
-
-
-def get_client_info(filename: str, parent: bool = False):
+def get_client_info(filename: str, logg_err: bool = False):
     """This function handles API secrets in a way that completely eliminates the need
     to use them inside the code. It can be any JSON file that you create for that purpose and,
     most importantly, placed in .gitignore to avoid pushing sensitive info to GitHub or GitLab.
     :return: json object
     """
-    f_name = clean_filename(filename, '.json')
+    f_name = clean_filename(filename, 'json')
+    parent = False if os.path.exists(f'./{f_name}') else True
     in_parent = is_parent_dir_required(parent)
 
     try:
         with open(f'{in_parent}{f_name}', 'r', encoding='utf-8') as secrets:
             client_info = json.load(secrets)
         return client_info
-    except FileNotFoundError:
-        print("File not found! Double-check the filename.")
+    except FileNotFoundError as Errno:
+        if logg_err:
+            print(Errno)
+        else:
+            pass
         return None
 
 
@@ -296,146 +300,6 @@ def get_duration(seconds: int) -> tuple[int, int, int]:
     hours, remainder = divmod(seconds, 3600)  # 3600 seconds in an hour
     minutes, seconds = divmod(remainder, 60)  # 60 seconds in a minute
     return hours, minutes, seconds
-
-
-def load_json_ctx(filename: str, parent: bool = False, log_err: bool = False):
-    """ This function makes it possible to assign a JSON file from storage to a variable.
-    :param log_err: True if you want to print error information, default False.
-    :param parent: Looks for the JSON file in the parent directory if True, default False.
-    :param filename: (str) filename
-    :return: json object
-    """
-    parent_or_cwd = is_parent_dir_required(parent)
-    json_file = clean_filename(filename, 'json')
-
-    try:
-        with open(f"{parent_or_cwd}{json_file}", 'r', encoding='utf-8') as f:
-            imp_json = json.load(f)
-        return imp_json
-    except FileNotFoundError:
-        if log_err:
-            print(f"File {parent_or_cwd}{json_file} not found! Double-check the filename.")
-        return None
-
-
-def load_from_file(filename: str, extension: str, dirname: str = '', parent=False):
-    """ Loads the content of any file that could be read with the file.read()
-    Not suitable for files that require special handling by modules or classes.
-    :param filename: (str) filename
-    :param dirname: directory, if there is any.
-    :param extension: file extension of the file to be read
-    :param parent: Looks for the file in the parent directory if True, default False.
-
-    :return: str
-    """
-    parent_or_cwd = is_parent_dir_required(parent)
-    file = clean_filename(filename, extension)
-    if dirname:
-        path = f'{dirname}/{file}'
-    else:
-        path = f'{parent_or_cwd}{file}'
-
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except FileNotFoundError:
-        print("File not found! Double-check the filename.")
-        return None
-
-
-def parse_date_to_iso(full_date: str,
-                      zero_day: bool = False,
-                      m_abbr: bool = False) -> date:
-    """Breaks down the full date string and converts it to ISO format to get a datetime.date object.
-    important: Make sure to import 'from calendar import month_abbr, month_name' as it is required.
-    :param full_date: date_full is 'Aug 20th, 2024' or 'August 20th, 2024'.
-    :param zero_day: True if your date already has a zero in days less than 10. Default: False
-    :param m_abbr: Set to True if you provide a month abbreviation e.g. 'Aug', default set to False ().
-    :return: date object (ISO format)
-    """
-    # Lists month_abbr and month_name provided by the built-in Calendar library in Python.
-    if m_abbr:
-        months = [m for m in month_abbr]
-    else:
-        months = [m for m in month_name]
-
-    year = str(full_date.split(",")[1].strip())
-    month_num = str(months.index(full_date.split(",")[0].split(" ")[0]))
-
-    # The date ISO format requires that single numbers are preceded by a 0.
-
-    if int(month_num) <= 9:
-        month_num = '0' + str(months.index(full_date.split(",")[0].split(" ")[0]))
-
-    day_nth = str(full_date.split(",")[0].split(" ")[1])
-    day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
-
-    if zero_day:
-        if int(day) <= 9:
-            day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
-    else:
-        if int(day) <= 9:
-            day = '0' + day_nth.strip("".join(re.findall("[a-z]", day_nth)))
-
-    return date.fromisoformat(year + month_num + day)
-
-
-def search_files_by_ext(extension: str,
-                        folder: str,
-                        recursive: bool = False,
-                        parent=False) -> list[str]:
-    """This function searches for files with the specified extension
-    and returns a list with the files in either parent or current working directories.
-    :param recursive: Recursive file search.
-    :param extension: with or without dot
-    :param parent: Searches in the parent directory if True, default False.
-    :param folder: str folder name
-    :return: list[str]
-    """
-    # uses the clean_filename function to receive extension with or without dot.
-    search_files = clean_filename('*', extension)
-    if recursive:
-        return glob.glob(is_parent_dir_required(parent)
-                         + f'{folder}/*/{search_files}', recursive=True)
-    else:
-        return [route.split('/')[-1:][0]
-                for route in glob.glob(is_parent_dir_required(parent)
-                                       + f'{folder}/{search_files}')]
-
-
-def write_to_file(filename: str,
-                  folder: str,
-                  extension: str,
-                  stream,
-                  parent=None) -> None:
-    """ Write to file initializes a context manager to write a stream of data to a file with
-    an extension specified by the user. This helper function reduces the need to repeat the code
-    needed for this kind of operation.
-    The function uses a relative path and the parent parameter
-    will dictate whether the file is located alongside the source file.
-    :param filename: -> Self-explanatory. Handles filenames with or without extension.
-    :param folder: Destination folder for the file.
-    :param extension: File extension that will be enforced for the file type.
-    :param stream: stream data or data structure to be writen or converted into a file.
-    :param parent: True if you want to write this file in the parent directory instead. Default False.
-    :return: None -> It creates the file
-    """
-    f_name = clean_filename(filename, extension)
-    with open(f'{is_parent_dir_required(parent=parent)}{folder}/{f_name}', 'w', encoding='utf-8') as file:
-        file.write(str(stream))
-    print(f'Created file {f_name} in {folder}')
-    return None
-
-
-def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
-    """Fetch videos takes a SQL query in string format and returns the data
-    in a list of tuples. In case there is no data, the function returns None.
-    :param sql_query: SQL Query string.
-    :param db_cursor: Database connection cursor.
-    :return: list[tuple]
-    """
-    db_cursor.execute(sql_query)
-    return db_cursor.fetchall()
 
 
 def get_dict_key(source_dic: dict, value: int) -> str | int | None:
@@ -557,9 +421,9 @@ def match_list_elem_date(l_hints: list[str],
                          strict: bool = False) -> list[str]:
     """ Finds matches, within a list of strings, and compares the dates in each of the strings to return the items
     that are associated with the latest dates; therefore, leaving out strings with the same name that do not contain
-    a relevant date (strict mode). This project adopted a filename convention that places the filename, joined with
-    hyphens ('-'), with a date string in ISO format to keep track of updates in files generated by other modules
-    in the project. One of our helper functions in this module returns a list of files by extension
+    a relevant date (strict mode). This project adopted a filename convention that places filenames, joined with
+    hyphens ('-'), with a date string in ISO format to keep track of updates in files generated by other modules.
+    One of our helper functions in this module returns a list of files by extension
     `(search_files_by_ext)` and I needed a way of getting the most relevant files, so that other modules can
     incorporate further functionality that can effectively select from the available filenames and work with an
     updated copy of such.
@@ -619,3 +483,142 @@ def match_list_elem_date(l_hints: list[str],
             continue
 
     return up_to_date
+
+
+def load_json_ctx(filename: str, log_err: bool = False):
+    """ This function makes it possible to assign a JSON file from storage to a variable.
+    :param log_err: True if you want to print error information, default False.
+    :param filename: (str) filename
+    :return: json object
+    """
+    json_file = clean_filename(filename, 'json')
+    parent = False if os.path.exists(f'./{json_file}') else True
+    parent_or_cwd = is_parent_dir_required(parent)
+    try:
+        with open(f"{parent_or_cwd}{json_file}", 'r', encoding='utf-8') as f:
+            imp_json = json.load(f)
+        return imp_json
+    except FileNotFoundError:
+        if log_err:
+            print(f"File {parent_or_cwd}{json_file} not found! Double-check the filename.")
+        return None
+
+
+def load_from_file(filename: str, extension: str, dirname: str = '', parent=False):
+    """ Loads the content of any file that could be read with the file.read()
+    Not suitable for files that require special handling by modules or classes.
+    :param filename: (str) filename
+    :param dirname: directory, if there is any.
+    :param extension: file extension of the file to be read
+    :param parent: Looks for the file in the parent directory if True, default False.
+
+    :return: str
+    """
+    parent_or_cwd = is_parent_dir_required(parent)
+    file = clean_filename(filename, extension)
+    if dirname:
+        path = f'{dirname}/{file}'
+    else:
+        path = f'{parent_or_cwd}{file}'
+
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        print("File not found! Double-check the filename.")
+        return None
+
+
+def remove_if_exists(fname: str):
+    """Removes a file only if it exists in either parent or current working directory.
+    :param fname: File name
+    :return: Returns none if the file does not exist or is removed.
+    """
+    if os.path.exists(fname):
+        os.remove(fname)
+    else:
+        return None
+
+
+def parse_date_to_iso(full_date: str,
+                      zero_day: bool = False,
+                      m_abbr: bool = False) -> date:
+    """Breaks down the full date string and converts it to ISO format to get a datetime.date object.
+    important: Make sure to import 'from calendar import month_abbr, month_name' as it is required.
+    :param full_date: date_full is 'Aug 20th, 2024' or 'August 20th, 2024'.
+    :param zero_day: True if your date already has a zero in days less than 10. Default: False
+    :param m_abbr: Set to True if you provide a month abbreviation e.g. 'Aug', default set to False ().
+    :return: date object (ISO format)
+    """
+    # Lists month_abbr and month_name provided by the built-in Calendar library in Python.
+    if m_abbr:
+        months = [m for m in month_abbr]
+    else:
+        months = [m for m in month_name]
+
+    year = str(full_date.split(",")[1].strip())
+    month_num = str(months.index(full_date.split(",")[0].split(" ")[0]))
+
+    # The date ISO format requires that single numbers are preceded by a 0.
+
+    if int(month_num) <= 9:
+        month_num = '0' + str(months.index(full_date.split(",")[0].split(" ")[0]))
+
+    day_nth = str(full_date.split(",")[0].split(" ")[1])
+    day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+
+    if zero_day:
+        if int(day) <= 9:
+            day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+    else:
+        if int(day) <= 9:
+            day = '0' + day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+
+    return date.fromisoformat(year + month_num + day)
+
+
+def search_files_by_ext(extension: str,
+                        folder: str,
+                        recursive: bool = False,
+                        parent=False) -> list[str]:
+    """This function searches for files with the specified extension
+    and returns a list with the files in either parent or current working directories.
+    :param recursive: Recursive file search.
+    :param extension: with or without dot
+    :param parent: Searches in the parent directory if True, default False.
+    :param folder: str folder name
+    :return: list[str]
+    """
+    # uses the clean_filename function to receive extension with or without dot.
+    search_files = clean_filename('*', extension)
+    if recursive:
+        return glob.glob(is_parent_dir_required(parent)
+                         + f'{folder}/*/{search_files}', recursive=True)
+    else:
+        return [route.split('/')[-1:][0]
+                for route in glob.glob(is_parent_dir_required(parent)
+                                       + f'{folder}/{search_files}')]
+
+
+def write_to_file(filename: str,
+                  folder: str,
+                  extension: str,
+                  stream,
+                  parent=None) -> None:
+    """ Write to file initializes a context manager to write a stream of data to a file with
+    an extension specified by the user. This helper function reduces the need to repeat the code
+    needed for this kind of operation.
+    The function uses a relative path and the parent parameter
+    will dictate whether the file is located alongside the source file.
+    :param filename: -> Self-explanatory. Handles filenames with or without extension.
+    :param folder: Destination folder for the file.
+    :param extension: File extension that will be enforced for the file type.
+    :param stream: stream data or data structure to be writen or converted into a file.
+    :param parent: True if you want to write this file in the parent directory instead. Default False.
+    :return: None -> It creates the file
+    """
+    f_name = clean_filename(filename, extension)
+    with open(f'{is_parent_dir_required(parent=parent)}{folder}/{f_name}', 'w', encoding='utf-8') as file:
+        file.write(str(stream))
+    print(f'Created file {f_name} in {folder}')
+    return None
