@@ -8,7 +8,7 @@ from selenium.webdriver.common.by import By
 import time
 
 # Local implementations
-import helpers
+import common
 
 
 # ==== Functions ====
@@ -51,7 +51,7 @@ def get_vid_dump_flow(url_: str,
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
         if partner_hint:
-            selection = helpers.match_list_single(partner_hint, partner_options, ignore_case=True)
+            selection = common.match_list_single(partner_hint, partner_options, ignore_case=True)
         else:
             for num, opt in enumerate(partner_options, start=0):
                 print(f'{num}. {opt.text}')
@@ -129,26 +129,23 @@ def get_vid_dump_flow(url_: str,
         # Create a name for out dump file.
         dump_name = f'{partner_name}vids-{datetime.date.today()}'
 
-        helpers.write_to_file(dump_name, write_folder ,'txt', dump_content, parent=parent)
+        common.write_to_file(dump_name, write_folder, 'txt', dump_content, parent=parent)
 
     return dump_name
 
+# The `dump` URL is not supposed to change, thus, it is a constant.
+M_CASH_DUMP_URL = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump'
+
+M_CASH_USERNAME = common.get_client_info('client_info.json')['MongerCash']['username']
+
+M_CASH_PASSWD = common.get_client_info('client_info.json')['MongerCash']['password']
 
 if __name__ == '__main__':
     # ==== Execution space ====
 
     # Initialize the webdriver
-    web_driver = helpers.get_webdriver('../tmp')
-    web_driver_gecko = helpers.get_webdriver('../tmp', gecko=True)
+    web_driver = common.get_webdriver('../tmp')
+    web_driver_gecko = common.get_webdriver('../tmp', gecko=True)
 
-    # TODO: Use JSON notation to store user credentials
-    #  so that no private information is pushed to GitHub. OK
-    username = helpers.get_client_info('client_info.json',
-                                       parent=True)['MongerCash']['username']
-
-    password = helpers.get_client_info('client_info.json',
-                                       parent=True)['MongerCash']['password']
-    m_cash_vids_dump = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump'
-
-    get_vid_dump_flow(m_cash_vids_dump, 'tmp',
-                      (username, password), web_driver)
+    get_vid_dump_flow(M_CASH_DUMP_URL, 'tmp',
+                      (M_CASH_USERNAME, M_CASH_PASSWD), web_driver)

@@ -9,5 +9,5 @@ def run_callback_server(addr_, port_) -> None:
         httpd.serve_forever()
     return None
 
-
-run_callback_server("127.0.0.47", 8888)
+if __name__ == '__main__':
+    run_callback_server("127.0.0.47", 8888)

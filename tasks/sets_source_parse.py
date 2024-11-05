@@ -9,7 +9,6 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__  = "yohamg@programmer.net"
 
 # Std Library
-import os
 import re
 import sqlite3
 import datetime
@@ -18,7 +17,7 @@ import datetime
 from bs4 import BeautifulSoup
 
 # Local implementation
-import helpers
+from common import helpers
 
 
 def parse_titles(soup_html: BeautifulSoup) -> list[str]:
@@ -67,7 +66,7 @@ def db_generate(soup_html: BeautifulSoup, db_suggest,
     set_links = parse_links(soup_html)
 
     if isinstance(db_suggest, list):
-        d_name = helpers.filename_creation_helper(db_suggest, extension = 'db')
+        d_name = helpers.filename_creation_helper(db_suggest, extension ='db')
     else:
         d_name = helpers.clean_filename(db_suggest, 'db')
 

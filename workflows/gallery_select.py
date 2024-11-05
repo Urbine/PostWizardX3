@@ -9,6 +9,7 @@ __email__ = "yohamg@programmer.net"
 
 # Std Library
 import argparse
+import os.path
 import re
 import shutil
 import sqlite3
@@ -19,23 +20,26 @@ from requests import ConnectionError
 
 # Third-party modules
 import pyclip
-from selenium import webdriver # Imported for type annotations
+from selenium import webdriver  # Imported for type annotations
 from selenium.webdriver.common.by import By
 
 # Local implementations
-import content_select
-import helpers
-import wordpress_api
+from workflows.content_select import (hot_file_sync,
+                                      filter_published,
+                                      get_tag_ids,
+                                      select_guard,
+                                      clean_file_cache,
+                                      published_json)
 
+from common import helpers
+from integrations import wordpress_api
+from tasks import M_CASH_USERNAME, M_CASH_PASSWD
 
 def fetch_zip(dwn_dir: str, remote_res: str, parent=False, gecko: bool = False):
     download_dir = f'{helpers.cwd_or_parent_path(parent=parent)}/{dwn_dir}'
     webdrv: webdriver = helpers.get_webdriver(download_dir, gecko=gecko)
-    username = helpers.get_client_info('client_info.json',
-                                       parent=True)['MongerCash']['username']
-
-    password = helpers.get_client_info('client_info.json',
-                                       parent=True)['MongerCash']['password']
+    username = M_CASH_USERNAME
+    password = M_CASH_PASSWD
     with webdrv as driver:
         # Go to URL
         print("--> Getting files from MongerCash")
@@ -60,12 +64,12 @@ def fetch_zip(dwn_dir: str, remote_res: str, parent=False, gecko: bool = False):
         if not gecko:
             # Chrome exits after authenticating and before completing pending downloads.
             # On the other hand, Gecko does not need additional time.
-            time.sleep(30)
+            time.sleep(15)
         else:
             pass
 
     time.sleep(5)
-    print(f"--> Fetched file {helpers.search_files_by_ext('zip', parent=True, folder='tmp')[0]}")
+    print(f"--> Fetched file {helpers.search_files_by_ext('zip', parent=parent, folder='tmp')[0]}")
     return None
 
 
@@ -82,7 +86,8 @@ def extract_zip(zip_path: str, extr_dir: str):
             # Sometimes, this can blow up if that directory is not there.
             pass
         finally:
-            content_select.clean_file_cache(zip_path, '.zip')
+            # We always have to clean up.
+            clean_file_cache(zip_path, '.zip')
     except IndexError or zipfile.BadZipfile:
         return None
 
@@ -115,17 +120,26 @@ def get_model_set(db_cursor: sqlite3, table: str):
             (model.split(',') if re.findall('[,+]', model) else [model])}
 
 
-def make_photos_payload(status_wp: str, set_name: str, partner_name: str, tags: list[int]) -> dict:
+def make_photos_payload(status_wp: str, set_name: str, partner_name: str, tags: list[int],
+                        parent: bool = False) -> dict:
     filter_words = {'on', 'in', 'at', '&', 'and'}
     no_partner_name = [word for word in set_name.split(" ")
                        if word not in set(partner_name.split(" "))]
 
     wp_pre_slug = "-".join([word.lower() for word in no_partner_name
-                            if re.match(r"[\w+]", word, flags=re.IGNORECASE) and word.lower() not in filter_words])
+                            if re.match(r"[\w+]", word, flags=re.IGNORECASE)
+                            and word.lower() not in filter_words])
+
     # '-pics' tells Google the main content of the page.
     final_slug = f'{"-".join(partner_name.lower().split(" "))}-{wp_pre_slug}-pics'
-    author = helpers.get_client_info('client_info',
-                                     parent=True)['WordPress']['user_apps']['wordpress_api.py']['author']
+
+    # Added an author field to the client_info file.
+    try:
+        author: int = helpers.get_client_info('client_info')['WordPress']['user_apps']['wordpress_api.py']['author']
+    except TypeError:
+        # author #1 is admin
+        author = 1
+
     payload_post = {"slug": final_slug,
                     "status": f"{status_wp}",
                     "type": "photos",
@@ -136,11 +150,15 @@ def make_photos_payload(status_wp: str, set_name: str, partner_name: str, tags: 
                     "photos_tag": tags}
     return payload_post
 
+
 def upload_image_set(wp_base_url: str,
                      ext: str,
                      folder: str,
                      title: str,
-                     parent: bool=False) -> None:
+                     parent: bool = False) -> None:
+    # Making sure the parameter is set correctly
+    parent = False if os.path.exists(f'./{folder}') else True
+    relat_dir = helpers.is_parent_dir_required(parent=parent)
     thumbnails = helpers.search_files_by_ext(ext, parent=parent, folder=folder)
     if len(thumbnails) == 0:
         # Assumes the thumbnails are contained in a directory
@@ -148,15 +166,21 @@ def upload_image_set(wp_base_url: str,
         files = helpers.search_files_by_ext('jpg', recursive=True, parent=parent, folder=folder)
         thumbnails = ["/".join(path.split('/')[-2:]) for path in files]
 
-    print(f"--> Uploading set with {len(thumbnails)} images to WordPress Media...")
-    print("--> Adding image attributes on WordPress...")
-    thumbnails.sort()
+    if len(thumbnails) != 0:
+        print(f"--> Uploading set with {len(thumbnails)} images to WordPress Media...")
+        print("--> Adding image attributes on WordPress...")
+        thumbnails.sort()
+    else:
+        pass
+
     for number, image in enumerate(thumbnails, start=1):
         img_attrs = make_gallery_payload(title, number)
-        status_code = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
-                                                     f"../{folder}/{image}", img_attrs)
+        status_code = wordpress_api.upload_thumbnail(wp_base_url, ['/media'], f"{relat_dir}{folder}/{image}", img_attrs)
         print(f"* Image {number} --> Status code: {status_code}")
+    # This is useful in case the images are not located in the correct relative path.
+    # If so, the function will know that and call the function again with a different parent parameter
     return None
+
 
 def filter_relevant(all_galleries: list[tuple],
                     wp_posts_f: list[dict], wp_photos_f: list[dict]) -> list[tuple]:
@@ -175,7 +199,7 @@ def filter_relevant(all_galleries: list[tuple],
                 model_in_set = True
                 break
 
-        if (not content_select.published_json(title, wp_photos_f)
+        if (not published_json(title, wp_photos_f)
             and model_in_set):
             not_published_yet.append(elem)
         else:
@@ -190,16 +214,17 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                          db_name_prtner: str,
                          hot_sync_mode: bool = False,
                          relevancy_on: bool = False,
-                         gecko: bool = False):
+                         gecko: bool = False,
+                         parent: bool = False):
     print('==> Warming up... ┌(◎_◎)┘')
-    content_select.hot_file_sync('wp_photos', 'photos', parent=True)
+    hot_file_sync('wp_photos', 'photos')
     partners = partners
     all_galleries = get_from_db(cur_prtner, '*', 'sets')
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
     # This is in case you run the program after a traceback or end execution early.
-    content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
-    content_select.clean_file_cache('tmp', '.zip', parent=True)
+    clean_file_cache('thumbnails', '.jpg')
+    clean_file_cache('tmp', '.zip')
     # Prints out at the end of the uploading session.
     galleries_uploaded = 0
     print('\n')
@@ -212,13 +237,13 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
         partner_indx = input("\n\nSelect your partner again: ")
         partner = partners[int(partner_indx) - 1]
 
-    content_select.select_guard(db_name_prtner, partner)
+    select_guard(db_name_prtner, partner)
     if relevancy_on:
         not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
     else:
         # In theory, this will work sometimes since I modify some of the
         # gallery names to reflect the queries we rank for on Google.
-        not_published_yet = content_select.filter_published(all_galleries, wp_photos_f)
+        not_published_yet = filter_published(all_galleries, wp_photos_f)
     # You can keep on getting sets until this variable is equal to one.
     total_elems = len(not_published_yet)
     print(f"\nThere are {total_elems} sets to be published...")
@@ -241,7 +266,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
             pyclip.detect_clipboard()
             pyclip.clear()
             print("\n--> Cleaning thumbnails cache now")
-            content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+            clean_file_cache('thumbnails', '.jpg')
             print(f'You have created {galleries_uploaded} sets in this session!')
             break
         else:
@@ -255,23 +280,25 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 print("\nWe have reviewed all sets for this query.")
                 print("Try a different SQL query or partner. I am ready when you are. ")
                 print("\n--> Cleaning thumbnails cache now")
-                content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+                clean_file_cache('thumbnails', '.jpg')
                 print(f'You have created {galleries_uploaded} sets in this session!')
                 break
         if add_post:
             print('\n--> Making payload...')
-            tag_list = content_select.get_tag_ids(wp_photos_f, [partner_name], 'photos')
-            payload = make_photos_payload('draft', title, partner_name, tag_list)
+            tag_list = get_tag_ids(wp_photos_f, [partner_name], 'photos')
+            payload = make_photos_payload('draft', title, partner_name, tag_list, parent=parent)
 
             try:
-                fetch_zip('/tmp', download_url, parent=True, gecko=gecko)
-                extract_zip('../tmp', '../thumbnails')
+                fetch_zip('/tmp', download_url, parent=parent, gecko=gecko)
+                parent_dir = helpers.is_parent_dir_required(parent=parent)
+                extract_zip(f'{parent_dir}tmp', f'{parent_dir}thumbnails')
 
-                print("--> Adding image attributes on WordPress...")
-                upload_image_set(wp_base_url, '*', 'thumbnails', title, parent=True)
                 print("--> Creating set on WordPress")
+                upload_image_set(wp_base_url, '*', 'thumbnails', title, parent=parent)
+
                 push_post = wordpress_api.wp_post_create(wp_base_url, ['/photos'], payload)
                 print(f'--> WordPress status code: {push_post}')
+
                 # Copy important information to the clipboard.
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
@@ -283,26 +310,26 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
             except ConnectionError:
                 pyclip.detect_clipboard()
                 pyclip.clear()
-                content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+                clean_file_cache('thumbnails', '.jpg')
                 print("* There was a connection error while processing this set... *")
                 if input("\nDo you want to continue? Y/N/ENTER to exit: ") == ('y' or 'yes'):
                     continue
                 else:
                     print("\n--> Cleaning thumbnails cache now")
-                    content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+                    clean_file_cache('thumbnails', '.jpg')
                     print(f'You have created {galleries_uploaded} set in this session!')
                     break
             if num < total_elems - 1:
                 next_post = input("\nNext set? -> Y/N/ENTER to review next set: ").lower()
                 if next_post == ('y' or 'yes'):
                     # Clears clipboard after every video.
-                    content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
-                    content_select.clean_file_cache('tmp', '.zip', parent=True)
+                    clean_file_cache('thumbnails', '.jpg')
+                    clean_file_cache('tmp', '.zip')
                     pyclip.clear()
                     if hot_sync_mode:
                         print('==> Syncing and Caching changes. ᕕ(◎_◎)ᕗ')
-                        content_select.hot_file_sync('wp_photos', 'photos', parent=True)
-                        not_published_yet = content_select.filter_published(all_galleries, wp_photos_f)
+                        hot_file_sync('wp_photos', 'photos')
+                        not_published_yet = filter_published(all_galleries, wp_photos_f)
                         if relevancy_on:
                             not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
                         else:
@@ -314,13 +341,13 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     print("\n--> Cleaning thumbnails cache now")
-                    content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
-                    content_select.clean_file_cache('tmp', '.zip', parent=True)
+                    clean_file_cache('thumbnails', '.jpg')
+                    clean_file_cache('tmp', '.zip')
                     print(f'You have created {galleries_uploaded} sets in this session!')
                     break
                 else:
-                    content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
-                    content_select.clean_file_cache('tmp', '.zip', parent=True)
+                    clean_file_cache('thumbnails', '.jpg')
+                    clean_file_cache('tmp', '.zip')
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     continue
@@ -330,7 +357,7 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
                 print("\nWe have reviewed all sets for this query.")
                 print("Try a different query and run me again.")
                 print("\n--> Cleaning thumbnails cache now")
-                content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+                clean_file_cache('thumbnails', '.jpg')
                 print(f'You have created {galleries_uploaded} sets in this session!')
                 print("Waiting for 60 secs to clear the clipboard before you're done with the last set...")
                 time.sleep(60)
@@ -343,21 +370,36 @@ def gallery_upload_pilot(cur_prtner: sqlite3,
             print("\nWe have reviewed all sets for this query.")
             print("Try a different SQL query or partner. I am ready when you are. ")
             print("\n--> Cleaning thumbnails cache now")
-            content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+            clean_file_cache('thumbnails', '.jpg')
             print(f'You have created {galleries_uploaded} sets in this session!')
             break
 
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser(description='Additional tweaks for gallery_select.py')
+    arg_parser = argparse.ArgumentParser(description='Gallery Select Assistant - Behaviour Tweaks')
+
+    arg_parser.add_argument('--parent', action='store_true',
+                            help="""Define if database and file search happens in the parent directory.
+                                            This argument also affects:
+                                            1. Thumbnail search
+                                            2. HotSync caching
+                                            3. Cache cleaning
+                                            The default is set to false, so if you execute this file as a module, 
+                                            you may not want to enable it because this is treated as a package.""")
 
     arg_parser.add_argument('--gecko', action='store_true',
                             help='Use the gecko webdriver for the browser automation steps.')
 
+    arg_parser.add_argument('--hotsync', action='store_true',
+                            help='Activate HotSync mode (update local WordPress cache iteratively)')
+
+    arg_parser.add_argument('--relevancy', action='store_true',
+                            help='Activate relevancy algorithm (experiemental)')
+
     args = arg_parser.parse_args()
 
     print(' *** Select your partner photo set DB: ***')
-    db_partner, cur_partner, db_name_partner = helpers.get_project_db(parent=True)
+    db_partner, cur_partner, db_name_partner = helpers.get_project_db(parent=args.parent)
 
     # print('\n *** Select your WP All Posts DB: ***')
     # db_wp_1 = helpers.filename_select('db', parent = True)
@@ -369,8 +411,8 @@ if __name__ == '__main__':
     # db_wp_photos = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_wp_2}')
     # cur_wp_photos = db_wp_photos.cursor()
 
-    imported_json_photos = helpers.load_json_ctx('wp_photos', parent=True)
-    imported_json_posts = helpers.load_json_ctx('wp_posts', parent=True)
+    imported_json_photos = helpers.load_json_ctx('wp_photos')
+    imported_json_posts = helpers.load_json_ctx('wp_posts')
 
     partnerz = ['Asian Sex Diary', 'Tuktuk Patrol', 'Trike Patrol', 'Euro Sex Diary']
 
@@ -379,6 +421,7 @@ if __name__ == '__main__':
                          imported_json_photos,
                          partnerz,
                          db_name_partner,
-                         hot_sync_mode=True,
-                         relevancy_on=False,
-                         gecko=args.gecko)
+                         hot_sync_mode=args.hotsync,
+                         relevancy_on=args.relevancy,
+                         gecko=args.gecko,
+                         parent=args.parent)

@@ -7,6 +7,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
+import argparse
 import glob
 import os
 import shutil
@@ -21,8 +22,8 @@ import sqlite3
 from requests.exceptions import ConnectionError, SSLError
 
 # Local implementations
-import helpers
-import wordpress_api
+from common import helpers, is_parent_dir_required
+from integrations import wordpress_api
 
 
 # Videos table - db_connection_dump
@@ -100,6 +101,7 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
         return True
     else:
         return False
+
 
 def filter_published(all_videos: list[tuple], wp_posts_f: list[dict]) -> list[tuple]:
     """filter_published does its filtering work based on the published_json function.
@@ -238,11 +240,7 @@ def identify_missing(wp_data_dic: dict,
         return not_found
 
 
-def fetch_thumbnail(folder: str,
-                    slug: str,
-                    remote_res: str,
-                    parent: bool = False,
-                    thumbnail_name: str = '') -> int:
+def fetch_thumbnail(folder: str, slug: str, remote_res: str, thumbnail_name: str = '') -> int:
     """This function handles the renaming and fetching of thumbnails that will be uploaded to
     WordPress as media attachments. It dynamically renames the thumbnails by taking in a URL slug to
     conform with SEO best-practices. Returns a status code of 200 if the operation was successful
@@ -252,10 +250,10 @@ def fetch_thumbnail(folder: str,
     :param folder: thumbnails dir
     :param slug: URL slug
     :param remote_res: thumbnail download URL
-    :param parent: True if you want to access "folder" in the parent dir. Default False.
     :param thumbnail_name: used in case the user wants to upload different thumbnails and wishes to keep the names.
     :return: int (status code from requests)
     """
+    parent = False if os.path.exists(f'./{folder}') else True
     thumbnail_dir: str = f'{helpers.is_parent_dir_required(parent=parent)}{folder}'
     remote_data: requests = requests.get(remote_res)
     if thumbnail_name != '':
@@ -267,14 +265,14 @@ def fetch_thumbnail(folder: str,
     return remote_data.status_code
 
 
-def clean_file_cache(cache_folder: str, file_ext: str, parent=False) -> None:
+def clean_file_cache(cache_folder: str, file_ext: str) -> None:
     """ The purpose of this function is simple: cleaning remaining temporary files once the job control
     has used them; this is specially useful when dealing with thumbnails.
     :param cache_folder: folder used for caching (name only)
     :param file_ext: file extension of cached files to be removed
-    :param parent: True if you want to assign a relative path to your folder string (parent dir). Default False
     :return: None
     """
+    parent = False if os.path.exists(f'./{cache_folder}') else True
     cache_files: list[str] = helpers.search_files_by_ext(file_ext,
                                                          parent=parent,
                                                          folder=cache_folder)
@@ -296,15 +294,8 @@ def clean_file_cache(cache_folder: str, file_ext: str, parent=False) -> None:
     return None
 
 
-def make_payload(vid_slug,
-                 status_wp: str,
-                 vid_name: str,
-                 vid_description: str,
-                 banner_tracking_url: str,
-                 banner_img: str,
-                 partner_name: str,
-                 tag_int_lst: list[int],
-                 model_int_lst: list[int]) -> dict:
+def make_payload(vid_slug, status_wp: str, vid_name: str, vid_description: str, banner_tracking_url: str,
+                 banner_img: str, partner_name: str, tag_int_lst: list[int], model_int_lst: list[int]) -> dict:
     """ Makes WordPress JSON payload with the supplied values.
     This function also injects HTML code to the payload to display the banner, add ALT text to it
     and other parameters for the WordPress editor's rendering.
@@ -325,8 +316,11 @@ def make_payload(vid_slug,
     :return: dict
     """
     # Added an author field to the client_info file.
-    author: int = helpers.get_client_info('client_info',
-                                          parent=True)['WordPress']['user_apps']['wordpress_api.py']['author']
+    try:
+        author: int = helpers.get_client_info('client_info')['WordPress']['user_apps']['wordpress_api.py']['author']
+    except TypeError:
+        # author #1 is admin
+        author = 1
     payload_post: dict = {"slug": f"{vid_slug}",
                           "status": f"{status_wp}",
                           "type": "post",
@@ -341,11 +335,7 @@ def make_payload(vid_slug,
     return payload_post
 
 
-def make_payload_simple(vid_slug,
-                        status_wp: str,
-                        vid_name: str,
-                        vid_description: str,
-                        tag_int_lst: list[int],
+def make_payload_simple(vid_slug, status_wp: str, vid_name: str, vid_description: str, tag_int_lst: list[int],
                         model_int_lst: list[int], categs: list[int] = None) -> dict:
     """ Makes a simple WordPress JSON payload with the supplied values.
     :param vid_slug: url slug optimized by the job control function and database parsing algo (not in this module).
@@ -358,8 +348,7 @@ def make_payload_simple(vid_slug,
     :return: dict
     """
     # Added an author field to the client_info file.
-    author: int = helpers.get_client_info('client_info',
-                                          parent=True)['WordPress']['user_apps']['wordpress_api.py']['author']
+    author: int = helpers.get_client_info('client_info')['WordPress']['user_apps']['wordpress_api.py']['author']
     payload_post: dict = {"slug": f"{vid_slug}",
                           "status": f"{status_wp}",
                           "type": "post",
@@ -415,16 +404,14 @@ def make_slug(partner: str, model: str, title: str, content: str, reverse: bool 
     partner_sl = "-".join(partner.lower().split())
     model_sl = "-".join(['-'.join(name.split(' ')) for name in
                          [model.lower() for model in model.split(',')]])
-    content = f'-{content}' if content !='' or None else ''
+    content = f'-{content}' if content != '' or None else ''
     if reverse:
         return f'{title_sl}-{partner_sl}-{model_sl}{content}'
     else:
         return f'{partner_sl}-{model_sl}-{title_sl}{content}'
 
 
-
-
-def hot_file_sync(wp_filename, endpoint: str, parent=False) -> bool:
+def hot_file_sync(wp_filename, endpoint: str) -> bool:
     """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
     This function leverages the power of the caching mechanism defined
@@ -435,17 +422,16 @@ def hot_file_sync(wp_filename, endpoint: str, parent=False) -> bool:
     In other words, if it isn't right, the WP post file remains untouched.
     :param endpoint: endpoint for your WordPress file just pass in 'posts_url' for posts and 'photos' for photos.
     :param wp_filename: name of the WP Posts JSON file with or without extension.
-    :param parent: True if the file is located in the parent dir. Default is False.
     :return: bool (True if everything went well or False if the validation failed)
     """
+    parent = False if os.path.exists(f'./wp_cache_config.json') else True
     wp_filename = helpers.clean_filename(wp_filename, 'json')
     host = wordpress_api.hstname
     params_d = wordpress_api.rest_params
-    config_json = helpers.load_json_ctx('wp_cache_config.json', parent=parent)
-    sync_changes = wordpress_api.update_json_cache(host, params_d, endpoint,
-                                                   config_json, wp_filename, parent=parent)
+    config_json = helpers.load_json_ctx('wp_cache_config.json')
+    sync_changes = wordpress_api.update_json_cache(host, params_d, endpoint, config_json, wp_filename)
     # Reload config
-    config_json = helpers.load_json_ctx('wp_cache_config.json', parent=parent)
+    config_json = helpers.load_json_ctx('wp_cache_config.json')
     if len(sync_changes) == config_json[0][wp_filename]['total_posts']:
         helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
         return True
@@ -501,7 +487,7 @@ def video_upload_pilot(videos: list[tuple],
                        banner_lsts: list[list[str]],
                        partner_db_name: str,
                        wp_posts_f: list[dict],
-                       hot_sync_mode: bool = False) -> None:
+                       parent: bool = False) -> None:
     """Here is the main coordinating function of this module, the job control that
     uses all previous functions to carry out all the tasks associated with the video upload process in the business.
     In fact, by convention, this function must be called main(), but that name does not really reflect
@@ -559,16 +545,16 @@ def video_upload_pilot(videos: list[tuple],
     :param banner_lsts: List[list[str]] of banner URLS to make the post payload.
     :param partner_db_name: The name of that DB you selected at the very beginning of execution.
     :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
-    :param hot_sync_mode: True if you want Hot Sync after each post upload. Default False.
+    :param parent: True if you want to locate relevant files in the parent directory. Default False
     :return: None
     """
     print('\n==> Warming up... ┌(◎_◎)┘ ')
-    hot_file_sync('wp_posts.json', 'posts_url', parent=True)
+    hot_file_sync('wp_posts.json', 'posts_url')
     all_vals: list[tuple] = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
     # This is in case you run the program after a traceback or end execution early.
-    clean_file_cache('thumbnails/', '.jpg', parent=True)
+    clean_file_cache('thumbnails/', '.jpg')
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
 
@@ -606,7 +592,7 @@ def video_upload_pilot(videos: list[tuple],
             pyclip.detect_clipboard()
             pyclip.clear()
             print("\n--> Cleaning thumbnails cache now")
-            clean_file_cache('thumbnails', '.jpg', parent=True)
+            clean_file_cache('thumbnails', '.jpg')
             print(f'You have created {videos_uploaded} posts in this session!')
             break
         else:
@@ -620,7 +606,7 @@ def video_upload_pilot(videos: list[tuple],
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different SQL query or partner. I am ready when you are. ")
                 print("\n--> Cleaning thumbnails cache now")
-                clean_file_cache('thumbnails', '.jpg', parent=True)
+                clean_file_cache('thumbnails', '.jpg')
                 print(f'You have created {videos_uploaded} posts in this session!')
                 break
         if add_post:
@@ -680,26 +666,20 @@ def video_upload_pilot(videos: list[tuple],
                     print("Paste it into the Pornstars field as soon as possible...\n")
                     pyclip.detect_clipboard()
                     pyclip.copy(girl)
-
-            payload = make_payload(wp_slug,
-                                   "draft",
-                                   title,
-                                   description,
-                                   tracking_url,
-                                   get_banner(banners),
-                                   partner_name,
-                                   tag_ints,
-                                   calling_models)
+            payload = make_payload(wp_slug, "draft", title, description, tracking_url, get_banner(banners),
+                                   partner_name, tag_ints, calling_models)
 
             print("--> Fetching thumbnail...")
             try:
-                fetch_thumbnail('thumbnails', wp_slug, thumbnail_url, parent=True)
+                fetch_thumbnail('thumbnails', wp_slug, thumbnail_url)
                 print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
                 print("--> Uploading thumbnail to WordPress Media...")
                 print("--> Adding image attributes on WordPress...")
                 img_attrs = make_img_payload(title, description)
+                thumbnail_lookup = False if os.path.exists('./thumbnails') else True
+                thumbnail_folder = f'{is_parent_dir_required(parent=thumbnail_lookup)}thumbnails'
                 upload_img = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
-                                                            f"../thumbnails/{wp_slug}.jpg", img_attrs)
+                                                            f"{thumbnail_folder}/{wp_slug}.jpg", img_attrs)
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
                 # upload_thumbnail will report a 500 status code when this is the case.
@@ -728,7 +708,7 @@ def video_upload_pilot(videos: list[tuple],
                     continue
                 else:
                     print("\n--> Cleaning thumbnails cache now")
-                    clean_file_cache('thumbnails', '.jpg', parent=True)
+                    clean_file_cache('thumbnails', '.jpg')
                     print(f'You have created {videos_uploaded} posts in this session!')
                     break
             if num < total_elems - 1:
@@ -738,7 +718,7 @@ def video_upload_pilot(videos: list[tuple],
                     pyclip.clear()
                     print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
                     try:
-                        sync = hot_file_sync('wp_posts', 'posts_url', parent=True)
+                        sync = hot_file_sync('wp_posts', 'posts_url')
                     except ConnectionError:
                         print("Hot File Sync encountered a ConnectionError.")
                         print("Going to next post. I will fetch your changes in a next try.")
@@ -749,13 +729,13 @@ def video_upload_pilot(videos: list[tuple],
                         continue
                     else:
                         print("ERROR: WP JSON Sync failed. Look at the files and report this.")
-                        clean_file_cache('thumbnails', '.jpg', parent=True)
+                        clean_file_cache('thumbnails', '.jpg')
                 elif next_post == ('n' or 'no'):
                     # The terminating parts add this function to avoid tracebacks from pyclip
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     print("\n--> Cleaning thumbnails cache now")
-                    clean_file_cache('thumbnails', '.jpg', parent=True)
+                    clean_file_cache('thumbnails', '.jpg')
                     print(f'You have created {videos_uploaded} posts in this session!')
                     break
                 else:
@@ -768,7 +748,7 @@ def video_upload_pilot(videos: list[tuple],
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different query and run me again.")
                 print("\n--> Cleaning thumbnails cache now")
-                clean_file_cache('thumbnails', 'jpg', parent=True)
+                clean_file_cache('thumbnails', 'jpg')
                 print(f'You have created {videos_uploaded} posts in this session!')
                 print("Waiting for 60 secs to clear the clipboard before you're done with the last post...")
                 time.sleep(60)
@@ -781,21 +761,33 @@ def video_upload_pilot(videos: list[tuple],
             print("\nWe have reviewed all posts for this query.")
             print("Try a different SQL query or partner. I am ready when you are. ")
             print("\n--> Cleaning thumbnails cache now")
-            clean_file_cache('thumbnails', '.jpg', parent=True)
+            clean_file_cache('thumbnails', '.jpg')
             print(f'You have created {videos_uploaded} posts in this session!')
             break
 
 
 if __name__ == '__main__':
+    arg_parser = argparse.ArgumentParser(description='Content Select Assistant - Behaviour Tweaks')
+
+    arg_parser.add_argument('--parent', action='store_true',
+                            help="""Define if database and file search happens in the parent directory.
+                                        This argument also affects:
+                                        1. Thumbnail search
+                                        2. HotSync caching
+                                        3. Cache cleaning
+                                        The default is set to false, so if you execute this file as a module, 
+                                        you may not want to enable it because this is treated as a package.""")
+
+    args = arg_parser.parse_args()
 
     print("Choose your Partner DB:")
-    db_conn, cur_dump, db_dump_name = helpers.get_project_db(parent=True)
+    db_conn, cur_dump, db_dump_name = helpers.get_project_db(parent=args.parent)
 
     # db_wp_name = helpers.filename_select('db', parent=True)
     # db_connection_wp = sqlite3.connect(f'{parent_wd}{db_wp_name}')
     # cur_wp = db_connection_wp.cursor()
 
-    client_info = helpers.get_client_info('client_info', parent=True)
+    client_info = helpers.get_client_info('client_info')
 
     banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
     banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tuktuk620x77.jpg&filename=7664_name.jpg&type=jpg&download=1"
@@ -837,8 +829,8 @@ if __name__ == '__main__':
                 "Euro Sex Diary",
                 "Paradise GFs"]
 
-    imported_json = helpers.load_json_ctx("wp_posts", parent=True)
+    imported_json = helpers.load_json_ctx("wp_posts")
     db_all_vids = helpers.fetch_data_sql(alt_query, cur_dump)
 
     video_upload_pilot(db_all_vids, partnerz, banner_lists,
-                       db_dump_name, imported_json, hot_sync_mode=True)
+                       db_dump_name, imported_json, parent=args.parent)

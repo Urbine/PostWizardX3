@@ -2,17 +2,15 @@ import pyclip
 from requests.exceptions import ConnectionError, SSLError
 import time
 
-from itertools import chain
-
 # Local implementations
-import helpers
+from common import helpers
 import content_select
-import wordpress_api
+from integrations import wordpress_api
 
 db_partner_conn, db_partner_cur, db_partner_name = helpers.get_project_db(parent=True)
 
 videos = helpers.get_from_db(db_partner_cur, '*', 'embeds')
-wp_posts_f = helpers.load_json_ctx('wp_posts.json', parent=True)
+wp_posts_f = helpers.load_json_ctx('wp_posts.json')
 
 partners = ['abjav']
 partner = partners[0]
@@ -73,7 +71,7 @@ def filter_published_embeds(all_videos: list[tuple], wp_posts_f: list[dict]) -> 
     return not_published
 
 print('\n==> Warming up... ┌(◎_◎)┘ ')
-content_select.hot_file_sync('wp_posts.json', 'posts_url', parent=True)
+content_select.hot_file_sync('wp_posts.json', 'posts_url')
 wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
 videos_uploaded = 0
 all_vals: list[tuple[str]] = videos
@@ -114,7 +112,7 @@ for num, vid in enumerate(videos):
         pyclip.detect_clipboard()
         pyclip.clear()
         print("\n--> Cleaning thumbnails cache now")
-        content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+        content_select.clean_file_cache('thumbnails', '.jpg')
         print(f'You have created {videos_uploaded} posts in this session!')
         break
     else:
@@ -128,7 +126,7 @@ for num, vid in enumerate(videos):
             print("\nWe have reviewed all posts for this query.")
             print("Try a different SQL query or partner. I am ready when you are. ")
             print("\n--> Cleaning thumbnails cache now")
-            content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+            content_select.clean_file_cache('thumbnails', '.jpg')
             print(f'You have created {videos_uploaded} posts in this session!')
             break
     if add_post:
@@ -187,23 +185,18 @@ for num, vid in enumerate(videos):
                 pyclip.detect_clipboard()
                 pyclip.copy(girl)
         category = [38] if partner == 'abjav' else None # 38 is Japanese Amateur Porn
-        payload = content_select.make_payload_simple(wp_slug,
-                                                     "draft",
-                                                     title,
-                                                     description,
-                                                     tag_ints,
-                                                     calling_models,
+        payload = content_select.make_payload_simple(wp_slug, "draft", title, description, tag_ints, calling_models,
                                                      categs=category)
         print("--> Fetching thumbnail...")
         try:
             thumbnail_full = f"{thumbnail_prefix}{main_thumbnail_name}"
-            content_select.fetch_thumbnail('thumbnails', wp_slug, thumbnail_full, parent=True)
+            content_select.fetch_thumbnail('thumbnails', wp_slug, thumbnail_full)
             print(f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
             print("--> Uploading thumbnail to WordPress Media...")
             print("--> Adding image attributes on WordPress...")
             img_attrs = content_select.make_img_payload(title, description)
-            upload_img = wordpress_api.upload_thumbnail(wp_base_url, ['/media'],
-                                                        f"../thumbnails/{wp_slug}.jpg", img_attrs)
+            upload_img = wordpress_api.upload_thumbnail(wp_base_url, ['/media'], f"../thumbnails/{wp_slug}.jpg",
+                                                        img_attrs)
 
             # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
             # upload_thumbnail will report a 500 status code when this is the case.
@@ -231,7 +224,7 @@ for num, vid in enumerate(videos):
                 continue
             else:
                 print("\n--> Cleaning thumbnails cache now")
-                content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+                content_select.clean_file_cache('thumbnails', '.jpg')
                 print(f'You have created {videos_uploaded} posts in this session!')
                 break
         if num < total_elems - 1:
@@ -241,7 +234,7 @@ for num, vid in enumerate(videos):
                 pyclip.clear()
                 print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
                 try:
-                    sync = content_select.hot_file_sync('wp_posts', 'posts_url', parent=True)
+                    sync = content_select.hot_file_sync('wp_posts', 'posts_url')
                 except ConnectionError:
                     print("Hot File Sync encountered a ConnectionError.")
                     print("Going to next post. I will fetch your changes in a next try.")
@@ -252,13 +245,13 @@ for num, vid in enumerate(videos):
                     continue
                 else:
                     print("ERROR: WP JSON Sync failed. Look at the files and report this.")
-                    content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+                    content_select.clean_file_cache('thumbnails', '.jpg')
             elif next_post == ('n' or 'no'):
                 # The terminating parts add this function to avoid tracebacks from pyclip
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 print("\n--> Cleaning thumbnails cache now")
-                content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+                content_select.clean_file_cache('thumbnails', '.jpg')
                 print(f'You have created {videos_uploaded} posts in this session!')
                 break
             else:
@@ -271,7 +264,7 @@ for num, vid in enumerate(videos):
             print("\nWe have reviewed all posts for this query.")
             print("Try a different query and run me again.")
             print("\n--> Cleaning thumbnails cache now")
-            content_select.clean_file_cache('thumbnails', 'jpg', parent=True)
+            content_select.clean_file_cache('thumbnails', 'jpg')
             print(f'You have created {videos_uploaded} posts in this session!')
             print("Waiting for 60 secs to clear the clipboard before you're done with the last post...")
             time.sleep(60)
@@ -284,6 +277,6 @@ for num, vid in enumerate(videos):
         print("\nWe have reviewed all posts for this query.")
         print("Try a different SQL query or partner. I am ready when you are. ")
         print("\n--> Cleaning thumbnails cache now")
-        content_select.clean_file_cache('thumbnails', '.jpg', parent=True)
+        content_select.clean_file_cache('thumbnails', '.jpg')
         print(f'You have created {videos_uploaded} posts in this session!')
         break
