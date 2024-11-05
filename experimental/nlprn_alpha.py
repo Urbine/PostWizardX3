@@ -1,6 +1,5 @@
-
-import helpers
-import wordpress_api
+from common import helpers
+from integrations import wordpress_api
 
 import pprint
 
@@ -39,7 +38,7 @@ def clean_titles(titles: list[str]):
     return clean_title
 
 # Start by creating our training set
-import_wp_cache = helpers.load_json_ctx('wp_posts', parent=True)
+import_wp_cache = helpers.load_json_ctx('wp_posts')
 
 title = wordpress_api.get_post_titles_local(import_wp_cache, yoast=True)
 raw_descriptions = wordpress_api.get_post_descriptions(import_wp_cache, yoast=True)

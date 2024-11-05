@@ -1,16 +1,26 @@
 import argparse
-import datetime
 import sqlite3
-import time
 import warnings
 
+
+
 # Local implementations
-import content_select
-import helpers
-import feed_scrape
-import feed_dump_create
-import parse_txt_dump
-import sets_source_parse
+from common import (is_parent_dir_required,
+                    get_webdriver,
+                    load_from_file,
+                    clean_filename)
+
+from tasks.feed_dump_create import (FEED_DUMP_URL,
+                                     MEDIA_SOURCE_PASSWD,
+                                     MEDIA_SOURCE_USERNAME,
+                                     get_vid_dump_flow)
+
+from tasks.feed_scrape import (FEED_SETS_URL,
+                                get_page_source_flow)
+
+from tasks.parse_txt_dump import parse_txt_dump
+from tasks.sets_source_parse import db_generate
+from workflows.content_select import clean_file_cache
 
 print('Welcome to the MediaSource local update wizard')
 
@@ -19,10 +29,6 @@ print('Welcome to the MediaSource local update wizard')
 1. Get the dump and source files to create the photosets and vid databases. 
 2. Call the parsing modules on the text dump and HTML sources. 
 3. Clean the file cache and tidy up.
-
-Workflow:
-
-
 """
 
 # TODO: Make a function to clean old .db files by extracting the last datetime object from the name.
@@ -53,57 +59,55 @@ if args.silent:
 else:
     pass
 
-media_source_downloadable_sets = 'https://media_source.com/internal.php?page=adtools&category=3&typeid=4'
-media_source_vids_dump = 'https://media_source.com/internal.php?page=adtools&category=3&typeid=23&view=dump'
+media_source_downloadable_sets = FEED_SETS_URL
+media_source_vids_dump = FEED_DUMP_URL
 
 temp_dir = args.temp_dir
-webdriver = helpers.get_webdriver(temp_dir, headless=args.headless, gecko=args.gecko)
+webdriver = get_webdriver(temp_dir, headless=args.headless, gecko=args.gecko)
 
-username = helpers.get_client_info('client_info.json',
-                                   parent=True)['MediaSource']['username']
+username = MEDIA_SOURCE_USERNAME
 
-password = helpers.get_client_info('client_info.json',
-                                   parent=True)['MediaSource']['password']
+password = MEDIA_SOURCE_PASSWD
 
 # Fetching
 
-dump_file_name = feed_dump_create.get_vid_dump_flow(media_source_vids_dump,
-                                                     temp_dir,
-                                                     (username, password),
-                                                     webdriver,
-                                                     parent=None,
-                                                     partner_hint=args.hint)
+dump_file_name = get_vid_dump_flow(media_source_vids_dump,
+                                   temp_dir,
+                                   (username, password),
+                                   webdriver,
+                                   parent=None,
+                                   partner_hint=args.hint)
 
 # Test if the file contains characters and it is not empty.
 # If the file is empty, it means that something went wrong with the webdriver.
-load_dump_file = helpers.load_from_file(dump_file_name, 'txt', dirname=temp_dir,parent=None)
+load_dump_file = load_from_file(dump_file_name, 'txt', dirname=temp_dir, parent=None)
 while len(load_dump_file) == 0:
     warnings.warn('The content of the dump file is empty, retrying...', UserWarning)
-    dump_file_name = feed_dump_create.get_vid_dump_flow(media_source_vids_dump,
-                                                         temp_dir,
-                                                         (username, password),
-                                                         webdriver,
-                                                         parent=None,
-                                                         partner_hint=args.hint)
-    load_dump_file = helpers.load_from_file(dump_file_name, 'txt', dirname=temp_dir, parent=None)
+    dump_file_name = get_vid_dump_flow(media_source_vids_dump,
+                                       temp_dir,
+                                       (username, password),
+                                       webdriver,
+                                       parent=None,
+                                       partner_hint=args.hint)
+    load_dump_file = load_from_file(dump_file_name, 'txt', dirname=temp_dir, parent=None)
     continue
 
 # webdriver gets a second assignment to avoid connection pool issues.
-webdriver = helpers.get_webdriver(temp_dir, headless=args.headless, gecko=args.gecko)
-photoset_source = feed_scrape.get_page_source_flow(media_source_downloadable_sets,
-                                                    (username, password), webdriver, partner_hint=args.hint)
+webdriver = get_webdriver(temp_dir, headless=args.headless, gecko=args.gecko)
+photoset_source = get_page_source_flow(media_source_downloadable_sets,
+                                       (username, password), webdriver, partner_hint=args.hint)
 
 # Just like the text dump, the source code could be empty and I need to test it.
 while len(photoset_source[0]) == 0:
     warnings.warn('The source file is empty, retrying...', UserWarning)
-    photoset_source = feed_scrape.get_page_source_flow(media_source_downloadable_sets,
-                                                        (username, password), webdriver)
+    photoset_source = get_page_source_flow(media_source_downloadable_sets,
+                                           (username, password), webdriver)
     continue
 
 # Parsing video txt dump:
 
-db_name = helpers.clean_filename(dump_file_name, 'db')
-db_conn = sqlite3.connect(f"{helpers.is_parent_dir_required(parent=args.parent)}{db_name}")
+db_name = clean_filename(dump_file_name, 'db')
+db_conn = sqlite3.connect(f"{is_parent_dir_required(parent=args.parent)}{db_name}")
 cursor = db_conn.cursor()
 cursor.execute("""
 CREATE TABLE
@@ -121,13 +125,13 @@ CREATE TABLE
     )
 """)
 
-parsing = parse_txt_dump.parse_txt_dump(dump_file_name, db_name,
-                                        db_conn, cursor, dirname=temp_dir, parent=args.parent)
+parsing = parse_txt_dump(dump_file_name, db_name,
+                         db_conn, cursor, dirname=temp_dir, parent=args.parent)
 print(f'{parsing[1]} video entries have been processed from {dump_file_name} and inserted into\n{parsing[0]}\n')
 
-parsing_photos = sets_source_parse.db_generate(photoset_source[0], photoset_source[1], parent=args.parent)
+parsing_photos = db_generate(photoset_source[0], photoset_source[1], parent=args.parent)
 print(f'{parsing_photos[1]} photo set entries have been processed and inserted into\n{parsing_photos[0]}\n')
 
 # Tidy up
 print(f'Cleaning temporary directory {temp_dir}')
-content_select.clean_file_cache(temp_dir, '*', parent=None)
+clean_file_cache(temp_dir, '*')

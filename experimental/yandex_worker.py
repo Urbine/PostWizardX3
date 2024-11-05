@@ -1,7 +1,7 @@
 # This file will be gathering information from the Yandex Webmaster API, and it will be
 # focused specifically in its keyword and impression analysis capabilities.
 
-import helpers
+from common import helpers
 import requests
 
 #  oauth2 = "https://oauth.yandex.com/authorize?response_type=code"
@@ -20,7 +20,7 @@ authorization_url = "https://oauth.yandex.com/authorize?"
 token_url = "https://oauth.yandex.com/authorize?"
 
 # Gets the application client details from a json file for privacy reasons.
-cred_file = helpers.get_client_info('client_info.json', parent=True)
+cred_file = helpers.get_client_info('client_info.json')
 client_id = cred_file['Yandex']['client_id']
 client_secret = cred_file['Yandex']['client_secret']
 
@@ -33,11 +33,11 @@ if generate_tkn.lower() == ("y" or "yes"):
     helpers.export_request_json(
         "token",
         helpers.get_token_oauth(client_id, uri_callback, client_secret,
-                        authorization_url, token_url), 4, parent=True)
+                                authorization_url, token_url), 4, parent=True)
 else:
     pass
 
-token_json = helpers.load_json_ctx("token", parent=True)
+token_json = helpers.load_json_ctx("token")
 
 base_url = "https://api.webmaster.yandex.net/v4/user/"
 headers_auth = {"Authorization": f"OAuth {token_json['access_token']}"}
