@@ -20,9 +20,9 @@ authorization_url = "https://oauth.yandex.com/authorize?"
 token_url = "https://oauth.yandex.com/authorize?"
 
 # Gets the application client details from a json file for privacy reasons.
-cred_file = helpers.get_client_info('client_info.json')
-client_id = cred_file['Yandex']['client_id']
-client_secret = cred_file['Yandex']['client_secret']
+cred_file = helpers.get_client_info("client_info.json")
+client_id = cred_file["Yandex"]["client_id"]
+client_secret = cred_file["Yandex"]["client_secret"]
 
 # Set the callback URI to accept incoming connections.
 # python3 -m http.server -b 127.0.0.47 8888
@@ -32,8 +32,12 @@ generate_tkn = input("Generate new token? Y/N ")
 if generate_tkn.lower() == ("y" or "yes"):
     helpers.export_request_json(
         "token",
-        helpers.get_token_oauth(client_id, uri_callback, client_secret,
-                                authorization_url, token_url), 4, parent=True)
+        helpers.get_token_oauth(
+            client_id, uri_callback, client_secret, authorization_url, token_url
+        ),
+        4,
+        parent=True,
+    )
 else:
     pass
 
@@ -44,9 +48,11 @@ headers_auth = {"Authorization": f"OAuth {token_json['access_token']}"}
 
 user_id = requests.get(base_url, headers=headers_auth).json()
 
-hosts = requests.get(f"{base_url}{user_id['user_id']}/hosts", headers=headers_auth).json()
+hosts = requests.get(
+    f"{base_url}{user_id['user_id']}/hosts", headers=headers_auth
+).json()
 
-host_id = hosts['hosts'][0]['host_id']
+host_id = hosts["hosts"][0]["host_id"]
 
 # Getting information about popular search queries
 # GET https://api.webmaster.yandex.net/v4/user/{user-id}/hosts/{host-id}/search-queries/popular
@@ -73,14 +79,13 @@ host_id = hosts['hosts'][0]['host_id']
 #  & [date_to=<datetime>]
 
 
-
 # Query sorting order (ApiQueryOrderField)
 # and Query indicators (ApiQueryIndicator)
 api_qu_ind: dict = {
     "t_shows": "TOTAL_SHOWS",
     "t_clicks": "TOTAL_CLICKS",
     "a_show_pos": "AVG_SHOW_POSITION",
-    "a_click_pos": "AVG_CLICK_POSITION"
+    "a_click_pos": "AVG_CLICK_POSITION",
 }
 
 # Device type indicators (ApiDeviceTypeIndicator)
@@ -89,12 +94,13 @@ dev_type_ind: dict = {
     "pcs": "DESKTOP",
     "ph_tab": "MOBILE_AND_TABLET",
     "mob": "MOBILE",
-    "tabs": "TABLET"
+    "tabs": "TABLET",
 }
 
 order_by = [api_qu_ind["t_shows"], api_qu_ind["t_clicks"]]
 popular_search_qs = requests.get(
     f"{base_url}{user_id['user_id']}/hosts/{host_id}/search-queries/popular?order_by={order_by[1]}",
-    headers=headers_auth).json()
+    headers=headers_auth,
+).json()
 
 print(popular_search_qs)

@@ -16,31 +16,41 @@ import time
 
 def extract_descriptions(bs4_obj: BeautifulSoup):
     # <td><textarea class="display-link-text" rows="2">description text</textarea></td>
-    text_areas = bs4_obj.find_all('textarea',
-                                   attrs={'class': 'display-link-text',
-                                          'rows': '2'})
+    text_areas = bs4_obj.find_all(
+        "textarea", attrs={"class": "display-link-text", "rows": "2"}
+    )
     # All descriptions are located in even positions followed by <script>
     # elements in uneven positions. This is the easiest approach, I guess.
-    return [txt_area.text for num, txt_area in enumerate(text_areas, start=1)
-            if num%2 == 0]
+    return [
+        txt_area.text
+        for num, txt_area in enumerate(text_areas, start=1)
+        if num % 2 == 0
+    ]
+
 
 def extract_title(bs4_obj: BeautifulSoup):
     # <td class="tab-column col_0 center-align">video title</td>
-    vid_title = bs4_obj.find_all('td',
-                              attrs={'class': 'tab-column col_0 center-align'})
+    vid_title = bs4_obj.find_all(
+        "td", attrs={
+            "class": "tab-column col_0 center-align"})
     return [title.text for title in vid_title]
+
 
 def extract_date(bs4_obj: BeautifulSoup):
     # <td class="tab-column col_1 center-align">Sep  4, 2024</td>
-    vid_date = bs4_obj.find_all('td',
-                              attrs={'class': 'tab-column col_1 center-align'})
+    vid_date = bs4_obj.find_all(
+        "td", attrs={
+            "class": "tab-column col_1 center-align"})
     return [date.text for date in vid_date]
+
 
 def extract_duration(bs4_obj: BeautifulSoup):
     # <td class="tab-column col_2 center-align">4 Min</td>
-    vid_duration = bs4_obj.find_all('td',
-                              attrs={'class': 'tab-column col_2 center-align'})
+    vid_duration = bs4_obj.find_all(
+        "td", attrs={"class": "tab-column col_2 center-align"}
+    )
     return [duration.text for duration in vid_duration]
+
 
 # Video thumbnail & source link
 # <video class="video_holder_14126 table-video-small" controls="" poster="
@@ -48,135 +58,156 @@ def extract_duration(bs4_obj: BeautifulSoup):
 # <source src="https://xyz.com/ttp/video/video_file.mp4" type="video/"/>
 # </video>
 
+
 def extract_source(bs4_obj: BeautifulSoup):
-    video_source = bs4_obj.find_all('source')
-    return [source.attrs['src'] for source in video_source]
+    video_source = bs4_obj.find_all("source")
+    return [source.attrs["src"] for source in video_source]
+
 
 def extract_thumbnail(bs4_obj: BeautifulSoup):
-    video_thumb = bs4_obj.find_all('video')
-    return [thumb.attrs['poster'].strip('\n\t') for thumb in video_thumb]
+    video_thumb = bs4_obj.find_all("video")
+    return [thumb.attrs["poster"].strip("\n\t") for thumb in video_thumb]
+
 
 def combine_vid_elems(bs4_obj):
-    page_vids = zip(extract_title(bs4_obj),
-              extract_descriptions(bs4_obj),
-              extract_date(bs4_obj),
-              extract_source(bs4_obj),
-              extract_thumbnail(bs4_obj))
+    page_vids = zip(
+        extract_title(bs4_obj),
+        extract_descriptions(bs4_obj),
+        extract_date(bs4_obj),
+        extract_source(bs4_obj),
+        extract_thumbnail(bs4_obj),
+    )
     return [vid_elem_lst for vid_elem_lst in page_vids]
 
+
 def get_xml_link(bs4_obj: BeautifulSoup):
-    a_xml = bs4_obj.find_all('a',
-                          attrs = {'title': 'Export as XML'})
+    a_xml = bs4_obj.find_all("a", attrs={"title": "Export as XML"})
     # There is only one link with this 'title attribute'
-    return [a.attrs['href'] for a in a_xml][0]
+    return [a.attrs["href"] for a in a_xml][0]
+
 
 def xml_tag_text(bs4_xml: BeautifulSoup, elem_tag: str):
     title = bs4_xml.find(elem_tag)
     return title.text
 
-def get_page_source_flow(url_: str,
-                         c_info: tuple,
-                         webdrv: webdriver,
-                         partner_hint: str = None) -> tuple[BeautifulSoup, str]:
+
+def get_page_source_flow(
+    url_: str, c_info: tuple, webdrv: webdriver, partner_hint: str = None
+) -> tuple[BeautifulSoup, str]:
     # Captures the source outside the context manager.
     source_html = None
     with webdrv as driver:
 
-            # Go to URL
-            print(f"Getting options from {url_}")
-            print("Please wait...\n")
-            driver.get(url_)
+        # Go to URL
+        print(f"Getting options from {url_}")
+        print("Please wait...\n")
+        driver.get(url_)
 
-            # Find element by its ID
-            username_box = driver.find_element(By.ID, 'user')
-            pass_box = driver.find_element(By.ID, 'password')
+        # Find element by its ID
+        username_box = driver.find_element(By.ID, "user")
+        pass_box = driver.find_element(By.ID, "password")
 
-            # Authenticate / Send keys
-            username_box.send_keys(c_info[0])
-            pass_box.send_keys(c_info[1])
-            time.sleep(1)
+        # Authenticate / Send keys
+        username_box.send_keys(c_info[0])
+        pass_box.send_keys(c_info[1])
+        time.sleep(1)
 
-            # Get Button Class
-            button_login = driver.find_element(By.ID, 'head-login')
+        # Get Button Class
+        button_login = driver.find_element(By.ID, "head-login")
 
-            # Click on the login Button
-            button_login.click()
-            time.sleep(3)
+        # Click on the login Button
+        button_login.click()
+        time.sleep(3)
 
-            # This assumes that 3 seconds is more than enough to get the options.
-            # In testing, this webpage seems to extend the loading time
-            # required, which impacts performance.
-            driver.execute_script("window.stop();")
+        # This assumes that 3 seconds is more than enough to get the options.
+        # In testing, this webpage seems to extend the loading time
+        # required, which impacts performance.
+        driver.execute_script("window.stop();")
 
-            # Partner select
-            website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
-            website_partner_select = Select(website_partner)
-            partner_options = website_partner_select.options
+        # Partner select
+        website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
+        website_partner_select = Select(website_partner)
+        partner_options = website_partner_select.options
 
-            if partner_hint:
-                selection = helpers.match_list_single(partner_hint, partner_options, ignore_case=True)
-            else:
-                for num, opt in enumerate(partner_options, start=0):
-                    print(f'{num}. {opt.text}')
+        if partner_hint:
+            selection = helpers.match_list_single(
+                partner_hint, partner_options, ignore_case=True
+            )
+        else:
+            for num, opt in enumerate(partner_options, start=0):
+                print(f"{num}. {opt.text}")
 
-                selection = input("Enter a number and select a partner: ")
+            selection = input("Enter a number and select a partner: ")
 
-            website_partner_select.select_by_index(int(selection))
-            partner_name = get_partner_name(partner_options, int(selection))
-            time.sleep(1)
-            apply_changes_xpath = '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input'
-            apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
-            apply_changes_button.click()
-            time.sleep(1)
+        website_partner_select.select_by_index(int(selection))
+        partner_name = get_partner_name(partner_options, int(selection))
+        time.sleep(1)
+        apply_changes_xpath = (
+            "/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input"
+        )
+        apply_changes_button = driver.find_element(
+            By.XPATH, apply_changes_xpath)
+        apply_changes_button.click()
+        time.sleep(1)
 
-            # Refresh the page to avoid loading status crashes in Chrome
-            driver.refresh()
+        # Refresh the page to avoid loading status crashes in Chrome
+        driver.refresh()
 
-            # Increase videos per page before dumping to XML
-            vids_per_page = driver.find_element(By.ID, 'page-count-val')
+        # Increase videos per page before dumping to XML
+        vids_per_page = driver.find_element(By.ID, "page-count-val")
 
-            vid_select = Select(vids_per_page)
+        vid_select = Select(vids_per_page)
 
-            # selected_options = vid_select.options
-            # select_by_index seems to work with 0-indexing.
-            # for num, opt in enumerate(selected_options, start=0):
-            #     print(f'{num}. {opt.text}')
-            #
-            # selection = input("Enter a number and select an option: ")
+        # selected_options = vid_select.options
+        # select_by_index seems to work with 0-indexing.
+        # for num, opt in enumerate(selected_options, start=0):
+        #     print(f'{num}. {opt.text}')
+        #
+        # selection = input("Enter a number and select an option: ")
 
-            # Selecting `Show All` by default in index 5
-            vid_select.select_by_index(5)
+        # Selecting `Show All` by default in index 5
+        vid_select.select_by_index(5)
 
-            #Locate update button to submit selected option
-            update_submit_button = driver.find_element(By.ID, 'pageination-submit')
-            update_submit_button.click()
-            time.sleep(5)
+        # Locate update button to submit selected option
+        update_submit_button = driver.find_element(By.ID, "pageination-submit")
+        update_submit_button.click()
+        time.sleep(5)
 
-            source_html = BeautifulSoup(driver.page_source, 'html.parser')
+        source_html = BeautifulSoup(driver.page_source, "html.parser")
 
-    return source_html, f'{partner_name}photos-{datetime.date.today()}'
+    return source_html, f"{partner_name}photos-{datetime.date.today()}"
 
-M_CASH_HOSTED_URL = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=23'
-M_CASH_SETS_URL = 'https://mongercash.com/internal.php?page=adtools&category=3&typeid=4'
 
-if __name__ == '__main__':
+M_CASH_HOSTED_URL = (
+    "https://mongercash.com/internal.php?page=adtools&category=3&typeid=23"
+)
+M_CASH_SETS_URL = "https://mongercash.com/internal.php?page=adtools&category=3&typeid=4"
+
+if __name__ == "__main__":
     # ==== Execution space ====
     # Cache folder for downloads
-    cache_folder = '../tmp'
+    cache_folder = "../tmp"
 
     # Initialize the webdriver
     web_driver = helpers.get_webdriver(cache_folder, headless=True)
-    web_driver_gecko = helpers.get_webdriver(cache_folder, headless=True, gecko=True)
+    web_driver_gecko = helpers.get_webdriver(
+        cache_folder, headless=True, gecko=True)
 
     # TODO: Use JSON notation to store user credentials
     #  so that no private information is pushed to GitHub. OK
     username = M_CASH_USERNAME
     password = M_CASH_PASSWD
 
-    html_source= get_page_source_flow(M_CASH_SETS_URL,
-                                      (username, password), web_driver)
+    html_source = get_page_source_flow(
+        M_CASH_SETS_URL, (username, password), web_driver
+    )
 
-    helpers.write_to_file(html_source[1], 'tmp', 'html', html_source[0], parent=True)
+    helpers.write_to_file(
+        html_source[1],
+        "tmp",
+        "html",
+        html_source[0],
+        parent=True)
 
 
 # for num, elem in enumerate(xml_elem_entry, start=1):

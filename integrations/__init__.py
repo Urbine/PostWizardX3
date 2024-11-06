@@ -17,7 +17,6 @@ from integrations.callback_server import run_callback_server
 from integrations.wordpress_api import create_tag_report_excel
 from integrations.wordpress_api import create_wp_local_cache
 from integrations.wordpress_api import curl_wp_self_concat
-
 from integrations.wordpress_api import get_from_class_list
 from integrations.wordpress_api import get_post_category
 from integrations.wordpress_api import get_post_descriptions
@@ -28,24 +27,19 @@ from integrations.wordpress_api import get_tag_count
 from integrations.wordpress_api import get_tag_id_pairs
 from integrations.wordpress_api import get_tags_num_count
 from integrations.wordpress_api import get_tags_unique
-
-from integrations.wordpress_api import map_postsid_category
-from integrations.wordpress_api import map_posts_by_id
-from integrations.wordpress_api import map_tags_posts
-from integrations.wordpress_api import map_tags_post_urls
-from integrations.wordpress_api import map_wp_class_id
-
 from integrations.wordpress_api import local_cache_config
-
-from integrations.wordpress_api import tag_id_merger_dict
+from integrations.wordpress_api import map_posts_by_id
+from integrations.wordpress_api import map_postsid_category
+from integrations.wordpress_api import map_tags_post_urls
+from integrations.wordpress_api import map_tags_posts
+from integrations.wordpress_api import map_wp_class_id
 from integrations.wordpress_api import tag_id_count_merger
-
+from integrations.wordpress_api import tag_id_merger_dict
 from integrations.wordpress_api import unpack_tpl_excel
 from integrations.wordpress_api import update_json_cache
 from integrations.wordpress_api import update_published_titles_db
-from integrations.wordpress_api import upload_thumbnail
 from integrations.wordpress_api import upgrade_wp_local_cache
-
+from integrations.wordpress_api import upload_thumbnail
 from integrations.wordpress_api import wp_post_create
 
 __all__ = ['create_tag_report_excel',
