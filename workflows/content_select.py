@@ -12,6 +12,8 @@ import argparse
 import glob
 import os
 import shutil
+from sqlite3 import Connection, Cursor
+from typing import Tuple
 
 import pyclip
 import random
@@ -23,7 +25,7 @@ import sqlite3
 from requests.exceptions import ConnectionError, SSLError
 
 # Local implementations
-from common import helpers
+from common import helpers, InvalidInput
 from integrations import wordpress_api
 
 
@@ -93,8 +95,7 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
     :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
     :return: True if one or more matches is found, False if the result is None.
     """
-    post_titles: list[str] = wordpress_api.get_post_titles_local(
-        wp_posts_f, yoast=True)
+    post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
     comp_title = re.compile(title)
     results: list[str] = [
         vid_name for vid_name in post_titles if re.match(comp_title, vid_name)
@@ -105,8 +106,7 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
         return False
 
 
-def filter_published(all_videos: list[tuple],
-                     wp_posts_f: list[dict]) -> list[tuple]:
+def filter_published(all_videos: list[tuple], wp_posts_f: list[dict]) -> list[tuple]:
     """filter_published does its filtering work based on the published_json function.
     Actually, the published_json is the brain behind this function and the reason why I decided to
     separate brain and body is modularity. I want to be able to modify the classification rationale
@@ -141,8 +141,7 @@ def get_banner(banner_lst: list[str]) -> str:
     return random.choice(banner_lst)
 
 
-def get_tag_ids(wp_posts_f: list[dict],
-                tag_lst: list[str], preset: str) -> list[int]:
+def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list[int]:
     """WordPress uses integers to identify several elements that posts share like models or tags.
     This function is equipped to deal with inconsistencies that are inherent to the way that WP
     handles its tags; for example, some tags can have the same meaning but differ in case.
@@ -303,8 +302,7 @@ def clean_file_cache(cache_folder: str, file_ext: str) -> None:
         file_ext, parent=parent, folder=cache_folder
     )
 
-    go_to_folder: str = helpers.is_parent_dir_required(
-        parent=parent) + cache_folder
+    go_to_folder: str = helpers.is_parent_dir_required(parent=parent) + cache_folder
     folders = glob.glob(f"{go_to_folder}/*")
     if cache_files:
         os.chdir(go_to_folder)
@@ -353,7 +351,9 @@ def make_payload(
     """
     # Added an author field to the client_info file.
     try:
-        author = helpers.get_client_info("client_info")["WordPress"]["user_apps"]["wordpress_api.py"]["author"]
+        author = helpers.get_client_info("client_info")["WordPress"]["user_apps"][
+            "wordpress_api.py"
+        ]["author"]
     except TypeError:
         # author #1 is admin
         author = 1
@@ -394,7 +394,9 @@ def make_payload_simple(
     :return: dict
     """
     # Added an author field to the client_info file.
-    author: int = helpers.get_client_info("client_info")["WordPress"]["user_apps"]["wordpress_api.py"]["author"]
+    author: int = helpers.get_client_info("client_info")["WordPress"]["user_apps"][
+        "wordpress_api.py"
+    ]["author"]
     payload_post: dict = {
         "slug": f"{vid_slug}",
         "status": f"{status_wp}",
@@ -500,8 +502,7 @@ def hot_file_sync(wp_filename, endpoint: str) -> bool:
     # Reload config
     config_json = helpers.load_json_ctx("wp_cache_config.json")
     if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
-        helpers.export_request_json(
-            wp_filename, sync_changes, 1, parent=parent)
+        helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
         return True
     else:
         return False
@@ -554,6 +555,54 @@ def select_guard(db_name: str, partner: str) -> None:
         print("\nBe careful! Partner and database must match. Re-run...")
         print(f"You selected {db_name} for partner {partner}.")
         quit()
+
+
+def content_select_db_match(
+    hint_lst: list[str],
+    content_hint: str,
+    folder: str = "",
+    parent: bool = False,
+) -> tuple[Connection, Cursor, str]:
+    """Give a list of databases, match them with multiple hints and retrieves the most up-to-date filename.
+       This is a specialised implementation based on the ``filename_select`` function in the ``common.helpers`` module.
+
+    :param hint_lst: ``list[str]`` words/patterns to match.
+    :param content_hint: ``str`` type of content, typically ``vids`` or ``photos``
+    :param folder: ``str`` where you want to look for files
+    :param parent: ``True`` to search in parent dir, default set to ``False``.
+    :return: ``str`` File name without relative path.
+    If you want to access the file from a parent dir,
+    either let the destination function handle it for you or specify it yourself.
+    """
+    available_files = helpers.search_files_by_ext("db", folder=folder, parent=parent)
+    filtered_files = helpers.match_list_elem_date(
+        hint_lst,
+        available_files,
+        join_hints=(True, " ", "-"),
+        ignore_case=True,
+        strict=True,
+    )
+    relevant_content = [
+        filtered_files[indx]
+        for indx in helpers.match_list_mult(content_hint, filtered_files)
+    ]
+    print(f"\nHere are the available database files:")
+    for num, file in enumerate(relevant_content, start=1):
+        print(f"{num}. {file}")
+
+    select_file = input(f"\nSelect your database file now: ")
+    is_parent = helpers.is_parent_dir_required(parent=parent)
+    try:
+        db_path = (
+            f"{is_parent}{folder}/{filtered_files[int(select_file)]}"
+            if folder != ""
+            else f"{is_parent}{filtered_files[int(select_file)]}"
+        )
+        db_new_conn = sqlite3.connect(db_path)
+        db_new_cur = db_new_conn.cursor()
+        return db_new_conn, db_new_cur, filtered_files[int(select_file)]
+    except IndexError:
+        raise InvalidInput
 
 
 def video_upload_pilot(
@@ -667,8 +716,7 @@ def video_upload_pilot(
         print(f"Thumbnail URL: {thumbnail_url}")
         print(f"Source URL: {source_url}")
         # Centralized control flow
-        add_post = input(
-            "\nAdd post to WP? -> Y/N/ENTER to review next post: ").lower()
+        add_post = input("\nAdd post to WP? -> Y/N/ENTER to review next post: ").lower()
         if add_post == ("y" or "yes"):
             add_post = True
         elif add_post == ("n" or "no"):
@@ -690,8 +738,7 @@ def video_upload_pilot(
                 print("Try a different SQL query or partner. I am ready when you are. ")
                 print("\n--> Cleaning thumbnails cache now")
                 clean_file_cache("thumbnails", ".jpg")
-                print(
-                    f"You have created {videos_uploaded} posts in this session!")
+                print(f"You have created {videos_uploaded} posts in this session!")
                 break
         if add_post:
             slugs = [
@@ -742,8 +789,7 @@ def video_upload_pilot(
             all_models_wp = wordpress_api.map_wp_class_id(
                 wp_posts_f, "pornstars", "pornstars"
             )
-            new_models = identify_missing(
-                all_models_wp, model_prep, calling_models)
+            new_models = identify_missing(all_models_wp, model_prep, calling_models)
 
             if new_models is None:
                 # All model have been found and located.
@@ -777,11 +823,8 @@ def video_upload_pilot(
                 print("--> Uploading thumbnail to WordPress Media...")
                 print("--> Adding image attributes on WordPress...")
                 img_attrs = make_img_payload(title, description)
-                thumbnail_lookup = False if os.path.exists(
-                    "./thumbnails") else True
-                thumbnail_folder = (
-                    f"{helpers.is_parent_dir_required(parent=thumbnail_lookup)}thumbnails"
-                )
+                thumbnail_lookup = False if os.path.exists("./thumbnails") else True
+                thumbnail_folder = f"{helpers.is_parent_dir_required(parent=thumbnail_lookup)}thumbnails"
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     ["/media"],
@@ -824,8 +867,7 @@ def video_upload_pilot(
                 else:
                     print("\n--> Cleaning thumbnails cache now")
                     clean_file_cache("thumbnails", ".jpg")
-                    print(
-                        f"You have created {videos_uploaded} posts in this session!")
+                    print(f"You have created {videos_uploaded} posts in this session!")
                     break
             if num < total_elems - 1:
                 next_post = input(
@@ -845,8 +887,7 @@ def video_upload_pilot(
                         print("If you want to update again, relaunch the bot.")
                         sync = True
                     if sync:
-                        not_published_yet = filter_published(
-                            all_vals, wp_posts_f)
+                        not_published_yet = filter_published(all_vals, wp_posts_f)
                         continue
                     else:
                         print(
@@ -860,8 +901,7 @@ def video_upload_pilot(
                     pyclip.clear()
                     print("\n--> Cleaning thumbnails cache now")
                     clean_file_cache("thumbnails", ".jpg")
-                    print(
-                        f"You have created {videos_uploaded} posts in this session!")
+                    print(f"You have created {videos_uploaded} posts in this session!")
                     break
                 else:
                     pyclip.detect_clipboard()
@@ -874,8 +914,7 @@ def video_upload_pilot(
                 print("Try a different query and run me again.")
                 print("\n--> Cleaning thumbnails cache now")
                 clean_file_cache("thumbnails", "jpg")
-                print(
-                    f"You have created {videos_uploaded} posts in this session!")
+                print(f"You have created {videos_uploaded} posts in this session!")
                 print(
                     "Waiting for 60 secs to clear the clipboard before you're done with the last post..."
                 )
@@ -913,9 +952,7 @@ if __name__ == "__main__":
 
     args = arg_parser.parse_args()
 
-    print("Choose your Partner DB:")
-    db_conn, cur_dump, db_dump_name = helpers.get_project_db(
-        parent=args.parent)
+    # helpers.get_project_db(parent=args.parent)
 
     # db_wp_name = helpers.filename_select('db', parent=True)
     # db_connection_wp = sqlite3.connect(f'{parent_wd}{db_wp_name}')
@@ -967,6 +1004,11 @@ if __name__ == "__main__":
         "Euro Sex Diary",
         "Paradise GFs",
     ]
+
+    print("Choose your Partner DB:")
+    db_conn, cur_dump, db_dump_name = content_select_db_match(
+        partnerz,'vids', parent=args.parent
+    )
 
     imported_json = helpers.load_json_ctx("wp_posts")
     db_all_vids = helpers.fetch_data_sql(alt_query, cur_dump)

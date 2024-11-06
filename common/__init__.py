@@ -10,6 +10,7 @@ __version__ = "1.0.0"
 
 # Custom Exceptions `custom_exceptions.py`
 from .custom_exceptions import NoSuitableArgument
+from .custom_exceptions import InvalidInput
 
 # Project helper functions `helpers.py`
 from .helpers import access_url
@@ -42,6 +43,7 @@ from .helpers import write_to_file
 
 __all__ = [
     "NoSuitableArgument",
+    "InvalidInput",
     "access_url",
     "access_url_bs4",
     "clean_filename",
