@@ -10,25 +10,17 @@ __version__ = '1.0.0'
 
 # ** MediaSource Dump Creation `feed_dump_create.py` **
 
-# Functions
+from tasks.feed_dump_create import FEED_DUMP_URL
+from tasks.feed_dump_create import MEDIA_SOURCE_PASSWD
+from tasks.feed_dump_create import MEDIA_SOURCE_USERNAME
 from tasks.feed_dump_create import get_partner_name
 from tasks.feed_dump_create import get_vid_dump_flow
-
-# Constants
-from tasks.feed_dump_create import FEED_DUMP_URL
-from tasks.feed_dump_create import MEDIA_SOURCE_USERNAME
-from tasks.feed_dump_create import MEDIA_SOURCE_PASSWD
-
+from tasks.feed_scrape import MEDIA_SOURCE_HOSTED_URL
+from tasks.feed_scrape import FEED_SETS_URL
 # ** MediaSource Photo Set Scrape `media_source_scrape.py` **
 from tasks.feed_scrape import get_page_source_flow
-
-# Contants
-from tasks.feed_scrape import FEED_SETS_URL
-from tasks.feed_scrape import MEDIA_SOURCE_HOSTED_URL
-
 # ** MediaSource TXT dump parser
 from tasks.parse_txt_dump import parse_txt_dump
-
 # ** MediaSource HTML photoset dump parser
 from tasks.sets_source_parse import db_generate
 

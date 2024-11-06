@@ -1,0 +1,34 @@
+tasks package
+=============
+
+tasks.media_source\_dump\_create module
+--------------------------------
+
+.. automodule:: tasks.feed_dump_create
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+tasks.media_source\_scrape module
+--------------------------
+
+.. automodule:: tasks.feed_scrape
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+tasks.parse\_txt\_dump module
+-----------------------------
+
+.. automodule:: tasks.parse_txt_dump
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+tasks.sets\_source\_parse module
+--------------------------------
+
+.. automodule:: tasks.sets_source_parse
+   :members:
+   :undoc-members:
+   :show-inheritance:
