@@ -13,7 +13,6 @@ import glob
 import os
 import shutil
 from sqlite3 import Connection, Cursor
-from typing import Tuple
 
 import pyclip
 import random
@@ -55,6 +54,16 @@ from integrations import wordpress_api
 # tracking_url,
 # wp_slug FROM videos ORDER BY date DESC
 # """
+
+def clean_partner_tag(partner_tag: str):
+    no_word = re.findall(r"[\W_]", partner_tag, flags=re.IGNORECASE)
+    if no_word[0] == " " and len(no_word) == 1:
+        return partner_tag
+    elif "'" not in no_word:
+        return partner_tag
+    else:
+        split_char = no_word[1] if len(no_word) > 1 else no_word[0]
+        return ''.join(partner_tag.split(split_char))
 
 
 def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
@@ -462,18 +471,28 @@ def make_slug(
         ]
     )
 
-    partner_sl = "-".join(partner.lower().split())
-    model_sl = "-".join(
-        [
-            "-".join(name.split(" "))
-            for name in [model.lower() for model in model.split(",")]
-        ]
-    )
-    content = f"-{content}" if content != "" or None else ""
-    if reverse:
-        return f"{title_sl}-{partner_sl}-{model_sl}{content}"
-    else:
-        return f"{partner_sl}-{model_sl}-{title_sl}{content}"
+    partner_sl = "-".join(clean_partner_tag(partner.lower()).split())
+    try:
+        model_sl = "-".join(
+            [
+                "-".join(name.split(" "))
+                for name in [model.lower() for model in model.split(",")]
+            ]
+        )
+
+        content = f"-{content}" if content != "" or None else ""
+
+        if reverse:
+            return f"{title_sl}-{partner_sl}-{model_sl}{content}"
+        else:
+            return f"{partner_sl}-{model_sl}-{title_sl}{content}"
+    except AttributeError:
+        # Model can be NoneType and crash the program if this is not handled.
+        if reverse:
+            return f"{title_sl}-{partner_sl}-{content}"
+        else:
+            return f"{partner_sl}-{title_sl}-{content}"
+
 
 
 def hot_file_sync(wp_filename, endpoint: str) -> bool:
@@ -509,13 +528,17 @@ def hot_file_sync(wp_filename, endpoint: str) -> bool:
 
 
 def partner_select(
-    partner_lst: list[str], banner_lsts: list[list[str]]
+    partner_lst: list[str],
+    banner_lsts: list[list[str]],
+    db_name: str,
 ) -> tuple[str, list[str]]:
     """Selects partner and banner list based on their index order.
     As this function is based on index and order of elements, both lists should have the same number of elements.
 
+
     :param partner_lst: list of str - partner offers
     :param banner_lsts: banner list of banners list[list[str]] to select from.
+    :param db_name: ``str`` partner database name
     :return: tuple(partner_name, banner_list)
     """
     print("\n")
@@ -561,13 +584,15 @@ def content_select_db_match(
     hint_lst: list[str],
     content_hint: str,
     folder: str = "",
+    prompt_db: bool = False,
     parent: bool = False,
-) -> tuple[Connection, Cursor, str]:
+) -> tuple[Connection, Cursor, str, int]:
     """Give a list of databases, match them with multiple hints and retrieves the most up-to-date filename.
        This is a specialised implementation based on the ``filename_select`` function in the ``common.helpers`` module.
 
     :param hint_lst: ``list[str]`` words/patterns to match.
     :param content_hint: ``str`` type of content, typically ``vids`` or ``photos``
+    :param prompt_db: ``True`` if you want to prompt the user to select db. Default ``False``.
     :param folder: ``str`` where you want to look for files
     :param parent: ``True`` to search in parent dir, default set to ``False``.
     :return: ``str`` File name without relative path.
@@ -582,25 +607,49 @@ def content_select_db_match(
         ignore_case=True,
         strict=True,
     )
+
     relevant_content = [
         filtered_files[indx]
         for indx in helpers.match_list_mult(content_hint, filtered_files)
     ]
-    print(f"\nHere are the available database files:")
-    for num, file in enumerate(relevant_content, start=1):
+
+    if prompt_db:
+        print(f"\nHere are the available database files:")
+        for num, file in enumerate(relevant_content, start=1):
+            print(f"{num}. {file}")
+        print("\n")
+    else:
+        pass
+    print("\n")
+    for num, file in enumerate(hint_lst, start=1):
         print(f"{num}. {file}")
 
-    select_file = input(f"\nSelect your database file now: ")
-    is_parent = helpers.is_parent_dir_required(parent=parent)
     try:
-        db_path = (
-            f"{is_parent}{folder}/{relevant_content[int(select_file)-1]}"
-            if folder != ""
-            else f"{is_parent}{relevant_content[int(select_file)-1]}"
+        select_partner = input(f"\nSelect your partner now: ")
+        # I just need the first word to match the db.
+        split_char = re.findall(r"[\W_]", hint_lst[int(select_partner) - 1])[0]
+        try:
+            clean_hint = hint_lst[int(select_partner) - 1].split(split_char)[0]
+        except ValueError:
+            # In case of empty separator
+            clean_hint = hint_lst[int(select_partner) - 1]
+
+        rel_content = helpers.match_list_single(
+            clean_hint, relevant_content, ignore_case=True
         )
+
+        select_file = rel_content
+
+        is_parent = (
+            helpers.is_parent_dir_required(parent=parent)
+            if folder == ""
+            else f"{folder}/"
+        )
+        db_path = f"{is_parent}{relevant_content[int(select_file)]}"
+
         db_new_conn = sqlite3.connect(db_path)
         db_new_cur = db_new_conn.cursor()
-        return db_new_conn, db_new_cur, relevant_content[int(select_file)-1]
+        return db_new_conn, db_new_cur, relevant_content[int(select_file)], select_file
     except IndexError:
         raise InvalidInput
 
@@ -611,6 +660,7 @@ def video_upload_pilot(
     banner_lsts: list[list[str]],
     partner_db_name: str,
     wp_posts_f: list[dict],
+    sel_indx: int,
     parent: bool = False,
 ) -> None:
     """Here is the main coordinating function of this module, the job control that
@@ -675,6 +725,7 @@ def video_upload_pilot(
     :param banner_lsts: List[list[str]] of banner URLS to make the post payload.
     :param partner_db_name: The name of that DB you selected at the very beginning of execution.
     :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
+    :param sel_indx: partner indx for validation
     :param parent: True if you want to locate relevant files in the parent directory. Default False
     :return: None
     """
@@ -689,7 +740,7 @@ def video_upload_pilot(
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
 
-    partner, banners = partner_select(partners, banner_lsts)
+    partner, banners = partners[sel_indx], banner_lsts[sel_indx]
     select_guard(partner_db_name, partner)
     not_published_yet = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
@@ -765,7 +816,9 @@ def video_upload_pilot(
 
             print("\n--> Making payload...")
             tag_prep = tags.split(",")
-            tag_prep.append(partner.lower())
+            # Making sure that the partner tag does not have apostrophes
+            partner_tag = clean_partner_tag(partner.lower())
+            tag_prep.append(partner_tag)
             tag_ints = get_tag_ids(wp_posts_f, tag_prep, "tags")
             all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
             tag_check = identify_missing(
@@ -783,7 +836,10 @@ def video_upload_pilot(
                     pyclip.detect_clipboard()
                     pyclip.copy(tag)
 
-            model_prep = models.split(",")
+            model_prep = models.split(",") if models is not None else ['model-not-found']
+            if 'model-not-found' in model_prep:
+                print("*** This entry does not include a model. Using 'model-not-found' as placeholder. ***")
+
             # The would-be `models_ints`
             calling_models = get_model_ids(wp_posts_f, model_prep)
             all_models_wp = wordpress_api.map_wp_class_id(
@@ -978,11 +1034,14 @@ if __name__ == "__main__":
 
     banner_paradise_1 = "https://mongercash.com/view_banner.php?name=1323x270.jpg&filename=8879_name.jpg&type=jpg&download=1"
 
+    banner_toticos_1 = "https://mongercash.com/view_banner.php?name=tot-600x120-2.gif&filename=2605_name.gif&type=gif&download=1"
+
     banner_lst_asd = [banner_asd_1, banner_asd_2, banner_asd_3]
     banner_lst_tktk = [banner_tuktuk_1, banner_tuktuk_2, banner_tuktuk_3]
     banner_lst_trike = [banner_trike_1, banner_trike_2, banner_trike_3]
     banner_lst_esd = [banner_euro_1, banner_euro_2, banner_euro_3]
     banner_lst_paradise = [banner_paradise_1]
+    banner_lst_toticos = [banner_toticos_1]
 
     banner_lists = [
         banner_lst_asd,
@@ -990,6 +1049,7 @@ if __name__ == "__main__":
         banner_lst_trike,
         banner_lst_esd,
         banner_lst_paradise,
+        banner_lst_toticos
     ]
 
     # Alternative query: SELECT * FROM videos WHERE date>="2024" OR
@@ -1002,12 +1062,12 @@ if __name__ == "__main__":
         "TukTuk Patrol",
         "Trike Patrol",
         "Euro Sex Diary",
-        "Paradise GFs",
+        "Paradise GF's",
+        "Totico's",
     ]
 
-    print("Choose your Partner DB:")
-    db_conn, cur_dump, db_dump_name = content_select_db_match(
-        partnerz,'vids', parent=args.parent
+    db_conn, cur_dump, db_dump_name, part_indx = content_select_db_match(
+        partnerz, "vids", parent=args.parent
     )
 
     imported_json = helpers.load_json_ctx("wp_posts")
@@ -1019,6 +1079,6 @@ if __name__ == "__main__":
         banner_lists,
         db_dump_name,
         imported_json,
+        part_indx,
         parent=args.parent,
     )
-
