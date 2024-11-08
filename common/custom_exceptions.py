@@ -14,7 +14,7 @@ class NoSuitableArgument(Exception):
 class InvalidInput(Exception):
     """
     Used by functions that depend on user input.
-    Raise if the expected parameters are not provided by the user.
+    Raise if the expected values are not provided via user input.
     """
 
     def __init__(self):

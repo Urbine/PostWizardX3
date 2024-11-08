@@ -594,13 +594,13 @@ def content_select_db_match(
     is_parent = helpers.is_parent_dir_required(parent=parent)
     try:
         db_path = (
-            f"{is_parent}{folder}/{filtered_files[int(select_file)]}"
+            f"{is_parent}{folder}/{relevant_content[int(select_file)-1]}"
             if folder != ""
-            else f"{is_parent}{filtered_files[int(select_file)]}"
+            else f"{is_parent}{relevant_content[int(select_file)-1]}"
         )
         db_new_conn = sqlite3.connect(db_path)
         db_new_cur = db_new_conn.cursor()
-        return db_new_conn, db_new_cur, filtered_files[int(select_file)]
+        return db_new_conn, db_new_cur, relevant_content[int(select_file)-1]
     except IndexError:
         raise InvalidInput
 
@@ -1021,3 +1021,4 @@ if __name__ == "__main__":
         imported_json,
         parent=args.parent,
     )
+
