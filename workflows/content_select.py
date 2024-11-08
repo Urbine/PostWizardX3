@@ -13,7 +13,6 @@ import glob
 import os
 import shutil
 from sqlite3 import Connection, Cursor
-from typing import Tuple
 
 import pyclip
 import random
@@ -55,6 +54,16 @@ from integrations import wordpress_api
 # tracking_url,
 # wp_slug FROM videos ORDER BY date DESC
 # """
+
+def clean_partner_tag(partner_tag: str):
+    no_word = re.findall(r"[\W_]", partner_tag, flags=re.IGNORECASE)
+    if no_word[0] == " " and len(no_word) == 1:
+        return partner_tag
+    elif "'" not in no_word:
+        return partner_tag
+    else:
+        split_char = no_word[1] if len(no_word) > 1 else no_word[0]
+        return ''.join(partner_tag.split(split_char))
 
 
 def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
@@ -462,7 +471,6 @@ def make_slug(
         ]
     )
 
-    partner_sl = "-".join(partner.lower().split())
     model_sl = "-".join(
         [
             "-".join(name.split(" "))
@@ -474,6 +482,7 @@ def make_slug(
         return f"{title_sl}-{partner_sl}-{model_sl}{content}"
     else:
         return f"{partner_sl}-{model_sl}-{title_sl}{content}"
+    partner_sl = "-".join(clean_partner_tag(partner.lower()).split())
 
 
 def hot_file_sync(wp_filename, endpoint: str) -> bool:
@@ -765,7 +774,9 @@ def video_upload_pilot(
 
             print("\n--> Making payload...")
             tag_prep = tags.split(",")
-            tag_prep.append(partner.lower())
+            # Making sure that the partner tag does not have apostrophes
+            partner_tag = clean_partner_tag(partner.lower())
+            tag_prep.append(partner_tag)
             tag_ints = get_tag_ids(wp_posts_f, tag_prep, "tags")
             all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
             tag_check = identify_missing(
