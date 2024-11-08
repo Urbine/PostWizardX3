@@ -26,6 +26,7 @@ print("Welcome to the MongerCash local update wizard")
 1. Get the dump and source files to create the photosets and vid databases.
 2. Call the parsing modules on the text dump and HTML sources.
 3. Clean the file cache and tidy up.
+4. Clean outdated files.
 """
 
 # TODO: Make a function to clean old .db files by extracting the last

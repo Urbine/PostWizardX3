@@ -32,6 +32,7 @@ from workflows.content_select import (
     select_guard,
     clean_file_cache,
     published_json,
+    content_select_db_match
 )
 
 from common import helpers
@@ -471,15 +472,10 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--relevancy",
         action="store_true",
-        help="Activate relevancy algorithm (experiemental)",
+        help="Activate relevancy algorithm (experimental)",
     )
 
     args = arg_parser.parse_args()
-
-    print(" *** Select your partner photo set DB: ***")
-    db_partner, cur_partner, db_name_partner = helpers.get_project_db(
-        parent=args.parent
-    )
 
     # print('\n *** Select your WP All Posts DB: ***')
     # db_wp_1 = helpers.filename_select('db', parent = True)
@@ -500,12 +496,18 @@ if __name__ == "__main__":
         "Trike Patrol",
         "Euro Sex Diary"]
 
+    print(" *** Select your partner photo set DB: ***")
+
+    db_conn, cur_dump, db_dump_name = content_select_db_match(
+        partnerz, 'photos', parent=args.parent
+    )
+
     gallery_upload_pilot(
-        cur_partner,
+        cur_dump,
         imported_json_posts,
         imported_json_photos,
         partnerz,
-        db_name_partner,
+        db_dump_name,
         hot_sync_mode=args.hotsync,
         relevancy_on=args.relevancy,
         gecko=args.gecko,

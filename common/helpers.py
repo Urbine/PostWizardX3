@@ -501,6 +501,7 @@ def match_list_elem_date(
     ignore_case: bool = False,
     join_hints: tuple[bool, str, str] = (False, "", ""),
     strict: bool = False,
+    reverse: bool = False,
 ) -> list[str]:
     """Finds matches, within a list of strings, and compares the dates in each of the strings to return the items
     that are associated with the latest dates; therefore, leaving out strings with the same name that do not contain
@@ -537,9 +538,11 @@ def match_list_elem_date(
     :param strict: ``True`` if you only want to match strings with "date".
            **Note that, if this is active, other strings that do not follow the convention will be left out.**
            Default ``False``.
+    :param reverse: ``True`` to return a ``lookup_list`` without the matches.
     :return: ``list[str]``
     """
     up_to_date: list[str] = []
+    main_matches: list[str] = []
     for hint in l_hints:
 
         if join_hints[0]:
@@ -552,6 +555,12 @@ def match_list_elem_date(
 
         get_match_items = [lookup_list[indx] for indx in matches]
 
+        if reverse:
+            for match in get_match_items:
+                main_matches.append(match)
+        else:
+            pass
+
         date_regex = re.compile(r"(\d{2,4}-\d{1,2}-\d{1,2})")
 
         extract_dates = [
@@ -559,19 +568,22 @@ def match_list_elem_date(
             for match in get_match_items
             if re.findall(date_regex, match)
         ]
+
         if extract_dates:
             max_date_items = match_list_mult(str(max(extract_dates)), get_match_items)
             for indx in max_date_items:
                 up_to_date.append(get_match_items[indx])
-        elif strict:
+        elif not strict:
             # If there are no dates in the item, I still want to know about it.
             # BUT only if strict mode is disabled.
             for m_item in get_match_items:
                 up_to_date.append(m_item)
         else:
             continue
-
-    return up_to_date
+    if reverse:
+        return [match for match in main_matches if match not in up_to_date]
+    else:
+        return up_to_date
 
 
 def load_json_ctx(filename: str, log_err: bool = False):
