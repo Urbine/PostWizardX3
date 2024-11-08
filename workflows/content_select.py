@@ -528,13 +528,17 @@ def hot_file_sync(wp_filename, endpoint: str) -> bool:
 
 
 def partner_select(
-    partner_lst: list[str], banner_lsts: list[list[str]]
+    partner_lst: list[str],
+    banner_lsts: list[list[str]],
+    db_name: str,
 ) -> tuple[str, list[str]]:
     """Selects partner and banner list based on their index order.
     As this function is based on index and order of elements, both lists should have the same number of elements.
 
+
     :param partner_lst: list of str - partner offers
     :param banner_lsts: banner list of banners list[list[str]] to select from.
+    :param db_name: ``str`` partner database name
     :return: tuple(partner_name, banner_list)
     """
     print("\n")
@@ -580,13 +584,15 @@ def content_select_db_match(
     hint_lst: list[str],
     content_hint: str,
     folder: str = "",
+    prompt_db: bool = False,
     parent: bool = False,
-) -> tuple[Connection, Cursor, str]:
+) -> tuple[Connection, Cursor, str, int]:
     """Give a list of databases, match them with multiple hints and retrieves the most up-to-date filename.
        This is a specialised implementation based on the ``filename_select`` function in the ``common.helpers`` module.
 
     :param hint_lst: ``list[str]`` words/patterns to match.
     :param content_hint: ``str`` type of content, typically ``vids`` or ``photos``
+    :param prompt_db: ``True`` if you want to prompt the user to select db. Default ``False``.
     :param folder: ``str`` where you want to look for files
     :param parent: ``True`` to search in parent dir, default set to ``False``.
     :return: ``str`` File name without relative path.
@@ -601,25 +607,49 @@ def content_select_db_match(
         ignore_case=True,
         strict=True,
     )
+
     relevant_content = [
         filtered_files[indx]
         for indx in helpers.match_list_mult(content_hint, filtered_files)
     ]
-    print(f"\nHere are the available database files:")
-    for num, file in enumerate(relevant_content, start=1):
+
+    if prompt_db:
+        print(f"\nHere are the available database files:")
+        for num, file in enumerate(relevant_content, start=1):
+            print(f"{num}. {file}")
+        print("\n")
+    else:
+        pass
+    print("\n")
+    for num, file in enumerate(hint_lst, start=1):
         print(f"{num}. {file}")
 
-    select_file = input(f"\nSelect your database file now: ")
-    is_parent = helpers.is_parent_dir_required(parent=parent)
     try:
-        db_path = (
-            f"{is_parent}{folder}/{relevant_content[int(select_file)-1]}"
-            if folder != ""
-            else f"{is_parent}{relevant_content[int(select_file)-1]}"
+        select_partner = input(f"\nSelect your partner now: ")
+        # I just need the first word to match the db.
+        split_char = re.findall(r"[\W_]", hint_lst[int(select_partner) - 1])[0]
+        try:
+            clean_hint = hint_lst[int(select_partner) - 1].split(split_char)[0]
+        except ValueError:
+            # In case of empty separator
+            clean_hint = hint_lst[int(select_partner) - 1]
+
+        rel_content = helpers.match_list_single(
+            clean_hint, relevant_content, ignore_case=True
         )
+
+        select_file = rel_content
+
+        is_parent = (
+            helpers.is_parent_dir_required(parent=parent)
+            if folder == ""
+            else f"{folder}/"
+        )
+        db_path = f"{is_parent}{relevant_content[int(select_file)]}"
+
         db_new_conn = sqlite3.connect(db_path)
         db_new_cur = db_new_conn.cursor()
-        return db_new_conn, db_new_cur, relevant_content[int(select_file)-1]
+        return db_new_conn, db_new_cur, relevant_content[int(select_file)], select_file
     except IndexError:
         raise InvalidInput
 
@@ -630,6 +660,7 @@ def video_upload_pilot(
     banner_lsts: list[list[str]],
     partner_db_name: str,
     wp_posts_f: list[dict],
+    sel_indx: int,
     parent: bool = False,
 ) -> None:
     """Here is the main coordinating function of this module, the job control that
@@ -694,6 +725,7 @@ def video_upload_pilot(
     :param banner_lsts: List[list[str]] of banner URLS to make the post payload.
     :param partner_db_name: The name of that DB you selected at the very beginning of execution.
     :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
+    :param sel_indx: partner indx for validation
     :param parent: True if you want to locate relevant files in the parent directory. Default False
     :return: None
     """
@@ -708,7 +740,7 @@ def video_upload_pilot(
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
 
-    partner, banners = partner_select(partners, banner_lsts)
+    partner, banners = partners[sel_indx], banner_lsts[sel_indx]
     select_guard(partner_db_name, partner)
     not_published_yet = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
@@ -1029,9 +1061,8 @@ if __name__ == "__main__":
         "PartnerFive",
     ]
 
-    print("Choose your Partner DB:")
-    db_conn, cur_dump, db_dump_name = content_select_db_match(
-        partnerz,'vids', parent=args.parent
+    db_conn, cur_dump, db_dump_name, part_indx = content_select_db_match(
+        partnerz, "vids", parent=args.parent
     )
 
     imported_json = helpers.load_json_ctx("wp_posts")
@@ -1043,6 +1074,6 @@ if __name__ == "__main__":
         banner_lists,
         db_dump_name,
         imported_json,
+        part_indx,
         parent=args.parent,
     )
-
