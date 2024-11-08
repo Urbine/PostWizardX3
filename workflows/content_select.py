@@ -471,18 +471,28 @@ def make_slug(
         ]
     )
 
-    model_sl = "-".join(
-        [
-            "-".join(name.split(" "))
-            for name in [model.lower() for model in model.split(",")]
-        ]
-    )
-    content = f"-{content}" if content != "" or None else ""
-    if reverse:
-        return f"{title_sl}-{partner_sl}-{model_sl}{content}"
-    else:
-        return f"{partner_sl}-{model_sl}-{title_sl}{content}"
     partner_sl = "-".join(clean_partner_tag(partner.lower()).split())
+    try:
+        model_sl = "-".join(
+            [
+                "-".join(name.split(" "))
+                for name in [model.lower() for model in model.split(",")]
+            ]
+        )
+
+        content = f"-{content}" if content != "" or None else ""
+
+        if reverse:
+            return f"{title_sl}-{partner_sl}-{model_sl}{content}"
+        else:
+            return f"{partner_sl}-{model_sl}-{title_sl}{content}"
+    except AttributeError:
+        # Model can be NoneType and crash the program if this is not handled.
+        if reverse:
+            return f"{title_sl}-{partner_sl}-{content}"
+        else:
+            return f"{partner_sl}-{title_sl}-{content}"
+
 
 
 def hot_file_sync(wp_filename, endpoint: str) -> bool:
@@ -794,7 +804,10 @@ def video_upload_pilot(
                     pyclip.detect_clipboard()
                     pyclip.copy(tag)
 
-            model_prep = models.split(",")
+            model_prep = models.split(",") if models is not None else ['model-not-found']
+            if 'model-not-found' in model_prep:
+                print("*** This entry does not include a model. Using 'model-not-found' as placeholder. ***")
+
             # The would-be `models_ints`
             calling_models = get_model_ids(wp_posts_f, model_prep)
             all_models_wp = wordpress_api.map_wp_class_id(
