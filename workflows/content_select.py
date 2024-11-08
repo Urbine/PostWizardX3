@@ -1034,11 +1034,14 @@ if __name__ == "__main__":
 
     banner_partner5_1 = "https://media_source.com/view_banner.php?name=1323x270.jpg&filename=8879_name.jpg&type=jpg&download=1"
 
+    banner_partner6_1 = "https://media_source.com/view_banner.php?name=partner6-600x120-2.gif&filename=2605_name.gif&type=gif&download=1"
+
     banner_lst_partner1 = [banner_partner1_1, banner_partner1_2, banner_partner1_3]
     banner_lst_partner2 = [banner_partner2_1, banner_partner2_2, banner_partner2_3]
     banner_lst_partner3 = [banner_partner3_1, banner_partner3_2, banner_partner3_3]
     banner_lst_partner4 = [banner_partner4_1, banner_partner4_2, banner_partner4_3]
     banner_lst_partner5 = [banner_partner5_1]
+    banner_lst_partner6 = [banner_partner6_1]
 
     banner_lists = [
         banner_lst_partner1,
@@ -1046,6 +1049,7 @@ if __name__ == "__main__":
         banner_lst_partner3,
         banner_lst_partner4,
         banner_lst_partner5,
+        banner_lst_partner6
     ]
 
     # Alternative query: SELECT * FROM videos WHERE date>="2024" OR
@@ -1059,6 +1063,7 @@ if __name__ == "__main__":
         "PartnerThree",
         "PartnerFour",
         "PartnerFive",
+        "PartnerSix",
     ]
 
     db_conn, cur_dump, db_dump_name, part_indx = content_select_db_match(
