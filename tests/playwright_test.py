@@ -4,12 +4,15 @@ from playwright.async_api import async_playwright, Playwright
 from common import helpers
 
 mcash_login = 'https://mongercash.com/external.php?page=access'
-username = helpers.get_client_info('client_info.json')['MongerCash']['username']
+username = helpers.get_client_info('client_info.json')[
+    'MongerCash']['username']
 
-password = helpers.get_client_info('client_info.json')['MongerCash']['password']
+password = helpers.get_client_info('client_info.json')[
+    'MongerCash']['password']
 
 zip_file = "http://mongercash.com/zip_tool/MzAwMTc2NC4xLjE2LjQ2LjAuMTQxNjguMC4wLjA/NATS_Content_LaizaandMayaOnAsianSexDiarySet1.zip"
 download_dir = f'{helpers.cwd_or_parent_path(parent=True)}/tmp'
+
 
 async def run(playwright: Playwright):
     chromium = playwright.chromium
@@ -24,6 +27,7 @@ async def run(playwright: Playwright):
     download = await download_info.value
     await download.save_as(download_dir + download.suggested_filename)
     await browser.close()
+
 
 async def main():
     async with async_playwright() as playwright:

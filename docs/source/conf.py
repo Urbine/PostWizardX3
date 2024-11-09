@@ -28,14 +28,14 @@ extensions = [
 # In conf.py
 
 # Napoleon settings
-napoleon_include_init_with_doc = False  # Exclude `__init__` docstrings by default
+# Exclude `__init__` docstrings by default
+napoleon_include_init_with_doc = False
 napoleon_include_private_with_doc = False  # Exclude private members by default
 napoleon_use_param = True         # Use `:param` for parameters
 napoleon_use_rtype = True         # Use `:rtype` for return types
 
 templates_path = ['_templates']
 exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------

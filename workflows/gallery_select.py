@@ -32,7 +32,7 @@ from workflows.content_select import (
     select_guard,
     clean_file_cache,
     published_json,
-    content_select_db_match
+    content_select_db_match,
 )
 
 from common import helpers
@@ -40,10 +40,17 @@ from integrations import wordpress_api
 from tasks import M_CASH_USERNAME, M_CASH_PASSWD
 
 
-def fetch_zip(dwn_dir: str, remote_res: str,
-              parent=False, gecko: bool = False):
+def fetch_zip(
+    dwn_dir: str,
+    remote_res: str,
+    parent=False,
+    gecko: bool = False,
+    headless: bool = False,
+):
     download_dir = f"{helpers.cwd_or_parent_path(parent=parent)}/{dwn_dir}"
-    webdrv: webdriver = helpers.get_webdriver(download_dir, gecko=gecko)
+    webdrv: webdriver = helpers.get_webdriver(
+        download_dir, gecko=gecko, headless=headless
+    )
     username = M_CASH_USERNAME
     password = M_CASH_PASSWD
     with webdrv as driver:
@@ -247,12 +254,14 @@ def gallery_upload_pilot(
     wp_photos_f: list[dict],
     partners: list[str],
     db_name_prtner: str,
+    sel_indx: int,
     hot_sync_mode: bool = False,
     relevancy_on: bool = False,
     gecko: bool = False,
+    headless: bool = False,
     parent: bool = False,
 ):
-    print("==> Warming up... ┌(◎_◎)┘")
+    print("\n==> Warming up... ┌(◎_◎)┘")
     hot_file_sync("wp_photos", "photos")
     partners = partners
     all_galleries = get_from_db(cur_prtner, "*", "sets")
@@ -265,16 +274,8 @@ def gallery_upload_pilot(
     # Prints out at the end of the uploading session.
     galleries_uploaded = 0
     print("\n")
-    for num, partner in enumerate(partners, start=1):
-        print(f"{num}. {partner}")
-    try:
-        partner_indx = input("\n\nSelect your partner: ")
-        partner = partners[int(partner_indx) - 1]
-    except IndexError:
-        partner_indx = input("\n\nSelect your partner again: ")
-        partner = partners[int(partner_indx) - 1]
-
-    select_guard(db_name_prtner, partner)
+    partner_ = partners[sel_indx]
+    select_guard(db_name_prtner, partner_)
     if relevancy_on:
         not_published_yet = filter_relevant(
             all_galleries, wp_posts_f, wp_photos_f)
@@ -291,7 +292,7 @@ def gallery_upload_pilot(
         title = title
         date = fields[0]
         download_url = fields[1]
-        partner_name = partner
+        partner_name = partner_
         print(f"\n{' Review this photo set ':*^30}\n")
         print(title)
         print(f"Date: {date}")
@@ -332,7 +333,9 @@ def gallery_upload_pilot(
             )
 
             try:
-                fetch_zip("/tmp", download_url, parent=parent, gecko=gecko)
+                fetch_zip(
+                    "/tmp", download_url, parent=parent, gecko=gecko, headless=headless
+                )
                 parent_dir = helpers.is_parent_dir_required(parent=parent)
                 extract_zip(f"{parent_dir}tmp", f"{parent_dir}thumbnails")
 
@@ -353,7 +356,7 @@ def gallery_upload_pilot(
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
                 # This is the main tag for galleries
-                pyclip.copy(partner.lower())
+                pyclip.copy(partner_.lower())
                 pyclip.copy(title)
                 print("--> Check the set and paste your focus phrase on WP.")
                 galleries_uploaded += 1
@@ -441,6 +444,7 @@ def gallery_upload_pilot(
 
 
 if __name__ == "__main__":
+
     arg_parser = argparse.ArgumentParser(
         description="Gallery Select Assistant - Behaviour Tweaks"
     )
@@ -448,6 +452,7 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--parent",
         action="store_true",
+        default=False,
         help="""Define if database and file search happens in the parent directory.
                                             This argument also affects:
                                             1. Thumbnail search
@@ -475,6 +480,12 @@ if __name__ == "__main__":
         help="Activate relevancy algorithm (experimental)",
     )
 
+    arg_parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Enable headless webdriver execution. Compatibility is experimental with this module.",
+    )
+
     args = arg_parser.parse_args()
 
     # print('\n *** Select your WP All Posts DB: ***')
@@ -496,10 +507,8 @@ if __name__ == "__main__":
         "Trike Patrol",
         "Euro Sex Diary"]
 
-    print(" *** Select your partner photo set DB: ***")
-
-    db_conn, cur_dump, db_dump_name = content_select_db_match(
-        partnerz, 'photos', parent=args.parent
+    db_conn, cur_dump, db_dump_name, part_indx = content_select_db_match(
+        partnerz, "photos", parent=args.parent
     )
 
     gallery_upload_pilot(
@@ -508,6 +517,7 @@ if __name__ == "__main__":
         imported_json_photos,
         partnerz,
         db_dump_name,
+        part_indx,
         hot_sync_mode=args.hotsync,
         relevancy_on=args.relevancy,
         gecko=args.gecko,

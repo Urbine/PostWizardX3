@@ -98,7 +98,8 @@ def construct_api_dump_url(
     return f"{base_url}{params}{campaign_id}{format}{sorting}{days}{limit}{sep_param}{csv_columns}"
 
 
-def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
+def adult_next_dump_parse(filename: str, dirname: str,
+                          partner: str, sep: str) -> str:
     """
     Parse the text dump based on the parameters that ``construct_api_dump_url`` constructed.
     Once the temporary text file is fetched from the origin, this function will record all the values
@@ -212,7 +213,6 @@ if __name__ == "__main__":
     helpers.write_to_file(
         "abjav-dump", "tmp", "csv", helpers.access_url_bs4(main_url), parent=True
     )
-
 
     partners = ["abjav"]
 

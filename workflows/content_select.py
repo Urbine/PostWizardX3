@@ -55,6 +55,7 @@ from integrations import wordpress_api
 # wp_slug FROM videos ORDER BY date DESC
 # """
 
+
 def clean_partner_tag(partner_tag: str):
     no_word = re.findall(r"[\W_]", partner_tag, flags=re.IGNORECASE)
     if no_word[0] == " " and len(no_word) == 1:
@@ -63,7 +64,7 @@ def clean_partner_tag(partner_tag: str):
         return partner_tag
     else:
         split_char = no_word[1] if len(no_word) > 1 else no_word[0]
-        return ''.join(partner_tag.split(split_char))
+        return "".join(partner_tag.split(split_char))
 
 
 def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
@@ -104,7 +105,8 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
     :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
     :return: True if one or more matches is found, False if the result is None.
     """
-    post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
+    post_titles: list[str] = wordpress_api.get_post_titles_local(
+        wp_posts_f, yoast=True)
     comp_title = re.compile(title)
     results: list[str] = [
         vid_name for vid_name in post_titles if re.match(comp_title, vid_name)
@@ -115,7 +117,8 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
         return False
 
 
-def filter_published(all_videos: list[tuple], wp_posts_f: list[dict]) -> list[tuple]:
+def filter_published(all_videos: list[tuple],
+                     wp_posts_f: list[dict]) -> list[tuple]:
     """filter_published does its filtering work based on the published_json function.
     Actually, the published_json is the brain behind this function and the reason why I decided to
     separate brain and body is modularity. I want to be able to modify the classification rationale
@@ -150,7 +153,8 @@ def get_banner(banner_lst: list[str]) -> str:
     return random.choice(banner_lst)
 
 
-def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list[int]:
+def get_tag_ids(wp_posts_f: list[dict],
+                tag_lst: list[str], preset: str) -> list[int]:
     """WordPress uses integers to identify several elements that posts share like models or tags.
     This function is equipped to deal with inconsistencies that are inherent to the way that WP
     handles its tags; for example, some tags can have the same meaning but differ in case.
@@ -311,7 +315,8 @@ def clean_file_cache(cache_folder: str, file_ext: str) -> None:
         file_ext, parent=parent, folder=cache_folder
     )
 
-    go_to_folder: str = helpers.is_parent_dir_required(parent=parent) + cache_folder
+    go_to_folder: str = helpers.is_parent_dir_required(
+        parent=parent) + cache_folder
     folders = glob.glob(f"{go_to_folder}/*")
     if cache_files:
         os.chdir(go_to_folder)
@@ -476,7 +481,7 @@ def make_slug(
         model_sl = "-".join(
             [
                 "-".join(name.split(" "))
-                for name in [model.lower() for model in model.split(",")]
+                for name in [model.lower().strip() for model in model.split(",")]
             ]
         )
 
@@ -492,7 +497,6 @@ def make_slug(
             return f"{title_sl}-{partner_sl}-{content}"
         else:
             return f"{partner_sl}-{title_sl}-{content}"
-
 
 
 def hot_file_sync(wp_filename, endpoint: str) -> bool:
@@ -521,7 +525,8 @@ def hot_file_sync(wp_filename, endpoint: str) -> bool:
     # Reload config
     config_json = helpers.load_json_ctx("wp_cache_config.json")
     if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
-        helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
+        helpers.export_request_json(
+            wp_filename, sync_changes, 1, parent=parent)
         return True
     else:
         return False
@@ -599,7 +604,8 @@ def content_select_db_match(
     If you want to access the file from a parent dir,
     either let the destination function handle it for you or specify it yourself.
     """
-    available_files = helpers.search_files_by_ext("db", folder=folder, parent=parent)
+    available_files = helpers.search_files_by_ext(
+        "db", folder=folder, parent=parent)
     filtered_files = helpers.match_list_elem_date(
         hint_lst,
         available_files,
@@ -649,7 +655,8 @@ def content_select_db_match(
 
         db_new_conn = sqlite3.connect(db_path)
         db_new_cur = db_new_conn.cursor()
-        return db_new_conn, db_new_cur, relevant_content[int(select_file)], select_file
+        return db_new_conn, db_new_cur, relevant_content[int(
+            select_file)], select_file
     except IndexError:
         raise InvalidInput
 
@@ -767,7 +774,8 @@ def video_upload_pilot(
         print(f"Thumbnail URL: {thumbnail_url}")
         print(f"Source URL: {source_url}")
         # Centralized control flow
-        add_post = input("\nAdd post to WP? -> Y/N/ENTER to review next post: ").lower()
+        add_post = input(
+            "\nAdd post to WP? -> Y/N/ENTER to review next post: ").lower()
         if add_post == ("y" or "yes"):
             add_post = True
         elif add_post == ("n" or "no"):
@@ -789,7 +797,8 @@ def video_upload_pilot(
                 print("Try a different SQL query or partner. I am ready when you are. ")
                 print("\n--> Cleaning thumbnails cache now")
                 clean_file_cache("thumbnails", ".jpg")
-                print(f"You have created {videos_uploaded} posts in this session!")
+                print(
+                    f"You have created {videos_uploaded} posts in this session!")
                 break
         if add_post:
             slugs = [
@@ -815,7 +824,7 @@ def video_upload_pilot(
                     wp_slug = slugs[2]
 
             print("\n--> Making payload...")
-            tag_prep = tags.split(",")
+            tag_prep = [tag.strip() for tag in tags.split(",")]
             # Making sure that the partner tag does not have apostrophes
             partner_tag = clean_partner_tag(partner.lower())
             tag_prep.append(partner_tag)
@@ -836,18 +845,22 @@ def video_upload_pilot(
                     pyclip.detect_clipboard()
                     pyclip.copy(tag)
 
-            model_prep = models.split(",") if models is not None else ['model-not-found']
-            if 'model-not-found' in model_prep:
-                print("*** This entry does not include a model. Using 'model-not-found' as placeholder. ***")
+            # Removing trailing spaces in tags and models
+            model_prep = (
+                [model.strip() for model in models.split(",")]
+                if models is not None
+                else ["model-not-found"]
+            )
 
             # The would-be `models_ints`
             calling_models = get_model_ids(wp_posts_f, model_prep)
             all_models_wp = wordpress_api.map_wp_class_id(
                 wp_posts_f, "pornstars", "pornstars"
             )
-            new_models = identify_missing(all_models_wp, model_prep, calling_models)
+            new_models = identify_missing(
+                all_models_wp, model_prep, calling_models)
 
-            if new_models is None:
+            if new_models is None or model_prep[0] == "model-not-found":
                 # All model have been found and located.
                 pass
             else:
@@ -879,7 +892,8 @@ def video_upload_pilot(
                 print("--> Uploading thumbnail to WordPress Media...")
                 print("--> Adding image attributes on WordPress...")
                 img_attrs = make_img_payload(title, description)
-                thumbnail_lookup = False if os.path.exists("./thumbnails") else True
+                thumbnail_lookup = False if os.path.exists(
+                    "./thumbnails") else True
                 thumbnail_folder = f"{helpers.is_parent_dir_required(parent=thumbnail_lookup)}thumbnails"
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url,
@@ -923,7 +937,8 @@ def video_upload_pilot(
                 else:
                     print("\n--> Cleaning thumbnails cache now")
                     clean_file_cache("thumbnails", ".jpg")
-                    print(f"You have created {videos_uploaded} posts in this session!")
+                    print(
+                        f"You have created {videos_uploaded} posts in this session!")
                     break
             if num < total_elems - 1:
                 next_post = input(
@@ -943,7 +958,8 @@ def video_upload_pilot(
                         print("If you want to update again, relaunch the bot.")
                         sync = True
                     if sync:
-                        not_published_yet = filter_published(all_vals, wp_posts_f)
+                        not_published_yet = filter_published(
+                            all_vals, wp_posts_f)
                         continue
                     else:
                         print(
@@ -957,7 +973,8 @@ def video_upload_pilot(
                     pyclip.clear()
                     print("\n--> Cleaning thumbnails cache now")
                     clean_file_cache("thumbnails", ".jpg")
-                    print(f"You have created {videos_uploaded} posts in this session!")
+                    print(
+                        f"You have created {videos_uploaded} posts in this session!")
                     break
                 else:
                     pyclip.detect_clipboard()
@@ -970,7 +987,8 @@ def video_upload_pilot(
                 print("Try a different query and run me again.")
                 print("\n--> Cleaning thumbnails cache now")
                 clean_file_cache("thumbnails", "jpg")
-                print(f"You have created {videos_uploaded} posts in this session!")
+                print(
+                    f"You have created {videos_uploaded} posts in this session!")
                 print(
                     "Waiting for 60 secs to clear the clipboard before you're done with the last post..."
                 )
@@ -1049,7 +1067,7 @@ if __name__ == "__main__":
         banner_lst_trike,
         banner_lst_esd,
         banner_lst_paradise,
-        banner_lst_toticos
+        banner_lst_toticos,
     ]
 
     # Alternative query: SELECT * FROM videos WHERE date>="2024" OR

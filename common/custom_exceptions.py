@@ -11,6 +11,7 @@ class NoSuitableArgument(Exception):
         """
         super().__init__(message)
 
+
 class InvalidInput(Exception):
     """
     Used by functions that depend on user input.
