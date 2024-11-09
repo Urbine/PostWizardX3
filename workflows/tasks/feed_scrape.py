@@ -14,6 +14,7 @@ import time
 
 # ==== Functions ====
 
+
 def extract_descriptions(bs4_obj: BeautifulSoup):
     # <td><textarea class="display-link-text" rows="2">description text</textarea></td>
     text_areas = bs4_obj.find_all(
