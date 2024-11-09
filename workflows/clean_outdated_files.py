@@ -6,7 +6,8 @@ import os
 import common
 
 
-def clean_outdated(hints_: list[str], file_lst: list[str], folder: str) -> None:
+def clean_outdated(hints_: list[str],
+                   file_lst: list[str], folder: str) -> None:
     os.chdir(folder)
     outdated = common.match_list_elem_date(
         hints_, file_lst, ignore_case=True, strict=True, reverse=True
@@ -24,7 +25,8 @@ def clean_outdated(hints_: list[str], file_lst: list[str], folder: str) -> None:
 
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser(description="Clean local outdated files")
+    arg_parser = argparse.ArgumentParser(
+        description="Clean local outdated files")
 
     arg_parser.add_argument(
         "--folder",
@@ -58,6 +60,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
 
     hints = list(args.hints)
-    files = common.search_files_by_ext(args.ext, args.folder, parent=args.parent)
+    files = common.search_files_by_ext(
+        args.ext, args.folder, parent=args.parent)
 
     clean_outdated(hints, files, args.folder)

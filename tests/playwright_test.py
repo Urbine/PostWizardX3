@@ -4,12 +4,15 @@ from playwright.async_api import async_playwright, Playwright
 from common import helpers
 
 media_source_login = 'https://media_source.com/external.php?page=access'
-username = helpers.get_client_info('client_info.json')['MediaSource']['username']
+username = helpers.get_client_info('client_info.json')[
+    'MediaSource']['username']
 
-password = helpers.get_client_info('client_info.json')['MediaSource']['password']
+password = helpers.get_client_info('client_info.json')[
+    'MediaSource']['password']
 
 zip_file = "http://example.com/zip_tool/sample/NATS_Content_SampleSet1.zip"
 download_dir = f'{helpers.cwd_or_parent_path(parent=True)}/tmp'
+
 
 async def run(playwright: Playwright):
     chromium = playwright.chromium
@@ -24,6 +27,7 @@ async def run(playwright: Playwright):
     download = await download_info.value
     await download.save_as(download_dir + download.suggested_filename)
     await browser.close()
+
 
 async def main():
     async with async_playwright() as playwright:
