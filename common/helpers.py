@@ -14,6 +14,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
+import configparser
 import csv
 import glob
 import json
@@ -23,12 +24,12 @@ import sqlite3
 import urllib
 import urllib.request
 import urllib.error
+from configparser import ConfigParser
 
 from datetime import date
 
 from bs4 import BeautifulSoup
 from calendar import month_abbr, month_name
-
 from requests_oauthlib import OAuth2Session
 from selenium import webdriver
 from sqlite3 import OperationalError, Connection, Cursor
@@ -150,6 +151,14 @@ def cwd_or_parent_path(parent: bool = False) -> str:
         return os.getcwd()
 
 
+def export_client_info() -> dict[str, dict[str, str]]:
+    """Help dataclasses set a ``default_factory`` field for the client info function.
+    :return: ``dict[str, dict[str, str]`` Client info loaded ``JSON``
+    """
+    info = get_client_info("client_info")
+    return info
+
+
 def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
     """Fetch videos takes a SQL query in string format and returns the data
     in a list of tuples. In case there is no data, the function returns None.
@@ -162,7 +171,8 @@ def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
     return db_cursor.fetchall()
 
 
-def filename_creation_helper(suggestions: list[str], extension: str = "") -> str:
+def filename_creation_helper(
+        suggestions: list[str], extension: str = "") -> str:
     """Takes a list of suggested filenames or creates a custom filename from user input.
     a user can type in just a filename without extension and the function will validate
     it to provide the correct name as needed.
@@ -190,7 +200,8 @@ def filename_creation_helper(suggestions: list[str], extension: str = "") -> str
             return clean_filename(name_select, extension)
 
 
-def filename_select(extension: str, parent: bool = False, folder: str = "") -> str:
+def filename_select(extension: str, parent: bool = False,
+                    folder: str = "") -> str:
     """
     Gives you a list of files with a certain extension.
 
@@ -201,7 +212,8 @@ def filename_select(extension: str, parent: bool = False, folder: str = "") -> s
     If you want to access the file from a parent dir,
     either let the destination function handle it for you or specify it yourself.
     """
-    available_files = search_files_by_ext(extension, folder=folder, parent=parent)
+    available_files = search_files_by_ext(
+        extension, folder=folder, parent=parent)
     print(f"\nHere are the available {extension} files:")
     for num, file in enumerate(available_files, start=1):
         print(f"{num}. {file}")
@@ -210,7 +222,8 @@ def filename_select(extension: str, parent: bool = False, folder: str = "") -> s
     try:
         return available_files[int(select_file) - 1]
     except IndexError:
-        raise RuntimeError(f"This program requires a {extension} file. Exiting...")
+        raise RuntimeError(
+            f"This program requires a {extension} file. Exiting...")
 
 
 def export_request_json(
@@ -237,7 +250,8 @@ def export_request_json(
     return f_path
 
 
-def export_to_csv_nt(nmedtpl_lst: list, filename: str, top_row_lst: list[str]) -> None:
+def export_to_csv_nt(nmedtpl_lst: list, filename: str,
+                     top_row_lst: list[str]) -> None:
     """Helper function to dump a list of NamedTuples into a ``CSV`` file in current working dir.
 
     :param nmedtpl_lst: ``list[namedtuple]``
@@ -327,7 +341,7 @@ def get_client_info(
     try:
         with open(f"{in_parent}{f_name}", "r", encoding="utf-8") as secrets:
             client_info = json.load(secrets)
-        return client_info
+        return dict(client_info)
     except FileNotFoundError as Errno:
         if logg_err:
             print(Errno)
@@ -410,7 +424,8 @@ def get_webdriver(
         # Configure the Firefox (Gecko) Driver
         gecko_options = webdriver.FirefoxOptions()
         gecko_options.set_preference("browser.download.folderList", 2)
-        gecko_options.set_preference("browser.download.manager.showWhenStarting", False)
+        gecko_options.set_preference(
+            "browser.download.manager.showWhenStarting", False)
         gecko_options.set_preference("browser.download.dir", download_folder)
         gecko_options.set_preference(
             "browser.helperApps.neverAsk.saveToDisk", "application/octet-stream"
@@ -450,7 +465,8 @@ def get_webdriver(
         return webdriver.Chrome(options=chrome_options)
 
 
-def match_list_single(hint: str, items: list, ignore_case: bool = False) -> int | None:
+def match_list_single(hint: str, items: list,
+                      ignore_case: bool = False) -> int | None:
     """Matches a single occurrence of a ``hint`` and returns its ``index`` position.
 
     :param hint: ``str`` pattern or word
@@ -570,7 +586,8 @@ def match_list_elem_date(
         ]
 
         if extract_dates:
-            max_date_items = match_list_mult(str(max(extract_dates)), get_match_items)
+            max_date_items = match_list_mult(
+                str(max(extract_dates)), get_match_items)
             for indx in max_date_items:
                 up_to_date.append(get_match_items[indx])
         elif not strict:
@@ -608,7 +625,8 @@ def load_json_ctx(filename: str, log_err: bool = False):
         return None
 
 
-def load_from_file(filename: str, extension: str, dirname: str = "", parent=False):
+def load_from_file(filename: str, extension: str,
+                   dirname: str = "", parent=False):
     """Loads the content of any file that could be read with the ``file.read()`` built-in function.\n
     Not suitable for files that require special handling by modules or classes.
 
@@ -645,6 +663,18 @@ def remove_if_exists(fname: str):
         return None
 
 
+def parse_client_config(ini_file: str) -> ConfigParser:
+    """Parse a client configuration file that stores secrets.
+    :param ini_file: ``str`` ini filename with or without the extension
+    :return: ``ConfigParser``
+    """
+    f_ini = clean_filename(ini_file, "ini")
+    parent = f'./{f_ini}' if os.path.exists(f_ini) else f'../{f_ini}'
+    config = configparser.ConfigParser()
+    config.read(parent)
+    return config
+
+
 def parse_date_to_iso(
     full_date: str, zero_day: bool = False, m_abbr: bool = False
 ) -> date:
@@ -669,7 +699,8 @@ def parse_date_to_iso(
     # The date ISO format requires that single numbers are preceded by a 0.
 
     if int(month_num) <= 9:
-        month_num = "0" + str(months.index(full_date.split(",")[0].split(" ")[0]))
+        month_num = "0" + \
+            str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     day_nth = str(full_date.split(",")[0].split(" ")[1])
     day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
