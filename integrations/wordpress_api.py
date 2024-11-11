@@ -33,9 +33,11 @@ import xlsxwriter
 
 # Local implementations
 from common import helpers, NoSuitableArgument
+from common import WP_CLIENT_INFO
+from common.config_mgr import WPAuth
 
 
-def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> requests:
+def curl_wp_self_concat(wp_self: str, param_lst: list[str], secrets: WPAuth = WP_CLIENT_INFO) -> requests:
     """Makes the ``GET`` request based on the curl mechanism as described on the docs.
 
     ``curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit``
@@ -44,21 +46,22 @@ def curl_wp_self_concat(wp_self: str, param_lst: list[str]) -> requests:
 
     :param wp_self: ``str`` wp base url
     :param param_lst: ``list[str]`` list of URl params
+    :param secrets: ``WPAuth`` Object that contains the secrets to access WordPress.
     :return: ``JSON`` object
     """
-    client_info_file = helpers.parse_client_config("client_info")
-    username_: str = client_info_file["WP_Admin"]["user"]
-    app_pass_: str = client_info_file["WP_Admin"]["app_password"]
+    username_: str = secrets.user
+    app_pass_: str = secrets.app_password
     wp_self: str = wp_self + "".join(param_lst)
     return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"})
 
 
-def wp_post_create(wp_self: str, param_lst: list[str], payload):
+def wp_post_create(wp_self: str, param_lst: list[str], payload, secrets: WPAuth = WP_CLIENT_INFO):
     """Makes the ``POST`` request based on the mechanism as described on the docs.
 
     :param payload: ``dict`` with the post information.
     :param wp_self: ``str`` wp base url
     :param param_lst: ``list[str]`` list of URl params
+    :param secrets: ``WPAuth`` Object with the secrets to access WordPress
     :return: ``JSON`` object
     """
     # client_info_file = helpers.get_client_info("client_info")
@@ -68,9 +71,8 @@ def wp_post_create(wp_self: str, param_lst: list[str], payload):
     # app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"][
     #     "app_password"
     # ]
-    client_info_file = helpers.parse_client_config("client_info")
-    username_: str = client_info_file["WP_Admin"]["user"]
-    app_pass_: str = client_info_file["WP_Admin"]["app_password"]
+    username_: str = secrets.user
+    app_pass_: str = secrets.app_password
     auth_wp = HTTPBasicAuth(username_, app_pass_)
     wp_self: str = wp_self + "".join(param_lst)
     return requests.post(wp_self, json=payload, auth=auth_wp).status_code
@@ -652,7 +654,7 @@ def update_published_titles_db(
 
 
 def upload_thumbnail(
-    wp_self: str, param_lst: list[str], file_path: str, payload: dict[str, str | int]
+    wp_self: str, param_lst: list[str], file_path: str, payload: dict[str, str | int], secrets: WPAuth = WP_CLIENT_INFO,
 ) -> int:
     """Uploads video thumbnail or any other image as a *WordPress* media attachment.
 
@@ -663,6 +665,7 @@ def upload_thumbnail(
 
     :param file_path: ``str`` an absolute or relative path to your image attachment.
     :param payload: ``dict[str, str | int]`` with image attributes like ALT text, Description and Caption.
+    :param secrets: ``WPAuth`` element (from the ``common``) module. This object stores the secrets to access WordPress.
     :return: ``int`` that represents the status code of the request.
             In this function, we deal with a possible ``KeyError`` exception, which is raised by different factors:
 
@@ -690,9 +693,8 @@ def upload_thumbnail(
     # app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"][
     #     "app_password"
     # ]
-    client_info_file = helpers.parse_client_config("client_info")
-    username_: str = client_info_file["WP_Admin"]["user"]
-    app_pass_: str = client_info_file["WP_Admin"]["app_password"]
+    username_: str = secrets.user
+    app_pass_: str = secrets.app_password
     auth_wp = HTTPBasicAuth(username_, app_pass_)
     # headers = {"Content-Disposition": f"attachment; filename={file_path}"}
     wp_self: str = wp_self + "".join(param_lst)
