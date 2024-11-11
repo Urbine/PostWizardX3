@@ -8,6 +8,7 @@ import time
 
 # Local implementations
 import common
+from common import MONGER_CASH_INFO
 
 
 # ==== Functions ====
@@ -70,8 +71,7 @@ def get_vid_dump_flow(
         apply_changes_xpath = (
             "/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input"
         )
-        apply_changes_button = driver.find_element(
-            By.XPATH, apply_changes_xpath)
+        apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
         apply_changes_button.click()
         time.sleep(1)
 
@@ -131,8 +131,7 @@ def get_vid_dump_flow(
         time.sleep(3)
 
         # Extract textarea text
-        dump_txtarea = driver.find_element(
-            By.CLASS_NAME, "display-dump-textarea")
+        dump_txtarea = driver.find_element(By.CLASS_NAME, "display-dump-textarea")
         dump_content = dump_txtarea.text
 
         # Create a name for out dump file.
@@ -150,11 +149,6 @@ M_CASH_DUMP_URL = (
     "https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump"
 )
 
-M_CASH_USERNAME = common.get_client_info("client_info.json")[
-    "MongerCash"]["username"]
-
-M_CASH_PASSWD = common.get_client_info("client_info.json")[
-    "MongerCash"]["password"]
 
 if __name__ == "__main__":
     # ==== Execution space ====
@@ -164,5 +158,8 @@ if __name__ == "__main__":
     web_driver_gecko = common.get_webdriver("../tmp", gecko=True)
 
     get_vid_dump_flow(
-        M_CASH_DUMP_URL, "tmp", (M_CASH_USERNAME, M_CASH_PASSWD), web_driver
+        M_CASH_DUMP_URL,
+        "tmp",
+        (MONGER_CASH_INFO.username, MONGER_CASH_INFO.password),
+        web_driver,
     )

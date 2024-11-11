@@ -1,14 +1,11 @@
 import asyncio
 from playwright.async_api import async_playwright, Playwright
 
-from common import helpers
+from common import helpers, MONGER_CASH_INFO
 
 mcash_login = 'https://mongercash.com/external.php?page=access'
-username = helpers.get_client_info('client_info.json')[
-    'MongerCash']['username']
-
-password = helpers.get_client_info('client_info.json')[
-    'MongerCash']['password']
+username = MONGER_CASH_INFO.username
+password = MONGER_CASH_INFO.password
 
 zip_file = "http://mongercash.com/zip_tool/MzAwMTc2NC4xLjE2LjQ2LjAuMTQxNjguMC4wLjA/NATS_Content_LaizaandMayaOnAsianSexDiarySet1.zip"
 download_dir = f'{helpers.cwd_or_parent_path(parent=True)}/tmp'

@@ -34,6 +34,8 @@ from requests_oauthlib import OAuth2Session
 from selenium import webdriver
 from sqlite3 import OperationalError, Connection, Cursor
 
+from common.custom_exceptions import ConfigFileNotFound
+
 # This way OAuthlib won't enforce HTTPS connections.
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
@@ -671,7 +673,10 @@ def parse_client_config(ini_file: str) -> ConfigParser:
     f_ini = clean_filename(ini_file, "ini")
     parent = f'./{f_ini}' if os.path.exists(f_ini) else f'../{f_ini}'
     config = configparser.ConfigParser()
-    config.read(parent)
+    if os.path.exists(parent):
+        config.read(parent)
+    else:
+        raise ConfigFileNotFound(parent)
     return config
 
 

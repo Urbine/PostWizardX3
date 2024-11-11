@@ -3,8 +3,8 @@ import datetime
 
 from bs4 import BeautifulSoup
 
-from common import helpers
-from tasks import M_CASH_PASSWD, M_CASH_USERNAME, get_partner_name
+from common import helpers, MONGER_CASH_INFO
+from tasks import get_partner_name
 
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
@@ -196,8 +196,8 @@ if __name__ == "__main__":
 
     # TODO: Use JSON notation to store user credentials
     #  so that no private information is pushed to GitHub. OK
-    username = M_CASH_USERNAME
-    password = M_CASH_PASSWD
+    username = MONGER_CASH_INFO.username
+    password = MONGER_CASH_INFO.password
 
     html_source = get_page_source_flow(
         M_CASH_SETS_URL, (username, password), web_driver

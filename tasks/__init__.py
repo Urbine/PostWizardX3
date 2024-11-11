@@ -11,8 +11,6 @@ __version__ = '1.0.0'
 # ** MongerCash Dump Creation `mcash_dump_create.py` **
 
 from tasks.mcash_dump_create import M_CASH_DUMP_URL
-from tasks.mcash_dump_create import M_CASH_PASSWD
-from tasks.mcash_dump_create import M_CASH_USERNAME
 from tasks.mcash_dump_create import get_partner_name
 from tasks.mcash_dump_create import get_vid_dump_flow
 from tasks.mcash_scrape import M_CASH_HOSTED_URL
@@ -31,6 +29,4 @@ __all__ = ['get_partner_name',
            'parse_txt_dump',
            'M_CASH_DUMP_URL',
            'M_CASH_HOSTED_URL',
-           'M_CASH_USERNAME',
-           'M_CASH_PASSWD',
            'M_CASH_SETS_URL']

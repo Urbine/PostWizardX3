@@ -1,4 +1,4 @@
-from common import helpers
+from common import helpers, WP_CLIENT_INFO
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By
@@ -17,12 +17,8 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 web_driver = webdriver.Chrome(options=chrome_options)
 
 # Get login credential from the JSON file in the project root
-username = helpers.get_client_info("client_info.json")["WordPress"]["wp_admin"][
-    "username"
-]
-password = helpers.get_client_info("client_info.json")["WordPress"]["wp_admin"][
-    "password"
-]
+username = WP_CLIENT_INFO.user
+password = WP_CLIENT_INFO.app_password
 
 wp_admin_params = {"video_posts": "/edit.php", "new_post": "/post-new.php"}
 

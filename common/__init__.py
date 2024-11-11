@@ -8,6 +8,10 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 __version__ = "1.0.0"
 
+# Auth dataclass constants
+from common.config_mgr import WP_CLIENT_INFO
+from common.config_mgr import MONGER_CASH_INFO
+
 # Custom Exceptions `custom_exceptions.py`
 from common.custom_exceptions import InvalidInput
 from common.custom_exceptions import NoSuitableArgument
@@ -73,4 +77,6 @@ __all__ = [
     "remove_if_exists",
     "search_files_by_ext",
     "write_to_file",
+    "WP_CLIENT_INFO",
+    "MONGER_CASH_INFO"
 ]

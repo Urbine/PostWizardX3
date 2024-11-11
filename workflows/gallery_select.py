@@ -35,9 +35,8 @@ from workflows.content_select import (
     content_select_db_match,
 )
 
-from common import helpers
+from common import helpers, MONGER_CASH_INFO
 from integrations import wordpress_api
-from tasks import M_CASH_USERNAME, M_CASH_PASSWD
 
 
 def fetch_zip(
@@ -51,8 +50,8 @@ def fetch_zip(
     webdrv: webdriver = helpers.get_webdriver(
         download_dir, gecko=gecko, headless=headless
     )
-    username = M_CASH_USERNAME
-    password = M_CASH_PASSWD
+    username = MONGER_CASH_INFO.username
+    password = MONGER_CASH_INFO.password
     with webdrv as driver:
         # Go to URL
         print("--> Getting files from MongerCash")
@@ -145,6 +144,7 @@ def make_photos_payload(
     partner_name: str,
     tags: list[int],
     parent: bool = False,
+    reverse_slug: bool = False
 ) -> dict:
     filter_words = {"on", "in", "at", "&", "and"}
     no_partner_name = [
@@ -160,8 +160,11 @@ def make_photos_payload(
         ]
     )
 
-    # '-pics' tells Google the main content of the page.
-    final_slug = f'{"-".join(partner_name.lower().split(" "))}-{wp_pre_slug}-pics'
+    if reverse_slug:
+        # '-pics' tells Google the main content of the page.
+        final_slug = f'{wp_pre_slug}-{"-".join(partner_name.lower().split(" "))}-pics'
+    else:
+        final_slug = f'{"-".join(partner_name.lower().split(" "))}-{wp_pre_slug}-pics'
 
     # Added an author field to the client_info file.
     try:
@@ -261,8 +264,6 @@ def gallery_upload_pilot(
     headless: bool = False,
     parent: bool = False,
 ):
-    print("\n==> Warming up... ┌(◎_◎)┘")
-    hot_file_sync("wp_photos", "photos")
     partners = partners
     all_galleries = get_from_db(cur_prtner, "*", "sets")
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
@@ -273,7 +274,6 @@ def gallery_upload_pilot(
     clean_file_cache("tmp", ".zip")
     # Prints out at the end of the uploading session.
     galleries_uploaded = 0
-    print("\n")
     partner_ = partners[sel_indx]
     select_guard(db_name_prtner, partner_)
     if relevancy_on:
@@ -285,8 +285,8 @@ def gallery_upload_pilot(
         not_published_yet = filter_published(all_galleries, wp_photos_f)
     # You can keep on getting sets until this variable is equal to one.
     total_elems = len(not_published_yet)
-    print(f"\nThere are {total_elems} sets to be published...")
-    for num, photo in enumerate(not_published_yet[:]):
+    print(f"There are {total_elems} sets to be published...")
+    for num, photo in enumerate(not_published_yet):
         (title, *fields) = photo
         # if not published(title, cursor_wp):
         title = title
@@ -329,7 +329,7 @@ def gallery_upload_pilot(
             print("\n--> Making payload...")
             tag_list = get_tag_ids(wp_photos_f, [partner_name], "photos")
             payload = make_photos_payload(
-                "draft", title, partner_name, tag_list, parent=parent
+                "draft", title, partner_name, tag_list, parent=parent, reverse_slug=True
             )
 
             try:
@@ -498,9 +498,6 @@ if __name__ == "__main__":
     # db_wp_photos = sqlite3.connect(f'{helpers.is_parent_dir_required(parent=True)}{db_wp_2}')
     # cur_wp_photos = db_wp_photos.cursor()
 
-    imported_json_photos = helpers.load_json_ctx("wp_photos")
-    imported_json_posts = helpers.load_json_ctx("wp_posts")
-
     partnerz = [
         "Asian Sex Diary",
         "Tuktuk Patrol",
@@ -510,6 +507,12 @@ if __name__ == "__main__":
     db_conn, cur_dump, db_dump_name, part_indx = content_select_db_match(
         partnerz, "photos", parent=args.parent
     )
+
+    print("\n==> Warming up... ┌(◎_◎)┘")
+    hot_file_sync("wp_photos", "photos")
+
+    imported_json_photos = helpers.load_json_ctx("wp_photos")
+    imported_json_posts = helpers.load_json_ctx("wp_posts")
 
     gallery_upload_pilot(
         cur_dump,

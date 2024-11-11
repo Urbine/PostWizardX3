@@ -488,15 +488,15 @@ def make_slug(
         content = f"-{content}" if content != "" or None else ""
 
         if reverse:
-            return f"{title_sl}-{partner_sl}-{model_sl}{content}"
+            return f"{title_sl}-{partner_sl}-new-{model_sl}{content}"
         else:
-            return f"{partner_sl}-{model_sl}-{title_sl}{content}"
+            return f"{partner_sl}-new-{model_sl}-{title_sl}{content}"
     except AttributeError:
         # Model can be NoneType and crash the program if this is not handled.
         if reverse:
-            return f"{title_sl}-{partner_sl}-{content}"
+            return f"{title_sl}-{partner_sl}-new-{content}"
         else:
-            return f"{partner_sl}-{title_sl}-{content}"
+            return f"{partner_sl}-new-{title_sl}-{content}"
 
 
 def hot_file_sync(wp_filename, endpoint: str) -> bool:
@@ -634,6 +634,7 @@ def content_select_db_match(
         select_partner = input(f"\nSelect your partner now: ")
         # I just need the first word to match the db.
         split_char = re.findall(r"[\W_]", hint_lst[int(select_partner) - 1])[0]
+
         try:
             clean_hint = hint_lst[int(select_partner) - 1].split(split_char)[0]
         except ValueError:
@@ -657,7 +658,7 @@ def content_select_db_match(
         db_new_cur = db_new_conn.cursor()
         return db_new_conn, db_new_cur, relevant_content[int(
             select_file)], select_file
-    except IndexError:
+    except IndexError or ValueError:
         raise InvalidInput
 
 
@@ -736,8 +737,6 @@ def video_upload_pilot(
     :param parent: True if you want to locate relevant files in the parent directory. Default False
     :return: None
     """
-    print("\n==> Warming up... ┌(◎_◎)┘ ")
-    hot_file_sync("wp_posts.json", "posts_url")
     all_vals: list[tuple] = videos
     wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
     # Start a new session with a clear thumbnail cache.
@@ -746,14 +745,13 @@ def video_upload_pilot(
     clean_file_cache("thumbnails/", ".jpg")
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
-
     partner, banners = partners[sel_indx], banner_lsts[sel_indx]
     select_guard(partner_db_name, partner)
     not_published_yet = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
     total_elems = len(not_published_yet)
-    print(f"\nThere are {total_elems} videos to be published...")
-    for num, vid in enumerate(not_published_yet[:]):
+    print(f"There are {total_elems} videos to be published...")
+    for num, vid in enumerate(not_published_yet):
         (title, *fields) = vid
         description = fields[0]
         models = fields[1]
@@ -811,6 +809,8 @@ def video_upload_pilot(
 
             for n, slug in enumerate(slugs, start=1):
                 print(f"{n}. -> {slug}")
+            print("Enter 4 to enter a custom slug")
+
 
             match input("\nSelect your slug: "):
                 case "1":
@@ -819,6 +819,8 @@ def video_upload_pilot(
                     wp_slug = slugs[1]
                 case "3":
                     wp_slug = slugs[2]
+                case "4":
+                    wp_slug = input("Provide a new slug: ")
                 case _:
                     # Smart slug by default (reversed).
                     wp_slug = slugs[2]
@@ -1087,6 +1089,9 @@ if __name__ == "__main__":
     db_conn, cur_dump, db_dump_name, part_indx = content_select_db_match(
         partnerz, "vids", parent=args.parent
     )
+
+    print("\n==> Warming up... ┌(◎_◎)┘ ")
+    hot_file_sync("wp_posts.json", "posts_url")
 
     imported_json = helpers.load_json_ctx("wp_posts")
     db_all_vids = helpers.fetch_data_sql(alt_query, cur_dump)

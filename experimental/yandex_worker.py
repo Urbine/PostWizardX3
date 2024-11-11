@@ -4,6 +4,8 @@
 from common import helpers
 import requests
 
+from common.config_mgr import YANDEX_INFO
+
 #  oauth2 = "https://oauth.yandex.com/authorize?response_type=code"
 #  & client_id=<app ID>
 # [& device_id=<device ID>]
@@ -20,9 +22,8 @@ authorization_url = "https://oauth.yandex.com/authorize?"
 token_url = "https://oauth.yandex.com/authorize?"
 
 # Gets the application client details from a json file for privacy reasons.
-cred_file = helpers.get_client_info("client_info.json")
-client_id = cred_file["Yandex"]["client_id"]
-client_secret = cred_file["Yandex"]["client_secret"]
+client_id = YANDEX_INFO.client_id
+client_secret = YANDEX_INFO.client_secret
 
 # Set the callback URI to accept incoming connections.
 # python3 -m http.server -b 127.0.0.47 8888
