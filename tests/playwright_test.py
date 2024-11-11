@@ -1,14 +1,11 @@
 import asyncio
 from playwright.async_api import async_playwright, Playwright
 
-from common import helpers
+from common import helpers, MEDIA_SOURCE_INFO
 
 media_source_login = 'https://media_source.com/external.php?page=access'
-username = helpers.get_client_info('client_info.json')[
-    'MediaSource']['username']
-
-password = helpers.get_client_info('client_info.json')[
-    'MediaSource']['password']
+username = MEDIA_SOURCE_INFO.username
+password = MEDIA_SOURCE_INFO.password
 
 zip_file = "http://example.com/zip_tool/sample/NATS_Content_SampleSet1.zip"
 download_dir = f'{helpers.cwd_or_parent_path(parent=True)}/tmp'
