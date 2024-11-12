@@ -1,6 +1,14 @@
 common package
 ==============
 
+common.config\_mgr module
+-------------------------
+
+.. automodule:: common.config_mgr
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 common.custom\_exceptions module
 --------------------------------
 
@@ -17,3 +25,10 @@ common.helpers module
    :undoc-members:
    :show-inheritance:
 
+Module contents
+---------------
+
+.. automodule:: common
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,6 +1,14 @@
 workflows package
 =================
 
+workflows.clean\_outdated\_files module
+---------------------------------------
+
+.. automodule:: workflows.clean_outdated_files
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 workflows.content\_select module
 --------------------------------
 
@@ -29,6 +37,14 @@ workflows.update\_mcash\_chain module
 -------------------------------------
 
 .. automodule:: workflows.update_mcash_chain
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: workflows
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,3 +1,9 @@
+"""
+Clean outdated files based on the named convention <filename>-<date-in-ISO-format>
+Accepts CLI arguments to fine-tune its cleaning behaviour and scope.
+
+"""
+
 # Std Library
 import argparse
 import os
@@ -8,6 +14,13 @@ import common
 
 def clean_outdated(hints_: list[str],
                    file_lst: list[str], folder: str) -> None:
+    """ Match and identify outdated files, and report to the user which files are
+        being deleted.
+    :param hints_: ``list[str]`` possible filename hints of the files to be deleted.
+    :param file_lst: ``list[str]`` file list filtered by extension (externally)
+    :param folder: ``str`` folder that will be examined by the function.
+    :return: ``None``
+    """
     os.chdir(folder)
     outdated = common.match_list_elem_date(
         hints_, file_lst, ignore_case=True, strict=True, reverse=True
@@ -60,6 +73,8 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
 
     hints = list(args.hints)
+
+    # Filter the files to be deleted by extension.
     files = common.search_files_by_ext(
         args.ext, args.folder, parent=args.parent)
 

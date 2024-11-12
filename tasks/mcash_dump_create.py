@@ -71,7 +71,8 @@ def get_vid_dump_flow(
         apply_changes_xpath = (
             "/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input"
         )
-        apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
+        apply_changes_button = driver.find_element(
+            By.XPATH, apply_changes_xpath)
         apply_changes_button.click()
         time.sleep(1)
 
@@ -131,7 +132,8 @@ def get_vid_dump_flow(
         time.sleep(3)
 
         # Extract textarea text
-        dump_txtarea = driver.find_element(By.CLASS_NAME, "display-dump-textarea")
+        dump_txtarea = driver.find_element(
+            By.CLASS_NAME, "display-dump-textarea")
         dump_content = dump_txtarea.text
 
         # Create a name for out dump file.

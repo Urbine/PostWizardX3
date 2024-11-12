@@ -37,7 +37,8 @@ from common import WP_CLIENT_INFO
 from common.config_mgr import WPAuth
 
 
-def curl_wp_self_concat(wp_self: str, param_lst: list[str], secrets: WPAuth = WP_CLIENT_INFO) -> requests:
+def curl_wp_self_concat(
+        wp_self: str, param_lst: list[str], secrets: WPAuth = WP_CLIENT_INFO) -> requests:
     """Makes the ``GET`` request based on the curl mechanism as described on the docs.
 
     ``curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit``
@@ -55,7 +56,8 @@ def curl_wp_self_concat(wp_self: str, param_lst: list[str], secrets: WPAuth = WP
     return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"})
 
 
-def wp_post_create(wp_self: str, param_lst: list[str], payload, secrets: WPAuth = WP_CLIENT_INFO):
+def wp_post_create(
+        wp_self: str, param_lst: list[str], payload, secrets: WPAuth = WP_CLIENT_INFO):
     """Makes the ``POST`` request based on the mechanism as described on the docs.
 
     :param payload: ``dict`` with the post information.
@@ -871,9 +873,8 @@ def upgrade_wp_local_cache(
     return None
 
 
-# I want hostname as input()
-hstname: str = "whoresmen.com"
-b_url: str = f"https://{hstname}/wp-json/wp/v2"
+hostname: str = WP_CLIENT_INFO.hostname
+b_url: str = WP_CLIENT_INFO.base_url
 
 # It is possible to add more REST parameters.
 rest_params: dict = {

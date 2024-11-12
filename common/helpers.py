@@ -204,15 +204,13 @@ def filename_creation_helper(
 
 def filename_select(extension: str, parent: bool = False,
                     folder: str = "") -> str:
-    """
-    Gives you a list of files with a certain extension.
+    """Gives you a list of files with a certain extension. If you want to access the file from a parent dir,
+    either let the destination function handle it for you or specify it yourself.
 
     :param folder: where you want to look for files
     :param extension: File extension of the files that interest you.
     :param parent: ``True`` to search in parent dir, default set to ``False``.
     :return: File name without relative path.
-    If you want to access the file from a parent dir,
-    either let the destination function handle it for you or specify it yourself.
     """
     available_files = search_files_by_ext(
         extension, folder=folder, parent=parent)

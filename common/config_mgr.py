@@ -22,6 +22,8 @@ class WPAuth:
     user: str
     app_password: str
     author: str
+    hostname: str
+    base_url: str
 
 
 @dataclass()
@@ -43,6 +45,8 @@ WP_CLIENT_INFO = WPAuth(
     user=client_info["WP_Admin"]["user"],
     app_password=client_info["WP_Admin"]["app_password"],
     author=client_info["WP_Admin"]["author"],
+    hostname=client_info["WP_Admin"]["hostname"],
+    base_url=client_info["WP_Admin"]["base_url"]
 )
 
 MONGER_CASH_INFO = MongerCashAuth(

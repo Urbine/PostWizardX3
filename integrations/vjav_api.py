@@ -1,22 +1,23 @@
+"""
+Gather information from the vjav API, parse it and insert it into a SQLite3 database.
+"""
+
+# Std Library
 import argparse
 import datetime
-import os.path
+import os
 import sqlite3
 
 # Local implementations
 import common
-from workflows import clean_file_cache
 from .url_builder import CSVColumns, CSVSeparators
+from workflows import clean_file_cache
 
-# Constants
-
-ABJAV_BASE_URL = "https://direct.abjav.com"
-ABJAV_CAMPAIGN_ID = 1291575419
+VJAV_BASE_URL = 'https://vjav.com/admin/feeds/embed/?source=576422190'
 
 
-def construct_api_dump_url(
+def construct_vjav_dump_url(
         base_url: str,
-        campgn_id: str | int,
         sort_crit: str,
         days: str | int = "",
         url_limit: str | int = 999999999,
@@ -27,9 +28,7 @@ def construct_api_dump_url(
     Construct the API dump url to access the text content to be parsed by function `adult_next_dump_parse`
     once accessed.
 
-    :param columns:
     :param base_url: API Base URL (provided in this module as a constant)
-    :param campgn_id: Campaign ID (provided in this module as a constant)
     :param sort_crit: Sorting criteria from possible values:
 
                       1. ``'popularity'``
@@ -44,16 +43,15 @@ def construct_api_dump_url(
     :param columns: ``CSVColumns`` object that contains common csv columns.
     :return: ``f-str`` (Formatted str) Video Dump URL
     """
-    params = "/feeds/?link_args="
-    campaign_id = f"campaign_id:{campgn_id}"
     format = "&feed_format=csv&"
+    screenshot_format = 'screenshot_format=source&'
     # rating, popularity, duration, post_date, ID
     sorting = f"sorting={sort_crit}&"
     limit = f"limit={url_limit}"
     sep_param = f"&csv_separator={sep}&"
     days = f"days={days}&" if days != "" else days
 
-    # Column Fields
+    # Column Fields (These can be extended or removed)
     column_lst = [
         columns.ID_,
         columns.title,
@@ -68,13 +66,13 @@ def construct_api_dump_url(
 
     csv_columns = f"csv_columns={str(sep).join(column_lst)}"
 
-    return f"{base_url}{params}{campaign_id}{format}{sorting}{days}{limit}{sep_param}{csv_columns}"
+    return f"{base_url}{format}{screenshot_format}{sorting}{days}{limit}{sep_param}{csv_columns}"
 
 
-def adult_next_dump_parse(filename: str, dirname: str,
-                          partner: str, sep: str) -> str:
+def vjav_dump_parse(filename: str, dirname: str,
+                    partner: str, sep: str) -> str:
     """
-    Parse the text dump based on the parameters that ``construct_api_dump_url`` constructed.
+    Parse the text dump based on the parameters that ``construct_vjav_dump_url`` constructed.
     Once the temporary text file is fetched from the origin, this function will record all the values
     into a ``SQLite3`` database.
 
@@ -84,7 +82,7 @@ def adult_next_dump_parse(filename: str, dirname: str,
     :param sep: ``str`` character separator depending on the separator constant selected at URL build (typically ``'|'``).
     :return: ``f-str`` (Formatted str) with the video count and database name.
     """
-    # Sample layout of the text file to be parsed
+    # Sample layout of the text file to be parsed, however, not the actual dump.
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
@@ -149,7 +147,7 @@ def adult_next_dump_parse(filename: str, dirname: str,
                 )
 
                 db_cur.execute(
-                    "INSERT INTO embeds values(?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO embeds values(?,?,?,?,?,?,?,?,?, ?)",
                     all_values,
                 )
                 db_conn.commit()
@@ -159,16 +157,16 @@ def adult_next_dump_parse(filename: str, dirname: str,
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 
 
-if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser(description='AdultNext integration - CLI Interface')
+if __name__ == '__main__':
+    arg_parser = argparse.ArgumentParser(description='VJAV integration - CLI Interface')
 
     arg_parser.add_argument('-sort', type=str,
                             help="""Sorting criteria from possible values:
-                                      1. popularity
-                                      2. rating
-                                      3. duration
-                                      4. post_date
-                                      5. id (default if no criteria is provided)""")
+                                  1. popularity
+                                  2. rating
+                                  3. duration
+                                  4. post_date
+                                  5. id (default if no criteria is provided)""")
 
     arg_parser.add_argument('-days', type=int,
                             help='Provide the time period in days')
@@ -177,23 +175,22 @@ if __name__ == "__main__":
 
     cli_args = arg_parser.parse_args()
 
+    # Build the dump URL
+    main_url = construct_vjav_dump_url(
+        VJAV_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit)
 
-    # Build the URL
-    main_url = construct_api_dump_url(
-        ABJAV_BASE_URL, ABJAV_CAMPAIGN_ID, cli_args.sort, days=cli_args.days
-    )
-
-    # Use it to fetch the stream for the `write_to_file` functions.
+    # Get the dump file and write it into a .csv file
     common.write_to_file(
-        "abjav-dump", "tmp", "csv", common.access_url_bs4(main_url)
-    )
+        'vjav-dump',
+        'tmp',
+        'csv',
+        common.access_url_bs4(main_url))
 
-    partners = ["abjav"]
-
-    # Parse the temporary csv and generate the database with the data.
-    result = adult_next_dump_parse("abjav-dump", "./tmp", partners[0], "|")
+    # Parse the temporary CSV dump file
+    result = vjav_dump_parse("vjav-dump", "tmp", 'vjav', "|")
 
     # Clean the temp .csv file in temporary folder
     clean_file_cache('tmp', 'csv')
     print('Cleaned temporary folder...')
+
     print(result)

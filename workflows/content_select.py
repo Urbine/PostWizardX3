@@ -24,63 +24,45 @@ import sqlite3
 from requests.exceptions import ConnectionError, SSLError
 
 # Local implementations
-from common import helpers, InvalidInput
+from common import helpers, InvalidInput, UnsupportedParameter
+from common import WP_CLIENT_INFO
+from common.config_mgr import WPAuth
 from integrations import wordpress_api
 
 
-# Videos table - db_connection_dump
-# CREATE TABLE
-#     videos(
-#     title,
-#     description,
-#     model,
-#     tags,
-#     date,
-#     duration,
-#     source_url,
-#     thumbnail_url,
-#     tracking_url,
-#     wp_slug
-#     )
+def clean_partner_tag(partner_tag: str) -> str:
+    """ Clean partner names that could contain apostrophes in them.
 
-# sample_query = """
-# SELECT
-# title,
-# description,
-# tags,
-# duration,
-# source_url,
-# thumbnail_url,
-# tracking_url,
-# wp_slug FROM videos ORDER BY date DESC
-# """
-
-
-def clean_partner_tag(partner_tag: str):
-    no_word = re.findall(r"[\W_]", partner_tag, flags=re.IGNORECASE)
-    if no_word[0] == " " and len(no_word) == 1:
+    :param partner_tag: ``str`` the conflicting text
+    :return: ``str`` cleaned partner tag without the appostrophe.
+    """
+    # This expression means "not a word and underscore"
+    try:
+        no_word: list[str] = re.findall(r"[\W_]", partner_tag, flags=re.IGNORECASE)
+        if no_word[0] == " " and len(no_word) == 1:
+            return partner_tag
+        elif "'" not in no_word:
+            return partner_tag
+        else:
+            split_char: str = no_word[1] if len(no_word) > 1 else no_word[0]
+            return "".join(partner_tag.split(split_char))
+    except IndexError:
         return partner_tag
-    elif "'" not in no_word:
-        return partner_tag
-    else:
-        split_char = no_word[1] if len(no_word) > 1 else no_word[0]
-        return "".join(partner_tag.split(split_char))
-
 
 def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
     """In order to come up with a way to know if a certain title has been published,
     I need to try a request and see whether there is any results. This is what the function
     published does, it returns True if there is any result or False if there isn't any.
 
-    The logic is designed to be treated in a natural way "if not published" or "if published."
-    However, with the introduction of the JSON file filtering, this mechanism that identifies published
+    The logic is designed to be treated in a natural way ``if not published`` or ``if published.``
+    However, with the introduction of the ``JSON`` file filtering, this mechanism that identifies published
     titles has been retired and greatly improved.
 
-    :param table: SQL table according to your database schema.
-    :param title: the value you want to look up in the db.
-    :param field: the table field you want to use for the search.
-    :param db_cursor: database connection cursor.
-    :return: boolean
+    :param table: ``str``` SQL table according to your database schema.
+    :param title: ``str`` value you want to look up in the db.
+    :param field: ``str`` table field you want to use for the search.
+    :param db_cursor: ``sqlite3`` database connection cursor.
+    :return: ``boolean`` True if one or more results are retrieved, False if the list is empty.
     """
     search_vids: str = f'SELECT * FROM {table} WHERE {field}="{title}"'
     if not db_cursor.execute(search_vids).fetchall():
@@ -89,25 +71,25 @@ def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
         return True
 
 
-def published_json(title: str, wp_posts_f: list[dict]) -> bool:
+def published_json(title: str, wp_posts_f: list[dict[str, ...]]) -> bool:
     """This function leverages the power of a local implementation that specialises
     in getting, manipulating, and filtering WordPress API post information in JSON format.
     After getting the posts from the local cache, the function filters each element using
-    the RegEx module to find matches to the title passed in as a parameter. After all that work,
-    the function returns a boolean; True if the title was found and that just means
+    the ``re`` module to find matches to the title passed in as a parameter. After all that work,
+    the function returns a boolean; True if the title was found and that just suggests
     that such a title is already published, or there is a post with the same title.
 
     Ideally, we can benefit from a different and more accurate filter for this purpose, however,
     it is important for the objectives of this project that all post titles are unique and that, inevitably,
     delimits the purpose and approach of this method. For now, this behaviour of title-only matching is desirable.
 
-    :param title: lookup term, in this case a 'title'
-    :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
-    :return: True if one or more matches is found, False if the result is None.
+    :param title: ``str`` lookup term, in this case a ``title``
+    :param wp_posts_f: ``list[dict]`` WordPress Post Information case file (previously loaded and ready to process)
+    :return: ``bool`` True if one or more matches is found, False if the result is None.
     """
     post_titles: list[str] = wordpress_api.get_post_titles_local(
         wp_posts_f, yoast=True)
-    comp_title = re.compile(title)
+    comp_title: re.Pattern = re.compile(r'(title)')
     results: list[str] = [
         vid_name for vid_name in post_titles if re.match(comp_title, vid_name)
     ]
@@ -118,20 +100,20 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
 
 
 def filter_published(all_videos: list[tuple],
-                     wp_posts_f: list[dict]) -> list[tuple]:
-    """filter_published does its filtering work based on the published_json function.
-    Actually, the published_json is the brain behind this function and the reason why I decided to
-    separate brain and body is modularity. I want to be able to modify the classification rationale
+                     wp_posts_f: list[dict]) -> list[tuple[str, ...]]:
+    """ ``filter_published`` does its filtering work based on the ``published_json`` function.
+    Actually, the ``published_json`` is the brain behind this function and the reason why I decided to
+    separate brain and body, as it were, is modularity. I want to be able to modify the classification rationale
     without affecting the way in which iterations are performed, unless I intend to do so specifically.
     If this function fails, then I have an easier time to identify the culprit.
 
     This function does not need a lot of explanation, it takes in a list of tuples and iterates over them.
     By unpacking one of its core values, it carries out the manual classification to generate a new set of
-    titles that will be taken into consideration by the video_upload_pilot (later) for their suggestion and publication.
+    titles that will be taken into consideration by the ``video_upload_pilot`` (later) for their suggestion and publication.
 
-    :param all_videos: List[tuple] usually resulting from the SQL database query values.
-    :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
-    :return: list[tuple] with the new filtered values.
+    :param all_videos: ``List[tuple]`` usually resulting from the SQL database query values.
+    :param wp_posts_f: ``list[dict]`` WordPress Post Information case file (previously loaded and ready to process)
+    :return: ``list[tuple]`` with the new filtered values.
     """
     # This loop gets the items I am interested in.
     not_published: list[tuple] = []
@@ -142,15 +124,6 @@ def filter_published(all_videos: list[tuple],
         else:
             not_published.append(elem)
     return not_published
-
-
-def get_banner(banner_lst: list[str]) -> str:
-    """Returns a random element, in this case a "banner" string that will be
-    used to make the payload of the posts I create.
-    :param banner_lst: List of banners.
-    :return: str element
-    """
-    return random.choice(banner_lst)
 
 
 def get_tag_ids(wp_posts_f: list[dict],
@@ -173,15 +146,15 @@ def get_tag_ids(wp_posts_f: list[dict],
     This is just a preventive measure since, in theory, it is unlikely that we get two matches for the same tag
     simply because I am narrowing the ambiguities down by using pattern matching and telling it to ignore the case.
     Finally, the function will return a reversed list of integers.
-    In order words, if you pass [foo, bar, python], you will get [3, 2, 1] instead of [1, 2, 3].
+    In order words, if you pass ``[foo, bar, python]`` , you will get ``[3, 2, 1]`` instead of ``[1, 2, 3]``.
     This reverse order is not important because you can send tags in any order and
     WordPress will sort them for you automatically, it always does (thankfully).
 
-    :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
-    :param tag_lst: list[str] a list of tags
+    :param wp_posts_f: ``list[dict]`` WordPress Post Information case file (previously loaded and ready to process)
+    :param tag_lst: ``list[str]`` a list of tags
     :param preset: as this function is used for three terms, the presets supported are
            `models`,  `tags`, `photos`
-    :return: list[int]
+    :return: ``list[int]``
     """
     match preset:
         case "models":
@@ -190,14 +163,14 @@ def get_tag_ids(wp_posts_f: list[dict],
             preset = ("tag", "tags")
         case "photos":
             preset = ("photos_tag", "photos_tag")
-        case _:
-            raise ValueError("Unsupported parameter")
+        case _ as err:
+            raise UnsupportedParameter(err)
 
     tag_tracking: dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, preset[0], preset[1]
     )
     # I will match them with Regex here to avoid touching the datasource.
-    matched_keys = [
+    matched_keys: list[str] = [
         wptag
         for wptag in tag_tracking.keys()
         for tag in tag_lst
@@ -208,17 +181,17 @@ def get_tag_ids(wp_posts_f: list[dict],
 
 
 def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]) -> list[int]:
-    """This function is crucial to obtain the WordPress element ID (model) to be able
+    """This function is crucial to obtain the WordPress element ID ``model`` to be able
     to communicate and tell WordPress what we want. It takes in a list of model names and filters
     through the entire WP dataset to locate their ID and return it back to the controlling function.
     None if the value is not found in the dataset.
     This function enforces Title case in matches since models are people and proper names are generally
-    in title case, and it is also the case in the data structure that module wordpress_api.py returns.
+    in title case, and it is also the case in the data structure that local module ``integrations.wordpress_api`` returns.
     Further testing is necessary to know if this case convention is always enforced, so consistency is key here.
 
-    :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
-    :param model_lst: list[str] model names
-    :return: list[int]
+    :param wp_posts_f: ``list[dict]`` WordPress Post Information case file (previously loaded and ready to process)
+    :param model_lst: ``list[str]`` models' names
+    :return: ``list[int]`` (corresponding IDs)
     """
     model_tracking: dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, "pornstars", "pornstars"
@@ -233,10 +206,10 @@ def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]) -> list[int]:
 
 
 def identify_missing(
-    wp_data_dic: dict,
-    data_lst: list[str],
-    data_ids: list[int],
-    ignore_case: bool = False,
+        wp_data_dic: dict[str, str | int],
+        data_lst: list[str],
+        data_ids: list[int],
+        ignore_case: bool = False,
 ):
     """This function is a simple algorithm that identifies when a tag or model must be manually recorded
     on WordPress, and it does that with two main assumptions:
@@ -249,11 +222,12 @@ def identify_missing(
     lenient with tags (ignore_case = True) and strict with models (ignore_case = False), this is optional though.
     Ignore case was implemented based on the considerations that I have shared so far.
 
-    :param wp_data_dic: dict returned by either map_wp_model_id or tag_id_merger_dict from module wordpress_api.py
-    :param data_lst: list of tags or models
-    :param data_ids: list of tag or model IDs.
-    :param ignore_case: True, enforce case policy. Default False.
-    :return: None or list[str]
+    :param wp_data_dic: ``dict[str, str | int]`` returned by either ``map_wp_model_id`` or ``tag_id_merger_dict``
+    from module ``integrations.wordpress_api``
+    :param data_lst: ``list[str]`` tags or models
+    :param data_ids: ``list[int]`` tag or model IDs.
+    :param ignore_case: ``bool`` True, enforce case policy. Default False.
+    :return: ``None`` or ``list[str]``
     """
     # Assumes we have x items and x ids
     if len(data_lst) == len(data_ids):
@@ -276,7 +250,7 @@ def identify_missing(
 
 
 def fetch_thumbnail(
-    folder: str, slug: str, remote_res: str, thumbnail_name: str = ""
+        folder: str, slug: str, remote_res: str, thumbnail_name: str = ""
 ) -> int:
     """This function handles the renaming and fetching of thumbnails that will be uploaded to
     WordPress as media attachments. It dynamically renames the thumbnails by taking in a URL slug to
@@ -284,19 +258,20 @@ def fetch_thumbnail(
     (fetching the file from a remote source). It also has the ability to store the image using a
     relative path.
 
-    :param folder: thumbnails dir
-    :param slug: URL slug
-    :param remote_res: thumbnail download URL
-    :param thumbnail_name: used in case the user wants to upload different thumbnails and wishes to keep the names.
-    :return: int (status code from requests)
+    :param folder: ``str`` thumbnails dir
+    :param slug: ``str`` URL slug
+    :param remote_res: ``str`` thumbnail download URL
+    :param thumbnail_name: ``str`` used in case the user wants to upload different thumbnails
+    and wishes to keep the names.
+    :return: ``int`` (status code from requests)
     """
-    parent = False if os.path.exists(f"./{folder}") else True
+    parent: bool = False if os.path.exists(f"./{folder}") else True
     thumbnail_dir: str = f"{helpers.is_parent_dir_required(parent=parent)}{folder}"
     remote_data: requests = requests.get(remote_res)
     if thumbnail_name != "":
-        name = f"-{thumbnail_name.split('.')[0]}"
+        name: str = f"-{thumbnail_name.split('.')[0]}"
     else:
-        name = thumbnail_name
+        name: str = thumbnail_name
     with open(f"{thumbnail_dir}/{slug}{name}.jpg", "wb") as img:
         img.write(remote_data.content)
     return remote_data.status_code
@@ -306,18 +281,17 @@ def clean_file_cache(cache_folder: str, file_ext: str) -> None:
     """The purpose of this function is simple: cleaning remaining temporary files once the job control
     has used them; this is specially useful when dealing with thumbnails.
 
-    :param cache_folder: folder used for caching (name only)
-    :param file_ext: file extension of cached files to be removed
-    :return: None
+    :param cache_folder: ``str`` folder used for caching (name only)
+    :param file_ext: ``str`` file extension of cached files to be removed
+    :return: ``None``
     """
-    parent = False if os.path.exists(f"./{cache_folder}") else True
+    parent: bool = False if os.path.exists(f"./{cache_folder}") else True
     cache_files: list[str] = helpers.search_files_by_ext(
         file_ext, parent=parent, folder=cache_folder
     )
 
-    go_to_folder: str = helpers.is_parent_dir_required(
-        parent=parent) + cache_folder
-    folders = glob.glob(f"{go_to_folder}/*")
+    go_to_folder: str = helpers.is_parent_dir_required(parent) + cache_folder
+    folders: list[str] = glob.glob(f"{go_to_folder}/*")
     if cache_files:
         os.chdir(go_to_folder)
         for file in cache_files:
@@ -334,34 +308,34 @@ def clean_file_cache(cache_folder: str, file_ext: str) -> None:
 
 
 def make_payload(
-    vid_slug,
-    status_wp: str,
-    vid_name: str,
-    vid_description: str,
-    banner_tracking_url: str,
-    banner_img: str,
-    partner_name: str,
-    tag_int_lst: list[int],
-    model_int_lst: list[int],
-) -> dict:
-    """Makes WordPress JSON payload with the supplied values.
-    This function also injects HTML code to the payload to display the banner, add ALT text to it
-    and other parameters for the WordPress editor's rendering.
+        vid_slug,
+        status_wp: str,
+        vid_name: str,
+        vid_description: str,
+        banner_tracking_url: str,
+        banner_img: str,
+        partner_name: str,
+        tag_int_lst: list[int],
+        model_int_lst: list[int],
+) -> dict[str, str | int]:
+    """Make WordPress ``JSON`` payload with the supplied values.
+    This function also injects ``HTML`` code into the payload to display the banner, add ``ALT`` text to it
+    and other parameters for the WordPress editor's (Gutenberg) rendering.
 
-    Some elements are not passed as f-strings because the WordPress JSON REST API has defined a different data types
+    Some elements are not passed as f-strings because the ``WordPress JSON REST API`` has defined a different data types
     for those elements and, sometimes, the response returns a status code of 400
     when those are not followed carefully.
 
-    :param vid_slug: url slug optimized by the job control function and database parsing algo (not in this module).
-    :param status_wp: in this case, it is just the str "draft". It could be "publish" but it requires review.
-    :param vid_name: self-explanatory
-    :param vid_description: self-explanatory
-    :param banner_tracking_url: Affiliate tracking link to generate leads
-    :param banner_img: The banner image URL that will be injected into the payload.
-    :param partner_name: The offer you are promoting
-    :param tag_int_lst: tag ID list
-    :param model_int_lst: model ID list
-    :return: dict
+    :param vid_slug: ``str`` slug optimized by the job control function and database parsing algo ( ``tasks`` package).
+    :param status_wp: ``str`` in this case, it is just the str "draft". It could be "publish" but it requires review.
+    :param vid_name: ``str`` self-explanatory
+    :param vid_description: ``str`` self-explanatory
+    :param banner_tracking_url: ``str`` Affiliate tracking link to generate leads
+    :param banner_img: ``str`` banner image URL that will be injected into the payload.
+    :param partner_name: ``str`` The offer you are promoting
+    :param tag_int_lst: ``list[int]`` tag ID list
+    :param model_int_lst: ``list[int]`` model ID list
+    :return: ``dict[str, str | int]``
     """
     # Added an author field to the client_info file.
     try:
@@ -388,29 +362,28 @@ def make_payload(
 
 
 def make_payload_simple(
-    vid_slug,
-    status_wp: str,
-    vid_name: str,
-    vid_description: str,
-    tag_int_lst: list[int],
-    model_int_lst: list[int],
-    categs: list[int] = None,
-) -> dict:
+        vid_slug,
+        status_wp: str,
+        vid_name: str,
+        vid_description: str,
+        tag_int_lst: list[int],
+        model_int_lst: list[int] | None = None,
+        categs: list[int] | None = None,
+        wp_auth: WPAuth = WP_CLIENT_INFO
+) -> dict[str, str | int]:
     """Makes a simple WordPress JSON payload with the supplied values.
 
-    :param vid_slug: url slug optimized by the job control function and database parsing algo (not in this module).
-    :param status_wp: in this case, it is just the str "draft". It could be "publish" but it requires review.
-    :param vid_name: self-explanatory
-    :param vid_description: self-explanatory
-    :param tag_int_lst: tag ID list
-    :param model_int_lst: model ID list
-    :param categs: list of category integers provided as optional parameter.
-    :return: dict
+    :param vid_slug: ``str`` slug optimized by the job control function and database parsing algo ( ``tasks`` package).
+    :param status_wp: ``str`` in this case, it is just the str "draft". It could be "publish" but it requires review.
+    :param vid_name: ``str`` self-explanatory
+    :param vid_description: ``str`` self-explanatory
+    :param tag_int_lst: ``list[int]`` tag ID list
+    :param model_int_lst: ``list[int]`` or ``None`` model ID list
+    :param categs: ``list[int]`` or ``None`` category integers provided as optional parameter.
+    :return: ``dict[str, str | int]``
     """
     # Added an author field to the client_info file.
-    author: int = helpers.get_client_info("client_info")["WordPress"]["user_apps"][
-        "wordpress_api.py"
-    ]["author"]
+    author: int = int(wp_auth.author)
     payload_post: dict = {
         "slug": f"{vid_slug}",
         "status": f"{status_wp}",
@@ -421,14 +394,14 @@ def make_payload_simple(
         "author": author,
         "featured_media": 0,
         "tags": tag_int_lst,
-        "pornstars": model_int_lst,
     }
 
     if categs is not None:
         payload_post["categories"] = categs
+    elif model_int_lst is not None:
+        payload_post["pornstars"] = model_int_lst
     else:
         pass
-
     return payload_post
 
 
@@ -437,9 +410,9 @@ def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
     it gives them the video description and focus key phrase, which is the video title plus a call to
     action in case that ALT text appears on the image search vertical, and they want to watch the video.
 
-    :param vid_title: self-explanatory
-    :param vid_description: self-explanatory
-    :return: dict[str, str]
+    :param vid_title: ``str`` self-explanatory
+    :param vid_description: ``str`` self-explanatory
+    :return: ``dict[str, str]``
     """
     img_payload: dict[str, str] = {
         "alt_text": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!",
@@ -450,42 +423,42 @@ def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
 
 
 def make_slug(
-    partner: str, model: str, title: str, content: str, reverse: bool = False
+        partner: str, model: str, title: str, content: str, reverse: bool = False
 ) -> str:
     """This function is a new approach to the generation of slugs inspired by the slug making
     mechanism from gallery_select.py. It takes in strings that will be transformed into URL slugs
     that will help us optimise the permalinks for SEO purposes.
 
-    :param partner: video partner/brand
-    :param model: video model
-    :param title: Video title
-    :param content: the type of content, in this file it is simply `video` but it could be `pics`
+    :param partner: ``str`` video partner/br``and
+    :param model:  ``str`` video model
+    :param title: ``str`` Video title
+    :param content: ``str`` type of content, in this file it is simply `video` but it could be `pics`
                     this parameter tells Google about the main content of the page.
-    :param reverse: True if you want to place the video title in front of the permalink. Default False
-    :return: formatted string of a WordPress-ready URL slug.
+    :param reverse: ``bool``  ``True`` if you want to place the video title in front of the permalink. Default ``False``
+    :return: ``str`` formatted string of a WordPress-ready URL slug.
     """
-    filter_words = {"at", "&", "and"}
-    title_sl = "-".join(
+    filter_words: set[str] = {"at", "&", "and"}
+    title_sl: str = "-".join(
         [
             word.lower()
             for word in title.lower().split()
             if (
                 re.match(r"[\w+]", word, flags=re.IGNORECASE)
                 and word.lower() not in filter_words
-            )
+        )
         ]
     )
 
-    partner_sl = "-".join(clean_partner_tag(partner.lower()).split())
+    partner_sl: str = "-".join(clean_partner_tag(partner.lower()).split())
     try:
-        model_sl = "-".join(
+        model_sl: str = "-".join(
             [
                 "-".join(name.split(" "))
                 for name in [model.lower().strip() for model in model.split(",")]
             ]
         )
 
-        content = f"-{content}" if content != "" or None else ""
+        content: str = f"-{content}" if content != "" or None else ""
 
         if reverse:
             return f"{title_sl}-{partner_sl}-new-{model_sl}{content}"
@@ -499,7 +472,7 @@ def make_slug(
             return f"{partner_sl}-new-{title_sl}-{content}"
 
 
-def hot_file_sync(wp_filename, endpoint: str) -> bool:
+def hot_file_sync(wp_filename: str, endpoint: str) -> bool:
     """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
     This function leverages the power of the caching mechanism defined
@@ -510,20 +483,20 @@ def hot_file_sync(wp_filename, endpoint: str) -> bool:
     Hot Sync will write the changes once the new changes are validated and compared with the local config file.
     In other words, if it isn't right, the WP post file remains untouched.
 
-    :param endpoint: endpoint for your WordPress file just pass in 'posts_url' for posts and 'photos' for photos.
-    :param wp_filename: name of the WP Posts JSON file with or without extension.
-    :return: bool (True if everything went well or False if the validation failed)
+    :param endpoint: ``str`` endpoint for your WordPress file just pass in 'posts_url' for posts and 'photos' for photos.
+    :param wp_filename: ``str`` name of the WP Posts JSON file with or without extension.
+    :return: ``bool``  ``True`` if everything went well or ``False`` if the validation failed)
     """
     parent = False if os.path.exists(f"./wp_cache_config.json") else True
-    wp_filename = helpers.clean_filename(wp_filename, "json")
-    host = wordpress_api.hstname
-    params_d = wordpress_api.rest_params
-    config_json = helpers.load_json_ctx("wp_cache_config.json")
-    sync_changes = wordpress_api.update_json_cache(
+    wp_filename: str = helpers.clean_filename(wp_filename, "json")
+    host: str = wordpress_api.hostname
+    params_d: dict[str, str] = wordpress_api.rest_params
+    config_json: dict[str, str] = helpers.load_json_ctx("wp_cache_config.json")
+    sync_changes: list[dict[str, ...]] = wordpress_api.update_json_cache(
         host, params_d, endpoint, config_json, wp_filename
     )
     # Reload config
-    config_json = helpers.load_json_ctx("wp_cache_config.json")
+    config_json: dict[str, str] = helpers.load_json_ctx("wp_cache_config.json")
     if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
         helpers.export_request_json(
             wp_filename, sync_changes, 1, parent=parent)
@@ -533,18 +506,18 @@ def hot_file_sync(wp_filename, endpoint: str) -> bool:
 
 
 def partner_select(
-    partner_lst: list[str],
-    banner_lsts: list[list[str]],
-    db_name: str,
+        partner_lst: list[str],
+        banner_lsts: list[list[str]],
+        db_name: str,
 ) -> tuple[str, list[str]]:
     """Selects partner and banner list based on their index order.
     As this function is based on index and order of elements, both lists should have the same number of elements.
 
 
-    :param partner_lst: list of str - partner offers
-    :param banner_lsts: banner list of banners list[list[str]] to select from.
+    :param partner_lst: ``list[str]`` - partner offers
+    :param banner_lsts: ``list[list[str]]`` list of banners to select from.
     :param db_name: ``str`` partner database name
-    :return: tuple(partner_name, banner_list)
+    :return: ``tuple[str, list[str]]`` partner_name, banner_list
     """
     print("\n")
     for num, partner in enumerate(partner_lst, start=1):
@@ -568,9 +541,9 @@ def select_guard(db_name: str, partner: str) -> None:
     WordPress, and that could be a huge issue considering that each partner offering has
     proprietary banners and tracking links.
 
-    :param db_name: user-selected database name
-    :param partner: user-selected partner offering
-    :return: None / If the assertion fails the execution will stop gracefully.
+    :param db_name: ``str`` user-selected database name
+    :param partner: ``str`` user-selected partner offering
+    :return: ``None`` / If the assertion fails the execution will stop gracefully.
     """
     # Find the split character as I just need to get the first word of the name
     # to match it with partner selected by the user
@@ -586,11 +559,11 @@ def select_guard(db_name: str, partner: str) -> None:
 
 
 def content_select_db_match(
-    hint_lst: list[str],
-    content_hint: str,
-    folder: str = "",
-    prompt_db: bool = False,
-    parent: bool = False,
+        hint_lst: list[str],
+        content_hint: str,
+        folder: str = "",
+        prompt_db: bool = False,
+        parent: bool = False,
 ) -> tuple[Connection, Cursor, str, int]:
     """Give a list of databases, match them with multiple hints and retrieves the most up-to-date filename.
        This is a specialised implementation based on the ``filename_select`` function in the ``common.helpers`` module.
@@ -604,9 +577,9 @@ def content_select_db_match(
     If you want to access the file from a parent dir,
     either let the destination function handle it for you or specify it yourself.
     """
-    available_files = helpers.search_files_by_ext(
+    available_files: list[str] = helpers.search_files_by_ext(
         "db", folder=folder, parent=parent)
-    filtered_files = helpers.match_list_elem_date(
+    filtered_files: list[str] = helpers.match_list_elem_date(
         hint_lst,
         available_files,
         join_hints=(True, " ", "-"),
@@ -614,7 +587,7 @@ def content_select_db_match(
         strict=True,
     )
 
-    relevant_content = [
+    relevant_content: list[str] = [
         filtered_files[indx]
         for indx in helpers.match_list_mult(content_hint, filtered_files)
     ]
@@ -631,45 +604,44 @@ def content_select_db_match(
         print(f"{num}. {file}")
 
     try:
-        select_partner = input(f"\nSelect your partner now: ")
+        select_partner: str = input(f"\nSelect your partner now: ")
         # I just need the first word to match the db.
-        split_char = re.findall(r"[\W_]", hint_lst[int(select_partner) - 1])[0]
-
         try:
-            clean_hint = hint_lst[int(select_partner) - 1].split(split_char)[0]
-        except ValueError:
-            # In case of empty separator
-            clean_hint = hint_lst[int(select_partner) - 1]
+            split_char = re.findall(r"[\W_]", hint_lst[int(select_partner) - 1])[0]
+            clean_hint: str = hint_lst[int(select_partner) - 1].split(split_char)[0]
+        except IndexError:
+            clean_hint: str = hint_lst[int(select_partner) - 1]
 
-        rel_content = helpers.match_list_single(
+        rel_content: int = helpers.match_list_single(
             clean_hint, relevant_content, ignore_case=True
         )
 
-        select_file = rel_content
+        select_file: int = rel_content
 
-        is_parent = (
-            helpers.is_parent_dir_required(parent=parent)
+        is_parent: str = (
+            helpers.is_parent_dir_required(parent)
             if folder == ""
             else f"{folder}/"
         )
-        db_path = f"{is_parent}{relevant_content[int(select_file)]}"
+        db_path: str = f"{is_parent}{relevant_content[select_file]}"
 
-        db_new_conn = sqlite3.connect(db_path)
-        db_new_cur = db_new_conn.cursor()
-        return db_new_conn, db_new_cur, relevant_content[int(
-            select_file)], select_file
+        db_new_conn: sqlite3 = sqlite3.connect(db_path)
+        db_new_cur: sqlite3 = db_new_conn.cursor()
+        return (db_new_conn, db_new_cur,
+                relevant_content[int(select_file)], select_file)
     except IndexError or ValueError:
         raise InvalidInput
 
 
 def video_upload_pilot(
-    videos: list[tuple],
-    partners: list[str],
-    banner_lsts: list[list[str]],
-    partner_db_name: str,
-    wp_posts_f: list[dict],
-    sel_indx: int,
-    parent: bool = False,
+        videos: list[tuple],
+        partners: list[str],
+        banner_lsts: list[list[str]],
+        partner_db_name: str,
+        wp_posts_f: list[dict],
+        sel_indx: int,
+        wp_auth: WPAuth = WP_CLIENT_INFO,
+        parent: bool = False,
 ) -> None:
     """Here is the main coordinating function of this module, the job control that
     uses all previous functions to carry out all the tasks associated with the video upload process in the business.
@@ -728,28 +700,31 @@ def video_upload_pilot(
             **When it reaches the point where there is only one element to show, the program will communicate
             that to the user and wait 60 seconds before cleaning cache files and clipboard data.**
 
+
     :param videos: List[tuples] from fetch_data_sql
     :param partners: List[str] of the offers you're promoting
     :param banner_lsts: List[list[str]] of banner URLS to make the post payload.
     :param partner_db_name: The name of that DB you selected at the very beginning of execution.
     :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
     :param sel_indx: partner indx for validation
+    :param wp_auth: ``WPAuth`` element provided by the ``common.config_mgr`` module.
+                     Set by default and bound to change based on the config file.
     :param parent: True if you want to locate relevant files in the parent directory. Default False
     :return: None
     """
     all_vals: list[tuple] = videos
-    wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
+    wp_base_url: str = wp_auth.base_url
     # Start a new session with a clear thumbnail cache.
     # This is in case you run the program after a traceback or end execution
     # early.
     clean_file_cache("thumbnails/", ".jpg")
     # Prints out at the end of the uploading session.
-    videos_uploaded = 0
+    videos_uploaded: int = 0
     partner, banners = partners[sel_indx], banner_lsts[sel_indx]
     select_guard(partner_db_name, partner)
-    not_published_yet = filter_published(all_vals, wp_posts_f)
+    not_published_yet: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
-    total_elems = len(not_published_yet)
+    total_elems: int = len(not_published_yet)
     print(f"There are {total_elems} videos to be published...")
     for num, vid in enumerate(not_published_yet):
         (title, *fields) = vid
@@ -799,7 +774,7 @@ def video_upload_pilot(
                     f"You have created {videos_uploaded} posts in this session!")
                 break
         if add_post:
-            slugs = [
+            slugs: list[str] = [
                 f"{fields[8]}-video",
                 make_slug(partner, models, title, "video"),
                 make_slug(partner, models, title, "video", reverse=True),
@@ -811,28 +786,27 @@ def video_upload_pilot(
                 print(f"{n}. -> {slug}")
             print("Enter 4 to enter a custom slug")
 
-
             match input("\nSelect your slug: "):
                 case "1":
-                    wp_slug = slugs[0]
+                    wp_slug: str = slugs[0]
                 case "2":
-                    wp_slug = slugs[1]
+                    wp_slug: str = slugs[1]
                 case "3":
-                    wp_slug = slugs[2]
+                    wp_slug: str = slugs[2]
                 case "4":
-                    wp_slug = input("Provide a new slug: ")
+                    wp_slug: str = input("Provide a new slug: ")
                 case _:
                     # Smart slug by default (reversed).
-                    wp_slug = slugs[2]
+                    wp_slug: str = slugs[2]
 
             print("\n--> Making payload...")
-            tag_prep = [tag.strip() for tag in tags.split(",")]
+            tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
             # Making sure that the partner tag does not have apostrophes
-            partner_tag = clean_partner_tag(partner.lower())
+            partner_tag: str = clean_partner_tag(partner.lower())
             tag_prep.append(partner_tag)
-            tag_ints = get_tag_ids(wp_posts_f, tag_prep, "tags")
-            all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
-            tag_check = identify_missing(
+            tag_ints: list[int] = get_tag_ids(wp_posts_f, tag_prep, "tags")
+            all_tags_wp: dict[str, str] = wordpress_api.tag_id_merger_dict(wp_posts_f)
+            tag_check: list[str] | None = identify_missing(
                 all_tags_wp, tag_prep, tag_ints, ignore_case=True
             )
             if tag_check is None:
@@ -855,11 +829,11 @@ def video_upload_pilot(
             )
 
             # The would-be `models_ints`
-            calling_models = get_model_ids(wp_posts_f, model_prep)
-            all_models_wp = wordpress_api.map_wp_class_id(
+            calling_models: list[int] = get_model_ids(wp_posts_f, model_prep)
+            all_models_wp: dict[str, int] = wordpress_api.map_wp_class_id(
                 wp_posts_f, "pornstars", "pornstars"
             )
-            new_models = identify_missing(
+            new_models: list[str] | None = identify_missing(
                 all_models_wp, model_prep, calling_models)
 
             if new_models is None or model_prep[0] == "model-not-found":
@@ -879,7 +853,7 @@ def video_upload_pilot(
                 title,
                 description,
                 tracking_url,
-                get_banner(banners),
+                random.choice(banners),
                 partner_name,
                 tag_ints,
                 calling_models,
@@ -893,11 +867,11 @@ def video_upload_pilot(
                 )
                 print("--> Uploading thumbnail to WordPress Media...")
                 print("--> Adding image attributes on WordPress...")
-                img_attrs = make_img_payload(title, description)
+                img_attrs: dict[str, str] = make_img_payload(title, description)
                 thumbnail_lookup = False if os.path.exists(
                     "./thumbnails") else True
-                thumbnail_folder = f"{helpers.is_parent_dir_required(parent=thumbnail_lookup)}thumbnails"
-                upload_img = wordpress_api.upload_thumbnail(
+                thumbnail_folder: str = f"{helpers.is_parent_dir_required(thumbnail_lookup)}thumbnails"
+                upload_img: int = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     ["/media"],
                     f"{thumbnail_folder}/{wp_slug}.jpg",
@@ -933,7 +907,7 @@ def video_upload_pilot(
                 pyclip.clear()
                 print("* There was a connection error while processing this post... *")
                 if input("\nDo you want to continue? Y/N/ENTER to exit: ") == (
-                    "y" or "yes"
+                        "y" or "yes"
                 ):
                     continue
                 else:
@@ -951,14 +925,14 @@ def video_upload_pilot(
                     pyclip.clear()
                     print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
                     try:
-                        sync = hot_file_sync("wp_posts", "posts_url")
+                        sync: bool = hot_file_sync("wp_posts", "posts_url")
                     except ConnectionError:
                         print("Hot File Sync encountered a ConnectionError.")
                         print(
                             "Going to next post. I will fetch your changes in a next try."
                         )
                         print("If you want to update again, relaunch the bot.")
-                        sync = True
+                        sync: bool = True
                     if sync:
                         not_published_yet = filter_published(
                             all_vals, wp_posts_f)
@@ -1028,13 +1002,6 @@ if __name__ == "__main__":
 
     args = arg_parser.parse_args()
 
-    # helpers.get_project_db(parent=args.parent)
-
-    # db_wp_name = helpers.filename_select('db', parent=True)
-    # db_connection_wp = sqlite3.connect(f'{parent_wd}{db_wp_name}')
-    # cur_wp = db_connection_wp.cursor()
-
-    client_info = helpers.get_client_info("client_info")
 
     banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
     banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tuktuk620x77.jpg&filename=7664_name.jpg&type=jpg&download=1"

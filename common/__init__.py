@@ -15,6 +15,7 @@ from common.config_mgr import MONGER_CASH_INFO
 # Custom Exceptions `custom_exceptions.py`
 from common.custom_exceptions import InvalidInput
 from common.custom_exceptions import NoSuitableArgument
+from common.custom_exceptions import UnsupportedParameter
 
 # Project helper functions `helpers.py`
 from common.helpers import access_url
@@ -49,6 +50,7 @@ from common.helpers import write_to_file
 
 __all__ = [
     "NoSuitableArgument",
+    "UnsupportedParameter",
     "InvalidInput",
     "access_url",
     "access_url_bs4",

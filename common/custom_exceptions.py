@@ -31,9 +31,24 @@ class ConfigFileNotFound(Exception):
     file according to the needs of the project.
 
     """
+
     def __init__(self, filename: str):
         self.filename = filename
         self.message = (
             f"Filename {filename} does not exist. Create it if you haven't already."
+        )
+        super().__init__(self.message)
+
+
+class UnsupportedParameter(Exception):
+    """
+    Handle instances where the user provides a value that the function
+    does not support. Typically used in lieu of ValueError.
+    """
+
+    def __init__(self, param: str):
+        self.param = param
+        self.message = (
+            f"Unsupported parameter {param}. Try again."
         )
         super().__init__(self.message)
