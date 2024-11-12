@@ -32,3 +32,11 @@ tasks.sets\_source\_parse module
    :members:
    :undoc-members:
    :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: tasks
+   :members:
+   :undoc-members:
+   :show-inheritance:
