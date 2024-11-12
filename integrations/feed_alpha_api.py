@@ -1,36 +1,33 @@
+import argparse
 import datetime
 import os.path
 import sqlite3
 
 # Local implementations
-from common import helpers
+import common
+from workflows import clean_file_cache
+from .url_builder import CSVColumns, CSVSeparators
 
 # Constants
 
 FeedAlpha_BASE_URL = "https://partner-three.example.com"
 FeedAlpha_CAMPAIGN_ID = 1291575419
 
-# Encoded separators for the URL params
-PIPE_SEP = "%7C"
-COMMA_SEP = "%2C"
-SEMICOLON_SEP = "%3B"
-
-
-# Functions
-
 
 def construct_api_dump_url(
-    base_url: str,
-    campgn_id: str | int,
-    sort_crit: str,
-    sep: str,
-    days: str | int = "",
-    url_limit: str | int = 999999999,
+        base_url: str,
+        campgn_id: str | int,
+        sort_crit: str,
+        days: str | int = "",
+        url_limit: str | int = 999999999,
+        sep: CSVSeparators = CSVSeparators.pipe_sep,
+        columns: CSVColumns = CSVColumns
 ) -> str:
     """
     Construct the API dump url to access the text content to be parsed by function `feed_alpha_dump_parse`
     once accessed.
 
+    :param columns:
     :param base_url: API Base URL (provided in this module as a constant)
     :param campgn_id: Campaign ID (provided in this module as a constant)
     :param sort_crit: Sorting criteria from possible values:
@@ -41,9 +38,10 @@ def construct_api_dump_url(
                       4. ``'post_date'``
                       5. ``'id'`` **(default if no criteria is provided)**
 
-    :param sep: Dump separation code (provided as constants in this module)
+    :param sep: ``CSVSeparator`` Object that contains the dump separation code
     :param days: time period scope in days
     :param url_limit: maximum value of URLs to retrieve.
+    :param columns: ``CSVColumns`` object that contains common csv columns.
     :return: ``f-str`` (Formatted str) Video Dump URL
     """
     params = "/feeds/?link_args="
@@ -56,44 +54,19 @@ def construct_api_dump_url(
     days = f"days={days}&" if days != "" else days
 
     # Column Fields
-    ID_ = "id"
-    title = "title"
-    description = "description"
-    link = "link"
-    duration = "duration"  # seconds
-    rating = "rating"
-    added_time = "post_date"
-    categories = "categories"
-    tags = "tags"
-    model = "models"
-    embed_code = "embed"
-    # Attaches to main to fetch thumbnail.
-    thumbnail_prefix = "screenshots_prefix"
-    main_thumbnail = (
-        "main_screenshot"  # Thumbnail ID obtained from removing the img extension
-    )
-    thumbnails = "screenshots"
-    video_thumbnail_url = "preview_url"
-
     column_lst = [
-        ID_,
-        title,
-        description,
-        link,
-        duration,
-        rating,
-        added_time,
-        categories,
-        tags,
-        model,
-        embed_code,
-        thumbnail_prefix,
-        main_thumbnail,
-        thumbnails,
-        video_thumbnail_url,
+        columns.ID_,
+        columns.title,
+        columns.duration,
+        columns.added_time,
+        columns.categories,
+        columns.rating,
+        columns.main_thumbnail,
+        columns.embed_code,
+        columns.link
     ]
 
-    csv_columns = f"csv_columns={sep.join(column_lst)}"
+    csv_columns = f"csv_columns={str(sep).join(column_lst)}"
 
     return f"{base_url}{params}{campaign_id}{format}{sorting}{days}{limit}{sep_param}{csv_columns}"
 
@@ -115,28 +88,24 @@ def feed_alpha_dump_parse(filename: str, dirname: str,
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
-    is_parent_dir = False if os.path.exists(f'./{filename}') else True
-    path = f"{helpers.is_parent_dir_required(is_parent_dir)}{helpers.clean_filename(filename, 'csv')}"
-    db_name = f"{helpers.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
+    c_filename = common.clean_filename(filename, 'csv')
+    is_parent_dir = False if os.path.exists(
+        f'./{dirname}/{c_filename}') else True
+    path = f"{common.is_parent_dir_required(is_parent_dir)}{dirname}/{common.clean_filename(filename, 'csv')}"
+    db_name = f"{common.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
 
     db_create_table = """
     CREATE TABLE embeds(id,
                         title,
-                        description,
-                        web_link,
                         duration,
-                        rating,
                         date,
                         categories,
-                        tags,
-                        models,
+                        rating,
+                        thumbnail,
                         embed_code,
-                        thumbnail_prefix,
-                        thumbnail_name,
-                        video_thumbnails,
-                        video_trailer,
+                        web_link,
                         wp_slug)
     """
     db_cur.execute(db_create_table)
@@ -152,19 +121,13 @@ def feed_alpha_dump_parse(filename: str, dirname: str,
                 line_split = line.split(sep)
                 id_ = line_split[0]
                 title = line_split[1]
-                description = line_split[2]
-                website_link = line_split[3]
-                duration = line_split[4]
+                duration = line_split[2]
+                publish_date = line_split[3].split(" ")[0]
+                categories = line_split[4]
                 rating = line_split[5]
-                publish_date = line_split[6].split(" ")[0]
-                categories = line_split[7]
-                tags = line_split[8]
-                models = line_split[9]
-                embed_code = line_split[10]
-                thumbnail_prefix = line_split[11]
-                main_thumbnail = line_split[12]
-                thumbnails = line_split[13]
-                video_trailer = line_split[14].strip("\n")
+                main_thumbnail = line_split[6]
+                embed_code = line_split[7]
+                website_link = line_split[8]
 
                 # Custom db fields
 
@@ -175,24 +138,18 @@ def feed_alpha_dump_parse(filename: str, dirname: str,
                 all_values = (
                     id_,
                     title,
-                    description,
-                    website_link,
                     duration,
-                    rating,
                     publish_date,
                     categories,
-                    tags,
-                    models,
-                    embed_code,
-                    thumbnail_prefix,
+                    rating,
                     main_thumbnail,
-                    thumbnails,
-                    video_trailer,
-                    wp_slug,
+                    embed_code,
+                    website_link,
+                    wp_slug
                 )
 
                 db_cur.execute(
-                    "INSERT INTO embeds values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO embeds values(?,?,?,?,?,?,?,?,?,?)",
                     all_values,
                 )
                 db_conn.commit()
@@ -203,19 +160,40 @@ def feed_alpha_dump_parse(filename: str, dirname: str,
 
 
 if __name__ == "__main__":
+    arg_parser = argparse.ArgumentParser(description='FeedAlpha integration - CLI Interface')
+
+    arg_parser.add_argument('-sort', type=str,
+                            help="""Sorting criteria from possible values:
+                                      1. popularity
+                                      2. rating
+                                      3. duration
+                                      4. post_date
+                                      5. id (default if no criteria is provided)""")
+
+    arg_parser.add_argument('-days', type=int,
+                            help='Provide the time period in days')
+
+    arg_parser.add_argument('-limit', type=int, help='amount of urls to process')
+
+    cli_args = arg_parser.parse_args()
+
 
     # Build the URL
     main_url = construct_api_dump_url(
-        FeedAlpha_BASE_URL, FeedAlpha_CAMPAIGN_ID, "popularity", PIPE_SEP, days=30
+        FeedAlpha_BASE_URL, FeedAlpha_CAMPAIGN_ID, cli_args.sort, days=cli_args.days
     )
 
     # Use it to fetch the stream for the `write_to_file` functions.
-    helpers.write_to_file(
-        "feed_alpha-dump", "tmp", "csv", helpers.access_url_bs4(main_url), parent=True
+    common.write_to_file(
+        "feed_alpha-dump", "tmp", "csv", common.access_url_bs4(main_url)
     )
 
     partners = ["feed_alpha"]
 
     # Parse the temporary csv and generate the database with the data.
-    result = feed_alpha_dump_parse("feed_alpha-dump", "../tmp", partners[0], "|")
+    result = feed_alpha_dump_parse("feed_alpha-dump", "./tmp", partners[0], "|")
+
+    # Clean the temp .csv file in temporary folder
+    clean_file_cache('tmp', 'csv')
+    print('Cleaned temporary folder...')
     print(result)
