@@ -167,6 +167,7 @@ cython_debug/
 
 # Individual files
 !requirements.txt
+!core/config/workflow_config.ini
 *.txt
 *.csv
 *.xlsx
