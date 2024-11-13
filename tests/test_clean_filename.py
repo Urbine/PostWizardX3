@@ -1,7 +1,7 @@
 import unittest
 
 # Local implementation to be tested
-from common import clean_filename
+from core import clean_filename
 
 
 class TestCleanFilename(unittest.TestCase):

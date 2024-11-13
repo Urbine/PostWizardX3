@@ -9,7 +9,7 @@ import argparse
 import os
 
 # Local implementations
-import common
+import core
 
 
 def clean_outdated(hints_: list[str],
@@ -22,7 +22,7 @@ def clean_outdated(hints_: list[str],
     :return: ``None``
     """
     os.chdir(folder)
-    outdated = common.match_list_elem_date(
+    outdated = core.match_list_elem_date(
         hints_, file_lst, ignore_case=True, strict=True, reverse=True
     )
     for file in outdated:
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     hints = list(args.hints)
 
     # Filter the files to be deleted by extension.
-    files = common.search_files_by_ext(
+    files = core.search_files_by_ext(
         args.ext, args.folder, parent=args.parent)
 
     clean_outdated(hints, files, args.folder)
