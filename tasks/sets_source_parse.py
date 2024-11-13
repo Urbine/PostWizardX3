@@ -18,7 +18,7 @@ import datetime
 from bs4 import BeautifulSoup
 
 # Local implementation
-from common import helpers
+from core import helpers
 
 
 def parse_titles(soup_html: BeautifulSoup) -> list[str]:

@@ -1,7 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright, Playwright
 
-from common import helpers, MEDIA_SOURCE_INFO
+from core import helpers, MEDIA_SOURCE_INFO
 
 media_source_login = 'https://media_source.com/external.php?page=access'
 username = MEDIA_SOURCE_INFO.username

@@ -24,7 +24,6 @@ import sqlite3
 import urllib
 import urllib.request
 import urllib.error
-from configparser import ConfigParser
 
 from datetime import date
 
@@ -34,7 +33,7 @@ from requests_oauthlib import OAuth2Session
 from selenium import webdriver
 from sqlite3 import OperationalError, Connection, Cursor
 
-from common.custom_exceptions import ConfigFileNotFound
+from core.custom_exceptions import ConfigFileNotFound
 
 # This way OAuthlib won't enforce HTTPS connections.
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -526,7 +525,8 @@ def match_list_elem_date(
     One of our helper functions in this module returns a list of files by extension
     ``search_files_by_ext`` and I needed a way of getting the most relevant files, so that other modules can
     incorporate further functionality that can effectively select from the available filenames and work with an
-    updated copy of such.
+    updated copy of such. This algorithm also implements a simple ``reverse`` mode, that outputs the lookup list without
+    the matches; in other words, it excludes the matches if you don't want to use them in your functionality.
 
     For example, I have to match strings with the hints ``['foo', 'bar']`` within a list
     ``['foo-2024-11-04', 'foo-2024-11-02', 'bar-2024-10-29', 'bar-2024']`` the function will find multiple occurrences
@@ -661,21 +661,6 @@ def remove_if_exists(fname: str):
         os.remove(fname)
     else:
         return None
-
-
-def parse_client_config(ini_file: str) -> ConfigParser:
-    """Parse a client configuration file that stores secrets.
-    :param ini_file: ``str`` ini filename with or without the extension
-    :return: ``ConfigParser``
-    """
-    f_ini = clean_filename(ini_file, "ini")
-    parent = f'./{f_ini}' if os.path.exists(f_ini) else f'../{f_ini}'
-    config = configparser.ConfigParser()
-    if os.path.exists(parent):
-        config.read(parent)
-    else:
-        raise ConfigFileNotFound(parent)
-    return config
 
 
 def parse_date_to_iso(

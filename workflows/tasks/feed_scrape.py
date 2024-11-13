@@ -3,7 +3,7 @@ import datetime
 
 from bs4 import BeautifulSoup
 
-from common import helpers, MEDIA_SOURCE_INFO
+from core import helpers, MEDIA_SOURCE_INFO
 from tasks import get_partner_name
 
 from selenium import webdriver

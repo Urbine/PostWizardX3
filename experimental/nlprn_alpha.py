@@ -1,4 +1,4 @@
-from common import helpers
+from core import helpers
 from integrations import wordpress_api
 
 import pprint
