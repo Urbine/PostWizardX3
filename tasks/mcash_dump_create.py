@@ -7,8 +7,8 @@ from selenium.webdriver.common.by import By
 import time
 
 # Local implementations
-import common
-from common import MONGER_CASH_INFO
+import core
+from core import MONGER_CASH_INFO
 
 
 # ==== Functions ====
@@ -55,7 +55,7 @@ def get_vid_dump_flow(
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
         if partner_hint:
-            selection = common.match_list_single(
+            selection = core.match_list_single(
                 partner_hint, partner_options, ignore_case=True
             )
         else:
@@ -139,7 +139,7 @@ def get_vid_dump_flow(
         # Create a name for out dump file.
         dump_name = f"{partner_name}vids-{datetime.date.today()}"
 
-        common.write_to_file(
+        core.write_to_file(
             dump_name, write_folder, "txt", dump_content, parent=parent
         )
 
@@ -156,8 +156,8 @@ if __name__ == "__main__":
     # ==== Execution space ====
 
     # Initialize the webdriver
-    web_driver = common.get_webdriver("../tmp")
-    web_driver_gecko = common.get_webdriver("../tmp", gecko=True)
+    web_driver = core.get_webdriver("../tmp")
+    web_driver_gecko = core.get_webdriver("../tmp", gecko=True)
 
     get_vid_dump_flow(
         M_CASH_DUMP_URL,

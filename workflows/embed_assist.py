@@ -1,19 +1,40 @@
+"""
+Video embedding assistant.
+Embed_assist works with the result of different integrations, which retrieve metadata from a remote content partner.
+However, it is a specialized version of ``workflows.content_select`` and it deals with less structured data.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__email__ = "yohamg@programmer.net"
+
+# Std Library
+import os
 import pyclip
 from requests.exceptions import ConnectionError, SSLError
 import time
+import sqlite3
 
 # Local implementations
-from common import helpers
+from core import helpers
 import workflows.content_select as cs
+from core.config_mgr import (EmbedAssistConf,
+                             EMBED_ASSIST_CONF,
+                             WPAuth,
+                             WP_CLIENT_INFO)
+
 from integrations import wordpress_api
 
 
-def filter_tags(tgs: str, filter_lst: list[str]):
-    """
+def filter_tags(tgs: str, filter_lst: list[str]) -> list[str]:
+    """ Remove redundant words found in tags and return a clear list of unique filtered tags.
 
-    :param tgs:
-    :param filter_lst:
-    :return:
+    :param tgs: ``list[str]`` tags to be filtered
+    :param filter_lst: ``list[str]`` lookup list of words to be removed
+    :return: ``list[str]``
     """
     t_split = tgs.split(",")
     new_set = set({})
@@ -30,8 +51,8 @@ def filter_tags(tgs: str, filter_lst: list[str]):
 
 
 def filter_published_embeds(
-        all_videos: list[tuple], wp_posts_f: list[dict]
-) -> list[tuple]:
+        wp_posts_f: list[dict[str, ...]], videos: list[tuple[str, ...]],
+) -> list[tuple[str, ...]]:
     """filter_published does its filtering work based on the published_json function.
     It is based on a similar version from module `content_select`, however, this one is adapted to embedded videos
     and a different db schema.
@@ -40,15 +61,18 @@ def filter_published_embeds(
     By unpacking one of its core values, it carries out the manual classification to generate a new set of
     titles.
 
-    :param all_videos: List[tuple] usually resulting from the SQL database query values.
-    :param wp_posts_f: WordPress Post Information case file (previously loaded and ready to process)
-    :return: list[tuple] with the new filtered values.
+    :param videos: ``list[tuple[str, ...]]`` usually resulting from the SQL database query values.
+    :param wp_posts_f: ``list[dict[str, ...]]`` WordPress Post Information case file (previously loaded and ready to process)
+    :return: ``list[tuple[str, ...]]`` with the new filtered values.
     """
     # This loop gets the items I am interested in.
+    post_titles: list[str] = wordpress_api.get_post_titles_local(
+        wp_posts_f, yoast=True)
+
     not_published: list[tuple] = []
-    for elem in all_videos:
-        (vid_id, vid_title, *fields) = elem
-        if cs.published_json(vid_title, wp_posts_f):
+    for elem in videos:
+        vid_id, vid_title, *fields = elem
+        if vid_title in post_titles:
             continue
         else:
             not_published.append(elem)
@@ -60,6 +84,8 @@ def embedding_pilot(
         wp_posts_f: list[dict],
         partner_list: list[str],
         sel_indx: int,
+        embed_ast_conf: EmbedAssistConf = EMBED_ASSIST_CONF,
+        wp_auth: WPAuth = WP_CLIENT_INFO,
         parent: bool = False,
 ) -> None:
     """
@@ -68,13 +94,17 @@ def embedding_pilot(
 
     :param videos: ``list[tuple]`` resulting from a partner database query.
     :param wp_posts_f: ``list[dict]`` WordPress Post ``JSON`` file.
+    :param partner_list: ``list[str]`` partner offers
+    :param sel_indx: ``int`` resulting match index from ``content_select_db_match`` in ``workflows.content_select``
+    :param wp_auth: ``WPAuth`` object that contains configuration of your site.
     :param parent: ``bool`` defines whether internal folder references relative to the child directory.
+    :param embed_ast_conf: ``EmbedAssistConf`` Object with configuration info for this bot.
     :return: ``None``
     """
-    wp_base_url = "https://whoresmen.com/wp-json/wp/v2"
-    videos_uploaded = 0
+    wp_base_url = wp_auth.api_base_url
+    videos_uploaded: int = 0
     all_vals: list[tuple[str]] = videos
-    not_published_yet = filter_published_embeds(all_vals, wp_posts_f)
+    not_published_yet = filter_published_embeds(wp_posts_f, all_vals)
     partner = partner_list[sel_indx]
     total_elems = len(not_published_yet)
     for num, vid in enumerate(videos):
@@ -88,9 +118,10 @@ def embedding_pilot(
         embed_code = vid[7]
         web_link = vid[8]
         wp_slug = vid[9]
-        print(f"\n{'Review the following video':*^30}")
+        print(f"\n{'Review the following video':*^30}\n")
         print(f"ID: {id_}")
         print(f"Title: {title}")
+        print(f"Web Link: {web_link}")
         hs, mins, secs = helpers.get_duration(int(duration))
         print(
             f"Duration: \nHours: {hs} \nMinutes: {mins} \nSeconds: {secs}"
@@ -106,8 +137,6 @@ def embedding_pilot(
         elif add_post == ("n" or "no"):
             pyclip.detect_clipboard()
             pyclip.clear()
-            print("\n--> Cleaning thumbnails cache now")
-            cs.clean_file_cache("thumbnails", ".jpg")
             print(f"You have created {videos_uploaded} posts in this session!")
             break
         else:
@@ -120,10 +149,7 @@ def embedding_pilot(
                 pyclip.clear()
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different SQL query or partner. I am ready when you are. ")
-                print("\n--> Cleaning thumbnails cache now")
-                cs.clean_file_cache("thumbnails", ".jpg")
-                print(
-                    f"You have created {videos_uploaded} posts in this session!")
+                print(f"You have created {videos_uploaded} posts in this session!")
                 break
         if add_post:
             slugs = [
@@ -132,12 +158,12 @@ def embedding_pilot(
                     partner,
                     None,
                     title,
-                    ""),
+                    "video"),
                 cs.make_slug(
                     partner,
                     None,
                     title,
-                    "",
+                    "video",
                     reverse=True)
             ]
             print("\n--> Available slugs:")
@@ -158,7 +184,7 @@ def embedding_pilot(
 
             print("\n--> Making payload...")
             # Making sure there aren't spaces in tags and exclude the word
-            # `asian`
+            # `asian` and `japanese` from tags since I want to make the more general.
             tag_prep = filter_tags(categories, ["asian", "japanese"])
             tag_prep.append(partner.lower())
             tag_prep.append("japanese")
@@ -184,7 +210,7 @@ def embedding_pilot(
             category = [38] if partner == ("abjav" or "vjav") else None
             payload = cs.make_payload_simple(
                 wp_slug,
-                "draft",
+                wp_auth.default_status,
                 title,
                 title,
                 tag_ints,
@@ -194,7 +220,7 @@ def embedding_pilot(
             try:
                 thumbnail_full = main_thumbnail_name
                 cs.fetch_thumbnail(
-                    "thumbnails", wp_slug, thumbnail_full)
+                    embed_ast_conf.thumbnail_dir, wp_slug, thumbnail_full)
                 print(
                     f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
                 print("--> Uploading thumbnail to WordPress Media...")
@@ -203,7 +229,7 @@ def embedding_pilot(
                 is_parent = helpers.is_parent_dir_required(parent=parent)
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url, [
-                        "/media"], f"{is_parent}thumbnails/{wp_slug}.jpg", img_attrs
+                        "/media"], f"{is_parent}{embed_ast_conf.thumbnail_dir}/{wp_slug}.jpg", img_attrs
                 )
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
@@ -215,6 +241,8 @@ def embedding_pilot(
                     )
                     print("--> Proceeding to the next post...\n")
                     continue
+                elif upload_img == (200 or 201):
+                    os.remove(f"{is_parent}{embed_ast_conf.thumbnail_dir}/{wp_slug}.jpg")
                 else:
                     print(
                         f"--> WordPress Media upload status code: {upload_img}")
@@ -240,8 +268,6 @@ def embedding_pilot(
                 ):
                     continue
                 else:
-                    print("\n--> Cleaning thumbnails cache now")
-                    cs.clean_file_cache("thumbnails", ".jpg")
                     print(
                         f"You have created {videos_uploaded} posts in this session!")
                     break
@@ -253,8 +279,7 @@ def embedding_pilot(
                     pyclip.clear()
                     print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
                     try:
-                        sync = cs.hot_file_sync(
-                            "wp_posts", "posts_url")
+                        sync = cs.hot_file_sync("posts_url", bot_config=embed_ast_conf)
                     except ConnectionError:
                         print("Hot File Sync encountered a ConnectionError.")
                         print(
@@ -263,22 +288,17 @@ def embedding_pilot(
                         print("If you want to update again, relaunch the bot.")
                         sync = True
                     if sync:
-                        not_published_yet = cs.filter_published(
-                            all_vals, wp_posts_f
-                        )
                         continue
                     else:
                         print(
-                            "ERROR: WP JSON Sync failed. Look at the files and report this."
-                        )
-                        cs.clean_file_cache("thumbnails", ".jpg")
+                            """ERROR: WP JSON Sync failed. Look at the files.
+                            Maybe you have to rollback your WordPress cache.
+                            Run: python3 -m integrations.wordpress_api --posts""")
                 elif next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid tracebacks
                     # from pyclip
                     pyclip.detect_clipboard()
                     pyclip.clear()
-                    print("\n--> Cleaning thumbnails cache now")
-                    cs.clean_file_cache("thumbnails", ".jpg")
                     print(
                         f"You have created {videos_uploaded} posts in this session!")
                     break
@@ -291,8 +311,6 @@ def embedding_pilot(
                 # So that it doesn't clear the clipboard automatically.
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different query and run me again.")
-                print("\n--> Cleaning thumbnails cache now")
-                cs.clean_file_cache("thumbnails", "jpg")
                 print(
                     f"You have created {videos_uploaded} posts in this session!")
                 print(
@@ -307,8 +325,6 @@ def embedding_pilot(
             pyclip.clear()
             print("\nWe have reviewed all posts for this query.")
             print("Try a different SQL query or partner. I am ready when you are. ")
-            print("\n--> Cleaning thumbnails cache now")
-            cs.clean_file_cache("thumbnails", ".jpg")
             print(f"You have created {videos_uploaded} posts in this session!")
             break
 
@@ -316,16 +332,17 @@ def embedding_pilot(
 if __name__ == '__main__':
 
     print("\n==> Warming up... ┌(◎_◎)┘ ")
-    cs.hot_file_sync("wp_posts.json", "posts_url")
+    cs.hot_file_sync("posts_url", bot_config=EMBED_ASSIST_CONF)
 
-    wp_posts_f = helpers.load_json_ctx("wp_posts.json")
+    wp_posts = helpers.load_json_ctx(EMBED_ASSIST_CONF.wp_json_posts)
 
-    partners = ["abjav", "vjav"]
+    partners = EMBED_ASSIST_CONF.partners.split(',')
 
     db_conn, cur_dump, db_dump_name, part_indx = cs.content_select_db_match(
-        partners, "dump"
+        partners, EMBED_ASSIST_CONF.content_hint
     )
 
-    videos = helpers.get_from_db(cur_dump, "*", "embeds")
 
-    embedding_pilot(videos, wp_posts_f, partners, part_indx)
+    all_videos = helpers.fetch_data_sql(EMBED_ASSIST_CONF.sql_query, cur_dump)
+
+    embedding_pilot(all_videos, wp_posts, partners, part_indx)

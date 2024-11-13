@@ -4,7 +4,7 @@ import warnings
 
 
 # Local implementations
-from common import (
+from core import (
     is_parent_dir_required,
     get_webdriver,
     load_from_file,
@@ -78,7 +78,10 @@ if __name__ == '__main__':
     m_cash_vids_dump = M_CASH_DUMP_URL
 
     temp_dir = args.temp_dir
-    webdriver = get_webdriver(temp_dir, headless=args.headless, gecko=args.gecko)
+    webdriver = get_webdriver(
+        temp_dir,
+        headless=args.headless,
+        gecko=args.gecko)
 
     username = MONGER_CASH_INFO.username
 
@@ -96,7 +99,8 @@ if __name__ == '__main__':
     )
 
     # Test if the file contains characters and it is not empty.
-    # If the file is empty, it means that something went wrong with the webdriver.
+    # If the file is empty, it means that something went wrong with the
+    # webdriver.
     load_dump_file = load_from_file(
         dump_file_name,
         "txt",
@@ -120,7 +124,10 @@ if __name__ == '__main__':
         continue
 
     # webdriver gets a second assignment to avoid connection pool issues.
-    webdriver = get_webdriver(temp_dir, headless=args.headless, gecko=args.gecko)
+    webdriver = get_webdriver(
+        temp_dir,
+        headless=args.headless,
+        gecko=args.gecko)
     photoset_source = get_page_source_flow(
         m_cash_downloadable_sets, (username,
                                    password), webdriver, partner_hint=args.hint

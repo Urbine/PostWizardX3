@@ -1,7 +1,7 @@
 import unittest
 
 # Local implementation to be tested
-from common import is_parent_dir_required
+from core import is_parent_dir_required
 
 
 class TestIsParentDirRequired(unittest.TestCase):

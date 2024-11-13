@@ -4,7 +4,7 @@ import os.path
 import sqlite3
 
 # Local implementations
-import common
+import core
 from workflows import clean_file_cache
 from .url_builder import CSVColumns, CSVSeparators
 
@@ -88,11 +88,11 @@ def adult_next_dump_parse(filename: str, dirname: str,
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
-    c_filename = common.clean_filename(filename, 'csv')
+    c_filename = core.clean_filename(filename, 'csv')
     is_parent_dir = False if os.path.exists(
         f'./{dirname}/{c_filename}') else True
-    path = f"{common.is_parent_dir_required(is_parent_dir)}{dirname}/{common.clean_filename(filename, 'csv')}"
-    db_name = f"{common.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
+    path = f"{core.is_parent_dir_required(is_parent_dir)}{dirname}/{core.clean_filename(filename, 'csv')}"
+    db_name = f"{core.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
 
@@ -160,7 +160,8 @@ def adult_next_dump_parse(filename: str, dirname: str,
 
 
 if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser(description='AdultNext integration - CLI Interface')
+    arg_parser = argparse.ArgumentParser(
+        description='AdultNext integration - CLI Interface')
 
     arg_parser.add_argument('-sort', type=str,
                             help="""Sorting criteria from possible values:
@@ -173,10 +174,12 @@ if __name__ == "__main__":
     arg_parser.add_argument('-days', type=int,
                             help='Provide the time period in days')
 
-    arg_parser.add_argument('-limit', type=int, help='amount of urls to process')
+    arg_parser.add_argument(
+        '-limit',
+        type=int,
+        help='amount of urls to process')
 
     cli_args = arg_parser.parse_args()
-
 
     # Build the URL
     main_url = construct_api_dump_url(
@@ -184,8 +187,8 @@ if __name__ == "__main__":
     )
 
     # Use it to fetch the stream for the `write_to_file` functions.
-    common.write_to_file(
-        "abjav-dump", "tmp", "csv", common.access_url_bs4(main_url)
+    core.write_to_file(
+        "abjav-dump", "tmp", "csv", core.access_url_bs4(main_url)
     )
 
     partners = ["abjav"]

@@ -32,9 +32,9 @@ from typing import Generator
 import xlsxwriter
 
 # Local implementations
-from common import helpers, NoSuitableArgument
-from common import WP_CLIENT_INFO
-from common.config_mgr import WPAuth
+from core import helpers, NoSuitableArgument
+from core import WP_CLIENT_INFO
+from core.config_mgr import WPAuth
 
 
 def curl_wp_self_concat(
@@ -667,7 +667,7 @@ def upload_thumbnail(
 
     :param file_path: ``str`` an absolute or relative path to your image attachment.
     :param payload: ``dict[str, str | int]`` with image attributes like ALT text, Description and Caption.
-    :param secrets: ``WPAuth`` element (from the ``common``) module. This object stores the secrets to access WordPress.
+    :param secrets: ``WPAuth`` element (from the ``core``) module. This object stores the secrets to access WordPress.
     :return: ``int`` that represents the status code of the request.
             In this function, we deal with a possible ``KeyError`` exception, which is raised by different factors:
 
@@ -785,9 +785,8 @@ def update_json_cache(
     x_wp_totalpages = 0
     clean_fname = helpers.clean_filename(wp_filen, ".json")
     # The loop will add 1 to page num when the first request is successful.
-    page_num = [
-        dic[clean_fname]["cached_pages"] for dic in config if clean_fname in dic.keys()
-    ][0] - 2
+    page_num = [dic[clean_fname]["cached_pages"]
+                for dic in config if clean_fname in dic.keys()][0] - 2
     result_dict = helpers.load_json_ctx(wp_filen)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []
@@ -824,7 +823,7 @@ def update_json_cache(
 
 
 def upgrade_wp_local_cache(
-    hostname: str,
+    host: str,
     params_dict: dict[str, str],
     endpoint: str,
     wp_filen: str,
@@ -836,7 +835,7 @@ def upgrade_wp_local_cache(
     """Updates both the WP post information ``JSON`` file (posts and photos) and creates a ``SQLite3`` database
         using the cached files.
 
-    :param hostname: ``str`` Base url (WP Self)
+    :param host: ``str`` Base url (WP Self)
     :param params_dict: ``dict[str, str]`` of parameters (rest_params) that helping functions will parse and use.
     :param endpoint: ``params_dict`` key that describes the type of post that you want to cache, just the key ``str``.
     :param wp_filen: ``str`` Desired filename for your cached file.
@@ -854,12 +853,12 @@ def upgrade_wp_local_cache(
     l_config = helpers.load_json_ctx("wp_cache_config.json")
     if cached:
         updated_local_cache = update_json_cache(
-            hostname, params_dict, endpoint, l_config, wp_filen
+            host, params_dict, endpoint, l_config, wp_filen
         )
 
     else:
         updated_local_cache = create_wp_local_cache(
-            hostname, params_dict, endpoint, wp_filen, parent=parent
+            host, params_dict, endpoint, wp_filen, parent=parent
         )
 
     helpers.export_request_json(
@@ -874,7 +873,7 @@ def upgrade_wp_local_cache(
 
 
 hostname: str = WP_CLIENT_INFO.hostname
-b_url: str = WP_CLIENT_INFO.base_url
+b_url: str = WP_CLIENT_INFO.api_base_url
 
 # It is possible to add more REST parameters.
 rest_params: dict = {
@@ -959,7 +958,7 @@ if __name__ == "__main__":
         )
 
     upgrade_wp_local_cache(
-        hstname,
+        hostname,
         rest_params,
         endpoint_key,
         wp_filename,

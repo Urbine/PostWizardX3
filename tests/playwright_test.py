@@ -1,7 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright, Playwright
 
-from common import helpers, MONGER_CASH_INFO
+from core import helpers, MONGER_CASH_INFO
 
 mcash_login = 'https://mongercash.com/external.php?page=access'
 username = MONGER_CASH_INFO.username

@@ -1,10 +1,10 @@
 # This file will be gathering information from the Yandex Webmaster API, and it will be
 # focused specifically in its keyword and impression analysis capabilities.
 
-from common import helpers
+from core import helpers
 import requests
 
-from common.config_mgr import YANDEX_INFO
+from core.config_mgr import YANDEX_INFO
 
 #  oauth2 = "https://oauth.yandex.com/authorize?response_type=code"
 #  & client_id=<app ID>

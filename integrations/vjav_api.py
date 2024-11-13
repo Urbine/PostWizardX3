@@ -9,7 +9,7 @@ import os
 import sqlite3
 
 # Local implementations
-import common
+import core
 from .url_builder import CSVColumns, CSVSeparators
 from workflows import clean_file_cache
 
@@ -86,11 +86,11 @@ def vjav_dump_parse(filename: str, dirname: str,
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
-    c_filename = common.clean_filename(filename, 'csv')
+    c_filename = core.clean_filename(filename, 'csv')
     is_parent_dir = False if os.path.exists(
         f'./{dirname}/{c_filename}') else True
-    path = f"{common.is_parent_dir_required(is_parent_dir)}{dirname}/{common.clean_filename(filename, 'csv')}"
-    db_name = f"{common.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
+    path = f"{core.is_parent_dir_required(is_parent_dir)}{dirname}/{core.clean_filename(filename, 'csv')}"
+    db_name = f"{core.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
 
@@ -158,7 +158,8 @@ def vjav_dump_parse(filename: str, dirname: str,
 
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser(description='VJAV integration - CLI Interface')
+    arg_parser = argparse.ArgumentParser(
+        description='VJAV integration - CLI Interface')
 
     arg_parser.add_argument('-sort', type=str,
                             help="""Sorting criteria from possible values:
@@ -171,7 +172,10 @@ if __name__ == '__main__':
     arg_parser.add_argument('-days', type=int,
                             help='Provide the time period in days')
 
-    arg_parser.add_argument('-limit', type=int, help='amount of urls to process')
+    arg_parser.add_argument(
+        '-limit',
+        type=int,
+        help='amount of urls to process')
 
     cli_args = arg_parser.parse_args()
 
@@ -180,11 +184,11 @@ if __name__ == '__main__':
         VJAV_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit)
 
     # Get the dump file and write it into a .csv file
-    common.write_to_file(
+    core.write_to_file(
         'vjav-dump',
         'tmp',
         'csv',
-        common.access_url_bs4(main_url))
+        core.access_url_bs4(main_url))
 
     # Parse the temporary CSV dump file
     result = vjav_dump_parse("vjav-dump", "tmp", 'vjav', "|")
