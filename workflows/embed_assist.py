@@ -26,7 +26,7 @@ from core.config_mgr import (EmbedAssistConf,
                              WPAuth,
                              WP_CLIENT_INFO)
 
-from integrations import wordpress_api
+from integrations import wordpress_api, WPEndpoints
 
 
 def filter_tags(tgs: str, filter_lst: list[str]) -> list[str]:
@@ -51,7 +51,7 @@ def filter_tags(tgs: str, filter_lst: list[str]) -> list[str]:
 
 
 def filter_published_embeds(
-        wp_posts_f: list[dict[str, ...]], videos: list[tuple[str, ...]],
+        wp_posts_f: list[dict[str, ...]], videos: list[tuple[str, ...]]
 ) -> list[tuple[str, ...]]:
     """filter_published does its filtering work based on the published_json function.
     It is based on a similar version from module `content_select`, however, this one is adapted to embedded videos
@@ -80,34 +80,37 @@ def filter_published_embeds(
 
 
 def embedding_pilot(
-        videos: list[tuple],
-        wp_posts_f: list[dict],
-        partner_list: list[str],
-        sel_indx: int,
         embed_ast_conf: EmbedAssistConf = EMBED_ASSIST_CONF,
         wp_auth: WPAuth = WP_CLIENT_INFO,
+        wp_endpoints: WPEndpoints = WPEndpoints,
         parent: bool = False,
 ) -> None:
     """
     Assist the user in video embedding from the information originated from local
     implementations of Japanese adult content providers in the ``integrations`` package.
 
-    :param videos: ``list[tuple]`` resulting from a partner database query.
-    :param wp_posts_f: ``list[dict]`` WordPress Post ``JSON`` file.
-    :param partner_list: ``list[str]`` partner offers
-    :param sel_indx: ``int`` resulting match index from ``content_select_db_match`` in ``workflows.content_select``
-    :param wp_auth: ``WPAuth`` object that contains configuration of your site.
-    :param parent: ``bool`` defines whether internal folder references relative to the child directory.
     :param embed_ast_conf: ``EmbedAssistConf`` Object with configuration info for this bot.
+    :param wp_auth: ``WPAuth`` object that contains configuration of your site.
+    :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
+    :param parent: ``bool`` defines whether internal folder references relative to the child directory.
     :return: ``None``
     """
+    print("\n==> Warming up... ┌(◎_◎)┘ ")
+    cs.hot_file_sync(bot_config=embed_ast_conf)
+    wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
+    partner_list = embed_ast_conf.partners.split(',')
+    db_conn, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
+        partner_list, embed_ast_conf.content_hint
+    )
     wp_base_url = wp_auth.api_base_url
     videos_uploaded: int = 0
-    all_vals: list[tuple[str]] = videos
+    partner = partner_list[partner_indx]
+    cs.select_guard(db_dump_name, partner)
+    all_vals: list[tuple[str]] = helpers.fetch_data_sql(
+        embed_ast_conf.sql_query, cur_dump)
     not_published_yet = filter_published_embeds(wp_posts_f, all_vals)
-    partner = partner_list[sel_indx]
     total_elems = len(not_published_yet)
-    for num, vid in enumerate(videos):
+    for num, vid in enumerate(not_published_yet):
         id_ = vid[0]
         title = vid[1]
         duration = vid[2]
@@ -149,7 +152,8 @@ def embedding_pilot(
                 pyclip.clear()
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different SQL query or partner. I am ready when you are. ")
-                print(f"You have created {videos_uploaded} posts in this session!")
+                print(
+                    f"You have created {videos_uploaded} posts in this session!")
                 break
         if add_post:
             slugs = [
@@ -170,6 +174,7 @@ def embedding_pilot(
 
             for n, slug in enumerate(slugs, start=1):
                 print(f"{n}. -> {slug}")
+            print("Select 4 to enter a custom slug.")
 
             match input("\nSelect your slug: "):
                 case "1":
@@ -178,6 +183,8 @@ def embedding_pilot(
                     wp_slug = slugs[1]
                 case "3":
                     wp_slug = slugs[2]
+                case "4":
+                    wp_slug = input("Enter your slug now: ")
                 case _:
                     # Parsing slug by default.
                     wp_slug = slugs[0]
@@ -186,8 +193,7 @@ def embedding_pilot(
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make the more general.
             tag_prep = filter_tags(categories, ["asian", "japanese"])
-            tag_prep.append(partner.lower())
-            tag_prep.append("japanese")
+            tag_prep.append("japanese" if partner == 'abjav' or 'vjav' else '')
             tag_ints = cs.get_tag_ids(wp_posts_f, tag_prep, 'tags')
             all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
             tag_check = cs.identify_missing(
@@ -200,14 +206,16 @@ def embedding_pilot(
             else:
                 # You've hit a snag.
                 for tag in tag_check:
-                    print(f"ATTENTION --> Tag: {tag} not on WordPress.")
-                    print("--> Copying missing tag to your system clipboard.")
-                    print("Paste it into the tags field as soon as possible...\n")
-                    pyclip.detect_clipboard()
-                    pyclip.copy(tag)
-
+                    if tag != '' or tag is None:
+                        print(f"ATTENTION --> Tag: {tag} not on WordPress.")
+                        print("--> Copying missing tag to your system clipboard.")
+                        print("Paste it into the tags field as soon as possible...\n")
+                        pyclip.detect_clipboard()
+                        pyclip.copy(tag)
+                    else:
+                        pass
             # 38 is Japanese Amateur Porn
-            category = [38] if partner == ("abjav" or "vjav") else None
+            category = [38] if partner == "abjav" or "vjav" else [40]
             payload = cs.make_payload_simple(
                 wp_slug,
                 wp_auth.default_status,
@@ -242,23 +250,25 @@ def embedding_pilot(
                     print("--> Proceeding to the next post...\n")
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(f"{is_parent}{embed_ast_conf.thumbnail_dir}/{wp_slug}.jpg")
+                    os.remove(
+                        f"{is_parent}{embed_ast_conf.thumbnail_dir}/{wp_slug}.jpg")
                 else:
-                    print(
-                        f"--> WordPress Media upload status code: {upload_img}")
-                    print("--> Creating post on WordPress")
-                    push_post = wordpress_api.wp_post_create(
-                        wp_base_url, ["/posts"], payload
-                    )
-                    print(f"--> WordPress status code: {push_post}")
-                    # Copy important information to the clipboard.
-                    # Some tag strings end with ';'
-                    pyclip.detect_clipboard()
-                    pyclip.copy(embed_code)
-                    pyclip.copy(title)
-                    print(
-                        "--> Check the post and paste all you need from your clipboard.")
-                    videos_uploaded += 1
+                    pass
+
+                print(
+                    f"--> WordPress Media upload status code: {upload_img}")
+                print("--> Creating post on WordPress")
+                push_post = wordpress_api.wp_post_create(
+                    [wp_endpoints.posts], payload)
+                print(f"--> WordPress status code: {push_post}")
+                # Copy important information to the clipboard.
+                # Some tag strings end with ';'
+                pyclip.detect_clipboard()
+                pyclip.copy(embed_code)
+                pyclip.copy(title)
+                print(
+                    "--> Check the post and paste all you need from your clipboard.")
+                videos_uploaded += 1
             except SSLError:
                 pyclip.detect_clipboard()
                 pyclip.clear()
@@ -279,7 +289,7 @@ def embedding_pilot(
                     pyclip.clear()
                     print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
                     try:
-                        sync = cs.hot_file_sync("posts_url", bot_config=embed_ast_conf)
+                        sync = cs.hot_file_sync(bot_config=embed_ast_conf)
                     except ConnectionError:
                         print("Hot File Sync encountered a ConnectionError.")
                         print(
@@ -330,19 +340,4 @@ def embedding_pilot(
 
 
 if __name__ == '__main__':
-
-    print("\n==> Warming up... ┌(◎_◎)┘ ")
-    cs.hot_file_sync("posts_url", bot_config=EMBED_ASSIST_CONF)
-
-    wp_posts = helpers.load_json_ctx(EMBED_ASSIST_CONF.wp_json_posts)
-
-    partners = EMBED_ASSIST_CONF.partners.split(',')
-
-    db_conn, cur_dump, db_dump_name, part_indx = cs.content_select_db_match(
-        partners, EMBED_ASSIST_CONF.content_hint
-    )
-
-
-    all_videos = helpers.fetch_data_sql(EMBED_ASSIST_CONF.sql_query, cur_dump)
-
-    embedding_pilot(all_videos, wp_posts, partners, part_indx)
+    embedding_pilot()

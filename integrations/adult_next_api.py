@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
     # Build the URL
     main_url = construct_api_dump_url(
-        ABJAV_BASE_URL, ABJAV_CAMPAIGN_ID, cli_args.sort, days=cli_args.days
+        ABJAV_BASE_URL, ABJAV_CAMPAIGN_ID, cli_args.sort, days=cli_args.days, url_limit=cli_args.limit
     )
 
     # Use it to fetch the stream for the `write_to_file` functions.
@@ -191,12 +191,10 @@ if __name__ == "__main__":
         "abjav-dump", "tmp", "csv", core.access_url_bs4(main_url)
     )
 
-    partners = ["abjav"]
-
     # Parse the temporary csv and generate the database with the data.
-    result = adult_next_dump_parse("abjav-dump", "./tmp", partners[0], "|")
+    result = adult_next_dump_parse("abjav-dump", "./tmp", 'jav', "|")
 
     # Clean the temp .csv file in temporary folder
     clean_file_cache('tmp', 'csv')
-    print('Cleaned temporary folder...')
     print(result)
+    print('Cleaned temporary folder...')

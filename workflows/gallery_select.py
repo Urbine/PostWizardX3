@@ -25,6 +25,7 @@ from selenium import webdriver  # Imported for type annotations
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
+import core
 # Local implementations
 from workflows.content_select import (
     hot_file_sync,
@@ -39,7 +40,7 @@ from workflows.content_select import (
 from core import helpers, MONGER_CASH_INFO, WP_CLIENT_INFO, GALLERY_SEL_CONF
 # Imported for typing purposes
 from core.config_mgr import MongerCashAuth, WPAuth, GallerySelectConf
-from integrations import wordpress_api
+from integrations import wordpress_api, WPEndpoints
 
 
 def fetch_zip(
@@ -231,7 +232,7 @@ def make_photos_payload(
             word.lower()
             for word in no_partner_name
             if re.match(r"[\w+]", word, flags=re.IGNORECASE)
-               and word.lower() not in filter_words
+            and word.lower() not in filter_words
         ]
     )
 
@@ -279,7 +280,8 @@ def upload_image_set(
         files: list[str] = helpers.search_files_by_ext(
             "jpg", recursive=True, parent=parent, folder=folder
         )
-        thumbnails: list[str] = ["/".join(path.split("/")[-2:]) for path in files]
+        thumbnails: list[str] = [
+            "/".join(path.split("/")[-2:]) for path in files]
 
     if len(thumbnails) != 0:
         print(
@@ -309,7 +311,8 @@ def upload_image_set(
         else:
             pass
     except IndexError or AttributeError:
-        # If slicing/splitting fails with IndexError or AttributeError, it does not crash the program.
+        # If slicing/splitting fails with IndexError or AttributeError, it does
+        # not crash the program.
         pass
     finally:
         return None
@@ -356,17 +359,12 @@ def filter_relevant(
 
 
 def gallery_upload_pilot(
-        cur_prtner: sqlite3,
-        wp_posts_f: list[dict],
-        wp_photos_f: list[dict],
-        partners: list[str],
-        db_name_prtner: str,
-        sel_indx: int,
         relevancy_on: bool = False,
         gecko: bool = False,
         headless: bool = False,
         parent: bool = False,
         wp_admin_auth: WPAuth = WP_CLIENT_INFO,
+        wp_endpoints: WPEndpoints = WPEndpoints,
         gallery_sel_conf: GallerySelectConf = GALLERY_SEL_CONF
 ) -> None:
     """ Control the entire execution of the gallery upload process.
@@ -386,31 +384,33 @@ def gallery_upload_pilot(
     for ``video_upload_pilot`` in the ``workflows.content_select`` module as there is a more detailed
     breakdown of the process.
 
-    :param cur_prtner: ``sqlite3`` database cursor (automatically matched by another function)
-    :param wp_posts_f: ``list[dict[str, ...]]`` wp_posts ``JSON`` file with all your posts on WordPress
-    :param wp_photos_f: ``list[dict[str, ...]]`` wp_photos ``JSON`` file with all your posts on WordPress
-    :param partners: ``list[str]`` list of available partner offers.
-    :param db_name_prtner: ``str`` name of the partner database that was matched for upload
-    :param sel_indx: ``int`` index of the partner offer that corresponds to the index of the database match.
-    For more information on this parameter, you can refer to the documentation for ``content_select_db_match``
-    in the ``workflows.content_select`` module in this package.
     :param relevancy_on: ``bool`` ``True`` to enable the relevancy algorithm (experimental). Default ``False``
     :param gecko: ``bool`` ``True`` if you want to use the Gecko webdriver. Default ``False`` (Chrome)
     :param headless: ``bool`` ``True`` will enable the ``headless`` of the webdriver.
     For more information on this refer to the ``fetch_zip`` documentation on this module.
     :param parent: ``bool`` ``True`` if you are operating in the parent directory. Default ``False``
     :param wp_admin_auth: ``WPAuth`` object with information about you WP site.
+    :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
     :param gallery_sel_conf: ``GallerySelectConf`` object with configuration options for this module.
     :return: ``None``
     """
-    partners: list[str] = partners
-    all_galleries: list[tuple[str, ...]] = get_from_db(cur_prtner, "*", "sets")
+    # Configuring the required files
+    print("\n==> Warming up... ┌(◎_◎)┘")
+    hot_file_sync(bot_config=gallery_sel_conf)
+    wp_photos_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_photos)
+    wp_posts_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_posts)
+    partners: list[str] = gallery_sel_conf.partners.split(',')
+    db_conn, cur_partner, db_name_partner, partner_indx = content_select_db_match(
+        partners, gallery_sel_conf.content_hint, parent=parent
+    )
+    all_galleries: list[tuple[str, ...]] = core.fetch_data_sql(
+        gallery_sel_conf.sql_query, cur_partner)
     wp_base_url = wp_admin_auth.api_base_url
     # Prints out at the end of the uploading session.
     galleries_uploaded: int = 0
-    partner_: str = partners[sel_indx]
+    partner_: str = partners[partner_indx]
     # Gatekeeper function
-    select_guard(db_name_prtner, partner_)
+    select_guard(db_name_partner, partner_)
     if relevancy_on:
         not_published_yet = filter_relevant(
             all_galleries, wp_posts_f, wp_photos_f)
@@ -478,8 +478,7 @@ def gallery_upload_pilot(
                     title)
 
                 push_post = wordpress_api.wp_post_create(
-                    wp_base_url, ["/photos"], payload
-                )
+                    [wp_endpoints.photos], payload)
                 print(f"--> WordPress status code: {push_post}")
 
                 # Copy important information to the clipboard.
@@ -510,7 +509,7 @@ def gallery_upload_pilot(
                     # Clears clipboard after every video.
                     pyclip.clear()
                     print("==> Syncing and Caching changes. ᕕ(◎_◎)ᕗ")
-                    hot_file_sync("photos", bot_config=gallery_sel_conf)
+                    hot_file_sync(bot_config=gallery_sel_conf)
                     not_published_yet = filter_published(
                         all_galleries, wp_photos_f)
                     continue
@@ -591,25 +590,7 @@ if __name__ == "__main__":
 
     args = arg_parser.parse_args()
 
-    partners = GALLERY_SEL_CONF.partners.split(',')
-
-    db_conn, cur_dump, db_dump_name, part_indx = content_select_db_match(
-        partners, GALLERY_SEL_CONF.content_hint, parent=args.parent
-    )
-
-    print("\n==> Warming up... ┌(◎_◎)┘")
-    hot_file_sync("photos", bot_config=GALLERY_SEL_CONF)
-
-    imported_json_photos = helpers.load_json_ctx(GALLERY_SEL_CONF.wp_json_photos)
-    imported_json_posts = helpers.load_json_ctx(GALLERY_SEL_CONF.wp_json_posts)
-
     gallery_upload_pilot(
-        cur_dump,
-        imported_json_posts,
-        imported_json_photos,
-        partners,
-        db_dump_name,
-        part_indx,
         relevancy_on=args.relevancy,
         gecko=args.gecko,
         parent=args.parent,
