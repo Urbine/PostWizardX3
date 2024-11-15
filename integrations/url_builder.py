@@ -40,3 +40,22 @@ class CSVSeparators:
     pipe_sep: str = "%7C"
     comma_sep: str = "%2C"
     semicolon_sep: str = "%3B"
+
+
+@dataclass(frozen=True)
+class WPEndpoints:
+    users: str = "/users?"
+    posts: str = "/posts"
+    photos: str = "/photos"
+    per_page: str = "?per_page="
+    page: str = "?page="
+    fields_base: str = "?_fields="
+    # fields are comma-separated in the URL after the
+    # fields_base value.
+    field_author: str = "author"
+    field_id: str = "id"
+    field_except: str = "excerpt"
+    field_title: str = "title"
+    field_link: str = "link"
+    categories: str = "/categories"
+    media: str = "/media"
