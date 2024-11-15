@@ -17,6 +17,7 @@ __email__ = "yohamg@programmer.net"
 import configparser
 import csv
 import glob
+import importlib.resources
 import json
 import os
 import re
@@ -29,6 +30,7 @@ from datetime import date
 
 from bs4 import BeautifulSoup
 from calendar import month_abbr, month_name
+from configparser import ConfigParser
 from requests_oauthlib import OAuth2Session
 from selenium import webdriver
 from sqlite3 import OperationalError, Connection, Cursor
@@ -237,8 +239,8 @@ def export_request_json(
     :param parent: (bool) Place file in parent directory if True. Default False.
     :return: (None) print statement for console logging.
     """
-    is_parent = is_parent_dir_required(parent)
-    f_name = clean_filename(filename, ".json")
+    is_parent: str = is_parent_dir_required(parent)
+    f_name: str = clean_filename(filename, ".json")
     dest_dir = is_parent + f"/{folder}" if folder != "" else is_parent
 
     cwd_or_par = cwd_or_parent_path(parent)
@@ -663,6 +665,23 @@ def remove_if_exists(fname: str):
         return None
 
 
+def parse_client_config(ini_file: str, package_name: str) -> ConfigParser:
+    """Parse a client configuration files that store secrets and other configurations.
+
+    :param ini_file: ``str`` ini filename with or without the extension
+    :param package_name: ``str`` package name where the config file is located.
+    :return: ``ConfigParser``
+    """
+    f_ini = clean_filename(ini_file, "ini")
+    config = ConfigParser()
+    with importlib.resources.path(package_name, f_ini) as f_path:
+        if os.path.exists(f_path):
+            config.read(f_path)
+        else:
+            raise ConfigFileNotFound(str(f_path))
+    return config
+
+
 def parse_date_to_iso(
     full_date: str, zero_day: bool = False, m_abbr: bool = False
 ) -> date:
@@ -750,7 +769,7 @@ def write_to_file(
     """
     f_name = clean_filename(filename, extension)
     with open(
-        f"{is_parent_dir_required(parent=parent)}{folder}/{f_name}",
+        f"{is_parent_dir_required(parent)}{folder}/{f_name}",
         "w",
         encoding="utf-8",
     ) as file:
