@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
     # Build the URL
     main_url = construct_api_dump_url(
-        FeedAlpha_BASE_URL, FeedAlpha_CAMPAIGN_ID, cli_args.sort, days=cli_args.days
+        FeedAlpha_BASE_URL, FeedAlpha_CAMPAIGN_ID, cli_args.sort, days=cli_args.days, url_limit=cli_args.limit
     )
 
     # Use it to fetch the stream for the `write_to_file` functions.
@@ -191,12 +191,10 @@ if __name__ == "__main__":
         "feed_alpha-dump", "tmp", "csv", core.access_url_bs4(main_url)
     )
 
-    partners = ["feed_alpha"]
-
     # Parse the temporary csv and generate the database with the data.
-    result = feed_alpha_dump_parse("feed_alpha-dump", "./tmp", partners[0], "|")
+    result = feed_alpha_dump_parse("feed_alpha-dump", "./tmp", 'partner_test', "|")
 
     # Clean the temp .csv file in temporary folder
     clean_file_cache('tmp', 'csv')
-    print('Cleaned temporary folder...')
     print(result)
+    print('Cleaned temporary folder...')

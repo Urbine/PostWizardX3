@@ -32,90 +32,81 @@ from typing import Generator
 import xlsxwriter
 
 # Local implementations
-from core import helpers, NoSuitableArgument
-from core import WP_CLIENT_INFO
+from core import helpers, WP_CLIENT_INFO
 from core.config_mgr import WPAuth
+from integrations import WPEndpoints
 
 
 def curl_wp_self_concat(
-        wp_self: str, param_lst: list[str], secrets: WPAuth = WP_CLIENT_INFO) -> requests:
+        param_lst: list[str], secrets: WPAuth = WP_CLIENT_INFO) -> requests:
     """Makes the ``GET`` request based on the curl mechanism as described on the docs.
 
     ``curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit``
 
     In other words: ``curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS``
 
-    :param wp_self: ``str`` wp base url
     :param param_lst: ``list[str]`` list of URl params
     :param secrets: ``WPAuth`` Object that contains the secrets to access WordPress.
     :return: ``JSON`` object
     """
+    wp_self: str = secrets.api_base_url
     username_: str = secrets.user
     app_pass_: str = secrets.app_password
     wp_self: str = wp_self + "".join(param_lst)
     return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"})
 
 
-def wp_post_create(
-        wp_self: str, param_lst: list[str], payload, secrets: WPAuth = WP_CLIENT_INFO):
+def wp_post_create(endp_lst: list[str], payload,
+                   secrets: WPAuth = WP_CLIENT_INFO):
     """Makes the ``POST`` request based on the mechanism as described on the docs.
 
     :param payload: ``dict`` with the post information.
-    :param wp_self: ``str`` wp base url
-    :param param_lst: ``list[str]`` list of URl params
+    :param endp_lst: ``list[str]`` list of URl params
     :param secrets: ``WPAuth`` Object with the secrets to access WordPress
     :return: ``JSON`` object
     """
-    # client_info_file = helpers.get_client_info("client_info")
-    # username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"][
-    #     "username"
-    # ]
-    # app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"][
-    #     "app_password"
-    # ]
+    wp_self: str = secrets.api_base_url
     username_: str = secrets.user
     app_pass_: str = secrets.app_password
     auth_wp = HTTPBasicAuth(username_, app_pass_)
-    wp_self: str = wp_self + "".join(param_lst)
+    wp_self: str = wp_self + "".join(endp_lst)
     return requests.post(wp_self, json=payload, auth=auth_wp).status_code
 
 
-def create_wp_local_cache(
-    hostname: str,
-    params_dict: dict[str, str],
-    endpoint: str,
-    wp_filen: str,
-    parent: bool = False,
-) -> list[dict]:
+def create_wp_local_cache(endpoint: WPEndpoints = WPEndpoints, wp_auth: WPAuth = WP_CLIENT_INFO,
+                          photos: bool = False) -> list[dict]:
     """Gets all posts from your WP Site.
     It does this by fetching every page with 10 posts each and concatenating the ``JSON``
     responses to return a single list of dict elements.
 
-    :param parent: ``True`` if your config file will be located in parent dir. Default ``False``.
-    :param wp_filen: ``str`` File name of your new wp_cache_file
-    :param endpoint: ``str`` endpoint key within the params ``dict``.
-    :param hostname: ``str`` hostname of your WP site.
-    :param params_dict: ``dict`` with the rest parameters in the URL.
+    :param endpoint: ``WPEndpoints`` object with the WordPress REST Endpoints
+    :param wp_auth: ``WPAuth`` object with local configuration options and important filenames.
+    :param photos: ``bool`` ``True`` if you want to cache photo posts. Default ``False``
     :return: ``list[dict]``
     """
     # Accumulation of dict elements for concatenation.
     result_dict: list[dict] = []
-    base_url: str = f"https://{hostname}/wp-json/wp/v2"
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
     page_num: int = 1
     x_wp_total = 0
     x_wp_totalpages = 0
-    params_posts: list[str] = [params_dict["posts"][endpoint]]
+    end_params_posts: list[str] = [
+        endpoint.photos] if photos else [
+        endpoint.posts]
     page_num_param: bool = False
+    wp_cache: str = helpers.clean_filename(
+        wp_auth.wp_photos_file
+        if photos else wp_auth.wp_posts_file, 'json'
+    )
     print(
-        f"\nCreating WordPress {helpers.clean_filename(wp_filen, 'json')} cache file...\n"
+        f"\nCreating WordPress {wp_cache} cache file...\n"
     )
     while True:
-        curl_json = curl_wp_self_concat(base_url, params_posts)
+        curl_json = curl_wp_self_concat(end_params_posts)
         if curl_json.status_code == 400:
             # Assumes that no config file exists.
-            local_cache_config(wp_filen, x_wp_totalpages, x_wp_total)
+            local_cache_config(wp_cache, x_wp_totalpages, x_wp_total)
             print(f"\n{'DONE':=^30}\n")
             return result_dict
         else:
@@ -125,18 +116,13 @@ def create_wp_local_cache(
                 headers = curl_json.headers
                 x_wp_total += int(headers["x-wp-total"])
                 x_wp_totalpages += int(headers["x-wp-totalpages"])
-                params_posts.append(params_dict["posts"]["page"])
-                params_posts.append(str(page_num))
+                end_params_posts.append(endpoint.page)
+                end_params_posts.append(str(page_num))
                 page_num_param = True
             else:
-                params_posts[-1] = str(page_num)
+                end_params_posts[-1] = str(page_num)
             for item in curl_json.json():
                 result_dict.append(item)
-
-
-# Note:
-# Tags and its IDs are repeated and must be isolated
-# to count for the unique elements in each dictionary and merge them.
 
 
 def get_tags_num_count(
@@ -307,7 +293,7 @@ def map_posts_by_id(wp_posts_f: list[dict], host_name=None) -> dict[str, str]:
     :return: ``dict[str, str]``
     """
     u_pack = zip([idd["id"] for idd in wp_posts_f], [url["slug"]
-                 for url in wp_posts_f])
+                                                     for url in wp_posts_f])
     if host_name is not None:
         # if the user specifies a hostname with another TLD, .com will not be used!
         # clean_filename has a "trust" mode.
@@ -342,7 +328,7 @@ def map_tags_post_urls(
 
 
 def map_tags_posts(
-    wp_posts_f: list[dict], host_name: str = None, idd: str = None
+        wp_posts_f: list[dict], host_name: str = None, idd: str = None
 ) -> dict[str, list[str]]:
     """This function makes a ``{"Tag": ["post slug", ...]}`` or ``{"Tag": ["post id", ...]}`` dictionary.
 
@@ -432,7 +418,6 @@ def get_post_models(wp_posts_f: list[dict]) -> list[str]:
     return [",".join(model) if len(model) != 0 else None for model in models]
 
 
-#
 def get_post_category(wp_posts_f: list[dict]) -> list[str]:
     """It assumes that each post has only one category, so that's why I am not joining
         them with commas within the return list comprehension.
@@ -495,7 +480,7 @@ def get_post_descriptions(
 
 
 def map_wp_class_id(
-    wp_posts_f: list[dict], match_word: str, key_wp: str
+        wp_posts_f: list[dict], match_word: str, key_wp: str
 ) -> dict[str, int]:
     """
     This function parses the wp_posts or wp_photos JSON files to locate and map tags or other
@@ -554,14 +539,14 @@ def map_wp_class_id(
 
 # noinspection PyTypeChecker
 def create_tag_report_excel(
-    wp_posts_f: list[dict], workbook_name: str, parent: bool = False
+        wp_posts_f: list[dict], workbook_name: str, parent: bool = False
 ) -> None:
     """Write the tagging information into an Excel ``.xlsx`` file.
 
     :param parent: ``bool`` Place the workbook in the parent directory if ``True``, default ``False``.
     :param wp_posts_f: ``list[dict]`` WP Posts ``JSON``
     :param workbook_name: ``str`` workbook name with or without extension.
-    :return: None
+    :return: ``None``
     """
     workbook_fname = helpers.clean_filename(workbook_name, ".xlsx")
     dir_prefix = helpers.is_parent_dir_required(parent)
@@ -605,20 +590,14 @@ def create_tag_report_excel(
     return None
 
 
-def update_published_titles_db(
-    db_name: str,
-    wp_posts_f: list[dict],
-    parent: bool = False,
-    photosets: bool = False,
-    yoast: bool = False,
-) -> None:
+def update_published_titles_db(wp_posts_f: list[dict], parent: bool = False, photosets: bool = False,
+                               yoast: bool = False) -> None:
     """Creates a ``SQLite`` db based on the ``wp_post_f`` that will be used by other modules to
         compare information in a different format. Sometimes, titles and descriptions can't be matched by
         the built-in ``re`` module in Python due to character sets or encodings present in different pieces of
         information extracted from WordPress. This is where, by having a db, we can conduct simple comparison
         operations without explicit pattern matching with ``re``.
 
-    :param db_name: ``str`` self-explanatory
     :param wp_posts_f: As extensively detailed, this is a ``list[dict]`` comprised of post dicts.
     :param parent: ``True`` if you want to place your database in the parent directory. Default ``False``.
     :param photosets: ``True`` if you want to build a photoset db. Default ``False``
@@ -626,8 +605,9 @@ def update_published_titles_db(
                    when fields have unwanted HTML entities. Default ``False``.
     :return: ``None`` (Database file in working or parent directory)
     """
-    db_name = helpers.clean_filename(db_name, ".db")
-    db_full_name = f"{helpers.is_parent_dir_required(parent=parent)}{db_name}"
+    db_name = (f"wp-photos-{datetime.date.today()}.db"
+               if photosets else f"wp-posts-{datetime.date.today()}.db")
+    db_full_name = f"{helpers.is_parent_dir_required(parent)}{db_name}"
     # SQLite3 can't overwrite an existing db with the same table.
     helpers.remove_if_exists(db_full_name)
     db = sqlite3.connect(db_full_name)
@@ -656,7 +636,8 @@ def update_published_titles_db(
 
 
 def upload_thumbnail(
-    wp_self: str, param_lst: list[str], file_path: str, payload: dict[str, str | int], secrets: WPAuth = WP_CLIENT_INFO,
+        wp_self: str, param_lst: list[str], file_path: str, payload: dict[str, str | int],
+        secrets: WPAuth = WP_CLIENT_INFO,
 ) -> int:
     """Uploads video thumbnail or any other image as a *WordPress* media attachment.
 
@@ -687,14 +668,6 @@ def upload_thumbnail(
             associated with the ``['id']`` key of the ``JSON`` response file, thus raising a ``KeyError`` exception.
             The function returns the request status code for further handling and debugging.
     """
-    # In case of an error. Sometimes get_client_info is None.
-    # client_info_file = helpers.load_json_ctx("client_info")
-    # username_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"][
-    #     "username"
-    # ]
-    # app_pass_: str = client_info_file["WordPress"]["user_apps"]["wordpress_api.py"][
-    #     "app_password"
-    # ]
     username_: str = secrets.user
     app_pass_: str = secrets.app_password
     auth_wp = HTTPBasicAuth(username_, app_pass_)
@@ -712,17 +685,18 @@ def upload_thumbnail(
 
 
 def local_cache_config(wp_filen: str, wp_curr_page: int,
-                       total_posts: int) -> str:
+                       total_posts: int, wp_auth: WPAuth = WP_CLIENT_INFO) -> str:
     """Creates a new config file and locates existing local cache configuration files to update its contents
         with new information about cached pages, post quantity, and date of update.
 
     :param wp_filen: ``str`` Name of the current WordPress Post/Photo file to link the file
-                    with its corresponding configuration.
-    :param wp_curr_page: ``int`` Last cached page
+                      with its corresponding configuration.
+    :param wp_auth: ``WPAuth`` object with file configuration information.
+    :param wp_curr_page: ``int`` Last cached page.
     :param total_posts: ``int`` self-explanatory, obtained from another function.
     :return: Function ``helpers.export_request_json`` with a return type of ``str``.
     """
-    wp_cache_filename = "wp_cache_config.json"
+    wp_cache_filename = wp_auth.wp_cache_file
     wp_filen = helpers.clean_filename(wp_filen, ".json")
     parent = False if os.path.exists(f"./{wp_cache_filename}") else True
     locate_conf = helpers.search_files_by_ext(".json", "", parent=parent)
@@ -757,42 +731,39 @@ def local_cache_config(wp_filen: str, wp_curr_page: int,
         )
 
 
-def update_json_cache(
-    hostname: str,
-    params_dict: dict[str, str],
-    endpoint: str,
-    config_dict: list[dict],
-    wp_filen: str,
-) -> list[dict]:
+def update_json_cache(photos: bool = False, wp_endpoints: WPEndpoints = WPEndpoints,
+                      wp_auth: WPAuth = WP_CLIENT_INFO) -> list[dict[str, ...]]:
     """Updates the local wp cache files for processing.
     It does this by fetching the last page cached and calculating the
     difference between the total elements variable from the ``HTTP`` request and
     the reported items in the local configuration file.
 
-    :param wp_filen: ``str`` Where you stored your cached WordPress post data.
-    :param config_dict: ``list[dict]`` Configuration file in JSON format (loaded as ``dict``) .
-    :param endpoint: ``str`` Endpoint key within the params dict.
-    :param hostname: ``str`` Hostname of your WP site.
-    :param params_dict: ``dict[str, str]`` with the rest parameters in the URL.
+    :param photos: ``bool`` ``True`` if you are processing the ``photos`` WordPress cache.
+    :param wp_endpoints: ``WPEndpoints`` object to access the WordPress REST API Endpoints.
+    :param wp_auth: ``WPAuth`` object with file configuration information.
     :return: ``list[dict]`` Updated ``JSON`` cache file.
     """
-    config = config_dict
-    base_url: str = f"https://{hostname}/wp-json/wp/v2"
+    config = helpers.load_json_ctx(wp_auth.wp_cache_file)
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
-    params_posts: list[str] = [params_dict["posts"][endpoint]]
+    params_posts: list[str] = [
+        wp_endpoints.photos] if photos else [
+        wp_endpoints.posts]
     x_wp_total = 0
     x_wp_totalpages = 0
-    clean_fname = helpers.clean_filename(wp_filen, ".json")
+    clean_fname = helpers.clean_filename(
+        wp_auth.wp_photos_file
+        if photos else wp_auth.wp_posts_file,
+        ".json")
     # The loop will add 1 to page num when the first request is successful.
     page_num = [dic[clean_fname]["cached_pages"]
                 for dic in config if clean_fname in dic.keys()][0] - 2
-    result_dict = helpers.load_json_ctx(wp_filen)
+    result_dict = helpers.load_json_ctx(clean_fname)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []
     page_num_param: bool = False
     while True:
-        curl_json = curl_wp_self_concat(base_url, params_posts)
+        curl_json = curl_wp_self_concat(params_posts)
         if curl_json.status_code == 400:
             diff = x_wp_total - total_elems
             if diff == 0:
@@ -802,7 +773,7 @@ def update_json_cache(
                 add_list.reverse()
                 for recent in add_list:
                     result_dict.insert(0, recent)
-            local_cache_config(wp_filen, page_num, x_wp_total)
+            local_cache_config(clean_fname, page_num, x_wp_total)
             return result_dict
         else:
             page_num += 1
@@ -810,7 +781,7 @@ def update_json_cache(
                 headers = curl_json.headers
                 x_wp_total += int(headers["x-wp-total"])
                 x_wp_totalpages += int(headers["x-wp-totalpages"])
-                params_posts.append(params_dict["posts"]["page"])
+                params_posts.append(wp_endpoints.page)
                 params_posts.append(str(page_num))
                 page_num_param = True
             else:
@@ -822,26 +793,15 @@ def update_json_cache(
                     continue
 
 
-def upgrade_wp_local_cache(
-    host: str,
-    params_dict: dict[str, str],
-    endpoint: str,
-    wp_filen: str,
-    wp_db_name_: str,
-    cached: bool = False,
-    parent: bool = False,
-    yoast: bool = False,
-) -> None:
+def upgrade_wp_local_cache(wp_auth: WPAuth = WP_CLIENT_INFO, photos: bool = False, cached: bool = False,
+                           parent: bool = False, yoast: bool = False) -> None:
     """Updates both the WP post information ``JSON`` file (posts and photos) and creates a ``SQLite3`` database
         using the cached files.
 
-    :param host: ``str`` Base url (WP Self)
-    :param params_dict: ``dict[str, str]`` of parameters (rest_params) that helping functions will parse and use.
-    :param endpoint: ``params_dict`` key that describes the type of post that you want to cache, just the key ``str``.
-    :param wp_filen: ``str`` Desired filename for your cached file.
-    :param wp_db_name_: ``str`` Desired filename for your cached database.
+    :param wp_auth: ``WPAuth`` object with file configuration information.
+    :param photos: ``bool`` ``True`` if you are processing the ``photos`` WordPress cache.
     :param cached: ``True`` to update db and config files with cached data. Default ``False``
-           If set to `True`, the ``cache`` and ``config`` files will be rebuilt.
+                   If set to `True`, the ``cache`` and ``config`` files will be rebuilt.
     :param parent: ``True`` if you want to place both your config and post info ``JSON`` files in the parent dir.
                    Default ``False``.
     :param yoast: ``True`` to enable the Yoast SEO metadata for the published titles db. Default ``False``.
@@ -850,52 +810,27 @@ def upgrade_wp_local_cache(
              make sure to load the appropriate file with the ``JSON`` built-in functions or the local ``helpers`` module.
              For example: ``imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)``
     """
-    l_config = helpers.load_json_ctx("wp_cache_config.json")
+    wp_cache = wp_auth.wp_photos_file if photos else wp_auth.wp_posts_file
     if cached:
-        updated_local_cache = update_json_cache(
-            host, params_dict, endpoint, l_config, wp_filen
-        )
-
+        updated_local_cache = update_json_cache(photos=photos)
     else:
-        updated_local_cache = create_wp_local_cache(
-            host, params_dict, endpoint, wp_filen, parent=parent
-        )
+        updated_local_cache = create_wp_local_cache(photos=photos)
 
     helpers.export_request_json(
-        wp_filen, updated_local_cache, 1, parent=parent)
-    local_json: list[dict] = helpers.load_json_ctx(wp_filen)
+        wp_cache, updated_local_cache, 1, parent=parent)
+    local_json: list[dict[str, str]] = helpers.load_json_ctx(wp_cache)
     update_published_titles_db(
-        wp_db_name_,
         local_json,
         parent=parent,
-        yoast=yoast)
+        yoast=yoast,
+        photosets=photos)
     return None
 
 
 hostname: str = WP_CLIENT_INFO.hostname
 b_url: str = WP_CLIENT_INFO.api_base_url
 
-# It is possible to add more REST parameters.
-rest_params: dict = {
-    "users": "/users?",
-    "posts": {
-        "posts_url": "/posts",
-        "photos": "/photos",
-        "per_page": "?per_page=",
-        "page": "?page=",
-        "fields": {
-            "fields_base": "?_fields=",
-            # fields are comma-separated in the URL after the
-            # fields_base value.
-            "fields": ["author", "id", "excerpt", "title", "link"],
-        },
-        "categories": "/categories",
-    },
-    "media": "/media",
-}
-
 if __name__ == "__main__":
-
     # Suppress RuntimeWarnings during import
     warnings.filterwarnings(
         "ignore",
@@ -921,52 +856,24 @@ if __name__ == "__main__":
     )
 
     args_parser.add_argument(
-        "--posts",
-        action="store_true",
-        help="Update the wp_posts local cache or associated files (db/config).",
+        "--photos",
+        action="store_true", default=False,
+        help="Update the wp_photos local cache or associated files (db/config).",
     )
 
     args_parser.add_argument(
-        "--photos",
+        "--yoast",
         action="store_true",
-        help="Update the wp_photos local cache or associated files (db/config).",
+        help="Enable Yoast SEO mode in compatible functions.",
     )
 
     args = args_parser.parse_args()
 
-    # Standardizing db names for consistency
-    DB_NAME_POSTS = f"wp-posts-{datetime.date.today()}"
-    DB_NAME_PHOTOS = f"wp-photos-{datetime.date.today()}"
-
-    CACHE_NAME_POSTS = "wp_posts"
-    CACHE_NAME_PHOTOS = "wp_photos"
-
-    if args.posts:
-        endpoint_key = "posts_url"
-        wp_filename = CACHE_NAME_POSTS
-        wp_db_name = DB_NAME_POSTS
-
-    elif args.photos:
-        endpoint_key = "photos"
-        wp_filename = CACHE_NAME_PHOTOS
-        wp_db_name = DB_NAME_PHOTOS
-
-    else:
-        program_name = __file__.split("/")[-1:][0]
-        raise NoSuitableArgument(
-            f"No arguments have been provided. Run {program_name} --help for options."
-        )
-
     upgrade_wp_local_cache(
-        hostname,
-        rest_params,
-        endpoint_key,
-        wp_filename,
-        wp_db_name,
+        photos=args.photos,
         cached=args.cached,
         parent=args.parent,
-        yoast=True,
-    )
+        yoast=args.yoast)
 
     # Loading local cache
     # imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
