@@ -14,6 +14,7 @@ from .url_builder import CSVColumns, CSVSeparators
 from workflows import clean_file_cache
 
 PartnerOne_BASE_URL = 'https://example-feed-a.com/admin/feeds/embed/?source=576422190'
+FEED_BETA_BASE_URL = 'https://example-feed-b.com/admin/feeds/embed/?source=576422190'
 
 
 def construct_feed_beta_dump_url(
@@ -69,7 +70,7 @@ def construct_feed_beta_dump_url(
     return f"{base_url}{format}{screenshot_format}{sorting}{days}{limit}{sep_param}{csv_columns}"
 
 
-def feed_beta_dump_parse(filename: str, dirname: str,
+def feed_dump_parse(filename: str, dirname: str,
                     partner: str, sep: str) -> str:
     """
     Parse the text dump based on the parameters that ``construct_feed_beta_dump_url`` constructed.
@@ -131,7 +132,8 @@ def feed_beta_dump_parse(filename: str, dirname: str,
 
                 # As mentioned in other modules, slugs have to contain the
                 # content type
-                wp_slug = f"{website_link.split('/')[-2:][0]}-{partner}-video"
+                wp_slug = (f"{website_link.split('/')[-2:][0]}-{partner}-video"
+                           if partner != '' else f"{website_link.split('/')[-2:][0]}-video")
 
                 all_values = (
                     id_,
@@ -159,7 +161,7 @@ def feed_beta_dump_parse(filename: str, dirname: str,
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(
-        description='PartnerEight integration - CLI Interface')
+        description='Feed Beta feeds integration - CLI Interface')
 
     arg_parser.add_argument('-sort', type=str,
                             help="""Sorting criteria from possible values:
@@ -179,11 +181,14 @@ if __name__ == '__main__':
 
     cli_args = arg_parser.parse_args()
 
-    # Build the dump URL
+    # Build the PartnerEight dump URL
     main_url = construct_feed_beta_dump_url(
-        PartnerOne_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit)
+        PartnerOne_BASE_URL,
+        cli_args.sort,
+        cli_args.days,
+        url_limit=cli_args.limit)
 
-    # Get the dump file and write it into a .csv file
+    # Get the PartnerEight dump file and write it into a .csv file
     core.write_to_file(
         'feed_beta-dump',
         'tmp',
@@ -191,10 +196,27 @@ if __name__ == '__main__':
         core.access_url_bs4(main_url))
 
     # Parse the temporary CSV dump file
-    result = feed_beta_dump_parse("feed_beta-dump", "tmp", 'feed_beta', "|")
-
-    # Clean the temp .csv file in temporary folder
-    clean_file_cache('tmp', 'csv')
-    print('Cleaned temporary folder...')
+    result = feed_dump_parse("feed_beta-dump", "tmp", 'partner_test', "|")
 
     print(result)
+
+    # Build the PartnerNine dump URL
+    main_url = construct_feed_beta_dump_url(
+        FEED_BETA_BASE_URL,
+        cli_args.sort,
+        cli_args.days,
+        url_limit=cli_args.limit)
+
+    # Get the PartnerNine dump file and write it into a .csv file
+    core.write_to_file(
+        'feed-b-dump',
+        'tmp',
+        'csv',
+        core.access_url_bs4(main_url))
+
+    result = feed_dump_parse("feed-b-dump", "tmp", '', "|")
+
+    # Clean the temp PartnerNine .csv file in temporary folder
+    clean_file_cache('tmp', 'csv')
+    print(result)
+    print('Cleaned temporary folder...')
