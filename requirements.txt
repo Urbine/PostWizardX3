@@ -1,0 +1,10 @@
+beautifulsoup4~=4.12.3
+requests-oauthlib~=2.0.0
+selenium~=4.24.0
+playwright~=1.47.0
+pyclip~=0.7.0
+requests~=2.32.3
+XlsxWriter~=3.2.0
+joblib~=1.4.2
+nltk~=3.9.1
+scikit-learn~=1.5.2
