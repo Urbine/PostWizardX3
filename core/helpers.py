@@ -21,11 +21,11 @@ import importlib.resources
 import json
 import os
 import re
+import shutil
 import sqlite3
 import urllib
 import urllib.request
 import urllib.error
-
 from datetime import date
 
 from bs4 import BeautifulSoup
@@ -116,6 +116,36 @@ def clean_filename(filename: str, extension: str = None) -> str:
             return filename + "." + extension
     else:
         return filename + "." + extension
+
+
+def clean_file_cache(cache_folder: str, file_ext: str) -> None:
+    """The purpose of this function is simple: cleaning remaining temporary files once the job control
+    has used them; this is specially useful when dealing with thumbnails.
+
+    :param cache_folder: ``str`` folder used for caching (name only)
+    :param file_ext: ``str`` file extension of cached files to be removed
+    :return: ``None``
+    """
+    parent: bool = False if os.path.exists(f"./{cache_folder}") else True
+    cache_files: list[str] = search_files_by_ext(
+        file_ext, parent=parent, folder=cache_folder
+    )
+
+    go_to_folder: str = is_parent_dir_required(parent) + cache_folder
+    folders: list[str] = glob.glob(f"{go_to_folder}/*")
+    if cache_files:
+        os.chdir(go_to_folder)
+        for file in cache_files:
+            os.remove(file)
+    elif folders:
+        for item in folders:
+            try:
+                shutil.rmtree(item)
+            except NotADirectoryError:
+                os.remove(item)
+            finally:
+                continue
+    return None
 
 
 def clean_path(folder: str, prefix: bool = False) -> str:
@@ -228,7 +258,7 @@ def filename_select(extension: str, parent: bool = False,
 
 
 def export_request_json(
-    filename: str, stream, indent: int = 1, parent: bool = False, folder: str = ""
+        filename: str, stream, indent: int = 1, parent: bool = False, folder: str = ""
 ) -> str:
     """This function writes a ``JSON`` file to either your parent or current working dir.
 
@@ -276,11 +306,11 @@ def export_to_csv_nt(nmedtpl_lst: list, filename: str,
 
 
 def get_token_oauth(
-    client_id_: str,
-    uri_callback_: str,
-    client_secret_: str,
-    auth_url_: str,
-    token_url_: str,
+        client_id_: str,
+        uri_callback_: str,
+        client_secret_: str,
+        auth_url_: str,
+        token_url_: str,
 ) -> json:
     """Uses the OAuth2Session module from requests_oauthlib to obtain an
     authentication token for compatible APIs. All parameters are self-explanatory.
@@ -325,7 +355,7 @@ def is_parent_dir_required(parent: bool) -> str:
 
 
 def get_client_info(
-    filename: str, logg_err: bool = False
+        filename: str, logg_err: bool = False
 ) -> dict[str, [str, str]] | None:
     """This function handles API secrets in a way that completely eliminates the need
     to use them inside the code. It can be any ``JSON`` file that you create for that purpose and,
@@ -351,7 +381,7 @@ def get_client_info(
         return None
 
 
-def get_duration(seconds: int) -> tuple[int, int, int]:
+def get_duration(seconds: int | float) -> tuple[int | float, int | float, int | float]:
     """Takes the number of seconds and calculates its duration in hours, minutes, and seconds.
 
     :param seconds: ``int``
@@ -391,7 +421,7 @@ def get_from_db(cur: sqlite3, field: str, table: str) -> list[tuple] | None:
 
 
 def get_project_db(
-    parent: bool = False, folder: str = ""
+        parent: bool = False, folder: str = ""
 ) -> tuple[Connection, Cursor, str]:
     """Look for databases in the project files either from a child directory or root.
 
@@ -412,7 +442,7 @@ def get_project_db(
 
 
 def get_webdriver(
-    download_folder: str, headless: bool = False, gecko: bool = False
+        download_folder: str, headless: bool = False, gecko: bool = False
 ) -> webdriver:
     """Get a webdriver with customisable settings via parameters.
 
@@ -495,7 +525,7 @@ def match_list_single(hint: str, items: list,
 
 
 def match_list_mult(
-    hint: str, list_lookup: list[str], ignore_case: bool = False
+        hint: str, list_lookup: list[str], ignore_case: bool = False
 ) -> list[int]:
     """Matches a ``str`` within a list and returns the indexes where such matches occurred.
 
@@ -513,12 +543,12 @@ def match_list_mult(
 
 
 def match_list_elem_date(
-    l_hints: list[str],
-    lookup_list: list[str],
-    ignore_case: bool = False,
-    join_hints: tuple[bool, str, str] = (False, "", ""),
-    strict: bool = False,
-    reverse: bool = False,
+        l_hints: list[str],
+        lookup_list: list[str],
+        ignore_case: bool = False,
+        join_hints: tuple[bool, str, str] = (False, "", ""),
+        strict: bool = False,
+        reverse: bool = False,
 ) -> list[str]:
     """Finds matches, within a list of strings, and compares the dates in each of the strings to return the items
     that are associated with the latest dates; therefore, leaving out strings with the same name that do not contain
@@ -604,6 +634,17 @@ def match_list_elem_date(
     else:
         return up_to_date
 
+def load_file_path(package: str, filename: str):
+    """ Load resources stored within folders in packages.
+    Usually, not all systems can locate the required resources due to the package structure of the project.
+    :param package: ``str`` package name, for example, if you have a file name in `./models`
+    (being ./ a package itself) you can specify ``package.models`` here.
+    :param filename: ``str`` name of the filename you are trying to load.
+    :return: ``Path`` object
+    """
+    with importlib.resources.path(package, filename) as n_path:
+        return n_path
+
 
 def load_json_ctx(filename: str, log_err: bool = False):
     """This function makes it possible to assign a JSON file from storage to a variable.
@@ -683,7 +724,7 @@ def parse_client_config(ini_file: str, package_name: str) -> ConfigParser:
 
 
 def parse_date_to_iso(
-    full_date: str, zero_day: bool = False, m_abbr: bool = False
+        full_date: str, zero_day: bool = False, m_abbr: bool = False
 ) -> date:
     """Breaks down the full date string and converts it to ISO format to get a datetime.date object.
     important: Make sure to import 'from calendar import month_abbr, month_name' as it is required.
@@ -707,7 +748,7 @@ def parse_date_to_iso(
 
     if int(month_num) <= 9:
         month_num = "0" + \
-            str(months.index(full_date.split(",")[0].split(" ")[0]))
+                    str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     day_nth = str(full_date.split(",")[0].split(" ")[1])
     day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
@@ -723,7 +764,7 @@ def parse_date_to_iso(
 
 
 def search_files_by_ext(
-    extension: str, folder: str, recursive: bool = False, parent=False
+        extension: str, folder: str, recursive: bool = False, parent=False
 ) -> list[str]:
     """This function searches for files with the specified extension
     and returns a list with the files in either parent or current working directories.
@@ -752,7 +793,7 @@ def search_files_by_ext(
 
 
 def write_to_file(
-    filename: str, folder: str, extension: str, stream, parent=None
+        filename: str, folder: str, extension: str, stream, parent=None
 ) -> None:
     """Write to file initializes a context manager to write a stream of data to a file with
     an extension specified by the user. This helper function reduces the need to repeat the code
@@ -769,9 +810,9 @@ def write_to_file(
     """
     f_name = clean_filename(filename, extension)
     with open(
-        f"{is_parent_dir_required(parent)}{folder}/{f_name}",
-        "w",
-        encoding="utf-8",
+            f"{is_parent_dir_required(parent)}{folder}/{f_name}",
+            "w",
+            encoding="utf-8",
     ) as file:
         file.write(str(stream))
     print(f"Created file {f_name} in {folder}")

@@ -24,6 +24,7 @@ from core.custom_exceptions import UnsupportedParameter
 from core.helpers import access_url
 from core.helpers import access_url_bs4
 from core.helpers import clean_filename
+from core.helpers import clean_file_cache
 from core.helpers import clean_path
 from core.helpers import cwd_or_parent_path
 from core.helpers import export_client_info
@@ -40,6 +41,7 @@ from core.helpers import get_project_db
 from core.helpers import get_token_oauth
 from core.helpers import get_webdriver
 from core.helpers import is_parent_dir_required
+from core.helpers import load_file_path
 from core.helpers import load_from_file
 from core.helpers import load_json_ctx
 from core.helpers import match_list_elem_date
@@ -57,6 +59,7 @@ __all__ = [
     "access_url",
     "access_url_bs4",
     "clean_filename",
+    "clean_file_cache",
     "clean_path",
     "cwd_or_parent_path",
     "filename_creation_helper",
@@ -74,6 +77,7 @@ __all__ = [
     "is_parent_dir_required",
     "match_list_elem_date",
     "match_list_mult",
+    "load_file_path",
     "load_from_file",
     "load_json_ctx",
     "parse_date_to_iso",
