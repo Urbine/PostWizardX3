@@ -66,7 +66,7 @@ class GallerySelectConf:
     partners: str
 
 
-@dataclass()
+@dataclass(frozen=True)
 class EmbedAssistConf:
     thumbnail_dir: str
     wp_json_posts: str
@@ -124,8 +124,8 @@ GALLERY_SEL_CONF = GallerySelectConf(
     wp_json_posts=workflows_config['gallery_select']['wp_json_posts'],
     wp_cache_config=workflows_config['gallery_select']['wp_cache_config'],
     content_hint=workflows_config['gallery_select']['db_content_hint'],
-    sql_query=workflows_config['gallery_select']['db_content_hint'],
-    partners=workflows_config['gallery_select']['sql_query']
+    sql_query=workflows_config['gallery_select']['sql_query'],
+    partners=workflows_config['gallery_select']['partners']
 )
 
 EMBED_ASSIST_CONF = EmbedAssistConf(

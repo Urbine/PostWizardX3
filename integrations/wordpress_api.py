@@ -512,7 +512,7 @@ def map_wp_class_id(
 
     :param wp_posts_f: list[dict] (wp_posts or wp_photos) previously loaded in the program.
     :param match_word: ``str`` prefix of the keywords that you want to match.
-    :param key_wp: ``dict`` key where the numeric values are located.
+    :param key_wp: ``str`` key where the numeric values are located.
     :return: ``dict[str, int]`` {'keyword': associated numeric value}
     """
     result_dict = {}
@@ -529,6 +529,40 @@ def map_wp_class_id(
                 result_dict[name] = wp_id
             else:
                 continue
+    return result_dict
+
+
+def map_wp_class_id_many(
+        wp_posts_f: list[dict], match_word: str, comp_word: str
+) -> dict[str, set[str]]:
+    """ Combine two keys in the ``[class-list]`` key.
+    In this case, the function is useful to map different elements with their respective
+    patterns into a single data structure.
+
+    :param wp_posts_f: list[dict] (wp_posts or wp_photos) previously loaded in the program.
+    :param match_word: ``str`` prefix of the keywords that you want to match_word.
+    :param comp_word: ``str`` complementary pattern to map it with the match_word matches.
+    :return: ``dict[str, set[str]]`` {'keyword': set{}}
+    """
+    result_dict = {}
+    for elem in wp_posts_f:
+        kw = [
+            " ".join(item.split("-")[1:]).title()
+            for item in elem["class_list"]
+            if re.findall(match_word, item)
+        ]
+
+        d_kw = [
+            " ".join(item.split("-")[1:]).title()
+            for item in elem["class_list"]
+            if re.findall(comp_word, item)
+        ]
+
+        for item in d_kw:
+            if item not in result_dict.keys():
+                result_dict[item] = set(kw)
+            else:
+                result_dict[item].union(set(kw))
     return result_dict
 
 

@@ -32,10 +32,10 @@ from workflows.content_select import (
     filter_published,
     get_tag_ids,
     select_guard,
-    clean_file_cache,
     published_json,
     content_select_db_match,
 )
+from core.helpers import clean_file_cache
 
 from core import helpers, MONGER_CASH_INFO, WP_CLIENT_INFO, GALLERY_SEL_CONF
 # Imported for typing purposes
@@ -405,7 +405,6 @@ def gallery_upload_pilot(
     )
     all_galleries: list[tuple[str, ...]] = core.fetch_data_sql(
         gallery_sel_conf.sql_query, cur_partner)
-    wp_base_url = wp_admin_auth.api_base_url
     # Prints out at the end of the uploading session.
     galleries_uploaded: int = 0
     partner_: str = partners[partner_indx]

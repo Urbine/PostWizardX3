@@ -5,7 +5,7 @@ import sqlite3
 
 # Local implementations
 import core
-from workflows import clean_file_cache
+from core.helpers import clean_file_cache
 from .url_builder import CSVColumns, CSVSeparators
 
 # Constants

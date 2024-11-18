@@ -15,8 +15,10 @@ __email__ = "yohamg@programmer.net"
 import os
 import pyclip
 from requests.exceptions import ConnectionError, SSLError
+import readline
+import sys
 import time
-import sqlite3
+
 
 # Local implementations
 from core import helpers
@@ -27,6 +29,7 @@ from core.config_mgr import (EmbedAssistConf,
                              WP_CLIENT_INFO)
 
 from integrations import wordpress_api, WPEndpoints
+from ml_engine import classify_title, classify_description
 
 
 def filter_tags(tgs: str, filter_lst: list[str]) -> list[str]:
@@ -99,6 +102,7 @@ def embedding_pilot(
     cs.hot_file_sync(bot_config=embed_ast_conf)
     wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
     partner_list = embed_ast_conf.partners.split(',')
+    os.system('clear')
     db_conn, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
         partner_list, embed_ast_conf.content_hint
     )
@@ -184,12 +188,13 @@ def embedding_pilot(
                 case "3":
                     wp_slug = slugs[2]
                 case "4":
-                    wp_slug = input("Enter your slug now: ")
+                    pyclip.copy(slugs[0])
+                    print("Enter your slug now: ")
+                    wp_slug = sys.stdin.readline().strip('\n')
                 case _:
                     # Parsing slug by default.
                     wp_slug = slugs[0]
 
-            print("\n--> Making payload...")
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make the more general.
             tag_prep = filter_tags(categories, ["asian", "japanese"])
@@ -214,8 +219,40 @@ def embedding_pilot(
                         pyclip.copy(tag)
                     else:
                         pass
-            # 38 is Japanese Amateur Porn
-            category = [38] if partner == "abjav" or "vjav" else [40]
+
+            class_title = classify_title(title)
+            class_tags = classify_description(categories)
+            class_title.union(class_tags)
+            consolidate_categs = list(class_title)
+
+            print(" \n** I think these categories are appropriate: **\n")
+            for num, categ in enumerate(consolidate_categs, start=1):
+                print(f"{num}. {categ}")
+
+            match input("\nEnter the category number or type in to look for another category in the site: "):
+                case _ as option:
+                    try:
+                        sel_categ = consolidate_categs[int(option) - 1]
+                    except (ValueError or IndexError):
+                        sel_categ = option
+
+            categ_ids = cs.get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
+            if not sel_categ:
+                # 38 is Japanese Amateur Porn
+                # 40 is Indian Amateur Porn
+                match partner:
+                    case "abjav" :
+                        category = [38]
+                    case "vjav":
+                        category = [38]
+                    case "Desi Tube":
+                        category = [40]
+                    case _:
+                        category = None
+            else:
+                category = categ_ids
+
+            print("\n--> Making payload...")
             payload = cs.make_payload_simple(
                 wp_slug,
                 wp_auth.default_status,

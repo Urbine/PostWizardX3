@@ -14,9 +14,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
 import argparse
-import glob
 import os
-import shutil
 from sqlite3 import Connection, Cursor
 
 import pyclip
@@ -39,6 +37,7 @@ from core import (helpers,
 from core.config_mgr import WPAuth, ContentSelectConf, GallerySelectConf, EmbedAssistConf
 from integrations import wordpress_api
 from integrations.url_builder import WPEndpoints
+from ml_engine import classify_title, classify_description
 
 
 def clean_partner_tag(partner_tag: str) -> str:
@@ -168,7 +167,7 @@ def get_tag_ids(wp_posts_f: list[dict],
     :param wp_posts_f: ``list[dict]`` WordPress Post Information case file (previously loaded and ready to process)
     :param tag_lst: ``list[str]`` a list of tags
     :param preset: as this function is used for three terms, the presets supported are
-           `models`,  `tags`, `photos`
+           ``models``,  ``tags``, ``photos`` and ``categories``
     :return: ``list[int]``
     """
     match preset:
@@ -178,6 +177,8 @@ def get_tag_ids(wp_posts_f: list[dict],
             preset = ("tag", "tags")
         case "photos":
             preset = ("photos_tag", "photos_tag")
+        case "categories":
+            preset = ("category", "categories")
         case _ as err:
             raise UnsupportedParameter(err)
 
@@ -292,36 +293,6 @@ def fetch_thumbnail(
     return remote_data.status_code
 
 
-def clean_file_cache(cache_folder: str, file_ext: str) -> None:
-    """The purpose of this function is simple: cleaning remaining temporary files once the job control
-    has used them; this is specially useful when dealing with thumbnails.
-
-    :param cache_folder: ``str`` folder used for caching (name only)
-    :param file_ext: ``str`` file extension of cached files to be removed
-    :return: ``None``
-    """
-    parent: bool = False if os.path.exists(f"./{cache_folder}") else True
-    cache_files: list[str] = helpers.search_files_by_ext(
-        file_ext, parent=parent, folder=cache_folder
-    )
-
-    go_to_folder: str = helpers.is_parent_dir_required(parent) + cache_folder
-    folders: list[str] = glob.glob(f"{go_to_folder}/*")
-    if cache_files:
-        os.chdir(go_to_folder)
-        for file in cache_files:
-            os.remove(file)
-    elif folders:
-        for item in folders:
-            try:
-                shutil.rmtree(item)
-            except NotADirectoryError:
-                os.remove(item)
-            finally:
-                continue
-    return None
-
-
 def make_payload(
         vid_slug,
         status_wp: str,
@@ -332,6 +303,7 @@ def make_payload(
         partner_name: str,
         tag_int_lst: list[int],
         model_int_lst: list[int],
+        categs: list[int] | None = None,
         wp_auth: WPAuth = WP_CLIENT_INFO
 ) -> dict[str, str | int]:
     """Make WordPress ``JSON`` payload with the supplied values.
@@ -351,6 +323,7 @@ def make_payload(
     :param partner_name: ``str`` The offer you are promoting
     :param tag_int_lst: ``list[int]`` tag ID list
     :param model_int_lst: ``list[int]`` model ID list
+    :param categs: ``list[int]`` category numbers to be passed with the post information
     :param wp_auth: ``WPAuth`` Object with the author information.
     :return: ``dict[str, str | int]``
     """
@@ -369,6 +342,13 @@ def make_payload(
         "tags": tag_int_lst,
         "pornstars": model_int_lst,
     }
+
+    # if the job control passes categories then a new key-value pair will be added with them.
+    if categs:
+        payload_post["categories"] = categs
+    else:
+        pass
+
     return payload_post
 
 
@@ -457,7 +437,7 @@ def make_slug(
             if (
                 re.match(r"[\w+]", word, flags=re.IGNORECASE)
                 and word.lower() not in filter_words
-            )
+        )
         ]
     )
 
@@ -473,19 +453,19 @@ def make_slug(
         content: str = f"-{content}" if content != "" or None else ""
 
         if reverse:
-            return f"{title_sl}-{partner_sl}-new-{model_sl}{content}"
+            return f"{title_sl}-{partner_sl}-{model_sl}{content}"
         else:
-            return f"{partner_sl}-new-{model_sl}-{title_sl}{content}"
+            return f"{partner_sl}-{model_sl}-{title_sl}{content}"
     except AttributeError:
         # Model can be NoneType and crash the program if this is not handled.
         if reverse:
-            return f"{title_sl}-{partner_sl}-new-{content}"
+            return f"{title_sl}-{partner_sl}-{content}"
         else:
-            return f"{partner_sl}-new-{title_sl}-{content}"
+            return f"{partner_sl}-{title_sl}-{content}"
 
 
 def hot_file_sync(bot_config: ContentSelectConf |
-                  GallerySelectConf | EmbedAssistConf) -> bool:
+                              GallerySelectConf | EmbedAssistConf) -> bool:
     """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
     This function leverages the power of the caching mechanism defined
@@ -744,6 +724,7 @@ def video_upload_pilot(
     wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(
         cs_config.wp_json_posts)
     wp_base_url: str = wp_auth.api_base_url
+    os.system('clear')
     db_conn, cur_dump, partner_db_name, partner_indx = content_select_db_match(
         partners, cs_config.content_hint, parent=parent
     )
@@ -754,7 +735,7 @@ def video_upload_pilot(
     partner, banners = partners[partner_indx], banner_lsts[partner_indx]
     select_guard(partner_db_name, partner)
     not_published_yet: list[tuple[str, ...]
-                            ] = filter_published(all_vals, wp_posts_f)
+    ] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     print(f"There are {total_elems} videos to be published...")
@@ -812,7 +793,7 @@ def video_upload_pilot(
 
             for n, slug in enumerate(slugs, start=1):
                 print(f"{n}. -> {slug}")
-            print("Enter 4 to provide a custom slug")
+            print("--> Enter #4 to provide a custom slug")
 
             match input("\nSelect your slug: "):
                 case "1":
@@ -827,7 +808,6 @@ def video_upload_pilot(
                     # Smart slug by default (reversed).
                     wp_slug: str = slugs[2]
 
-            print("\n--> Making payload...")
             tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
             # Making sure that the partner tag does not have apostrophes
             partner_tag: str = clean_partner_tag(partner.lower())
@@ -877,6 +857,28 @@ def video_upload_pilot(
                     print("Paste it into the Pornstars field as soon as possible...\n")
                     pyclip.detect_clipboard()
                     pyclip.copy(girl)
+
+            class_title = classify_title(title)
+            class_description = classify_description(description)
+            # class_tags = classify_tags(tags)
+            class_title.union(class_description)
+            # class_title.union(class_tags)
+            consolidate_categs = list(class_title)
+
+            print(" \n** I think these categories are appropriate: **\n")
+            for num, categ in enumerate(consolidate_categs, start=1):
+                print(f"{num}. {categ}")
+
+            match input("\nEnter the category number or type in to look for another category in the site: "):
+                case _ as option:
+                    try:
+                        sel_categ = consolidate_categs[int(option) - 1]
+                    except (ValueError or IndexError):
+                        sel_categ = option
+
+            categ_ids = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
+
+            print("\n--> Making payload...")
             payload = make_payload(
                 wp_slug,
                 wp_auth.default_status,
@@ -887,6 +889,7 @@ def video_upload_pilot(
                 partner_name,
                 tag_ints,
                 calling_models,
+                categs=categ_ids
             )
 
             print("--> Fetching thumbnail...")
@@ -938,7 +941,7 @@ def video_upload_pilot(
                 pyclip.detect_clipboard()
                 pyclip.copy(source_url)
                 pyclip.copy(title)
-                print("--> Check the post and paste all you need from your clipboard.")
+                print("--> * DONE * Check the post and paste all you need from your clipboard.")
                 videos_uploaded += 1
             except SSLError:
                 pyclip.detect_clipboard()
@@ -1011,6 +1014,8 @@ def video_upload_pilot(
 
 
 if __name__ == "__main__":
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
+
     arg_parser = argparse.ArgumentParser(
         description="Content Select Assistant - Behaviour Tweaks"
     )

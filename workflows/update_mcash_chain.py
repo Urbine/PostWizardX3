@@ -48,7 +48,7 @@ from tasks.mcash_scrape import M_CASH_SETS_URL, get_page_source_flow
 
 from tasks.parse_txt_dump import parse_txt_dump
 from tasks.sets_source_parse import db_generate
-from workflows.content_select import clean_file_cache
+from core.helpers import clean_file_cache
 
 if __name__ == '__main__':
 

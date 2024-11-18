@@ -11,7 +11,7 @@ import sqlite3
 # Local implementations
 import core
 from .url_builder import CSVColumns, CSVSeparators
-from workflows import clean_file_cache
+from core.helpers import clean_file_cache
 
 VJAV_BASE_URL = 'https://vjav.com/admin/feeds/embed/?source=576422190'
 DESI_T_BASE_URL = 'https://desiporn.tube/admin/feeds/embed/?source=576422190'
