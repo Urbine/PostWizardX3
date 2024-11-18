@@ -11,7 +11,7 @@ import sqlite3
 # Local implementations
 import core
 from .url_builder import CSVColumns, CSVSeparators
-from workflows import clean_file_cache
+from core.helpers import clean_file_cache
 
 PartnerOne_BASE_URL = 'https://example-feed-a.com/admin/feeds/embed/?source=576422190'
 FEED_BETA_BASE_URL = 'https://example-feed-b.com/admin/feeds/embed/?source=576422190'
