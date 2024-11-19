@@ -1,7 +1,8 @@
 """
-This module parses a specific type of .txt file
-called dumps. Those files contain important video metadata that will be
-inserted into a database for later use.
+TXT Dump parser module
+
+This module parses a specific type of .txt file called `dump`.
+Those files contain important video metadata that will be inserted into a database for processing and structure.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -9,7 +10,7 @@ Email: yohamg@programmer.net
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
-__email__ = "yohamg@programmer.net"
+__author_email__ = "yohamg@programmer.net"
 
 import os
 import re
@@ -20,31 +21,27 @@ import datetime
 from core import helpers
 
 
-# Fields I need
-# 1.  Video title  - OK
-# 2.  Video Description - OK
-# 3.  Thumbnail - OK
-# 4.  Tags - OK
-# 5.  Video source - OK
-# 6.  Tracking link - OK
-# 7.  Date - OK
-# 8.  Video type - OK
-# 9.  Models - OK
-# 10. Site name - OK
-# 11. WP-Ready Slug - OK
-
-
 # Make sure that you get a dump file with all these fields:
 # Dump format: Dump with | (Select this one on MongerCash)
 # name | description | models | tags | site_name | date | source | thumbnail | tracking
 def parse_txt_dump(
-    filename: str,
-    d_name: str,
-    d_conn: sqlite3,
-    d_cur: sqlite3,
-    dirname: str = "",
-    parent: bool = False,
-):
+        filename: str,
+        d_name: str,
+        d_conn: sqlite3,
+        d_cur: sqlite3,
+        dirname: str = "",
+        parent: bool = False,
+) -> tuple[str, int]:
+    """ Parse the ``.txt`` file provided, organize and insert the values into a ``sqlite3`` database.
+
+    :param filename: ``str`` name of the file to be parsed
+    :param d_name: ``str`` Desired name for the resulting database
+    :param d_conn: ``sqlite3`` db connection object
+    :param d_cur:  ``sqlite3`` db cursor of your connection object
+    :param dirname: ``str`` Where to find the `dump` file in your system.
+    :param parent: ``bool`` look for the file in the parent directory
+    :return: ``tuple[str, int]`` (abs_path_db, total_entries_in_db)
+    """
     if dirname:
         path = f"{dirname}/{helpers.clean_filename(filename, 'txt')}"
     else:
@@ -110,8 +107,7 @@ def parse_txt_dump(
                     post_slug = pre_slug
 
                 # This url slug must be ready for WordPress.
-                wp_slug = "-".join(site_name.split(" ")
-                                   ).lower() + "-" + post_slug
+                wp_slug = "-".join(site_name.split(" ")).lower() + "-" + post_slug
 
                 all_values = (
                     title,
@@ -136,15 +132,17 @@ def parse_txt_dump(
             except IndexError:
                 # This is a pattern.
                 # When it reaches the end and there is no more data, Python
-                # throws an IndexError.
+                # throws an IndexError in this function.
                 d_conn.close()
                 break
 
+        # absolute file path and number of entries inserted into the database
         return f"{os.path.dirname(os.getcwd())}/{d_name}", total_entries
 
 
 if __name__ == "__main__":
 
+    # TODO: Refactor this to work with the config file
     # the db names could be gathered via input
     # listed here for convenience
     db_name_suggest = [

@@ -4,7 +4,8 @@ webmaster-seo-tools
 .. toctree::
    :maxdepth: 4
 
-   common
+   core
    integrations
+   ml_engine
    tasks
    workflows

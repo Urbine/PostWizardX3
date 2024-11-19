@@ -12,7 +12,7 @@ Email: yohamg@programmer.net
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
-__email__ = "yohamg@programmer.net"
+__author_email__ = "yohamg@programmer.net"
 
 import configparser
 import csv
@@ -381,7 +381,8 @@ def get_client_info(
         return None
 
 
-def get_duration(seconds: int | float) -> tuple[int | float, int | float, int | float]:
+def get_duration(
+        seconds: int | float) -> tuple[int | float, int | float, int | float]:
     """Takes the number of seconds and calculates its duration in hours, minutes, and seconds.
 
     :param seconds: ``int``
@@ -527,7 +528,7 @@ def match_list_single(hint: str, items: list,
 def match_list_mult(
         hint: str, list_lookup: list[str], ignore_case: bool = False
 ) -> list[int]:
-    """Matches a ``str`` within a list and returns the indexes where such matches occurred.
+    """ Matches a ``str`` within a list and returns the indexes where such matches occurred.
 
     :param hint: ``str pattern
     :param list_lookup: the list that is likely to contain the match
@@ -633,6 +634,7 @@ def match_list_elem_date(
         return [match for match in main_matches if match not in up_to_date]
     else:
         return up_to_date
+
 
 def load_file_path(package: str, filename: str):
     """ Load resources stored within folders in packages.

@@ -32,13 +32,13 @@ from typing import Generator
 import xlsxwriter
 
 # Local implementations
-from core import helpers, WP_CLIENT_INFO
+from core import helpers, wp_auth
 from core.config_mgr import WPAuth
 from integrations import WPEndpoints
 
 
 def curl_wp_self_concat(
-        param_lst: list[str], secrets: WPAuth = WP_CLIENT_INFO) -> requests:
+        param_lst: list[str], secrets: WPAuth = wp_auth()) -> requests:
     """Makes the ``GET`` request based on the curl mechanism as described on the docs.
 
     ``curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit``
@@ -57,7 +57,7 @@ def curl_wp_self_concat(
 
 
 def wp_post_create(endp_lst: list[str], payload,
-                   secrets: WPAuth = WP_CLIENT_INFO):
+                   secrets: WPAuth = wp_auth()):
     """Makes the ``POST`` request based on the mechanism as described on the docs.
 
     :param payload: ``dict`` with the post information.
@@ -73,7 +73,7 @@ def wp_post_create(endp_lst: list[str], payload,
     return requests.post(wp_self, json=payload, auth=auth_wp).status_code
 
 
-def create_wp_local_cache(endpoint: WPEndpoints = WPEndpoints, wp_auth: WPAuth = WP_CLIENT_INFO,
+def create_wp_local_cache(endpoint: WPEndpoints = WPEndpoints, wp_auth: WPAuth = wp_auth(),
                           photos: bool = False) -> list[dict]:
     """Gets all posts from your WP Site.
     It does this by fetching every page with 10 posts each and concatenating the ``JSON``
@@ -671,7 +671,7 @@ def update_published_titles_db(wp_posts_f: list[dict], parent: bool = False, pho
 
 def upload_thumbnail(
         wp_self: str, param_lst: list[str], file_path: str, payload: dict[str, str | int],
-        secrets: WPAuth = WP_CLIENT_INFO,
+        secrets: WPAuth = wp_auth(),
 ) -> int:
     """Uploads video thumbnail or any other image as a *WordPress* media attachment.
 
@@ -719,7 +719,7 @@ def upload_thumbnail(
 
 
 def local_cache_config(wp_filen: str, wp_curr_page: int,
-                       total_posts: int, wp_auth: WPAuth = WP_CLIENT_INFO) -> str:
+                       total_posts: int, wp_auth: WPAuth = wp_auth()) -> str:
     """Creates a new config file and locates existing local cache configuration files to update its contents
         with new information about cached pages, post quantity, and date of update.
 
@@ -766,7 +766,7 @@ def local_cache_config(wp_filen: str, wp_curr_page: int,
 
 
 def update_json_cache(photos: bool = False, wp_endpoints: WPEndpoints = WPEndpoints,
-                      wp_auth: WPAuth = WP_CLIENT_INFO) -> list[dict[str, ...]]:
+                      wp_auth: WPAuth = wp_auth()) -> list[dict[str, ...]]:
     """Updates the local wp cache files for processing.
     It does this by fetching the last page cached and calculating the
     difference between the total elements variable from the ``HTTP`` request and
@@ -827,7 +827,7 @@ def update_json_cache(photos: bool = False, wp_endpoints: WPEndpoints = WPEndpoi
                     continue
 
 
-def upgrade_wp_local_cache(wp_auth: WPAuth = WP_CLIENT_INFO, photos: bool = False, cached: bool = False,
+def upgrade_wp_local_cache(wp_auth: WPAuth = wp_auth(), photos: bool = False, cached: bool = False,
                            parent: bool = False, yoast: bool = False) -> None:
     """Updates both the WP post information ``JSON`` file (posts and photos) and creates a ``SQLite3`` database
         using the cached files.
@@ -861,8 +861,8 @@ def upgrade_wp_local_cache(wp_auth: WPAuth = WP_CLIENT_INFO, photos: bool = Fals
     return None
 
 
-hostname: str = WP_CLIENT_INFO.hostname
-b_url: str = WP_CLIENT_INFO.api_base_url
+hostname: str = wp_auth().hostname
+b_url: str = wp_auth().api_base_url
 
 if __name__ == "__main__":
     # Suppress RuntimeWarnings during import

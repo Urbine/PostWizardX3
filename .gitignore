@@ -168,6 +168,7 @@ cython_debug/
 # Individual files
 !requirements.txt
 !core/config/workflows_config.ini
+!core/config/tasks_config.ini
 *.txt
 *.csv
 *.xlsx

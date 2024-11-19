@@ -19,11 +19,23 @@ author = 'Yoham Gabriel (Urbine@GitHub)'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.autodoc',      # For automatic documentation from docstrings
-    'sphinx.ext.viewcode',     # Adds links to highlighted source code
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    'recommonmark'
+    'sphinx_autodoc_typehints'
 ]
+
+autodoc_type_aliases = {
+    "List": "List",
+    "Dict": "Dict"
+}
+
+# typehints_use_signature = False
+# simplify_optional_unions = True
+# autodoc_preserve_defaults = False
+# typehints_defaults = "comma"
+typehints_use_rtype = False
+typehints_fully_qualified = True
 
 # In conf.py
 

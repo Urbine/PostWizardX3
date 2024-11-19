@@ -11,7 +11,7 @@ Email: yohamg@programmer.net
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
-__email__ = "yohamg@programmer.net"
+__author_email__ = "yohamg@programmer.net"
 
 import argparse
 import os
@@ -31,8 +31,9 @@ from requests.exceptions import ConnectionError, SSLError
 from core import (helpers,
                   InvalidInput,
                   UnsupportedParameter,
-                  CONTENT_SEL_CONF,
-                  WP_CLIENT_INFO, clean_filename)
+                  content_select_conf,
+                  wp_auth,
+                  clean_filename)
 
 from core.config_mgr import WPAuth, ContentSelectConf, GallerySelectConf, EmbedAssistConf
 from integrations import wordpress_api
@@ -304,7 +305,7 @@ def make_payload(
         tag_int_lst: list[int],
         model_int_lst: list[int],
         categs: list[int] | None = None,
-        wp_auth: WPAuth = WP_CLIENT_INFO
+        wp_auth: WPAuth = wp_auth()
 ) -> dict[str, str | int]:
     """Make WordPress ``JSON`` payload with the supplied values.
     This function also injects ``HTML`` code into the payload to display the banner, add ``ALT`` text to it
@@ -343,7 +344,8 @@ def make_payload(
         "pornstars": model_int_lst,
     }
 
-    # if the job control passes categories then a new key-value pair will be added with them.
+    # if the job control passes categories then a new key-value pair will be
+    # added with them.
     if categs:
         payload_post["categories"] = categs
     else:
@@ -360,7 +362,7 @@ def make_payload_simple(
         tag_int_lst: list[int],
         model_int_lst: list[int] | None = None,
         categs: list[int] | None = None,
-        wp_auth: WPAuth = WP_CLIENT_INFO
+        wp_auth: WPAuth = wp_auth()
 ) -> dict[str, str | int]:
     """Makes a simple WordPress JSON payload with the supplied values.
 
@@ -437,7 +439,7 @@ def make_slug(
             if (
                 re.match(r"[\w+]", word, flags=re.IGNORECASE)
                 and word.lower() not in filter_words
-        )
+            )
         ]
     )
 
@@ -465,7 +467,7 @@ def make_slug(
 
 
 def hot_file_sync(bot_config: ContentSelectConf |
-                              GallerySelectConf | EmbedAssistConf) -> bool:
+                  GallerySelectConf | EmbedAssistConf) -> bool:
     """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
     This function leverages the power of the caching mechanism defined
@@ -648,9 +650,9 @@ def content_select_db_match(
 
 def video_upload_pilot(
         banner_lsts: list[list[str]],
-        wp_auth: WPAuth = WP_CLIENT_INFO,
+        wp_auth: WPAuth = wp_auth(),
         wp_endpoints: WPEndpoints = WPEndpoints,
-        cs_config: ContentSelectConf = CONTENT_SEL_CONF,
+        cs_config: ContentSelectConf= content_select_conf(),
         parent: bool = False,
 ) -> None:
     """Here is the main coordinating function of this module, the job control that
@@ -735,7 +737,7 @@ def video_upload_pilot(
     partner, banners = partners[partner_indx], banner_lsts[partner_indx]
     select_guard(partner_db_name, partner)
     not_published_yet: list[tuple[str, ...]
-    ] = filter_published(all_vals, wp_posts_f)
+                            ] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     print(f"There are {total_elems} videos to be published...")
@@ -876,7 +878,8 @@ def video_upload_pilot(
                     except (ValueError or IndexError):
                         sel_categ = option
 
-            categ_ids = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
+            categ_ids = get_tag_ids(
+                wp_posts_f, [sel_categ], preset="categories")
 
             print("\n--> Making payload...")
             payload = make_payload(
@@ -941,7 +944,8 @@ def video_upload_pilot(
                 pyclip.detect_clipboard()
                 pyclip.copy(source_url)
                 pyclip.copy(title)
-                print("--> * DONE * Check the post and paste all you need from your clipboard.")
+                print(
+                    "--> * DONE * Check the post and paste all you need from your clipboard.")
                 videos_uploaded += 1
             except SSLError:
                 pyclip.detect_clipboard()

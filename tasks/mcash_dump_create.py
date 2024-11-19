@@ -1,46 +1,79 @@
-# Accessing MongerCash to get a dump file.
+"""
+Video dump file creation with web automation
 
+The main responsibility of this program is the collection of video information from our content partner:
+`MongerCash`; it generates a ``.txt`` file with all information specific to a partner offer.
+This is the first step in the data collection process.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
+# Standard Library
 import datetime
+import time
 
+# Third-party Libraries
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By
-import time
+
 
 # Local implementations
 import core
-from core import MONGER_CASH_INFO
+from core import monger_cash_auth, tasks_conf
+from core.config_mgr import MongerCashAuth, TasksConf
 
 
-# ==== Functions ====
-def get_partner_name(partner_options: list, select_num: int):
+def parse_partner_name(partner_options: list[WebElement], select_num: int) -> str:
+    """ Parse, obtain, and contruct the full partner name from the option matched by the
+    ``partner_hint`` parameter in the main driver function. It will join it so that it can be used a filename.
+
+    :param partner_options: ``list[WebElement]`` with all the partner options on the site.
+    :param select_num: ``int`` index of the partner offer used by the automation sequence.
+    :return: ``str`` partner name joined by `-` (hyphens)
+    """
     return "-".join(
         partner_options[select_num].text.split("-")[:-1][0].lower().split(" ")
     )
 
 
 def get_vid_dump_flow(
-    url_: str,
-    write_folder: str,
-    c_info: tuple,
-    webdrv,
-    parent=False,
-    partner_hint: str = None,
+        webdrv,
+        mcash_info: MongerCashAuth = monger_cash_auth(),
+        task_conf: TasksConf = tasks_conf(),
+        parent=False,
+        partner_hint: str = None,
 ) -> str:
+    """ Get the text file and match the options with the hint provided to get a video dump file
+    specific to a partner offer.
+
+    :param mcash_info: ``MongerCashAuth`` object with necessary credentials for authentication. (Default)
+    :param task_conf: ``TasksConf`` object with configuration information like `download_folder`
+    :param webdrv: ``webdriver`` Chrome/Gecko webdriver that interfaces with Selenium.
+    :param parent: ``bool`` True to tell the ``write_to_file`` function to write in the parent directory.
+    :param partner_hint: ``str`` pattern to match the partner with available options.
+    :return: ``str`` new dump filename
+    """
     # Captures the source outside the context manager.
     source_html = None
     with webdrv as driver:
         # Go to URL
         print(f"Getting Dump file from MongerCash")
         print("Please wait...\n")
-        driver.get(url_)
+        driver.get(task_conf.mcash_dump_url)
 
         # Find element by its ID
         username_box = driver.find_element(By.ID, "user")
         pass_box = driver.find_element(By.ID, "password")
 
         # Authenticate / Send keys
-        username_box.send_keys(c_info[0])
-        pass_box.send_keys(c_info[1])
+        username_box.send_keys(mcash_info.username)
+        pass_box.send_keys(mcash_info.password)
         time.sleep(1)
 
         # Get Button Class
@@ -65,7 +98,7 @@ def get_vid_dump_flow(
             selection = input("\nEnter a number and select a partner: ")
 
         website_partner_select.select_by_index(int(selection))
-        partner_name = get_partner_name(partner_options, int(selection))
+        partner_name = parse_partner_name(partner_options, int(selection))
 
         time.sleep(1)
         apply_changes_xpath = (
@@ -140,28 +173,18 @@ def get_vid_dump_flow(
         dump_name = f"{partner_name}vids-{datetime.date.today()}"
 
         core.write_to_file(
-            dump_name, write_folder, "txt", dump_content, parent=parent
+            dump_name, task_conf.download_folder, "txt", dump_content, parent=parent
         )
 
     return dump_name
 
 
-# The `dump` URL is not supposed to change, thus, it is a constant.
-M_CASH_DUMP_URL = (
-    "https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump"
-)
-
-
 if __name__ == "__main__":
-    # ==== Execution space ====
 
     # Initialize the webdriver
-    web_driver = core.get_webdriver("../tmp")
-    web_driver_gecko = core.get_webdriver("../tmp", gecko=True)
+    web_driver = core.get_webdriver(tasks_conf().download_folder)
+    web_driver_gecko = core.get_webdriver(tasks_conf().download_folder, gecko=True)
 
     get_vid_dump_flow(
-        M_CASH_DUMP_URL,
-        "tmp",
-        (MONGER_CASH_INFO.username, MONGER_CASH_INFO.password),
         web_driver,
     )

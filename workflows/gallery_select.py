@@ -6,7 +6,7 @@ Email: yohamg@programmer.net
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
-__email__ = "yohamg@programmer.net"
+__author_email__ = "yohamg@programmer.net"
 
 # Std Library
 import argparse
@@ -37,7 +37,7 @@ from workflows.content_select import (
 )
 from core.helpers import clean_file_cache
 
-from core import helpers, MONGER_CASH_INFO, WP_CLIENT_INFO, GALLERY_SEL_CONF
+from core import helpers, monger_cash_auth, gallery_select_conf, wp_auth
 # Imported for typing purposes
 from core.config_mgr import MongerCashAuth, WPAuth, GallerySelectConf
 from integrations import wordpress_api, WPEndpoints
@@ -49,7 +49,7 @@ def fetch_zip(
         parent: bool = False,
         gecko: bool = False,
         headless: bool = False,
-        m_cash_auth: MongerCashAuth = MONGER_CASH_INFO
+        m_cash_auth = monger_cash_auth()
 ) -> None:
     """ Fetch a .zip archive from the internet by following set of authentication and retrieval
     steps via automated execution of a browser instance (webdriver).
@@ -208,7 +208,7 @@ def make_photos_payload(
         partner_name: str,
         tags: list[int],
         reverse_slug: bool = False,
-        wp_auth: WPAuth = WP_CLIENT_INFO
+        wp_auth: WPAuth = wp_auth()
 ) -> dict[str, str | int]:
     """ Construct the photos payload that will be sent with all the parameters for the
     WordPress REST API request to create a ``photos`` post.
@@ -259,7 +259,7 @@ def make_photos_payload(
 
 
 def upload_image_set(
-        ext: str, folder: str, title: str, wp_base_url: WPAuth = WP_CLIENT_INFO
+        ext: str, folder: str, title: str, wp_base_url: WPAuth = wp_auth()
 ) -> None:
     """ Upload a set of images to the WordPress Media endpoint.
 
@@ -363,9 +363,9 @@ def gallery_upload_pilot(
         gecko: bool = False,
         headless: bool = False,
         parent: bool = False,
-        wp_admin_auth: WPAuth = WP_CLIENT_INFO,
+        wp_admin_auth: WPAuth = wp_auth(),
         wp_endpoints: WPEndpoints = WPEndpoints,
-        gallery_sel_conf: GallerySelectConf = GALLERY_SEL_CONF
+        gallery_sel_conf: GallerySelectConf = gallery_select_conf()
 ) -> None:
     """ Control the entire execution of the gallery upload process.
     This ``gallery_upload_pilot`` function is a modification of ``video_upload_pilot``

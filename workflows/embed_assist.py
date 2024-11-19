@@ -9,7 +9,7 @@ Email: yohamg@programmer.net
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
-__email__ = "yohamg@programmer.net"
+__author_email__ = "yohamg@programmer.net"
 
 # Std Library
 import os
@@ -23,10 +23,8 @@ import time
 # Local implementations
 from core import helpers
 import workflows.content_select as cs
-from core.config_mgr import (EmbedAssistConf,
-                             EMBED_ASSIST_CONF,
-                             WPAuth,
-                             WP_CLIENT_INFO)
+from core.config_mgr import (embed_assist_conf,
+                             wp_auth)
 
 from integrations import wordpress_api, WPEndpoints
 from ml_engine import classify_title, classify_description
@@ -83,8 +81,8 @@ def filter_published_embeds(
 
 
 def embedding_pilot(
-        embed_ast_conf: EmbedAssistConf = EMBED_ASSIST_CONF,
-        wp_auth: WPAuth = WP_CLIENT_INFO,
+        embed_ast_conf = embed_assist_conf(),
+        wp_auth = wp_auth(),
         wp_endpoints: WPEndpoints = WPEndpoints,
         parent: bool = False,
 ) -> None:
@@ -236,12 +234,13 @@ def embedding_pilot(
                     except (ValueError or IndexError):
                         sel_categ = option
 
-            categ_ids = cs.get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
+            categ_ids = cs.get_tag_ids(
+                wp_posts_f, [sel_categ], preset="categories")
             if not sel_categ:
                 # 38 is Japanese Amateur Porn
                 # 40 is Indian Amateur Porn
                 match partner:
-                    case "abjav" :
+                    case "abjav":
                         category = [38]
                     case "vjav":
                         category = [38]

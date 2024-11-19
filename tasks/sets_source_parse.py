@@ -1,15 +1,18 @@
 """
-This module parses source code and creates a photo set database
+Photo set HTML Source Parser module
+
+This module parses source code to collect metadata and links to create a photo set database
 from MongerCash.
+
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
 
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
-__email__ = "yohamg@programmer.net"
+__author_email__ = "yohamg@programmer.net"
 
-# Std Library
+# Standard Library
 import re
 import sqlite3
 import datetime
@@ -22,10 +25,11 @@ from core import helpers
 
 
 def parse_titles(soup_html: BeautifulSoup) -> list[str]:
-    """Parses all photo set titles from the source file or BeautifulSoup
+    """Parses all photo set titles from the source file or ``BeautifulSoup``
     element provided.
-    :param soup_html: BeautifulSoup object
-    :return: list[str]
+
+    :param soup_html: ``BeautifulSoup`` object
+    :return: ``list[str]``
     """
     titles = soup_html.find_all(
         "td", attrs={
@@ -36,8 +40,9 @@ def parse_titles(soup_html: BeautifulSoup) -> list[str]:
 def parse_dates(soup_html: BeautifulSoup) -> list[datetime.date]:
     """Parses all photo set dates from the source file or BeautifulSoup
     element provided and returns a list of datetime.date objects.
-    :param soup_html: BeautifulSoup object
-    :return: list[datetime.date]
+
+    :param soup_html: ``BeautifulSoup`` object
+    :return: ``list[datetime.date]``
     """
     dates = soup_html.find_all(
         "td", attrs={
@@ -49,10 +54,11 @@ def parse_dates(soup_html: BeautifulSoup) -> list[datetime.date]:
 
 
 def parse_links(soup_html: BeautifulSoup) -> list[str]:
-    """Parses all photo set links from the source file or BeautifulSoup
+    """Parses all photo set links from the source file or ``BeautifulSoup``
     element provided. Returns perfectly formed links that will be used to
     download the sets.
-    :param soup_html: BeautifulSoup object
+
+    :param soup_html: ``BeautifulSoup`` object
     :return: list[str]
     """
     base_url = "https://mongercash.com/"
@@ -64,12 +70,15 @@ def parse_links(soup_html: BeautifulSoup) -> list[str]:
     ]
 
 
-def db_generate(soup_html: BeautifulSoup, db_suggest, parent: bool = False):
+def db_generate(
+        soup_html: BeautifulSoup, db_suggest: list[str] | str, parent: bool = False
+) -> tuple[str, int]:
     """As its name describes, it puts all the information that previous
     functions returned into a SQLite db.
-    :param soup_html: BeautifulSoup object
+
+    :param soup_html: ``BeautifulSoup`` object
     :param db_suggest: List with name suggestions for your db files or string.
-    :return:
+    :return: ``tuple[str, int]`` (db_path, total_entries)
     """
     set_titles = parse_titles(soup_html)
     set_dates = parse_dates(soup_html)
@@ -105,6 +114,7 @@ if __name__ == "__main__":
 
     soup = BeautifulSoup(source, "html.parser")
 
+    # TODO: Refactor this so that partners come from config
     db_name_suggest = [
         f"asian-sex-diary-photo-{datetime.date.today()}.db",
         f"trike-patrol-photo-{datetime.date.today()}.db",

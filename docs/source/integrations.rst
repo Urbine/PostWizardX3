@@ -1,6 +1,9 @@
 integrations package
 ====================
 
+Submodules
+----------
+
 integrations.adult\_next\_api module
 ------------------------------------
 
@@ -17,18 +20,18 @@ integrations.callback\_server module
    :undoc-members:
    :show-inheritance:
 
-integrations.url\_builder module
---------------------------------
+integrations.tube\_corp\_feeds module
+-------------------------------------
 
-.. automodule:: integrations.url_builder
+.. automodule:: integrations.tube_corp_feeds
    :members:
    :undoc-members:
    :show-inheritance:
 
-integrations.vjav\_api module
------------------------------
+integrations.url\_builder module
+--------------------------------
 
-.. automodule:: integrations.vjav_api
+.. automodule:: integrations.url_builder
    :members:
    :undoc-members:
    :show-inheritance:
