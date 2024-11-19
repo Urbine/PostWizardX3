@@ -106,6 +106,15 @@ class EmbedAssistConf:
         return "EmbedAssistBotConf()"
 
 
+@dataclass(frozen=True)
+class TasksConf:
+    download_folder: str
+    feed_dump_url: str
+    feed_set_url: str
+
+    def __repr__(self):
+        return "TasksConf()"
+
 # client_info.ini
 client_info = parse_client_config('client_info', 'core.config')
 
@@ -178,4 +187,17 @@ def embed_assist_conf() -> EmbedAssistConf:
         sql_query=workflows_config['embed_assist']['sql_query'],
         content_hint=workflows_config['embed_assist']['db_content_hint'],
         partners=workflows_config['embed_assist']['partners']
+    )
+
+
+# tasks_config.ini
+tasks_config = parse_client_config('tasks_config', 'core.config')
+
+
+def tasks_conf() -> TasksConf:
+    return TasksConf(
+        download_folder=tasks_config['dump_create_config']['download_dir'],
+        feed_dump_url=tasks_config['dump_create_config']['feed_dump_url'],
+        feed_set_url=tasks_config['dump_create_config']['feed_set_url']
+
     )
