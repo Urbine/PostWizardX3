@@ -1,6 +1,9 @@
 integrations package
 ====================
 
+Submodules
+----------
+
 integrations.feed\_alpha\_api module
 ------------------------------------
 
@@ -17,18 +20,18 @@ integrations.callback\_server module
    :undoc-members:
    :show-inheritance:
 
-integrations.url\_builder module
---------------------------------
+integrations.tube\_corp\_feeds module
+-------------------------------------
 
-.. automodule:: integrations.url_builder
+.. automodule:: integrations.feed_beta_api
    :members:
    :undoc-members:
    :show-inheritance:
 
-integrations.feed_beta\_api module
------------------------------
+integrations.url\_builder module
+--------------------------------
 
-.. automodule:: integrations.feed_beta_api
+.. automodule:: integrations.url_builder
    :members:
    :undoc-members:
    :show-inheritance:
