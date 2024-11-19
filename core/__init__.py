@@ -9,11 +9,12 @@ __email__ = "yohamg@programmer.net"
 __version__ = "1.0.0"
 
 # Config_mgr constants
-from core.config_mgr import WP_CLIENT_INFO
-from core.config_mgr import MEDIA_SOURCE_INFO
-from core.config_mgr import GALLERY_SEL_CONF
-from core.config_mgr import CONTENT_SEL_CONF
-from core.config_mgr import EMBED_ASSIST_CONF
+from core.config_mgr import wp_auth
+from core.config_mgr import media_source_auth
+from core.config_mgr import gallery_select_conf
+from core.config_mgr import content_select_conf
+from core.config_mgr import embed_assist_conf
+from core.config_mgr import tasks_conf
 
 # Custom Exceptions `custom_exceptions.py`
 from core.custom_exceptions import InvalidInput
@@ -84,9 +85,10 @@ __all__ = [
     "remove_if_exists",
     "search_files_by_ext",
     "write_to_file",
-    "WP_CLIENT_INFO",
-    "MEDIA_SOURCE_INFO",
-    "GALLERY_SEL_CONF",
-    "CONTENT_SEL_CONF",
-    "EMBED_ASSIST_CONF"
+    "wp_auth",
+    "media_source_auth",
+    "gallery_select_conf",
+    "content_select_conf",
+    "embed_assist_conf",
+    "tasks_conf"
 ]
