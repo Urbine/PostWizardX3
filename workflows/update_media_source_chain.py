@@ -27,7 +27,7 @@ Email: yohamg@programmer.net
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
-__email__ = "yohamg@programmer.net"
+__author_email__ = "yohamg@programmer.net"
 
 import argparse
 import sqlite3
@@ -39,16 +39,16 @@ from core import (
     get_webdriver,
     load_from_file,
     clean_filename,
-    MEDIA_SOURCE_INFO,
+    clean_file_cache,
 )
 
-from tasks.feed_dump_create import FEED_DUMP_URL, get_vid_dump_flow
+from tasks.feed_dump_create import get_vid_dump_flow
 
-from tasks.feed_scrape import FEED_SETS_URL, get_page_source_flow
+from tasks.feed_scrape import get_set_source_flow
 
 from tasks.parse_txt_dump import parse_txt_dump
 from tasks.sets_source_parse import db_generate
-from core.helpers import clean_file_cache
+
 
 if __name__ == '__main__':
 
@@ -93,25 +93,14 @@ if __name__ == '__main__':
     else:
         pass
 
-    media_source_downloadable_sets = FEED_SETS_URL
-    media_source_vids_dump = FEED_DUMP_URL
-
     temp_dir = args.temp_dir
     webdriver = get_webdriver(
         temp_dir,
         headless=args.headless,
         gecko=args.gecko)
 
-    username = MEDIA_SOURCE_INFO.username
-
-    password = MEDIA_SOURCE_INFO.password
-
     # Fetching
-
     dump_file_name = get_vid_dump_flow(
-        media_source_vids_dump,
-        temp_dir,
-        (username, password),
         webdriver,
         parent=None,
         partner_hint=args.hint,
@@ -130,9 +119,6 @@ if __name__ == '__main__':
             "The content of the dump file is empty, retrying...",
             UserWarning)
         dump_file_name = get_vid_dump_flow(
-            media_source_vids_dump,
-            temp_dir,
-            (username, password),
             webdriver,
             parent=None,
             partner_hint=args.hint,
@@ -147,8 +133,7 @@ if __name__ == '__main__':
         temp_dir,
         headless=args.headless,
         gecko=args.gecko)
-    photoset_source = get_page_source_flow(
-        media_source_downloadable_sets, (username, password),
+    photoset_source = get_set_source_flow(
         webdriver, partner_hint=args.hint
     )
 
@@ -156,9 +141,7 @@ if __name__ == '__main__':
     # test it.
     while len(photoset_source[0]) == 0:
         warnings.warn("The source file is empty, retrying...", UserWarning)
-        photoset_source = get_page_source_flow(
-            media_source_downloadable_sets, (username, password), webdriver
-        )
+        photoset_source = get_set_source_flow(webdriver, partner_hint=args.hint)
         continue
 
     # Parsing video txt dump:
