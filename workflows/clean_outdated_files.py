@@ -2,7 +2,13 @@
 Clean outdated files based on the named convention <filename>-<date-in-ISO-format>
 Accepts CLI arguments to fine-tune its cleaning behaviour and scope.
 
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+
 """
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
 
 # Std Library
 import argparse
