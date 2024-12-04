@@ -224,7 +224,7 @@ def filename_creation_helper(
     )
     try:
         return name_suggest[int(name_select) - 1]
-    except ValueError or IndexError:
+    except (ValueError or IndexError):
         if len(name_select.split(".")) >= 2:
             return name_select
         elif name_select == "":
