@@ -408,11 +408,20 @@ def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
     :param vid_description: ``str`` self-explanatory
     :return: ``dict[str, str]``
     """
-    img_payload: dict[str, str] = {
-        "alt_text": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!",
-        "caption": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!",
-        "description": f"{vid_title} on WhoresMen.com - {vid_description}. Watch now!",
-    }
+    # In case that the description is the same as the title, the program will send
+    # a different payload to avoid over-optimization
+    if vid_title == vid_description:
+        img_payload: dict[str, str] = {
+            "alt_text": f"{vid_title} on WhoresMen.com",
+            "caption": f"{vid_title} on WhoresMen.com",
+            "description": f"{vid_title} on WhoresMen.com",
+        }
+    else:
+        img_payload: dict[str, str] = {
+            "alt_text": f"{vid_title} on WhoresMen.com - {vid_description}",
+            "caption": f"{vid_title} on WhoresMen.com - {vid_description}",
+            "description": f"{vid_title} on WhoresMen.com - {vid_description}",
+        }
     return img_payload
 
 

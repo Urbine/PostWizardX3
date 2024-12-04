@@ -196,7 +196,13 @@ def embedding_pilot(
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make the more general.
             tag_prep = filter_tags(categories, ["asian", "japanese"])
-            tag_prep.append("japanese" if partner == 'abjav' or 'vjav' else '')
+            # Default tag per partner
+            if partner == 'abjav' or partner == 'vjav':
+                tag_prep.append('japanese')
+            elif partner == 'Desi Tube':
+                tag_prep.append('indian')
+            else:
+                pass
             tag_ints = cs.get_tag_ids(wp_posts_f, tag_prep, 'tags')
             all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
             tag_check = cs.identify_missing(
