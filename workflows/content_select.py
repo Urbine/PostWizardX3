@@ -186,11 +186,17 @@ def get_tag_ids(wp_posts_f: list[dict],
     tag_tracking: dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, preset[0], preset[1]
     )
+    # Clean the tags so that the program can match them well
+    spl_char = lambda tag: re.findall(r"[\W_]", tag)[0] if re.findall(r"[\W_]", tag) else " "
+    # In case there is more than two words with a special char
+    splj_tag = (lambda tag: [' '.join(t.split(spl_char(t)))
+                             for t in tag.split(spl_char(tag)) for x in t.split(spl_char(t))])
+    cl_tags = [' '.join(splj_tag(tag)) for tag in tag_lst]
     # I will match them with Regex here to avoid touching the datasource.
     matched_keys: list[str] = [
         wptag
         for wptag in tag_tracking.keys()
-        for tag in tag_lst
+        for tag in cl_tags
         if re.fullmatch(tag, wptag, flags=re.IGNORECASE)
     ]
     # The function will return a reversed list of matches.
@@ -448,7 +454,7 @@ def make_slug(
             if (
                 re.match(r"[\w+]", word, flags=re.IGNORECASE)
                 and word.lower() not in filter_words
-            )
+        )
         ]
     )
 
@@ -476,7 +482,7 @@ def make_slug(
 
 
 def hot_file_sync(bot_config: ContentSelectConf |
-                  GallerySelectConf | EmbedAssistConf) -> bool:
+                              GallerySelectConf | EmbedAssistConf) -> bool:
     """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
     This function leverages the power of the caching mechanism defined
@@ -661,7 +667,7 @@ def video_upload_pilot(
         banner_lsts: list[list[str]],
         wp_auth: WPAuth = wp_auth(),
         wp_endpoints: WPEndpoints = WPEndpoints,
-        cs_config: ContentSelectConf= content_select_conf(),
+        cs_config: ContentSelectConf = content_select_conf(),
         parent: bool = False,
 ) -> None:
     """Here is the main coordinating function of this module, the job control that
@@ -746,7 +752,7 @@ def video_upload_pilot(
     partner, banners = partners[partner_indx], banner_lsts[partner_indx]
     select_guard(partner_db_name, partner)
     not_published_yet: list[tuple[str, ...]
-                            ] = filter_published(all_vals, wp_posts_f)
+    ] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     print(f"There are {total_elems} videos to be published...")
