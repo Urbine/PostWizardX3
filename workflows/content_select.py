@@ -38,7 +38,7 @@ from core import (helpers,
 from core.config_mgr import WPAuth, ContentSelectConf, GallerySelectConf, EmbedAssistConf
 from integrations import wordpress_api
 from integrations.url_builder import WPEndpoints
-from ml_engine import classify_title, classify_description
+from ml_engine import classify_title, classify_description, classify_tags
 
 
 def clean_partner_tag(partner_tag: str) -> str:
@@ -187,12 +187,13 @@ def get_tag_ids(wp_posts_f: list[dict],
         wp_posts_f, preset[0], preset[1]
     )
     # Clean the tags so that the program can match them well
+    # 1. Get the 'non-word' element to know how to split the word
     spl_char = lambda tag: re.findall(r"[\W_]", tag)[0] if re.findall(r"[\W_]", tag) else " "
-    # In case there is more than two words with a special char
-    splj_tag = (lambda tag: [' '.join(t.split(spl_char(t)))
-                             for t in tag.split(spl_char(tag)) for x in t.split(spl_char(t))])
-    cl_tags = [' '.join(splj_tag(tag)) for tag in tag_lst]
-    # I will match them with Regex here to avoid touching the datasource.
+    # 2. In case there is more than two words with different special chars.
+    splj_tag = (lambda tag: [' '.join(w.split(spl_char(t)))
+                             for t in tag.split(spl_char(tag)) for w in t.split(spl_char(t))])
+    cl_tags = list(map(lambda tag : ' '.join(splj_tag(tag)), tag_lst))
+    # Once cleaned (no special chars), I will match them with Regex to get the IDs.
     matched_keys: list[str] = [
         wptag
         for wptag in tag_tracking.keys()
@@ -806,6 +807,14 @@ def video_upload_pilot(
                 print(
                     f"You have created {videos_uploaded} posts in this session!")
                 break
+
+        # In rare occasions, the ``tags`` is None and the real tags are placed in the ``models`` variable
+        # this special handling prevents crashes
+        if tags:
+            pass
+        else:
+            tags, models = models, tags
+
         if add_post:
             slugs: list[str] = [
                 f"{fields[8]}-video",
@@ -889,11 +898,14 @@ def video_upload_pilot(
                     pyclip.detect_clipboard()
                     pyclip.copy(author)
 
+            # NaiveBayes classification for titles, descriptions, and tags
             class_title = classify_title(title)
             class_description = classify_description(description)
-            # class_tags = classify_tags(tags)
+
+            # As mentioned above, this is case fields are misplaced.
+            class_tags = classify_tags(tags)
             class_title.union(class_description)
-            # class_title.union(class_tags)
+            class_title.union(class_tags)
             consolidate_categs = list(class_title)
 
             print(" \n** I think these categories are appropriate: **\n")
