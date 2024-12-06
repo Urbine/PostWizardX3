@@ -432,7 +432,7 @@ def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
 
 
 def make_slug(
-        partner: str, model: str, title: str, content: str, reverse: bool = False
+        partner: str, model: str, title: str, content: str, reverse: bool = False, partner_out: bool = False
 ) -> str:
     """This function is a new approach to the generation of slugs inspired by the slug making
     mechanism from gallery_select.py. It takes in strings that will be transformed into URL slugs
@@ -444,6 +444,7 @@ def make_slug(
     :param content: ``str`` type of content, in this file it is simply `video` but it could be `pics`
                     this parameter tells Google about the main content of the page.
     :param reverse: ``bool``  ``True`` if you want to place the video title in front of the permalink. Default ``False``
+    :param partner_out: ``bool`` ``True`` if you want to build slugs without the partner name. Default ``False``.
     :return: ``str`` formatted string of a WordPress-ready URL slug.
     """
     filter_words: set[str] = {"at", "&", "and"}
@@ -468,15 +469,21 @@ def make_slug(
         )
 
         content: str = f"-{content}" if content != "" or None else ""
-
+        # Note: the ``reverse`` flag acts primarily on the partner tag, so if it does not make sense to implement
+        # further logic for the ``partner_out`` flag. In case you're wondering why the ``elif`` block does not
+        # check for ``reverse`` too.
         if reverse:
             return f"{title_sl}-{partner_sl}-{model_sl}{content}"
+        elif partner_out:
+            return f"{title_sl}-{model_sl}{content}"
         else:
             return f"{partner_sl}-{model_sl}-{title_sl}{content}"
     except AttributeError:
         # Model can be NoneType and crash the program if this is not handled.
         if reverse:
             return f"{title_sl}-{partner_sl}-{content}"
+        elif partner_out:
+            return f"{title_sl}-{content}"
         else:
             return f"{partner_sl}-{title_sl}-{content}"
 
@@ -804,13 +811,14 @@ def video_upload_pilot(
                 f"{fields[8]}-video",
                 make_slug(partner, models, title, "video"),
                 make_slug(partner, models, title, "video", reverse=True),
+                make_slug(partner, models, title, "video", partner_out=True)
             ]
 
             print("\n--> Available slugs:\n")
 
             for n, slug in enumerate(slugs, start=1):
                 print(f"{n}. -> {slug}")
-            print("--> Enter #4 to provide a custom slug")
+            print("--> Enter #5 to provide a custom slug")
 
             match input("\nSelect your slug: "):
                 case "1":
@@ -820,12 +828,18 @@ def video_upload_pilot(
                 case "3":
                     wp_slug: str = slugs[2]
                 case "4":
+                    wp_slug: str = slugs[3]
+                case "5":
                     wp_slug: str = input("Provide a new slug: ")
                 case _:
-                    # Smart slug by default (reversed).
-                    wp_slug: str = slugs[2]
+                    # TODO: Add ``default_slug`` option to config file.
+                    # Smart slug by default (partner_out).
+                    wp_slug: str = slugs[3]
+
+
 
             tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
+
             # Making sure that the partner tag does not have apostrophes
             partner_tag: str = clean_partner_tag(partner.lower())
             tag_prep.append(partner_tag)
