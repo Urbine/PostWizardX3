@@ -5,7 +5,7 @@ import sqlite3
 
 # Local implementations
 import core
-from core.helpers import clean_file_cache
+from core.helpers import clean_file_cache, remove_if_exists
 from .url_builder import CSVColumns, CSVSeparators
 
 # Constants
@@ -93,6 +93,7 @@ def adult_next_dump_parse(filename: str, dirname: str,
         f'./{dirname}/{c_filename}') else True
     path = f"{core.is_parent_dir_required(is_parent_dir)}{dirname}/{core.clean_filename(filename, 'csv')}"
     db_name = f"{core.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
+    remove_if_exists(db_name)
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
 

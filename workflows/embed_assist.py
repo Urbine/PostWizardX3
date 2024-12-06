@@ -188,7 +188,7 @@ def embedding_pilot(
                 case "4":
                     pyclip.copy(slugs[0])
                     print("Enter your slug now: ")
-                    wp_slug = sys.stdin.readline().strip('\n')
+                    wp_slug = input()
                 case _:
                     # Parsing slug by default.
                     wp_slug = slugs[0]

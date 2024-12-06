@@ -21,7 +21,7 @@ import datetime
 from bs4 import BeautifulSoup
 
 # Local implementation
-from core import helpers
+from core import helpers, remove_if_exists
 
 
 def parse_titles(soup_html: BeautifulSoup) -> list[str]:
@@ -89,6 +89,7 @@ def db_generate(
     else:
         d_name = helpers.clean_filename(db_suggest, "db")
 
+    remove_if_exists(d_name)
     db_conn = sqlite3.connect(
         f"{helpers.is_parent_dir_required(parent=parent)}{d_name}"
     )

@@ -185,9 +185,14 @@ if __name__ == '__main__':
     # Saving the models for later.
 
     # NLTK NaiveBayes Classifier Model
-    nbc_titles = './ml_models/NaiveBayesTitles.joblib.pkl'
-    nbc_descriptions = './ml_models/NaiveBayesDescriptions.joblib.pkl'
-    nbc_tags = './ml_models/NaiveBayesTags.joblib.pkl'
+    nbc_titles = helpers.load_file_path('ml_engine.ml_models',
+                                        'NaiveBayesTitles.joblib.pkl')
+
+    nbc_descriptions = helpers.load_file_path('ml_engine.ml_models',
+                                              'NaiveBayesDescriptions.joblib.pkl')
+
+    nbc_tags = helpers.load_file_path('ml_engine.ml_models',
+                                      'NaiveBayesTags.joblib.pkl')
     save_nbc_titles = joblib.dump(
         NaiveBClassifier_titles, nbc_titles, compress=9)
     save_nbc_descriptions = joblib.dump(
@@ -197,9 +202,15 @@ if __name__ == '__main__':
     save_nbc_tags = joblib.dump(NaiveBClassifier_tags, nbc_tags, compress=9)
 
     # NLTK Maxent Classifier
-    maxent_titles = './ml_models/MaxentClassifierTitles.joblib.pkl'
-    maxent_descriptions = './ml_models/MaxentClassifierDescriptions.joblib.pkl'
-    maxent_tags = './ml_models/MaxentClassifierTags.joblib.pkl'
+    maxent_titles = helpers.load_file_path('ml_engine.ml_models',
+                                           'MaxentClassifierTitles.joblib.pkl')
+
+    maxent_descriptions = helpers.load_file_path('ml_engine.ml_models',
+                                                 'MaxentClassifierDescriptions.joblib.pkl')
+
+    maxent_tags = helpers.load_file_path('ml_engine.ml_models',
+                                         'MaxentClassifierTags.joblib.pkl')
+
     save_maxent_titles = joblib.dump(
         maxent_cl_titles, maxent_titles, compress=9)
     save_maxent_descriptions = joblib.dump(
@@ -207,9 +218,14 @@ if __name__ == '__main__':
     save_maxent_tags = joblib.dump(maxent_cl_tags, maxent_tags, compress=9)
 
     # SciKit-Learn Classifier (Multinomial Naive Bayes)
-    multinb_titles = './ml_models/MultiNBClassifierTitles.joblib.pkl'
-    multinb_descriptions = './ml_models/MultiNBClassifierDescriptions.joblib.pkl'
-    multinb_tags = './ml_models/MultiNBClassifierTags.joblib.pkl'
+    multinb_titles = helpers.load_file_path('ml_engine.ml_models',
+                                            'MultiNBClassifierTitles.joblib.pkl')
+
+    multinb_descriptions = helpers.load_file_path('ml_engine.ml_models',
+                                                  'MultiNBClassifierDescriptions.joblib.pkl')
+
+    multinb_tags = helpers.load_file_path('ml_engine.ml_models',
+                                          'MultiNBClassifierTags.joblib.pkl')
     save_multi_titles = joblib.dump(
         sk_class_titles, multinb_titles, compress=9)
     save_multi_descriptions = joblib.dump(

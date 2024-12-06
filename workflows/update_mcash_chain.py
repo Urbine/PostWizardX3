@@ -40,6 +40,7 @@ from core import (
     load_from_file,
     clean_filename,
     clean_file_cache,
+    remove_if_exists
 )
 
 from tasks.mcash_dump_create import get_vid_dump_flow
@@ -147,6 +148,7 @@ if __name__ == '__main__':
     # Parsing video txt dump:
 
     db_name = clean_filename(dump_file_name, "db")
+    remove_if_exists(db_name)
     db_conn = sqlite3.connect(
         f"{is_parent_dir_required(parent=args.parent)}{db_name}")
     cursor = db_conn.cursor()
