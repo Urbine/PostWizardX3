@@ -18,7 +18,7 @@ import sqlite3
 import datetime
 
 # Local implementations
-from core import helpers
+from core import helpers, load_file_path
 
 
 # Make sure that you get a dump file with all these fields:
@@ -137,7 +137,7 @@ def parse_txt_dump(
                 break
 
         # absolute file path and number of entries inserted into the database
-        return f"{os.path.dirname(os.getcwd())}/{d_name}", total_entries
+        return f"{os.path.abspath(d_name)}", total_entries
 
 
 if __name__ == "__main__":

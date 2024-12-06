@@ -23,9 +23,11 @@ import os
 import re
 import shutil
 import sqlite3
+from typing import AnyStr
 import urllib
 import urllib.request
 import urllib.error
+from pathlib import Path
 from datetime import date
 
 from bs4 import BeautifulSoup
@@ -636,7 +638,7 @@ def match_list_elem_date(
         return up_to_date
 
 
-def load_file_path(package: str, filename: str):
+def load_file_path(package: str, filename: str) -> Path:
     """ Load resources stored within folders in packages.
     Usually, not all systems can locate the required resources due to the package structure of the project.
     :param package: ``str`` package name, for example, if you have a file name in `./models`
@@ -819,3 +821,13 @@ def write_to_file(
         file.write(str(stream))
     print(f"Created file {f_name} in {folder}")
     return None
+
+def load_file_package_scope(package: str, filename: str) -> AnyStr:
+    """ Load file when the program is executed as a module
+    :param package: package name
+    :param filename: filename
+    :return: AnyStr
+    """
+    with importlib.resources.path(package, filename) as file_path:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.read()
