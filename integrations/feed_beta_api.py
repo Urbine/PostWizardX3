@@ -11,7 +11,7 @@ import sqlite3
 # Local implementations
 import core
 from .url_builder import CSVColumns, CSVSeparators
-from core.helpers import clean_file_cache
+from core.helpers import clean_file_cache, remove_if_exists
 
 PartnerOne_BASE_URL = 'https://example-feed-a.com/admin/feeds/embed/?source=576422190'
 FEED_BETA_BASE_URL = 'https://example-feed-b.com/admin/feeds/embed/?source=576422190'
@@ -92,6 +92,7 @@ def feed_dump_parse(filename: str, dirname: str,
         f'./{dirname}/{c_filename}') else True
     path = f"{core.is_parent_dir_required(is_parent_dir)}{dirname}/{core.clean_filename(filename, 'csv')}"
     db_name = f"{core.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
+    remove_if_exists(db_name)
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
 
