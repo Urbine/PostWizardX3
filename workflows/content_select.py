@@ -21,6 +21,7 @@ import pyclip
 import random
 import re
 import requests
+import readline
 import time
 import sqlite3
 import warnings
@@ -186,14 +187,23 @@ def get_tag_ids(wp_posts_f: list[dict],
     tag_tracking: dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, preset[0], preset[1]
     )
+
     # Clean the tags so that the program can match them well
+    # This functionality could be a separate function, however, it does not make sense to make it so since
+    # the procedures are not used anywhere else in the program.
     # 1. Get the 'non-word' element to know how to split the word
     spl_char = lambda tag: re.findall(r"[\W_]", tag)[0] if re.findall(r"[\W_]", tag) else " "
     # 2. In case there is more than two words with different special chars.
-    splj_tag = (lambda tag: [' '.join(w.split(spl_char(t)))
+    jspl_tag = (lambda tag: [' '.join(w.split(spl_char(t)))
                              for t in tag.split(spl_char(tag)) for w in t.split(spl_char(t))])
-    cl_tags = list(map(lambda tag : ' '.join(splj_tag(tag)), tag_lst))
+    # 3. Make sure all special characters are removed
+    jspl_tags = lambda tag: ' '.join(jspl_tag(tag))
+    # 4. Apply jspl_tags to tag_lst recursively.
+    cl_tags = list(map(jspl_tags, map(jspl_tags, tag_lst)))
+
     # Once cleaned (no special chars), I will match them with Regex to get the IDs.
+    # the wordpress_api.map_wp_class_id function will separate the tags as they are stored on WordPress
+    # thus, it is crucial that tags don't have any special characters before processing them with it.
     matched_keys: list[str] = [
         wptag
         for wptag in tag_tracking.keys()
@@ -839,13 +849,14 @@ def video_upload_pilot(
                 case "4":
                     wp_slug: str = slugs[3]
                 case "5":
-                    wp_slug: str = input("Provide a new slug: ")
+                    # Copy the default slug for editing
+                    pyclip.copy(slugs[3])
+                    print("Provide a new slug: ")
+                    wp_slug: str = input()
                 case _:
                     # TODO: Add ``default_slug`` option to config file.
                     # Smart slug by default (partner_out).
                     wp_slug: str = slugs[3]
-
-
 
             tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
 

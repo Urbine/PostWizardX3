@@ -4,9 +4,9 @@
 cd_init=0
 # Checks whether this script is running in the project's scripts dir.
 curr_dir=$(pwd | grep -c scripts)
-if [ "$curr_dir" = 1 ];then
+if [ "$curr_dir" != 1 ];then
    # Go to parent dir
-   cd ~/GitHub/webmaster-seo-tools/scripts
+   cd ~/GitHub/webmaster-seo-tools
    cd_init=1
 else
   :
