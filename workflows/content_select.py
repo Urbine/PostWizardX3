@@ -21,6 +21,7 @@ import pyclip
 import random
 import re
 import requests
+import readline
 import time
 import sqlite3
 import warnings
@@ -848,13 +849,14 @@ def video_upload_pilot(
                 case "4":
                     wp_slug: str = slugs[3]
                 case "5":
-                    wp_slug: str = input("Provide a new slug: ")
+                    # Copy the default slug for editing
+                    pyclip.copy(slugs[3])
+                    print("Provide a new slug: ")
+                    wp_slug: str = input()
                 case _:
                     # TODO: Add ``default_slug`` option to config file.
                     # Smart slug by default (partner_out).
                     wp_slug: str = slugs[3]
-
-
 
             tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
 
