@@ -19,7 +19,7 @@ echo "** Updating ASD Database... **"
 python3 -m workflows.update_media_source_chain ./tmp --hint partnerone --gecko --headless
 echo -e "\n"
 echo "** Updating PartnerThree Database... **"
-python3 -m workflows.update_media_source_chain ./tmp --hint partnerone --gecko --headless
+python3 -m workflows.update_media_source_chain ./tmp --hint partner_c --gecko --headless
 echo -e "\n"
 echo "** Cleaning old databases... **"
 if [ "$cd_init" = 1 ];then

@@ -101,9 +101,11 @@ def embedding_pilot(
     wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
     partner_list = embed_ast_conf.partners.split(',')
     os.system('clear')
+
     db_conn, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
         partner_list, embed_ast_conf.content_hint
     )
+
     wp_base_url = wp_auth.api_base_url
     videos_uploaded: int = 0
     partner = partner_list[partner_indx]
@@ -112,6 +114,7 @@ def embedding_pilot(
         embed_ast_conf.sql_query, cur_dump)
     not_published_yet = filter_published_embeds(wp_posts_f, all_vals)
     total_elems = len(not_published_yet)
+
     for num, vid in enumerate(not_published_yet):
         id_ = vid[0]
         title = vid[1]

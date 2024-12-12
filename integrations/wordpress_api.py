@@ -282,7 +282,7 @@ def get_tag_count(wp_posts_f: list[dict]) -> dict[str, int]:
     return tags_count
 
 
-def map_posts_by_id(wp_posts_f: list[dict], host_name=None) -> dict[str, str]:
+def map_posts_by_id(wp_posts_f: list[dict], host_name: None | str = None) -> dict[str, str]:
     """Maps post ID to a slug. In WordPress, every post and even field has an ``ID``.
     In this case, this function just maps the slug with the post ID.
     If you set host_name to ``True``, the function will give you the ``hostname`` + ``post_slug``
@@ -298,7 +298,7 @@ def map_posts_by_id(wp_posts_f: list[dict], host_name=None) -> dict[str, str]:
         # if the user specifies a hostname with another TLD, .com will not be used!
         # clean_filename has a "trust" mode.
         return {
-            idd: f"{helpers.clean_filename(host_name, 'com')}/" + url
+            idd: f"{host_name}/" + url
             for idd, url in u_pack
         }
     else:
@@ -611,7 +611,7 @@ def create_tag_report_excel(
     post_id_slug.write_row("A1", ("Post ID", "Post Slug", "Post Category"))
     post_id_slug.write_column("A2", tuple(map_posts_by_id(wp_posts_f).keys()))
     post_id_slug.write_column("B2", tuple(
-        map_posts_by_id(wp_posts_f).values()))
+        map_posts_by_id(wp_posts_f, host_name=wp_auth().full_base_url).values()))
     post_id_slug.write_column(
         "C2", unpack_tpl_excel(map_postsid_category(wp_posts_f).values())
     )
@@ -901,20 +901,22 @@ if __name__ == "__main__":
         help="Enable Yoast SEO mode in compatible functions.",
     )
 
+    args_parser.add_argument("--excel", action="store_true",
+                             help="Create an MS Excel report with the tag and slug information of the site.")
+
     args = args_parser.parse_args()
 
-    upgrade_wp_local_cache(
-        photos=args.photos,
-        cached=args.cached,
-        parent=args.parent,
-        yoast=args.yoast)
+    if args.excel:
+        imported_json: list[dict] = helpers.load_json_ctx("wp_posts")
+        create_tag_report_excel(imported_json,
+                                f"tag-report-excel-{datetime.date.today()}")
+    else:
+        upgrade_wp_local_cache(
+            photos=args.photos,
+            cached=args.cached,
+            parent=args.parent,
+            yoast=args.yoast)
 
-    # Loading local cache
-    # imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)
-    # wp_post_len: int = len(imported_json)
-
-    # Create the report here. Make sure to uncomment the following:
-    # create_tag_report_excel(imported_json, "tag_report_excel", parent=True)
 
     # categories = get_all_categories(hstname, rest_params)
     # export_request_json('wp_categories', categories, parent=True)
