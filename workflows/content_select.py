@@ -57,6 +57,7 @@ def clean_partner_tag(partner_tag: str) -> str:
         elif "'" not in no_word:
             return partner_tag
         else:
+            # Second special character is the apostrophe, the first one is typically a whitespace
             split_char: str = no_word[1] if len(no_word) > 1 else no_word[0]
             return "".join(partner_tag.split(split_char))
     except IndexError:
@@ -191,18 +192,14 @@ def get_tag_ids(wp_posts_f: list[dict],
     # Clean the tags so that the program can match them well
     # This functionality could be a separate function, however, it does not make sense to make it so since
     # the procedures are not used anywhere else in the program.
-    # 1. Get the 'non-word' element to know how to split the word
-    spl_char = lambda tag: re.findall(r"[\W_]", tag)[0] if re.findall(r"[\W_]", tag) else " "
-    # 2. In case there is more than two words with different special chars.
-    jspl_tag = (lambda tag: [' '.join(w.split(spl_char(t)))
-                             for t in tag.split(spl_char(tag)) for w in t.split(spl_char(t))])
-    # 3. Make sure all special characters are removed
-    jspl_tags = lambda tag: ' '.join(jspl_tag(tag))
-    # 4. Apply jspl_tags to tag_lst recursively.
-    cl_tags = list(map(jspl_tags, map(jspl_tags, tag_lst)))
+    spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]", tag)) else " "
+    clean_tag = lambda tag: " ".join(tag.split(spl_char(tag)))
+    tag_join = lambda tag: "".join(map(clean_tag, tag))
+    # Result must be: colourful-skies/great -> colourful skies great
+    cl_tags = list(map(tag_join, tag_lst))
 
     # Once cleaned (no special chars), I will match them with Regex to get the IDs.
-    # the wordpress_api.map_wp_class_id function will separate the tags as they are stored on WordPress
+    # the wordpress_api.map_wp_class_id function will handle the tags as they are stored on WordPress
     # thus, it is crucial that tags don't have any special characters before processing them with it.
     matched_keys: list[str] = [
         wptag
@@ -230,11 +227,12 @@ def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]) -> list[int]:
     model_tracking: dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, "pornstars", "pornstars"
     )
+    title_strip = lambda model: model.title().strip()
     return list(
         {
-            model_tracking[model.title().strip()]
+            model_tracking[title_strip(model)]
             for model in model_lst
-            if model.title().strip() in model_tracking.keys()
+            if title_strip(model) in model_tracking.keys()
         }
     )
 
@@ -272,7 +270,7 @@ def identify_missing(
         for item in data_lst:
             if ignore_case:
                 item: str = item.lower()
-                tags: list[str] = [tag.lower() for tag in wp_data_dic.keys()]
+                tags: list[str] = list(map(lambda tag: tag.lower(), wp_data_dic.keys()))
                 if item not in tags:
                     not_found.append(item)
             else:
@@ -475,7 +473,7 @@ def make_slug(
         model_sl: str = "-".join(
             [
                 "-".join(name.split(" "))
-                for name in [model.lower().strip() for model in model.split(",")]
+                for name in list(map(lambda m: m.lower().strip(), model.split(",")))
             ]
         )
 
@@ -572,6 +570,12 @@ def select_guard(db_name: str, partner: str) -> None:
     WordPress, and that could be a huge issue considering that each partner offering has
     proprietary banners and tracking links.
 
+    It is important to note that this function was designed at a time when the user had to
+    manually select a database. However, with functions like ``content_select_db_match``, the
+    program will obtain the most appropriate database automatically. Despite the latter, ``select_guard``
+    has been kept in place to alert the user of any errors that may arise and still serve the purpose
+    that led to its creation.
+
     :param db_name: ``str`` user-selected database name
     :param partner: ``str`` user-selected partner offering
     :return: ``None`` / If the assertion fails the execution will stop gracefully.
@@ -579,13 +583,12 @@ def select_guard(db_name: str, partner: str) -> None:
     # Find the split character as I just need to get the first word of the name
     # to match it with partner selected by the user
     match_regex = re.findall(r"[\W_]", db_name)[0]
+    spl_dbname = lambda db: db.strip().split(match_regex)
     try:
-        assert re.match(
-            db_name.strip().split(match_regex)[0], partner, flags=re.IGNORECASE
-        )
+        assert re.match(spl_dbname(db_name)[0], partner, flags=re.IGNORECASE)
     except AssertionError:
         print("\nBe careful! Partner and database must match. Re-run...")
-        print(f"You selected {db_name} for partner {partner}.")
+        print(f"The program selected {db_name} for partner {partner}.")
         quit()
 
 
@@ -633,10 +636,8 @@ def content_select_db_match(
         strict=True,
     )
 
-    relevant_content: list[str] = [
-        filtered_files[indx]
-        for indx in helpers.match_list_mult(content_hint, filtered_files)
-    ]
+    relevant_content: list[str] = list(map(lambda indx: filtered_files[indx],
+                                           helpers.match_list_mult(content_hint, filtered_files)))
 
     if prompt_db:
         print(f"\nHere are the available database files:")
@@ -655,8 +656,10 @@ def content_select_db_match(
         try:
             split_char = re.findall(r"[\W_]",
                                     hint_lst[int(select_partner) - 1])[0]
+
             clean_hint: str = hint_lst[int(
                 select_partner) - 1].split(split_char)[0]
+
         except IndexError:
             clean_hint: str = hint_lst[int(select_partner) - 1]
 

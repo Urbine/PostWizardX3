@@ -19,7 +19,7 @@ echo "** Updating ASD Database... **"
 python3 -m workflows.update_mcash_chain ./tmp --hint asian --gecko --headless
 echo -e "\n"
 echo "** Updating Trike Patrol Database... **"
-python3 -m workflows.update_mcash_chain ./tmp --hint asian --gecko --headless
+python3 -m workflows.update_mcash_chain ./tmp --hint trike --gecko --headless
 echo -e "\n"
 echo "** Cleaning old databases... **"
 if [ "$cd_init" = 1 ];then
