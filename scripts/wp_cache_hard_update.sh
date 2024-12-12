@@ -24,6 +24,8 @@ echo "Cleaning old databases..."
 if [ "$cd_init" = 1 ];then
   # if the script moved to the parent dir, it has to come back
   ./scripts/outdated_clean_smart.sh
-else
+else if [ "$curr_dir" = 1 ];then
   ./outdated_clean_smart.sh
+else
+  ~/GitHub/webmaster-seo-tools/scripts/outdated_clean_smart.sh
 fi
