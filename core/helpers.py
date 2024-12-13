@@ -741,18 +741,20 @@ def parse_date_to_iso(
     # Lists month_abbr and month_name provided by the built-in Calendar
     # library in Python.
     if m_abbr:
-        months = [m for m in month_abbr]
+        months = list(month_abbr)
     else:
-        months = [m for m in month_name]
+        months = list(month_name)
 
     year = str(full_date.split(",")[1].strip())
+
+    # Add one since the lambda obtains "truthy" values and there is an empty string in the list as an offset.
     month_num = str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     # The date ISO format requires that single numbers are preceded by a 0.
 
     if int(month_num) <= 9:
-        month_num = "0" + \
-                    str(months.index(full_date.split(",")[0].split(" ")[0]))
+        # month_num contains 13 elements, so I need to subtract 1 from the resulting index
+        month_num = "0" + str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     day_nth = str(full_date.split(",")[0].split(" ")[1])
     day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
@@ -785,7 +787,7 @@ def search_files_by_ext(
     if recursive:
         return glob.glob(
             is_parent_dir_required(parent) + f"{folder}/*/{search_files}",
-            recursive=True,
+            recursive=recursive,
         )
     else:
         return [
@@ -821,6 +823,7 @@ def write_to_file(
         file.write(str(stream))
     print(f"Created file {f_name} in {folder}")
     return None
+
 
 def load_file_package_scope(package: str, filename: str) -> AnyStr:
     """ Load file when the program is executed as a module

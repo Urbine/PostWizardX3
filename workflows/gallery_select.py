@@ -49,7 +49,7 @@ def fetch_zip(
         parent: bool = False,
         gecko: bool = False,
         headless: bool = False,
-        m_cash_auth = monger_cash_auth()
+        m_cash_auth=monger_cash_auth()
 ) -> None:
     """ Fetch a .zip archive from the internet by following set of authentication and retrieval
     steps via automated execution of a browser instance (webdriver).
@@ -132,7 +132,7 @@ def extract_zip(zip_path: str, extr_dir: str):
         finally:
             # We always have to clean up.
             clean_file_cache(zip_path, ".zip")
-    except IndexError or zipfile.BadZipfile:
+    except (IndexError, zipfile.BadZipfile):
         return None
 
 
@@ -179,7 +179,7 @@ def get_from_db(cur: sqlite3, field: str,
     try:
         return cur.execute(qry).fetchall()
     except OperationalError:
-        # This happens when the table or field do not exist.
+        # This happens when the table or field does not exist.
         return None
 
 
@@ -198,7 +198,7 @@ def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
     return {
         elem
         for model in new_lst
-        for elem in (model.split(",") if re.findall("[,+]", model) else [model])
+        for elem in (model.split(",") if re.findall(r",+", model) else [model])
     }
 
 
@@ -223,16 +223,19 @@ def make_photos_payload(
     :return: ``dict[str, str | int]``
     """
     filter_words: set[str] = {"on", "in", "at", "&", "and"}
-    no_partner_name: list[str] = [
-        word for word in set_name.split(" ") if word not in set(partner_name.split(" "))
-    ]
+
+    no_partner_name: list[str] = list(filter(lambda w: w not in set(partner_name.split(" ")), set_name.split(" ")))
+
+    # no_partner_name: list[str] = [
+    #     word for word in set_name.split(" ") if word not in set(partner_name.split(" "))
+    # ]
 
     wp_pre_slug: str = "-".join(
         [
             word.lower()
             for word in no_partner_name
-            if re.match(r"[\w+]", word, flags=re.IGNORECASE)
-            and word.lower() not in filter_words
+            if re.match(r"\w+", word, flags=re.IGNORECASE)
+               and word.lower() not in filter_words
         ]
     )
 
@@ -259,14 +262,14 @@ def make_photos_payload(
 
 
 def upload_image_set(
-        ext: str, folder: str, title: str, wp_base_url: WPAuth = wp_auth()
+        ext: str, folder: str, title: str, wp_params: WPAuth = wp_auth()
 ) -> None:
     """ Upload a set of images to the WordPress Media endpoint.
 
     :param ext: ``str`` image file extension to look for.
     :param folder:  ``str`` Your thumbnails folder, just the name is necessary.
     :param title: ``str`` gallery name
-    :param wp_base_url: ``WPAuth``object with the base URL of the WP site.
+    :param wp_params: ``WPAuth``object with the base URL of the WP site.
     :return: ``None``
     """
     # Making sure folder is accessible.
@@ -294,7 +297,7 @@ def upload_image_set(
     for number, image in enumerate(thumbnails, start=1):
         img_attrs: dict[str, str] = make_gallery_payload(title, number)
         status_code: int = wordpress_api.upload_thumbnail(
-            wp_base_url.api_base_url, [
+            wp_params.api_base_url, [
                 "/media"], f"{relat_dir}{folder}/{image}", img_attrs
         )
         # If upload is successful, the thumbnail is no longer useful.
@@ -310,7 +313,7 @@ def upload_image_set(
             shutil.rmtree(f"{relat_dir}{folder}/{thumbnails[0].split('/')[0]}")
         else:
             pass
-    except IndexError or AttributeError:
+    except (IndexError, AttributeError):
         # If slicing/splitting fails with IndexError or AttributeError, it does
         # not crash the program.
         pass

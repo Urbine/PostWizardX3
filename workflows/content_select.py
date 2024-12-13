@@ -51,7 +51,7 @@ def clean_partner_tag(partner_tag: str) -> str:
     # This expression means "not a word and underscore"
     try:
         no_word: list[str] = re.findall(
-            r"[\W_]", partner_tag, flags=re.IGNORECASE)
+            r"[\W_]+", partner_tag, flags=re.IGNORECASE)
         if no_word[0] == " " and len(no_word) == 1:
             return partner_tag
         elif "'" not in no_word:
@@ -192,7 +192,7 @@ def get_tag_ids(wp_posts_f: list[dict],
     # Clean the tags so that the program can match them well
     # This functionality could be a separate function, however, it does not make sense to make it so since
     # the procedures are not used anywhere else in the program.
-    spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]", tag)) else " "
+    spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
     clean_tag = lambda tag: " ".join(tag.split(spl_char(tag)))
     tag_join = lambda tag: "".join(map(clean_tag, tag))
     # Result must be: colourful-skies/great -> colourful skies great
@@ -462,7 +462,7 @@ def make_slug(
             word.lower()
             for word in title.lower().split()
             if (
-                re.match(r"[\w+]", word, flags=re.IGNORECASE)
+                re.match(r"[\w]+", word, flags=re.IGNORECASE)
                 and word.lower() not in filter_words
         )
         ]
@@ -582,7 +582,7 @@ def select_guard(db_name: str, partner: str) -> None:
     """
     # Find the split character as I just need to get the first word of the name
     # to match it with partner selected by the user
-    match_regex = re.findall(r"[\W_]", db_name)[0]
+    match_regex = re.findall(r"[\W_]+", db_name)[0]
     spl_dbname = lambda db: db.strip().split(match_regex)
     try:
         assert re.match(spl_dbname(db_name)[0], partner, flags=re.IGNORECASE)
@@ -654,7 +654,7 @@ def content_select_db_match(
         select_partner: str = input(f"\nSelect your partner now: ")
         # I just need the first word to match the db.
         try:
-            split_char = re.findall(r"[\W_]",
+            split_char = re.findall(r"[\W_]+",
                                     hint_lst[int(select_partner) - 1])[0]
 
             clean_hint: str = hint_lst[int(
@@ -915,8 +915,6 @@ def video_upload_pilot(
             # NaiveBayes classification for titles, descriptions, and tags
             class_title = classify_title(title)
             class_description = classify_description(description)
-
-            # As mentioned above, this is case fields are misplaced.
             class_tags = classify_tags(tags)
             class_title.union(class_description)
             class_title.union(class_tags)
@@ -969,7 +967,7 @@ def video_upload_pilot(
                     title, description)
                 upload_img: int = wordpress_api.upload_thumbnail(
                     wp_base_url,
-                    ["/media"],
+                    [wp_endpoints.media],
                     f"{cs_config.thumbnail_dir}/{pic_format}",
                     img_attrs,
                 )
@@ -1035,7 +1033,7 @@ def video_upload_pilot(
                         print(
                             """ERROR: WP JSON Sync failed. Look at the files.
                             Maybe you have to rollback your WordPress cache.
-                            Run: python3 -m integrations.wordpress_api --posts""")
+                            Run: python3 -m integrations.wordpress_api --yoast""")
                 elif next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid
                     # tracebacks from pyclip

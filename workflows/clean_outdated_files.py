@@ -22,6 +22,7 @@ def clean_outdated(hints_: list[str],
                    file_lst: list[str], folder: str) -> None:
     """ Match and identify outdated files, and report to the user which files are
         being deleted.
+
     :param hints_: ``list[str]`` possible filename hints of the files to be deleted.
     :param file_lst: ``list[str]`` file list filtered by extension (externally)
     :param folder: ``str`` folder that will be examined by the function.
@@ -80,7 +81,7 @@ if __name__ == '__main__':
 
     hints = list(args.hints)
 
-    # Filter the files to be deleted by extension.
+    # Filter the files to be deleted by their file extension.
     files = core.search_files_by_ext(
         args.ext, args.folder, parent=args.parent)
 

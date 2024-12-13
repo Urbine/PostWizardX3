@@ -34,7 +34,7 @@ def parse_titles(soup_html: BeautifulSoup) -> list[str]:
     titles = soup_html.find_all(
         "td", attrs={
             "class": "tab-column left-align col_0"})
-    return [td.text for td in titles]
+    return list(map(lambda td: td.text, titles))
 
 
 def parse_dates(soup_html: BeautifulSoup) -> list[datetime.date]:
@@ -47,10 +47,8 @@ def parse_dates(soup_html: BeautifulSoup) -> list[datetime.date]:
     dates = soup_html.find_all(
         "td", attrs={
             "class": "tab-column col_1 center-align"})
-    return [
-        helpers.parse_date_to_iso(td.text.strip(), zero_day=True, m_abbr=False)
-        for td in dates
-    ]
+    parse_date = lambda td: helpers.parse_date_to_iso(td.text.strip(), zero_day=True, m_abbr=False)
+    return list(map(parse_date, dates))
 
 
 def parse_links(soup_html: BeautifulSoup) -> list[str]:
@@ -63,11 +61,9 @@ def parse_links(soup_html: BeautifulSoup) -> list[str]:
     """
     base_url = "https://mongercash.com/"
     ziptool_links = soup_html.find_all("a")
-    return [
-        f"{base_url}{td.attrs['href']}"
-        for td in ziptool_links
-        if re.match("zip_tool", td.attrs["href"])
-    ]
+    make_link = lambda td: f"{base_url}{td.attrs['href']}"
+    match_ziptool = lambda td: bool(re.match("zip_tool", td.attrs["href"]))
+    return list(map(make_link, filter(match_ziptool, ziptool_links)))
 
 
 def db_generate(
@@ -78,6 +74,7 @@ def db_generate(
 
     :param soup_html: ``BeautifulSoup`` object
     :param db_suggest: List with name suggestions for your db files or string.
+    :param parent: ``bool`` ``True`` if you want to generate the database in your parent dir. Default ``False``
     :return: ``tuple[str, int]`` (db_path, total_entries)
     """
     set_titles = parse_titles(soup_html)
