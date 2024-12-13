@@ -198,7 +198,7 @@ def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
     return {
         elem
         for model in new_lst
-        for elem in (model.split(",") if re.findall("[,+]", model) else [model])
+        for elem in (model.split(",") if re.findall(r",+", model) else [model])
     }
 
 
@@ -231,8 +231,8 @@ def make_photos_payload(
         [
             word.lower()
             for word in no_partner_name
-            if re.match(r"[\w+]", word, flags=re.IGNORECASE)
-            and word.lower() not in filter_words
+            if re.match(r"\w+", word, flags=re.IGNORECASE)
+               and word.lower() not in filter_words
         ]
     )
 
