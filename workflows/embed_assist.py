@@ -281,8 +281,8 @@ def embedding_pilot(
                 img_attrs = cs.make_img_payload(title, title)
                 is_parent = helpers.is_parent_dir_required(parent=parent)
                 upload_img = wordpress_api.upload_thumbnail(
-                    wp_base_url, [
-                        "/media"], f"{is_parent}{embed_ast_conf.thumbnail_dir}/{wp_slug}.jpg", img_attrs
+                    wp_base_url, [wp_endpoints.media],
+                    f"{is_parent}{embed_ast_conf.thumbnail_dir}/{wp_slug}.jpg", img_attrs
                 )
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.

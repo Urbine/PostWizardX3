@@ -915,8 +915,6 @@ def video_upload_pilot(
             # NaiveBayes classification for titles, descriptions, and tags
             class_title = classify_title(title)
             class_description = classify_description(description)
-
-            # As mentioned above, this is case fields are misplaced.
             class_tags = classify_tags(tags)
             class_title.union(class_description)
             class_title.union(class_tags)
@@ -969,7 +967,7 @@ def video_upload_pilot(
                     title, description)
                 upload_img: int = wordpress_api.upload_thumbnail(
                     wp_base_url,
-                    ["/media"],
+                    [wp_endpoints.media],
                     f"{cs_config.thumbnail_dir}/{pic_format}",
                     img_attrs,
                 )
@@ -1035,7 +1033,7 @@ def video_upload_pilot(
                         print(
                             """ERROR: WP JSON Sync failed. Look at the files.
                             Maybe you have to rollback your WordPress cache.
-                            Run: python3 -m integrations.wordpress_api --posts""")
+                            Run: python3 -m integrations.wordpress_api --yoast""")
                 elif next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid
                     # tracebacks from pyclip
