@@ -174,9 +174,6 @@ if __name__ == "__main__":
     """
     )
 
-    # As you will notice, this list will be useful
-    # to get a month number from an abbreviation.
-
     print("Available .txt files in the parent dir:\n")
     # Gets txt files in the project directory
     txt_files = helpers.search_files_by_ext("txt", "", parent=True)
