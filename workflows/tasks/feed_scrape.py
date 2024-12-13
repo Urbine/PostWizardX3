@@ -244,13 +244,6 @@ def get_set_source_flow(
 
         vid_select = Select(vids_per_page)
 
-        # selected_options = vid_select.options
-        # select_by_index seems to work with 0-indexing.
-        # for num, opt in enumerate(selected_options, start=0):
-        #     print(f'{num}. {opt.text}')
-        #
-        # selection = input("Enter a number and select an option: ")
-
         # Selecting `Show All` by default in index 5
         vid_select.select_by_index(5)
 
