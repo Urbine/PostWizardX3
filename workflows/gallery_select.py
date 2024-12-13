@@ -132,7 +132,7 @@ def extract_zip(zip_path: str, extr_dir: str):
         finally:
             # We always have to clean up.
             clean_file_cache(zip_path, ".zip")
-    except IndexError or zipfile.BadZipfile:
+    except (IndexError, zipfile.BadZipfile):
         return None
 
 
@@ -310,7 +310,7 @@ def upload_image_set(
             shutil.rmtree(f"{relat_dir}{folder}/{thumbnails[0].split('/')[0]}")
         else:
             pass
-    except IndexError or AttributeError:
+    except (IndexError, AttributeError):
         # If slicing/splitting fails with IndexError or AttributeError, it does
         # not crash the program.
         pass

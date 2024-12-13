@@ -19,7 +19,6 @@ import readline
 import sys
 import time
 
-
 # Local implementations
 from core import helpers
 import workflows.content_select as cs
@@ -81,8 +80,8 @@ def filter_published_embeds(
 
 
 def embedding_pilot(
-        embed_ast_conf = embed_assist_conf(),
-        wp_auth = wp_auth(),
+        embed_ast_conf=embed_assist_conf(),
+        wp_auth=wp_auth(),
         wp_endpoints: WPEndpoints = WPEndpoints,
         parent: bool = False,
 ) -> None:
@@ -197,7 +196,7 @@ def embedding_pilot(
                     wp_slug = slugs[0]
 
             # Making sure there aren't spaces in tags and exclude the word
-            # `asian` and `japanese` from tags since I want to make the more general.
+            # `asian` and `japanese` from tags since I want to make them more general.
             tag_prep = filter_tags(categories, ["asian", "japanese"])
             # Default tag per partner
             if partner == 'feed_alpha' or partner == 'feed_beta':
@@ -227,6 +226,7 @@ def embedding_pilot(
                     else:
                         pass
 
+            # Video category NaiveBayes Classifiers
             class_title = classify_title(title)
             class_tags = classify_description(categories)
             class_title.union(class_tags)
@@ -240,7 +240,7 @@ def embedding_pilot(
                 case _ as option:
                     try:
                         sel_categ = consolidate_categs[int(option) - 1]
-                    except (ValueError or IndexError):
+                    except (ValueError, IndexError):
                         sel_categ = option
 
             categ_ids = cs.get_tag_ids(
