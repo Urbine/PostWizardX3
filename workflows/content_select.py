@@ -22,6 +22,7 @@ import random
 import re
 import requests
 import readline
+import tempfile
 import time
 import sqlite3
 import warnings
@@ -297,8 +298,7 @@ def fetch_thumbnail(
     and wishes to keep the names.
     :return: ``int`` (status code from requests)
     """
-    parent: bool = False if os.path.exists(f"./{folder}") else True
-    thumbnail_dir: str = f"{helpers.is_parent_dir_required(parent=parent)}{folder}"
+    thumbnail_dir: str = folder
     remote_data: requests = requests.get(remote_res)
     if thumbnail_name != "":
         name: str = f"-{thumbnail_name.split('.')[0]}"
@@ -777,6 +777,8 @@ def video_upload_pilot(
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     print(f"There are {total_elems} videos to be published...")
+    # Create a temporary directory for thumbnails.
+    thumbnails_dir = tempfile.TemporaryDirectory(prefix='thumbs', dir='.')
     for num, vid in enumerate(not_published_yet):
         (title, *fields) = vid
         description = fields[0]
@@ -952,14 +954,11 @@ def video_upload_pilot(
             pic_format = clean_filename(wp_slug, cs_config.pic_format)
             try:
                 fetch_thumbnail(
-                    cs_config.thumbnail_dir,
+                    thumbnails_dir.name,
                     wp_slug,
                     thumbnail_url)
-                thumbnail_lookup = False if os.path.exists(
-                    f"./{cs_config.thumbnail_dir}") else True
-                thumbnail_folder: str = f"{helpers.is_parent_dir_required(thumbnail_lookup)}{cs_config.thumbnail_dir}"
                 print(
-                    f"--> Stored thumbnail {pic_format} in cache folder {thumbnail_folder}"
+                    f"--> Stored thumbnail {pic_format} in cache folder {thumbnails_dir.name}"
                 )
                 print("--> Uploading thumbnail to WordPress Media...")
                 print("--> Adding image attributes on WordPress...")
@@ -968,7 +967,7 @@ def video_upload_pilot(
                 upload_img: int = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
-                    f"{cs_config.thumbnail_dir}/{pic_format}",
+                    f"{thumbnails_dir.name}/{pic_format}",
                     img_attrs,
                 )
 
@@ -983,7 +982,7 @@ def video_upload_pilot(
                     print("--> Proceeding to the next post...\n")
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(f"{thumbnail_folder}/{pic_format}")
+                    os.remove(f"{thumbnails_dir.name}/{pic_format}")
                 else:
                     pass
 
@@ -1041,6 +1040,7 @@ def video_upload_pilot(
                     pyclip.clear()
                     print(
                         f"You have created {videos_uploaded} posts in this session!")
+                    thumbnails_dir.cleanup()
                     break
                 else:
                     pyclip.detect_clipboard()
@@ -1051,7 +1051,7 @@ def video_upload_pilot(
                 # So that it doesn't clear the clipboard automatically.
                 print("\nWe have reviewed all posts for this query.")
                 print("Try a different query and run me again.")
-                print("\n--> Cleaning thumbnails cache now")
+                thumbnails_dir.cleanup()
                 print(
                     f"You have created {videos_uploaded} posts in this session!")
                 print(
@@ -1067,6 +1067,7 @@ def video_upload_pilot(
             print("\nWe have reviewed all posts for this query.")
             print("Try a different SQL query or partner. I am ready when you are. ")
             print(f"You have created {videos_uploaded} posts in this session!")
+            thumbnails_dir.cleanup()
             break
 
 

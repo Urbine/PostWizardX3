@@ -23,7 +23,7 @@ import os
 import re
 import shutil
 import sqlite3
-from typing import AnyStr
+from typing import AnyStr, Any
 import urllib
 import urllib.request
 import urllib.error
@@ -128,7 +128,7 @@ def clean_file_cache(cache_folder: str, file_ext: str) -> None:
     :param file_ext: ``str`` file extension of cached files to be removed
     :return: ``None``
     """
-    parent: bool = False if os.path.exists(f"./{cache_folder}") else True
+    parent: bool = not os.path.exists(f"./{cache_folder}")
     cache_files: list[str] = search_files_by_ext(
         file_ext, parent=parent, folder=cache_folder
     )
@@ -368,7 +368,7 @@ def get_client_info(
     :return: ``dict[str, [str,str]]`` loaded dictionary from filename ``json.load`` or ``None`` if the file is not found.
     """
     f_name = clean_filename(filename, "json")
-    parent = False if os.path.exists(f"./{f_name}") else True
+    parent = not os.path.exists(f"./{f_name}")
     in_parent = is_parent_dir_required(parent)
 
     try:
@@ -658,7 +658,7 @@ def load_json_ctx(filename: str, log_err: bool = False):
     :return: ``JSON`` object
     """
     json_file = clean_filename(filename, "json")
-    parent = False if os.path.exists(f"./{json_file}") else True
+    parent = not os.path.exists(f"./{json_file}")
     parent_or_cwd = is_parent_dir_required(parent)
     try:
         with open(f"{parent_or_cwd}{json_file}", "r", encoding="utf-8") as f:
@@ -799,7 +799,7 @@ def search_files_by_ext(
 
 
 def write_to_file(
-        filename: str, folder: str, extension: str, stream, parent=None
+        filename: str, folder: str, extension: str, stream: Any
 ) -> None:
     """Write to file initializes a context manager to write a stream of data to a file with
     an extension specified by the user. This helper function reduces the need to repeat the code
@@ -811,17 +811,16 @@ def write_to_file(
     :param folder: Destination folder for the file.
     :param extension: File extension that will be enforced for the file type.
     :param stream: stream data or data structure to be writen or converted into a file.
-    :param parent: True if you want to write this file in the parent directory instead. Default False.
     :return: ``None`` -> It creates a file
     """
     f_name = clean_filename(filename, extension)
     with open(
-            f"{is_parent_dir_required(parent)}{folder}/{f_name}",
+            f"{os.path.abspath(folder)}/{f_name}",
             "w",
             encoding="utf-8",
     ) as file:
         file.write(str(stream))
-    print(f"Created file {f_name} in {folder}")
+    print(f"Created file {f_name} in {os.path.abspath(folder)}")
     return None
 
 
