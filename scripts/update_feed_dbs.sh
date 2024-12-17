@@ -13,13 +13,13 @@ else
 fi
 
 echo "** Updating PartnerTwo Database... **"
-python3 -m workflows.update_media_source_chain ./tmp --hint partnertwo --gecko --headless
+python3 -m workflows.update_media_source_chain --hint partnertwo --gecko --headless
 echo -e "\n"
 echo "** Updating ASD Database... **"
-python3 -m workflows.update_media_source_chain ./tmp --hint partnerone --gecko --headless
+python3 -m workflows.update_media_source_chain --hint partnerone --gecko --headless
 echo -e "\n"
 echo "** Updating PartnerThree Database... **"
-python3 -m workflows.update_media_source_chain ./tmp --hint partner_c --gecko --headless
+python3 -m workflows.update_media_source_chain --hint partner_c --gecko --headless
 echo -e "\n"
 echo "** Cleaning old databases... **"
 if [ "$cd_init" = 1 ];then
