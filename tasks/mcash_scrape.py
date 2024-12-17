@@ -255,22 +255,3 @@ def get_set_source_flow(
         source_html = BeautifulSoup(driver.page_source, "html.parser")
 
     return source_html, f"{partner_name}photos-{datetime.date.today()}"
-
-
-if __name__ == "__main__":
-
-    # Initialize the webdriver
-    web_driver = helpers.get_webdriver(tasks_conf().download_folder, headless=True)
-    web_driver_gecko = helpers.get_webdriver(
-        tasks_conf().download_folder, headless=True, gecko=True)
-
-    username = monger_cash_auth().username
-    password = monger_cash_auth().password
-
-    html_source = get_set_source_flow(web_driver)
-
-    helpers.write_to_file(
-        html_source[1],
-        tasks_conf().download_folder,
-        "html",
-        html_source[0],)

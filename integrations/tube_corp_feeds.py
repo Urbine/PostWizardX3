@@ -7,6 +7,7 @@ import argparse
 import datetime
 import os
 import sqlite3
+import tempfile
 
 # Local implementations
 import core
@@ -88,10 +89,8 @@ def tube_dump_parse(filename: str, dirname: str,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
     c_filename = core.clean_filename(filename, 'csv')
-    is_parent_dir = False if os.path.exists(
-        f'./{dirname}/{c_filename}') else True
-    path = f"{core.is_parent_dir_required(is_parent_dir)}{dirname}/{core.clean_filename(filename, 'csv')}"
-    db_name = f"{core.is_parent_dir_required(parent=is_parent_dir)}{filename}-{datetime.date.today()}.db"
+    path = f"{os.path.abspath(dirname)}/{c_filename}"
+    db_name = f"{os.getcwd()}/{filename}-{datetime.date.today()}.db"
     remove_if_exists(db_name)
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
@@ -189,15 +188,18 @@ if __name__ == '__main__':
         cli_args.days,
         url_limit=cli_args.limit)
 
+    # Create temporary directory
+    temp_dir = tempfile.TemporaryDirectory(dir='.')
+
     # Get the VJAV dump file and write it into a .csv file
     core.write_to_file(
         'vjav-dump',
-        'tmp',
+        temp_dir.name,
         'csv',
         core.access_url_bs4(main_url))
 
     # Parse the temporary CSV dump file
-    result = tube_dump_parse("vjav-dump", "tmp", 'jav', "|")
+    result = tube_dump_parse("vjav-dump", temp_dir.name, 'jav', "|")
 
     print(result)
 
@@ -211,13 +213,13 @@ if __name__ == '__main__':
     # Get the Desi Tube dump file and write it into a .csv file
     core.write_to_file(
         'desi-tube-dump',
-        'tmp',
+        temp_dir.name,
         'csv',
         core.access_url_bs4(main_url))
 
-    result = tube_dump_parse("desi-tube-dump", "tmp", '', "|")
+    result = tube_dump_parse("desi-tube-dump", temp_dir.name, '', "|")
 
-    # Clean the temp Desi Tube .csv file in temporary folder
-    clean_file_cache('tmp', 'csv')
+    # Clean temporary folder
+    temp_dir.cleanup()
     print(result)
     print('Cleaned temporary folder...')

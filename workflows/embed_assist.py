@@ -17,6 +17,7 @@ import pyclip
 from requests.exceptions import ConnectionError, SSLError
 import readline
 import sys
+import tempfile
 import time
 
 # Local implementations
@@ -113,7 +114,8 @@ def embedding_pilot(
         embed_ast_conf.sql_query, cur_dump)
     not_published_yet = filter_published_embeds(wp_posts_f, all_vals)
     total_elems = len(not_published_yet)
-
+    # Create a temporary directory for thumbnails
+    thumbnails_dir = tempfile.TemporaryDirectory(prefix='thumbs', dir='.')
     for num, vid in enumerate(not_published_yet):
         id_ = vid[0]
         title = vid[1]
@@ -271,18 +273,16 @@ def embedding_pilot(
             )
             print("--> Fetching thumbnail...")
             try:
-                thumbnail_full = main_thumbnail_name
                 cs.fetch_thumbnail(
-                    embed_ast_conf.thumbnail_dir, wp_slug, thumbnail_full)
+                    thumbnails_dir.name, wp_slug, main_thumbnail_name)
                 print(
-                    f"--> Stored thumbnail {wp_slug}.jpg in cache folder ../thumbnails")
+                    f"--> Stored thumbnail {wp_slug}.jpg in cache folder {os.path.relpath(thumbnails_dir.name)}")
                 print("--> Uploading thumbnail to WordPress Media...")
                 print("--> Adding image attributes on WordPress...")
                 img_attrs = cs.make_img_payload(title, title)
-                is_parent = helpers.is_parent_dir_required(parent=parent)
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url, [wp_endpoints.media],
-                    f"{is_parent}{embed_ast_conf.thumbnail_dir}/{wp_slug}.jpg", img_attrs
+                    f"{thumbnails_dir.name}/{wp_slug}.jpg", img_attrs
                 )
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
@@ -296,7 +296,7 @@ def embedding_pilot(
                     continue
                 elif upload_img == (200 or 201):
                     os.remove(
-                        f"{is_parent}{embed_ast_conf.thumbnail_dir}/{wp_slug}.jpg")
+                        f"{thumbnails_dir.name}/{wp_slug}.jpg")
                 else:
                     pass
 
@@ -325,6 +325,7 @@ def embedding_pilot(
                 else:
                     print(
                         f"You have created {videos_uploaded} posts in this session!")
+                    thumbnails_dir.cleanup()
                     break
             if num < total_elems - 1:
                 next_post = input(
@@ -356,6 +357,7 @@ def embedding_pilot(
                     pyclip.clear()
                     print(
                         f"You have created {videos_uploaded} posts in this session!")
+                    thumbnails_dir.cleanup()
                     break
                 else:
                     pyclip.detect_clipboard()

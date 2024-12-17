@@ -32,6 +32,7 @@ __author_email__ = "yohamg@programmer.net"
 import argparse
 import sqlite3
 import warnings
+import tempfile
 
 # Local implementations
 from core import (
@@ -39,7 +40,6 @@ from core import (
     get_webdriver,
     load_from_file,
     clean_filename,
-    clean_file_cache,
     remove_if_exists
 )
 
@@ -55,10 +55,6 @@ if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser(
         description="mcash local update wizard arguments")
-
-    arg_parser.add_argument(
-        "temp_dir", type=str, help="Relative or absolute path to your temp directory"
-    )
 
     arg_parser.add_argument(
         "--hint",
@@ -92,16 +88,14 @@ if __name__ == '__main__':
     else:
         pass
 
-    temp_dir = args.temp_dir
     webdriver = get_webdriver(
-        temp_dir,
+        "",
         headless=args.headless,
         gecko=args.gecko)
 
     # Fetching
-    dump_file_name = get_vid_dump_flow(
+    temp_dir, dump_file_name = get_vid_dump_flow(
         webdriver,
-        parent=None,
         partner_hint=args.hint,
     )
 
@@ -111,25 +105,24 @@ if __name__ == '__main__':
     load_dump_file = load_from_file(
         dump_file_name,
         "txt",
-        dirname=temp_dir,
+        dirname=temp_dir.name,
         parent=None)
     while len(load_dump_file) == 0:
         warnings.warn(
             "The content of the dump file is empty, retrying...",
             UserWarning)
-        dump_file_name = get_vid_dump_flow(
+        temp_dir, dump_file_name = get_vid_dump_flow(
             webdriver,
-            parent=None,
             partner_hint=args.hint,
         )
         load_dump_file = load_from_file(
-            dump_file_name, "txt", dirname=temp_dir, parent=None
+            dump_file_name, "txt", dirname=temp_dir.name, parent=None
         )
         continue
 
     # webdriver gets a second assignment to avoid connection pool issues.
     webdriver = get_webdriver(
-        temp_dir,
+        temp_dir.name,
         headless=args.headless,
         gecko=args.gecko)
     photoset_source = get_set_source_flow(
@@ -169,7 +162,7 @@ if __name__ == '__main__':
     )
 
     parsing = parse_txt_dump(
-        dump_file_name, db_name, db_conn, cursor, dirname=temp_dir, parent=args.parent
+        dump_file_name, db_name, db_conn, cursor, dirname=temp_dir.name, parent=args.parent
     )
     print(
         f"{parsing[1]} video entries have been processed from {dump_file_name} and inserted into\n{parsing[0]}\n"
@@ -184,5 +177,5 @@ if __name__ == '__main__':
     )
 
     # Tidy up
-    print(f"Cleaning temporary directory {temp_dir}")
-    clean_file_cache(temp_dir, "*")
+    print(f"Cleaning temporary directory {temp_dir.name}")
+    temp_dir.cleanup()

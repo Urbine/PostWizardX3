@@ -15,7 +15,10 @@ __author_email__ = "yohamg@programmer.net"
 
 # Standard Library
 import datetime
+import os
+import tempfile
 import time
+from tempfile import TemporaryDirectory
 
 # Third-party Libraries
 from selenium.webdriver.remote.webelement import WebElement
@@ -46,9 +49,8 @@ def get_vid_dump_flow(
         webdrv,
         mcash_info: MongerCashAuth = monger_cash_auth(),
         task_conf: TasksConf = tasks_conf(),
-        parent=False,
-        partner_hint: str = None,
-) -> str:
+        partner_hint: str | None = None,
+) -> tuple[TemporaryDirectory[str], str]:
     """ Get the text file and match the options with the hint provided to get a video dump file
     specific to a partner offer.
 
@@ -172,19 +174,10 @@ def get_vid_dump_flow(
         # Create a name for out dump file.
         dump_name = f"{partner_name}vids-{datetime.date.today()}"
 
+        temp_dir = tempfile.TemporaryDirectory(dir='.')
+
         core.write_to_file(
-            dump_name, task_conf.download_folder, "txt", dump_content, parent=parent
+            dump_name, temp_dir.name, "txt", dump_content
         )
 
-    return dump_name
-
-
-if __name__ == "__main__":
-
-    # Initialize the webdriver
-    web_driver = core.get_webdriver(tasks_conf().download_folder)
-    web_driver_gecko = core.get_webdriver(tasks_conf().download_folder, gecko=True)
-
-    get_vid_dump_flow(
-        web_driver,
-    )
+    return temp_dir, dump_name

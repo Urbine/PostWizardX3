@@ -64,7 +64,6 @@ class YandexAuth:
 
 @dataclass(frozen=True)
 class ContentSelectConf:
-    thumbnail_dir: str
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
@@ -78,8 +77,6 @@ class ContentSelectConf:
 
 @dataclass(frozen=True)
 class GallerySelectConf:
-    thumbnails_dir: str
-    temp_dir: str
     pic_format: str
     wp_json_photos: str
     wp_json_posts: str
@@ -94,7 +91,6 @@ class GallerySelectConf:
 
 @dataclass(frozen=True)
 class EmbedAssistConf:
-    thumbnail_dir: str
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
@@ -108,7 +104,6 @@ class EmbedAssistConf:
 
 @dataclass(frozen=True)
 class TasksConf:
-    download_folder: str
     mcash_dump_url: str
     mcash_set_url: str
 
@@ -154,7 +149,6 @@ workflows_config = parse_client_config('workflows_config', 'core.config')
 
 def content_select_conf() -> ContentSelectConf:
     return ContentSelectConf(
-        thumbnail_dir=workflows_config['content_select']['thumbnails_folder'],
         wp_json_posts=workflows_config['content_select']['wp_json_posts'],
         wp_cache_config=workflows_config['content_select']['wp_cache_config'],
         pic_format=workflows_config['content_select']['pic_format'],
@@ -166,8 +160,6 @@ def content_select_conf() -> ContentSelectConf:
 
 def gallery_select_conf() -> GallerySelectConf:
     return GallerySelectConf(
-        thumbnails_dir=workflows_config['gallery_select']['thumbnails_folder'],
-        temp_dir=workflows_config['gallery_select']['tmp_folder'],
         pic_format=workflows_config['gallery_select']['pic_format'],
         wp_json_photos=workflows_config['gallery_select']['wp_json_photos'],
         wp_json_posts=workflows_config['gallery_select']['wp_json_posts'],
@@ -180,7 +172,6 @@ def gallery_select_conf() -> GallerySelectConf:
 
 def embed_assist_conf() -> EmbedAssistConf:
     return EmbedAssistConf(
-        thumbnail_dir=workflows_config['embed_assist']['thumbnails_folder'],
         wp_json_posts=workflows_config['embed_assist']['wp_json_posts'],
         wp_cache_config=workflows_config['embed_assist']['wp_cache_config'],
         pic_format=workflows_config['embed_assist']['pic_format'],
@@ -196,7 +187,6 @@ tasks_config = parse_client_config('tasks_config', 'core.config')
 
 def tasks_conf() -> TasksConf:
     return TasksConf(
-        download_folder=tasks_config['dump_create_config']['download_dir'],
         mcash_dump_url=tasks_config['dump_create_config']['mcash_dump_url'],
         mcash_set_url=tasks_config['dump_create_config']['mcash_set_url']
 

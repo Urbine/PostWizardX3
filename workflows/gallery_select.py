@@ -14,6 +14,7 @@ import os.path
 import re
 import shutil
 import sqlite3
+import tempfile
 import time
 import zipfile
 from sqlite3 import OperationalError
@@ -66,9 +67,8 @@ def fetch_zip(
     :param m_cash_auth: ``MongerCashAuth`` object with authentication information to access MongerCash.
     :return: ``None``
     """
-    download_dir: str = f"{helpers.cwd_or_parent_path(parent=parent)}/{dwn_dir}"
     webdrv: webdriver = helpers.get_webdriver(
-        download_dir, gecko=gecko, headless=headless
+        dwn_dir, gecko=gecko, headless=headless
     )
     username: str = m_cash_auth.username
     password: str = m_cash_auth.password
@@ -102,7 +102,7 @@ def fetch_zip(
 
     time.sleep(5)
     print(
-        f"--> Fetched file {helpers.search_files_by_ext('zip', parent=parent, folder='tmp')[0]}"
+        f"--> Fetched file {helpers.search_files_by_ext('zip', parent=parent, folder=os.path.relpath(dwn_dir))[0]}"
     )
     return None
 
@@ -116,11 +116,12 @@ def extract_zip(zip_path: str, extr_dir: str):
     :param extr_dir: ``str`` where to extract the contents of the archive
     :return: ``None``
     """
-    get_zip: list[str] = helpers.search_files_by_ext("zip", folder=zip_path)
+    get_zip: list[str] = helpers.search_files_by_ext("zip",
+                                                     folder=os.path.relpath(zip_path))
     try:
-        with zipfile.ZipFile(f"{zip_path}/{get_zip[0]}", "r") as zipf:
-            zipf.extractall(path=extr_dir)
-        print(f"--> Extracted files from {get_zip[0]} in folder {extr_dir}")
+        with zipfile.ZipFile(f"{os.path.abspath(zip_path)}/{get_zip[0]}", "r") as zipf:
+            zipf.extractall(path=os.path.abspath(extr_dir))
+        print(f"--> Extracted files from {get_zip[0]} in folder {os.path.relpath(extr_dir)}")
         print(f"--> Tidying up...")
         try:
             # Some archives have a separate set of redundant files in that folder.
@@ -131,7 +132,7 @@ def extract_zip(zip_path: str, extr_dir: str):
             pass
         finally:
             # We always have to clean up.
-            clean_file_cache(zip_path, ".zip")
+            clean_file_cache(os.path.relpath(zip_path), ".zip")
     except (IndexError, zipfile.BadZipfile):
         return None
 
@@ -273,15 +274,12 @@ def upload_image_set(
     :return: ``None``
     """
     # Making sure folder is accessible.
-    parent: bool = False if os.path.exists(f"./{folder.strip('./')}") else True
-    relat_dir: str = helpers.is_parent_dir_required(parent)
-    thumbnails: list[str] = helpers.search_files_by_ext(
-        ext, parent=parent, folder=folder)
+    thumbnails: list[str] = helpers.search_files_by_ext(ext, folder=os.path.relpath(folder))
     if len(thumbnails) == 0:
         # Assumes the thumbnails are contained in a directory
         # This could be caused by the archive extraction
         files: list[str] = helpers.search_files_by_ext(
-            "jpg", recursive=True, parent=parent, folder=folder
+            "jpg", recursive=True, folder=os.path.relpath(folder)
         )
         thumbnails: list[str] = [
             "/".join(path.split("/")[-2:]) for path in files]
@@ -298,11 +296,11 @@ def upload_image_set(
         img_attrs: dict[str, str] = make_gallery_payload(title, number)
         status_code: int = wordpress_api.upload_thumbnail(
             wp_params.api_base_url, [
-                "/media"], f"{relat_dir}{folder}/{image}", img_attrs
+                "/media"], f"{os.path.abspath(folder)}/{image}", img_attrs
         )
         # If upload is successful, the thumbnail is no longer useful.
         if status_code == (200 or 201):
-            os.remove(f"{relat_dir}{folder}/{image}")
+            os.remove(f"{os.path.abspath(folder)}/{image}")
         else:
             pass
         print(f"* Image {number} | {image} --> Status code: {status_code}")
@@ -310,7 +308,7 @@ def upload_image_set(
         # Check if I have paths instead of filenames
         if len(thumbnails[0].split('/')) > 1:
             # Get rid of the folder.
-            shutil.rmtree(f"{relat_dir}{folder}/{thumbnails[0].split('/')[0]}")
+            shutil.rmtree(f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}")
         else:
             pass
     except (IndexError, AttributeError):
@@ -423,6 +421,9 @@ def gallery_upload_pilot(
     # You can keep on getting sets until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     print(f"There are {total_elems} sets to be published...")
+    # Create temporary directories
+    temp_dir = tempfile.TemporaryDirectory(dir='.')
+    thumbnails_dir = tempfile.TemporaryDirectory(prefix='thumbs', dir='.')
     for num, photo in enumerate(not_published_yet):
         (title, *fields) = photo
         title: str = title
@@ -467,16 +468,14 @@ def gallery_upload_pilot(
 
             try:
                 fetch_zip(
-                    gallery_sel_conf.temp_dir, download_url, parent=parent, gecko=gecko, headless=headless
+                    temp_dir.name, download_url, parent=parent, gecko=gecko, headless=headless
                 )
-                parent_dir: str = helpers.is_parent_dir_required(parent)
-                extract_zip(f"{parent_dir}{gallery_sel_conf.temp_dir}",
-                            f"{parent_dir}{gallery_sel_conf.thumbnails_dir}")
+                extract_zip(temp_dir.name, thumbnails_dir.name)
 
                 print("--> Creating set on WordPress")
                 upload_image_set(
                     "*",
-                    gallery_sel_conf.thumbnails_dir,
+                    thumbnails_dir.name,
                     title)
 
                 push_post = wordpress_api.wp_post_create(
@@ -502,6 +501,8 @@ def gallery_upload_pilot(
                 else:
                     print(
                         f"You have created {galleries_uploaded} set in this session!")
+                    temp_dir.cleanup()
+                    thumbnails_dir.cleanup()
                     break
             if num < total_elems - 1:
                 next_post = input(
@@ -523,6 +524,8 @@ def gallery_upload_pilot(
                     print(
                         f"You have created {galleries_uploaded} sets in this session!"
                     )
+                    temp_dir.cleanup()
+                    thumbnails_dir.cleanup()
                     break
                 else:
                     pyclip.detect_clipboard()
@@ -535,12 +538,15 @@ def gallery_upload_pilot(
                 print("Try a different query and run me again.")
                 print(
                     f"You have created {galleries_uploaded} sets in this session!")
+                temp_dir.cleanup()
+                thumbnails_dir.cleanup()
                 print(
                     "Waiting for 60 secs to clear the clipboard before you're done with the last set..."
                 )
                 time.sleep(60)
                 pyclip.detect_clipboard()
                 pyclip.clear()
+
                 break
         else:
             pyclip.detect_clipboard()
@@ -549,6 +555,8 @@ def gallery_upload_pilot(
             print("Try a different SQL query or partner. I am ready when you are. ")
             print(
                 f"You have created {galleries_uploaded} sets in this session!")
+            temp_dir.cleanup()
+            thumbnails_dir.cleanup()
             break
 
 
