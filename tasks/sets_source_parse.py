@@ -31,9 +31,7 @@ def parse_titles(soup_html: BeautifulSoup) -> list[str]:
     :param soup_html: ``BeautifulSoup`` object
     :return: ``list[str]``
     """
-    titles = soup_html.find_all(
-        "td", attrs={
-            "class": "tab-column left-align col_0"})
+    titles = soup_html.find_all("td", attrs={"class": "tab-column left-align col_0"})
     return list(map(lambda td: td.text, titles))
 
 
@@ -44,10 +42,11 @@ def parse_dates(soup_html: BeautifulSoup) -> list[datetime.date]:
     :param soup_html: ``BeautifulSoup`` object
     :return: ``list[datetime.date]``
     """
-    dates = soup_html.find_all(
-        "td", attrs={
-            "class": "tab-column col_1 center-align"})
-    parse_date = lambda td: helpers.parse_date_to_iso(td.text.strip(), zero_day=True, m_abbr=False)
+    dates = soup_html.find_all("td", attrs={"class": "tab-column col_1 center-align"})
+
+    def parse_date(td):
+        return helpers.parse_date_to_iso(td.text.strip(), zero_day=True, m_abbr=False)
+
     return list(map(parse_date, dates))
 
 
@@ -61,13 +60,18 @@ def parse_links(soup_html: BeautifulSoup) -> list[str]:
     """
     base_url = "https://mongercash.com/"
     ziptool_links = soup_html.find_all("a")
-    make_link = lambda td: f"{base_url}{td.attrs['href']}"
-    match_ziptool = lambda td: bool(re.match("zip_tool", td.attrs["href"]))
+
+    def make_link(td):
+        return f"{base_url}{td.attrs['href']}"
+
+    def match_ziptool(td):
+        return bool(re.match("zip_tool", td.attrs["href"]))
+
     return list(map(make_link, filter(match_ziptool, ziptool_links)))
 
 
 def db_generate(
-        soup_html: BeautifulSoup, db_suggest: list[str] | str, parent: bool = False
+    soup_html: BeautifulSoup, db_suggest: list[str] | str, parent: bool = False
 ) -> tuple[str, int]:
     """As its name describes, it puts all the information that previous
     functions returned into a SQLite db.

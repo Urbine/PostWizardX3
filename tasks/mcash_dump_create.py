@@ -33,7 +33,7 @@ from core.config_mgr import MongerCashAuth, TasksConf
 
 
 def parse_partner_name(partner_options: list[WebElement], select_num: int) -> str:
-    """ Parse, obtain, and contruct the full partner name from the option matched by the
+    """Parse, obtain, and contruct the full partner name from the option matched by the
     ``partner_hint`` parameter in the main driver function. It will join it so that it can be used a filename.
 
     :param partner_options: ``list[WebElement]`` with all the partner options on the site.
@@ -46,12 +46,12 @@ def parse_partner_name(partner_options: list[WebElement], select_num: int) -> st
 
 
 def get_vid_dump_flow(
-        webdrv,
-        mcash_info: MongerCashAuth = monger_cash_auth(),
-        task_conf: TasksConf = tasks_conf(),
-        partner_hint: str | None = None,
+    webdrv,
+    mcash_info: MongerCashAuth = monger_cash_auth(),
+    task_conf: TasksConf = tasks_conf(),
+    partner_hint: str | None = None,
 ) -> tuple[TemporaryDirectory[str], str]:
-    """ Get the text file and match the options with the hint provided to get a video dump file
+    """Get the text file and match the options with the hint provided to get a video dump file
     specific to a partner offer.
 
     :param mcash_info: ``MongerCashAuth`` object with necessary credentials for authentication. (Default)
@@ -106,8 +106,7 @@ def get_vid_dump_flow(
         apply_changes_xpath = (
             "/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input"
         )
-        apply_changes_button = driver.find_element(
-            By.XPATH, apply_changes_xpath)
+        apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
         apply_changes_button.click()
         time.sleep(1)
 
@@ -167,17 +166,14 @@ def get_vid_dump_flow(
         time.sleep(3)
 
         # Extract textarea text
-        dump_txtarea = driver.find_element(
-            By.CLASS_NAME, "display-dump-textarea")
+        dump_txtarea = driver.find_element(By.CLASS_NAME, "display-dump-textarea")
         dump_content = dump_txtarea.text
 
         # Create a name for out dump file.
         dump_name = f"{partner_name}vids-{datetime.date.today()}"
 
-        temp_dir = tempfile.TemporaryDirectory(dir='.')
+        temp_dir = tempfile.TemporaryDirectory(dir=".")
 
-        core.write_to_file(
-            dump_name, temp_dir.name, "txt", dump_content
-        )
+        core.write_to_file(dump_name, temp_dir.name, "txt", dump_content)
 
     return temp_dir, dump_name

@@ -14,17 +14,17 @@ import core
 from .url_builder import CSVColumns, CSVSeparators
 from core.helpers import clean_file_cache, remove_if_exists
 
-VJAV_BASE_URL = 'https://vjav.com/admin/feeds/embed/?source=576422190'
-DESI_T_BASE_URL = 'https://desiporn.tube/admin/feeds/embed/?source=576422190'
+VJAV_BASE_URL = "https://vjav.com/admin/feeds/embed/?source=576422190"
+DESI_T_BASE_URL = "https://desiporn.tube/admin/feeds/embed/?source=576422190"
 
 
 def construct_tube_dump_url(
-        base_url: str,
-        sort_crit: str,
-        days: str | int = "",
-        url_limit: str | int = 999999999,
-        sep: CSVSeparators = CSVSeparators.pipe_sep,
-        columns: CSVColumns = CSVColumns
+    base_url: str,
+    sort_crit: str,
+    days: str | int = "",
+    url_limit: str | int = 999999999,
+    sep: CSVSeparators = CSVSeparators.pipe_sep,
+    columns: CSVColumns = CSVColumns,
 ) -> str:
     """
     Construct the API dump url to access the text content to be parsed by function `adult_next_dump_parse`
@@ -46,7 +46,7 @@ def construct_tube_dump_url(
     :return: ``f-str`` (Formatted str) Video Dump URL
     """
     format = "&feed_format=csv&"
-    screenshot_format = 'screenshot_format=source&'
+    screenshot_format = "screenshot_format=source&"
     # rating, popularity, duration, post_date, ID
     sorting = f"sorting={sort_crit}&"
     limit = f"limit={url_limit}"
@@ -63,7 +63,7 @@ def construct_tube_dump_url(
         columns.rating,
         columns.main_thumbnail,
         columns.embed_code,
-        columns.link
+        columns.link,
     ]
 
     csv_columns = f"csv_columns={str(sep).join(column_lst)}"
@@ -71,8 +71,7 @@ def construct_tube_dump_url(
     return f"{base_url}{format}{screenshot_format}{sorting}{days}{limit}{sep_param}{csv_columns}"
 
 
-def tube_dump_parse(filename: str, dirname: str,
-                    partner: str, sep: str) -> str:
+def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
     """
     Parse the text dump based on the parameters that ``construct_vjav_dump_url`` constructed.
     Once the temporary text file is fetched from the origin, this function will record all the values
@@ -88,7 +87,7 @@ def tube_dump_parse(filename: str, dirname: str,
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
-    c_filename = core.clean_filename(filename, 'csv')
+    c_filename = core.clean_filename(filename, "csv")
     path = f"{os.path.abspath(dirname)}/{c_filename}"
     db_name = f"{os.getcwd()}/{filename}-{datetime.date.today()}.db"
     remove_if_exists(db_name)
@@ -132,8 +131,11 @@ def tube_dump_parse(filename: str, dirname: str,
 
                 # As mentioned in other modules, slugs have to contain the
                 # content type
-                wp_slug = (f"{website_link.split('/')[-2:][0]}-{partner}-video"
-                           if partner != '' else f"{website_link.split('/')[-2:][0]}-video")
+                wp_slug = (
+                    f"{website_link.split('/')[-2:][0]}-{partner}-video"
+                    if partner != ""
+                    else f"{website_link.split('/')[-2:][0]}-video"
+                )
 
                 all_values = (
                     id_,
@@ -145,7 +147,7 @@ def tube_dump_parse(filename: str, dirname: str,
                     main_thumbnail,
                     embed_code,
                     website_link,
-                    wp_slug
+                    wp_slug,
                 )
 
                 db_cur.execute(
@@ -159,67 +161,57 @@ def tube_dump_parse(filename: str, dirname: str,
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
-        description='Tube Corporate feeds integration - CLI Interface')
+        description="Tube Corporate feeds integration - CLI Interface"
+    )
 
-    arg_parser.add_argument('-sort', type=str,
-                            help="""Sorting criteria from possible values:
+    arg_parser.add_argument(
+        "-sort",
+        type=str,
+        help="""Sorting criteria from possible values:
                                   1. popularity
                                   2. rating
                                   3. duration
                                   4. post_date
-                                  5. id (default if no criteria is provided)""")
+                                  5. id (default if no criteria is provided)""",
+    )
 
-    arg_parser.add_argument('-days', type=int,
-                            help='Provide the time period in days')
+    arg_parser.add_argument("-days", type=int, help="Provide the time period in days")
 
-    arg_parser.add_argument(
-        '-limit',
-        type=int,
-        help='amount of urls to process')
+    arg_parser.add_argument("-limit", type=int, help="amount of urls to process")
 
     cli_args = arg_parser.parse_args()
 
     # Build the VJAV dump URL
     main_url = construct_tube_dump_url(
-        VJAV_BASE_URL,
-        cli_args.sort,
-        cli_args.days,
-        url_limit=cli_args.limit)
+        VJAV_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
+    )
 
     # Create temporary directory
-    temp_dir = tempfile.TemporaryDirectory(dir='.')
+    temp_dir = tempfile.TemporaryDirectory(dir=".")
 
     # Get the VJAV dump file and write it into a .csv file
-    core.write_to_file(
-        'vjav-dump',
-        temp_dir.name,
-        'csv',
-        core.access_url_bs4(main_url))
+    core.write_to_file("vjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
 
     # Parse the temporary CSV dump file
-    result = tube_dump_parse("vjav-dump", temp_dir.name, 'jav', "|")
+    result = tube_dump_parse("vjav-dump", temp_dir.name, "jav", "|")
 
     print(result)
 
     # Build the Desi Tube dump URL
     main_url = construct_tube_dump_url(
-        DESI_T_BASE_URL,
-        cli_args.sort,
-        cli_args.days,
-        url_limit=cli_args.limit)
+        DESI_T_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
+    )
 
     # Get the Desi Tube dump file and write it into a .csv file
     core.write_to_file(
-        'desi-tube-dump',
-        temp_dir.name,
-        'csv',
-        core.access_url_bs4(main_url))
+        "desi-tube-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
+    )
 
-    result = tube_dump_parse("desi-tube-dump", temp_dir.name, '', "|")
+    result = tube_dump_parse("desi-tube-dump", temp_dir.name, "", "|")
 
     # Clean temporary folder
     temp_dir.cleanup()
     print(result)
-    print('Cleaned temporary folder...')
+    print("Cleaned temporary folder...")

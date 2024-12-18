@@ -110,84 +110,84 @@ class TasksConf:
     def __repr__(self):
         return "TasksConf()"
 
+
 # client_info.ini
-client_info = parse_client_config('client_info', 'core.config')
+client_info = parse_client_config("client_info", "core.config")
 
 
 def wp_auth() -> WPAuth:
     return WPAuth(
-        user=client_info['WP_Admin']['user'],
-        app_password=client_info['WP_Admin']['app_password'],
-        author_admin=client_info['WP_Admin']['author_admin'],
-        hostname=client_info['WP_Admin']['hostname'],
-        api_base_url=client_info['WP_Admin']['api_base_url'],
-        full_base_url=client_info['WP_Admin']['full_base_url'],
-        default_status=client_info['WP_Admin']['default_status'],
-        wp_cache_file=client_info['WP_Admin']['wp_cache_file'],
-        wp_posts_file=client_info['WP_Admin']['wp_posts_file'],
-        wp_photos_file=client_info['WP_Admin']['wp_photos_file'],
+        user=client_info["WP_Admin"]["user"],
+        app_password=client_info["WP_Admin"]["app_password"],
+        author_admin=client_info["WP_Admin"]["author_admin"],
+        hostname=client_info["WP_Admin"]["hostname"],
+        api_base_url=client_info["WP_Admin"]["api_base_url"],
+        full_base_url=client_info["WP_Admin"]["full_base_url"],
+        default_status=client_info["WP_Admin"]["default_status"],
+        wp_cache_file=client_info["WP_Admin"]["wp_cache_file"],
+        wp_posts_file=client_info["WP_Admin"]["wp_posts_file"],
+        wp_photos_file=client_info["WP_Admin"]["wp_photos_file"],
     )
 
 
 def monger_cash_auth() -> MongerCashAuth:
     return MongerCashAuth(
-        username=client_info['MongerCash']['username'],
-        password=client_info['MongerCash']['password'],
+        username=client_info["MongerCash"]["username"],
+        password=client_info["MongerCash"]["password"],
     )
 
 
 def yandex_auth() -> YandexAuth:
     return YandexAuth(
-        client_id=client_info['Yandex']['client_id'],
-        client_secret=client_info['Yandex']['client_secret'],
+        client_id=client_info["Yandex"]["client_id"],
+        client_secret=client_info["Yandex"]["client_secret"],
     )
 
 
 # workflows_config.ini
-workflows_config = parse_client_config('workflows_config', 'core.config')
+workflows_config = parse_client_config("workflows_config", "core.config")
 
 
 def content_select_conf() -> ContentSelectConf:
     return ContentSelectConf(
-        wp_json_posts=workflows_config['content_select']['wp_json_posts'],
-        wp_cache_config=workflows_config['content_select']['wp_cache_config'],
-        pic_format=workflows_config['content_select']['pic_format'],
-        sql_query=workflows_config['content_select']['sql_query'],
-        content_hint=workflows_config['content_select']['db_content_hint'],
-        partners=workflows_config['content_select']['partners']
+        wp_json_posts=workflows_config["content_select"]["wp_json_posts"],
+        wp_cache_config=workflows_config["content_select"]["wp_cache_config"],
+        pic_format=workflows_config["content_select"]["pic_format"],
+        sql_query=workflows_config["content_select"]["sql_query"],
+        content_hint=workflows_config["content_select"]["db_content_hint"],
+        partners=workflows_config["content_select"]["partners"],
     )
 
 
 def gallery_select_conf() -> GallerySelectConf:
     return GallerySelectConf(
-        pic_format=workflows_config['gallery_select']['pic_format'],
-        wp_json_photos=workflows_config['gallery_select']['wp_json_photos'],
-        wp_json_posts=workflows_config['gallery_select']['wp_json_posts'],
-        wp_cache_config=workflows_config['gallery_select']['wp_cache_config'],
-        content_hint=workflows_config['gallery_select']['db_content_hint'],
-        sql_query=workflows_config['gallery_select']['sql_query'],
-        partners=workflows_config['gallery_select']['partners']
+        pic_format=workflows_config["gallery_select"]["pic_format"],
+        wp_json_photos=workflows_config["gallery_select"]["wp_json_photos"],
+        wp_json_posts=workflows_config["gallery_select"]["wp_json_posts"],
+        wp_cache_config=workflows_config["gallery_select"]["wp_cache_config"],
+        content_hint=workflows_config["gallery_select"]["db_content_hint"],
+        sql_query=workflows_config["gallery_select"]["sql_query"],
+        partners=workflows_config["gallery_select"]["partners"],
     )
 
 
 def embed_assist_conf() -> EmbedAssistConf:
     return EmbedAssistConf(
-        wp_json_posts=workflows_config['embed_assist']['wp_json_posts'],
-        wp_cache_config=workflows_config['embed_assist']['wp_cache_config'],
-        pic_format=workflows_config['embed_assist']['pic_format'],
-        sql_query=workflows_config['embed_assist']['sql_query'],
-        content_hint=workflows_config['embed_assist']['db_content_hint'],
-        partners=workflows_config['embed_assist']['partners']
+        wp_json_posts=workflows_config["embed_assist"]["wp_json_posts"],
+        wp_cache_config=workflows_config["embed_assist"]["wp_cache_config"],
+        pic_format=workflows_config["embed_assist"]["pic_format"],
+        sql_query=workflows_config["embed_assist"]["sql_query"],
+        content_hint=workflows_config["embed_assist"]["db_content_hint"],
+        partners=workflows_config["embed_assist"]["partners"],
     )
 
 
 # tasks_config.ini
-tasks_config = parse_client_config('tasks_config', 'core.config')
+tasks_config = parse_client_config("tasks_config", "core.config")
 
 
 def tasks_conf() -> TasksConf:
     return TasksConf(
-        mcash_dump_url=tasks_config['dump_create_config']['mcash_dump_url'],
-        mcash_set_url=tasks_config['dump_create_config']['mcash_set_url']
-
+        mcash_dump_url=tasks_config["dump_create_config"]["mcash_dump_url"],
+        mcash_set_url=tasks_config["dump_create_config"]["mcash_set_url"],
     )

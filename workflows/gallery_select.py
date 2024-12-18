@@ -21,13 +21,14 @@ from sqlite3 import OperationalError
 from requests import ConnectionError
 
 # Third-party modules
+from rich.console import Console
 import pyclip
 from selenium import webdriver  # Imported for type annotations
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
-import core
 # Local implementations
+import core
 from workflows.content_select import (
     hot_file_sync,
     filter_published,
@@ -39,20 +40,21 @@ from workflows.content_select import (
 from core.helpers import clean_file_cache
 
 from core import helpers, monger_cash_auth, gallery_select_conf, wp_auth
+
 # Imported for typing purposes
 from core.config_mgr import MongerCashAuth, WPAuth, GallerySelectConf
 from integrations import wordpress_api, WPEndpoints
 
 
 def fetch_zip(
-        dwn_dir: str,
-        remote_res: str,
-        parent: bool = False,
-        gecko: bool = False,
-        headless: bool = False,
-        m_cash_auth=monger_cash_auth()
+    dwn_dir: str,
+    remote_res: str,
+    parent: bool = False,
+    gecko: bool = False,
+    headless: bool = False,
+    m_cash_auth: MongerCashAuth = monger_cash_auth(),
 ) -> None:
-    """ Fetch a .zip archive from the internet by following set of authentication and retrieval
+    """Fetch a .zip archive from the internet by following set of authentication and retrieval
     steps via automated execution of a browser instance (webdriver).
 
     :param dwn_dir: ``str``  Download directory. Typically, a temporary location.
@@ -67,9 +69,7 @@ def fetch_zip(
     :param m_cash_auth: ``MongerCashAuth`` object with authentication information to access MongerCash.
     :return: ``None``
     """
-    webdrv: webdriver = helpers.get_webdriver(
-        dwn_dir, gecko=gecko, headless=headless
-    )
+    webdrv: webdriver = helpers.get_webdriver(dwn_dir, gecko=gecko, headless=headless)
     username: str = m_cash_auth.username
     password: str = m_cash_auth.password
     with webdrv as driver:
@@ -108,7 +108,7 @@ def fetch_zip(
 
 
 def extract_zip(zip_path: str, extr_dir: str):
-    """ Locate and extract a .zip archive in different locations.
+    """Locate and extract a .zip archive in different locations.
     For example, you can locate the .zip archive from a temporary location and extract it
     somewhere else.
 
@@ -116,12 +116,15 @@ def extract_zip(zip_path: str, extr_dir: str):
     :param extr_dir: ``str`` where to extract the contents of the archive
     :return: ``None``
     """
-    get_zip: list[str] = helpers.search_files_by_ext("zip",
-                                                     folder=os.path.relpath(zip_path))
+    get_zip: list[str] = helpers.search_files_by_ext(
+        "zip", folder=os.path.relpath(zip_path)
+    )
     try:
         with zipfile.ZipFile(f"{os.path.abspath(zip_path)}/{get_zip[0]}", "r") as zipf:
             zipf.extractall(path=os.path.abspath(extr_dir))
-        print(f"--> Extracted files from {get_zip[0]} in folder {os.path.relpath(extr_dir)}")
+        print(
+            f"--> Extracted files from {get_zip[0]} in folder {os.path.relpath(extr_dir)}"
+        )
         print(f"--> Tidying up...")
         try:
             # Some archives have a separate set of redundant files in that folder.
@@ -138,7 +141,7 @@ def extract_zip(zip_path: str, extr_dir: str):
 
 
 def make_gallery_payload(gal_title: str, iternum: int):
-    """ Make the image gallery payload that will be sent with the PUT/POST request
+    """Make the image gallery payload that will be sent with the PUT/POST request
     to the WordPress media endpoint.
 
     :param gal_title: ``str`` Gallery title/name
@@ -153,9 +156,10 @@ def make_gallery_payload(gal_title: str, iternum: int):
     return img_payload
 
 
-def search_db_like(cur: sqlite3, table: str, field: str,
-                   query: str) -> list[tuple[...]] | None:
-    """ Perform a ``SQL`` database search with the ``like``  parameter in a SQLite3 database.
+def search_db_like(
+    cur: sqlite3, table: str, field: str, query: str
+) -> list[tuple[...]] | None:
+    """Perform a ``SQL`` database search with the ``like``  parameter in a SQLite3 database.
 
     :param cur: ``sqlite3`` db cursor object
     :param table: ``str`` table in the db schema
@@ -167,9 +171,8 @@ def search_db_like(cur: sqlite3, table: str, field: str,
     return cur.execute(qry).fetchall()
 
 
-def get_from_db(cur: sqlite3, field: str,
-                table: str) -> list[tuple[...]] | None:
-    """ Get a specific field or all ( ``*`` ) from a SQLite3 database.
+def get_from_db(cur: sqlite3, field: str, table: str) -> list[tuple[...]] | None:
+    """Get a specific field or all ( ``*`` ) from a SQLite3 database.
 
     :param cur: ``sqlite3`` database cursor
     :param field: ``str`` field that you want to consult.
@@ -185,7 +188,7 @@ def get_from_db(cur: sqlite3, field: str,
 
 
 def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
-    """ Query the database and isolate the values of a single column to aggregate them
+    """Query the database and isolate the values of a single column to aggregate them
     in a set of str. In this case, the function isolates the ``models`` field from a
     table that the user specifies.
 
@@ -194,8 +197,9 @@ def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
     :return: ``set[str]``
     """
     models: list[tuple[str]] = get_from_db(db_cursor, "models", table)
-    new_lst: list[str] = [model[0].strip(",")
-                          for model in models if model[0] is not None]
+    new_lst: list[str] = [
+        model[0].strip(",") for model in models if model[0] is not None
+    ]
     return {
         elem
         for model in new_lst
@@ -204,14 +208,14 @@ def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
 
 
 def make_photos_payload(
-        status_wp: str,
-        set_name: str,
-        partner_name: str,
-        tags: list[int],
-        reverse_slug: bool = False,
-        wp_auth: WPAuth = wp_auth()
+    status_wp: str,
+    set_name: str,
+    partner_name: str,
+    tags: list[int],
+    reverse_slug: bool = False,
+    wp_auth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
-    """ Construct the photos payload that will be sent with all the parameters for the
+    """Construct the photos payload that will be sent with all the parameters for the
     WordPress REST API request to create a ``photos`` post.
     In addition, this function makes the permalink that I will be using for the post.
 
@@ -225,7 +229,9 @@ def make_photos_payload(
     """
     filter_words: set[str] = {"on", "in", "at", "&", "and"}
 
-    no_partner_name: list[str] = list(filter(lambda w: w not in set(partner_name.split(" ")), set_name.split(" ")))
+    no_partner_name: list[str] = list(
+        filter(lambda w: w not in set(partner_name.split(" ")), set_name.split(" "))
+    )
 
     # no_partner_name: list[str] = [
     #     word for word in set_name.split(" ") if word not in set(partner_name.split(" "))
@@ -236,15 +242,19 @@ def make_photos_payload(
             word.lower()
             for word in no_partner_name
             if re.match(r"\w+", word, flags=re.IGNORECASE)
-               and word.lower() not in filter_words
+            and word.lower() not in filter_words
         ]
     )
 
     if reverse_slug:
         # '-pics' tells Google the main content of the page.
-        final_slug: str = f'{wp_pre_slug}-{"-".join(partner_name.lower().split(" "))}-pics'
+        final_slug: str = (
+            f'{wp_pre_slug}-{"-".join(partner_name.lower().split(" "))}-pics'
+        )
     else:
-        final_slug: str = f'{"-".join(partner_name.lower().split(" "))}-{wp_pre_slug}-pics'
+        final_slug: str = (
+            f'{"-".join(partner_name.lower().split(" "))}-{wp_pre_slug}-pics'
+        )
 
     # Added an author field to the client_info config file.
     author: int = int(wp_auth.author_admin)
@@ -263,9 +273,9 @@ def make_photos_payload(
 
 
 def upload_image_set(
-        ext: str, folder: str, title: str, wp_params: WPAuth = wp_auth()
+    ext: str, folder: str, title: str, wp_params: WPAuth = wp_auth()
 ) -> None:
-    """ Upload a set of images to the WordPress Media endpoint.
+    """Upload a set of images to the WordPress Media endpoint.
 
     :param ext: ``str`` image file extension to look for.
     :param folder:  ``str`` Your thumbnails folder, just the name is necessary.
@@ -274,19 +284,19 @@ def upload_image_set(
     :return: ``None``
     """
     # Making sure folder is accessible.
-    thumbnails: list[str] = helpers.search_files_by_ext(ext, folder=os.path.relpath(folder))
+    thumbnails: list[str] = helpers.search_files_by_ext(
+        ext, folder=os.path.relpath(folder)
+    )
     if len(thumbnails) == 0:
         # Assumes the thumbnails are contained in a directory
         # This could be caused by the archive extraction
         files: list[str] = helpers.search_files_by_ext(
             "jpg", recursive=True, folder=os.path.relpath(folder)
         )
-        thumbnails: list[str] = [
-            "/".join(path.split("/")[-2:]) for path in files]
+        thumbnails: list[str] = ["/".join(path.split("/")[-2:]) for path in files]
 
     if len(thumbnails) != 0:
-        print(
-            f"--> Uploading set with {len(thumbnails)} images to WordPress Media...")
+        print(f"--> Uploading set with {len(thumbnails)} images to WordPress Media...")
         print("--> Adding image attributes on WordPress...")
         thumbnails.sort()
     else:
@@ -295,8 +305,10 @@ def upload_image_set(
     for number, image in enumerate(thumbnails, start=1):
         img_attrs: dict[str, str] = make_gallery_payload(title, number)
         status_code: int = wordpress_api.upload_thumbnail(
-            wp_params.api_base_url, [
-                "/media"], f"{os.path.abspath(folder)}/{image}", img_attrs
+            wp_params.api_base_url,
+            ["/media"],
+            f"{os.path.abspath(folder)}/{image}",
+            img_attrs,
         )
         # If upload is successful, the thumbnail is no longer useful.
         if status_code == (200 or 201):
@@ -306,7 +318,7 @@ def upload_image_set(
         print(f"* Image {number} | {image} --> Status code: {status_code}")
     try:
         # Check if I have paths instead of filenames
-        if len(thumbnails[0].split('/')) > 1:
+        if len(thumbnails[0].split("/")) > 1:
             # Get rid of the folder.
             shutil.rmtree(f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}")
         else:
@@ -320,9 +332,11 @@ def upload_image_set(
 
 
 def filter_relevant(
-        all_galleries: list[tuple[str, ...]], wp_posts_f: list[dict[str, ...]], wp_photos_f: list[dict[str, ...]]
+    all_galleries: list[tuple[str, ...]],
+    wp_posts_f: list[dict[str, ...]],
+    wp_photos_f: list[dict[str, ...]],
 ) -> list[tuple[str, ...]]:
-    """ Filter relevant galleries by using a simple algorithm to identify the models in
+    """Filter relevant galleries by using a simple algorithm to identify the models in
     each photo set and returning matches to the user. It is an experimental feature because it
     does not always work, specially when some image sets use the full name of the model and that
     makes it difficult for this simple algorithm to work.
@@ -337,8 +351,7 @@ def filter_relevant(
     # Relevancy algorithm.
     # Lists unique models whose videos where already published on the site.
     models_set: set[str] = set(
-        wordpress_api.map_wp_class_id(
-            wp_posts_f, "pornstars", "pornstars").keys()
+        wordpress_api.map_wp_class_id(wp_posts_f, "pornstars", "pornstars").keys()
     )
     not_published_yet = []
     for elem in all_galleries:
@@ -360,15 +373,15 @@ def filter_relevant(
 
 
 def gallery_upload_pilot(
-        relevancy_on: bool = False,
-        gecko: bool = False,
-        headless: bool = False,
-        parent: bool = False,
-        wp_admin_auth: WPAuth = wp_auth(),
-        wp_endpoints: WPEndpoints = WPEndpoints,
-        gallery_sel_conf: GallerySelectConf = gallery_select_conf()
+    relevancy_on: bool = False,
+    gecko: bool = False,
+    headless: bool = False,
+    parent: bool = False,
+    wp_admin_auth: WPAuth = wp_auth(),
+    wp_endpoints: WPEndpoints = WPEndpoints,
+    gallery_sel_conf: GallerySelectConf = gallery_select_conf(),
 ) -> None:
-    """ Control the entire execution of the gallery upload process.
+    """Control the entire execution of the gallery upload process.
     This ``gallery_upload_pilot`` function is a modification of ``video_upload_pilot``
     in the ``workflows.content_select`` module in the same package.
     It includes modifications that are necessary to deal with extra steps and automation:
@@ -396,54 +409,65 @@ def gallery_upload_pilot(
     :return: ``None``
     """
     # Configuring the required files
-    print("\n==> Warming up... ┌(◎_◎)┘")
-    hot_file_sync(bot_config=gallery_sel_conf)
+    console = Console()
+    with console.status(
+        "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
+        spinner="aesthetic",
+    ):
+        hot_file_sync(bot_config=gallery_sel_conf)
     wp_photos_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_photos)
     wp_posts_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_posts)
-    partners: list[str] = gallery_sel_conf.partners.split(',')
+    partners: list[str] = gallery_sel_conf.partners.split(",")
     db_conn, cur_partner, db_name_partner, partner_indx = content_select_db_match(
         partners, gallery_sel_conf.content_hint, parent=parent
     )
     all_galleries: list[tuple[str, ...]] = core.fetch_data_sql(
-        gallery_sel_conf.sql_query, cur_partner)
+        gallery_sel_conf.sql_query, cur_partner
+    )
     # Prints out at the end of the uploading session.
     galleries_uploaded: int = 0
     partner_: str = partners[partner_indx]
     # Gatekeeper function
     select_guard(db_name_partner, partner_)
     if relevancy_on:
-        not_published_yet = filter_relevant(
-            all_galleries, wp_posts_f, wp_photos_f)
+        not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
     else:
         # In theory, this will work sometimes since I modify some of the
         # gallery names to reflect the queries we rank for on Google.
         not_published_yet = filter_published(all_galleries, wp_photos_f)
     # You can keep on getting sets until this variable is equal to one.
     total_elems: int = len(not_published_yet)
-    print(f"There are {total_elems} sets to be published...")
+    console.print(
+        f"There are {total_elems} sets to be published...",
+        style="bold yellow",
+        justify="center",
+    )
     # Create temporary directories
-    temp_dir = tempfile.TemporaryDirectory(dir='.')
-    thumbnails_dir = tempfile.TemporaryDirectory(prefix='thumbs', dir='.')
+    temp_dir = tempfile.TemporaryDirectory(dir=".")
+    thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
     for num, photo in enumerate(not_published_yet):
         (title, *fields) = photo
         title: str = title
         date: str = fields[0]
         download_url: str = fields[1]
         partner_name: str = partner_
-        print(f"\n{'Review this photo set ':*^30}\n")
-        print(title)
-        print(f"Date: {date}")
-        print(f"Download URL: \n{download_url}")
+        console.print(f"\n{'Review this photo set ':*^30}\n", style="green")
+        console.print(title, style="green")
+        console.print(f"Date: {date}", style="green")
+        console.print(f"Download URL: \n{download_url}", style="green")
         # Centralized control flow
-        add_post: str | bool = input(
-            "\nAdd set to WP? -> Y/N/ENTER to review next set: ").lower()
+        add_post: str | bool = console.input(
+            "[bold yellow]\nAdd set to WP? -> Y/N/ENTER to review next set: [/bold yellow]"
+        ).lower()
         if add_post == ("y" or "yes"):
             add_post: bool = True
         elif add_post == ("n" or "no"):
             pyclip.detect_clipboard()
             pyclip.clear()
-            print(
-                f"You have created {galleries_uploaded} sets in this session!")
+            console.print(
+                f"You have created {galleries_uploaded} sets in this session!",
+                style="bold red",
+            )
             break
         else:
             if num < total_elems - 1:
@@ -453,34 +477,46 @@ def gallery_upload_pilot(
             else:
                 pyclip.detect_clipboard()
                 pyclip.clear()
-                print("\nWe have reviewed all sets for this query.")
-                print("Try a different SQL query or partner. I am ready when you are. ")
-                print(
-                    f"You have created {galleries_uploaded} sets in this session!")
+                console.print(
+                    "\nWe have reviewed all sets for this query.", style="bold red"
+                )
+                console.print(
+                    "Try a different SQL query or partner. I am ready when you are. ",
+                    style="bold red",
+                )
+                console.print(
+                    f"You have created {galleries_uploaded} sets in this session!",
+                    style="bold red",
+                )
                 break
         if add_post:
-            print("\n--> Making payload...")
-            tag_list: list[int] = get_tag_ids(
-                wp_photos_f, [partner_name], "photos")
+            console.print("\n--> Making payload...", style="bold green")
+            tag_list: list[int] = get_tag_ids(wp_photos_f, [partner_name], "photos")
             payload: dict[str, str | int] = make_photos_payload(
-                wp_admin_auth.default_status, title, partner_name, tag_list, reverse_slug=True
+                wp_admin_auth.default_status,
+                title,
+                partner_name,
+                tag_list,
+                reverse_slug=True,
             )
 
             try:
                 fetch_zip(
-                    temp_dir.name, download_url, parent=parent, gecko=gecko, headless=headless
+                    temp_dir.name,
+                    download_url,
+                    parent=parent,
+                    gecko=gecko,
+                    headless=headless,
                 )
                 extract_zip(temp_dir.name, thumbnails_dir.name)
 
-                print("--> Creating set on WordPress")
-                upload_image_set(
-                    "*",
-                    thumbnails_dir.name,
-                    title)
+                console.print("--> Creating set on WordPress", style="bold green")
+                upload_image_set("*", thumbnails_dir.name, title)
 
-                push_post = wordpress_api.wp_post_create(
-                    [wp_endpoints.photos], payload)
-                print(f"--> WordPress status code: {push_post}")
+                push_post = wordpress_api.wp_post_create([wp_endpoints.photos], payload)
+                console.print(
+                    f"--> WordPress status code: {push_post}", style="bold green"
+                )
 
                 # Copy important information to the clipboard.
                 # Some tag strings end with ';'
@@ -488,41 +524,52 @@ def gallery_upload_pilot(
                 # This is the main tag for galleries
                 pyclip.copy(partner_.lower())
                 pyclip.copy(title)
-                print("--> Check the set and paste your focus phrase on WP.")
+                console.print(
+                    "--> Check the set and paste your focus phrase on WP.",
+                    style="bold magenta",
+                )
                 galleries_uploaded += 1
             except ConnectionError:
                 pyclip.detect_clipboard()
                 pyclip.clear()
-                print("* There was a connection error while processing this set... *")
-                if input("\nDo you want to continue? Y/N/ENTER to exit: ") == (
-                        "y" or "yes"
-                ):
+                console.print(
+                    "* There was a connection error while processing this set... *",
+                    style="bold red",
+                )
+                if console.input(
+                    "[bold yellow]\nDo you want to continue? Y/N/ENTER to exit: [/bold yellow]"
+                ) == ("y" or "yes"):
                     continue
                 else:
-                    print(
-                        f"You have created {galleries_uploaded} set in this session!")
+                    console.print(
+                        f"You have created {galleries_uploaded} set in this session!",
+                        style="bold yellow",
+                    )
                     temp_dir.cleanup()
                     thumbnails_dir.cleanup()
                     break
             if num < total_elems - 1:
-                next_post = input(
-                    "\nNext set? -> Y/N/ENTER to review next set: "
+                next_post = console.input(
+                    "[bold yellow]\nNext set? -> Y/N/ENTER to review next set: [/bold yellow]"
                 ).lower()
                 if next_post == ("y" or "yes"):
                     # Clears clipboard after every video.
                     pyclip.clear()
-                    print("==> Syncing and Caching changes. ᕕ(◎_◎)ᕗ")
-                    hot_file_sync(bot_config=gallery_sel_conf)
-                    not_published_yet = filter_published(
-                        all_galleries, wp_photos_f)
-                    continue
+                    with console.status(
+                        "[bold magenta] Syncing and caching changes... [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink][/bold magenta]\n",
+                        spinner="aesthetic",
+                    ):
+                        hot_file_sync(bot_config=gallery_sel_conf)
+                        not_published_yet = filter_published(all_galleries, wp_photos_f)
+                        continue
                 elif next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid
                     # tracebacks from pyclip
                     pyclip.detect_clipboard()
                     pyclip.clear()
-                    print(
-                        f"You have created {galleries_uploaded} sets in this session!"
+                    console.print(
+                        f"You have created {galleries_uploaded} sets in this session!",
+                        style="bold yellow",
                     )
                     temp_dir.cleanup()
                     thumbnails_dir.cleanup()
@@ -534,14 +581,21 @@ def gallery_upload_pilot(
             else:
                 # Since we ran out of elements the script will end after adding it to WP
                 # So that it doesn't clear the clipboard automatically.
-                print("\nWe have reviewed all sets for this query.")
-                print("Try a different query and run me again.")
-                print(
-                    f"You have created {galleries_uploaded} sets in this session!")
+                console.print(
+                    "\nWe have reviewed all sets for this query.", style="bold red"
+                )
+                console.print(
+                    "Try a different query and run me again.", style="bold red"
+                )
+                console.print(
+                    f"You have created {galleries_uploaded} sets in this session!",
+                    style="bold yellow",
+                )
                 temp_dir.cleanup()
                 thumbnails_dir.cleanup()
-                print(
-                    "Waiting for 60 secs to clear the clipboard before you're done with the last set..."
+                console.print(
+                    "Waiting for 60 secs to clear the clipboard before you're done with the last set...",
+                    style="bold cyan",
                 )
                 time.sleep(60)
                 pyclip.detect_clipboard()
@@ -551,10 +605,17 @@ def gallery_upload_pilot(
         else:
             pyclip.detect_clipboard()
             pyclip.clear()
-            print("\nWe have reviewed all sets for this query.")
-            print("Try a different SQL query or partner. I am ready when you are. ")
-            print(
-                f"You have created {galleries_uploaded} sets in this session!")
+            console.print(
+                "\nWe have reviewed all sets for this query.", style="bold red"
+            )
+            console.print(
+                "Try a different SQL query or partner. I am ready when you are. ",
+                style="bold red",
+            )
+            console.print(
+                f"You have created {galleries_uploaded} sets in this session!",
+                style="bold yellow",
+            )
             temp_dir.cleanup()
             thumbnails_dir.cleanup()
             break

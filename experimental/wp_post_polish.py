@@ -40,7 +40,7 @@ with web_driver as driver:
     # WP Math Challenge handling
     x = [num for num in math_challenge_label.text if num != " "]
     length = len(x)
-    sum = "".join(x[0: length - 1])
+    sum = "".join(x[0 : length - 1])
 
     # Authenticate / Solve math challenge
     username_box.send_keys(username)
@@ -93,15 +93,13 @@ with web_driver as driver:
     post_slug.clear()
     post_slug.send_keys("this-post-is-a-test-from-python")
 
-    post_slug.send_keys(
-        "This is a sample meta description from Selenium Webdriver")
+    post_slug.send_keys("This is a sample meta description from Selenium Webdriver")
 
     meta_description_elem = '<div data-contents="true"><div class="" data-block="true" data-editor="bnml3" data-offset-key="a84pc-0-0"><div data-offset-key="a84pc-0-0" class="public-DraftStyleDefault-block public-DraftStyleDefault-ltr"><span data-offset-key="a84pc-0-0"><span data-text="true">this is a meta description</span></span></div></div></div>'
     post_meta_description_xpath = (
         "//div[@id='yoast-google-preview-description-metabox']"
     )
-    post_meta_description = driver.find_element(
-        By.XPATH, post_meta_description_xpath)
+    post_meta_description = driver.find_element(By.XPATH, post_meta_description_xpath)
     post_meta_description.send_keys(meta_description_elem)
 
     print("Video information fields")
@@ -123,8 +121,7 @@ with web_driver as driver:
     print("File source field")
     # File source field
     sample_file = "https://hosted.mongercash.com/ttp/video/alina_kim_trailer.mp4"
-    file_source_field = driver.find_element(
-        By.XPATH, "//input[@id='video_url']")
+    file_source_field = driver.find_element(By.XPATH, "//input[@id='video_url']")
     file_source_field.click()
     file_source_field.send_keys(sample_file)
 
@@ -134,8 +131,7 @@ with web_driver as driver:
     # select_hours = Select(hours_select_field)
     # select_hours.select_by_index(0)
 
-    minutes_select_field = driver.find_element(
-        By.XPATH, "//select[@id='minute']")
+    minutes_select_field = driver.find_element(By.XPATH, "//select[@id='minute']")
     select_minutes = Select(minutes_select_field)
     select_minutes.select_by_value("04")
 
@@ -146,8 +142,7 @@ with web_driver as driver:
     print("Pornstar information fields")
     # Pornstar information fields
     # Setting ethnicity only
-    ethnicity_select_field = driver.find_element(
-        By.XPATH, "//select[@id='ethnicity']")
+    ethnicity_select_field = driver.find_element(By.XPATH, "//select[@id='ethnicity']")
     ethnicity_select = Select(ethnicity_select_field)
     ethnicity_select.select_by_value("Asian")
 
@@ -155,8 +150,7 @@ with web_driver as driver:
     # Thumbnails and trailer fields
     # Setting thumbnail only
     sample_thumbnail = "https://hosted.mongercash.com/ttp/video/alina_kim_trailer.jpg"
-    main_thumbnail_field = driver.find_element(
-        By.XPATH, "//input[@id='thumb']")
+    main_thumbnail_field = driver.find_element(By.XPATH, "//input[@id='thumb']")
     main_thumbnail_field.click()
     main_thumbnail_field.send_keys()
 

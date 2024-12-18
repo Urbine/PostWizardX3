@@ -37,7 +37,7 @@ from tasks import parse_partner_name
 
 
 def extract_descriptions(bs4_obj: BeautifulSoup) -> list[str]:
-    """ Extract  video descriptions from HTML source
+    """Extract  video descriptions from HTML source
     ``<td><textarea class="display-link-text" rows="2">description text</textarea></td>``
 
     :param bs4_obj: ``BeautifulSoup``
@@ -57,33 +57,29 @@ def extract_descriptions(bs4_obj: BeautifulSoup) -> list[str]:
 
 
 def extract_title(bs4_obj: BeautifulSoup) -> list[str]:
-    """ Extract a video title from HTML Source
+    """Extract a video title from HTML Source
     ``<td class="tab-column col_0 center-align">video title</td>``
 
     :param bs4_obj: ``BeautifulSoup``
     :return: ``list[str]``
     """
-    vid_title = bs4_obj.find_all(
-        "td", attrs={
-            "class": "tab-column col_0 center-align"})
+    vid_title = bs4_obj.find_all("td", attrs={"class": "tab-column col_0 center-align"})
     return [title.text for title in vid_title]
 
 
 def extract_date(bs4_obj: BeautifulSoup) -> list[str]:
-    """ Extract post/upload date from HTML Source
+    """Extract post/upload date from HTML Source
     ``<td class="tab-column col_1 center-align">Sep  4, 2024</td>``
     :param bs4_obj: ``BeautifulSoup``
     :return: ``list[str]``
     """
     #
-    vid_date = bs4_obj.find_all(
-        "td", attrs={
-            "class": "tab-column col_1 center-align"})
+    vid_date = bs4_obj.find_all("td", attrs={"class": "tab-column col_1 center-align"})
     return [date.text for date in vid_date]
 
 
 def extract_duration(bs4_obj: BeautifulSoup) -> list[str]:
-    """ Extract video duration information from HTML Source
+    """Extract video duration information from HTML Source
     ``<td class="tab-column col_2 center-align">4 Min</td>``
 
     :param bs4_obj: ``BeautifulSoup``
@@ -104,7 +100,7 @@ def extract_duration(bs4_obj: BeautifulSoup) -> list[str]:
 
 
 def extract_source(bs4_obj: BeautifulSoup) -> list[str]:
-    """ Extract video source URL from HTML source
+    """Extract video source URL from HTML source
     ``<source src="https://xyz.com/ttp/video/video_file.mp4" type="video/"/>``
 
     :param bs4_obj: ``BeautifulSoup``
@@ -115,7 +111,7 @@ def extract_source(bs4_obj: BeautifulSoup) -> list[str]:
 
 
 def extract_thumbnail(bs4_obj: BeautifulSoup) -> list[str]:
-    """ Extract thumbnail link from HTML Source
+    """Extract thumbnail link from HTML Source
     ``<video class="video_holder_14126 table-video-small" controls=""
     poster="https://xyz.com/ttp/video/video_thumbnail.jpg"></video>``
 
@@ -127,7 +123,7 @@ def extract_thumbnail(bs4_obj: BeautifulSoup) -> list[str]:
 
 
 def combine_vid_elems(bs4_obj: BeautifulSoup) -> list[tuple[str, str, str, str, str]]:
-    """ Combine all elements in a common data structure with the values returned by other functions.
+    """Combine all elements in a common data structure with the values returned by other functions.
 
     :param bs4_obj: `BeautifulSoup``
     :return: ``list[tuple[str, str, str, str, str]]`` `(title, descriptions, date, source, thumbnail)`
@@ -143,7 +139,7 @@ def combine_vid_elems(bs4_obj: BeautifulSoup) -> list[tuple[str, str, str, str, 
 
 
 def get_xml_link(bs4_obj: BeautifulSoup) -> list[str]:
-    """ Get an XML dump file from the HTML source for further parsing
+    """Get an XML dump file from the HTML source for further parsing
     ``<a href="internal.php?... class="linkcode-view" id="xml_1" target="_blank" title="Export as XML">``
 
     :param bs4_obj: ``BeautifulSoup``
@@ -155,7 +151,7 @@ def get_xml_link(bs4_obj: BeautifulSoup) -> list[str]:
 
 
 def xml_tag_text(bs4_xml: BeautifulSoup, elem_tag: str) -> str:
-    """ Get tag information from a specific tag from XML source.
+    """Get tag information from a specific tag from XML source.
 
     :param bs4_xml: ``BeautifulSoup``
     :param elem_tag: ``str`` tag name
@@ -166,12 +162,12 @@ def xml_tag_text(bs4_xml: BeautifulSoup, elem_tag: str) -> str:
 
 
 def get_set_source_flow(
-        webdrv: webdriver,
-        task_conf: TasksConf = tasks_conf(),
-        mcash_auth: MongerCashAuth = monger_cash_auth(),
-        partner_hint: str = None
+    webdrv: webdriver,
+    task_conf: TasksConf = tasks_conf(),
+    mcash_auth: MongerCashAuth = monger_cash_auth(),
+    partner_hint: str = None,
 ) -> tuple[BeautifulSoup, str]:
-    """ Get the photo set source code for further parsing.
+    """Get the photo set source code for further parsing.
     This source file will be parsed by a specialised parser in this package.
 
     :param webdrv: ``webdriver`` Chrome/Gecko webdriver instance
@@ -183,7 +179,6 @@ def get_set_source_flow(
     # Captures the source outside the context manager.
     source_html = None
     with webdrv as driver:
-
         # Go to URL
         print(f"Getting options from {task_conf.mcash_set_url}")
         print("Please wait...\n")
@@ -231,8 +226,7 @@ def get_set_source_flow(
         apply_changes_xpath = (
             "/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input"
         )
-        apply_changes_button = driver.find_element(
-            By.XPATH, apply_changes_xpath)
+        apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
         apply_changes_button.click()
         time.sleep(1)
 

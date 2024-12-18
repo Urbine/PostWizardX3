@@ -12,11 +12,12 @@ class CSVColumns:
     CSV Column fields that can be used together or in isolation depending on the kind of
     result that you want to obtain.
     """
-    ID_: str = 'id'
-    title: str = 'title'
-    description: str = 'description'
-    link: str = 'link'
-    duration: str = 'duration'
+
+    ID_: str = "id"
+    title: str = "title"
+    description: str = "description"
+    link: str = "link"
+    duration: str = "duration"
     rating: str = "rating"
     added_time: str = "post_date"
     categories: str = "categories"
@@ -37,6 +38,7 @@ class CSVSeparators:
     """
     Encoded separators for the URL params
     """
+
     pipe_sep: str = "%7C"
     comma_sep: str = "%2C"
     semicolon_sep: str = "%3B"

@@ -40,7 +40,7 @@ from core import (
     get_webdriver,
     load_from_file,
     clean_filename,
-    remove_if_exists
+    remove_if_exists,
 )
 
 from tasks.mcash_dump_create import get_vid_dump_flow
@@ -49,12 +49,12 @@ from tasks.parse_txt_dump import parse_txt_dump
 from tasks.sets_source_parse import db_generate
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     print("Welcome to the MongerCash local update wizard")
 
     arg_parser = argparse.ArgumentParser(
-        description="mcash local update wizard arguments")
+        description="mcash local update wizard arguments"
+    )
 
     arg_parser.add_argument(
         "--hint",
@@ -77,9 +77,8 @@ if __name__ == '__main__':
     )
 
     arg_parser.add_argument(
-        "--silent",
-        action="store_true",
-        help="Ignore user warnings")
+        "--silent", action="store_true", help="Ignore user warnings"
+    )
 
     args = arg_parser.parse_args()
 
@@ -88,10 +87,7 @@ if __name__ == '__main__':
     else:
         pass
 
-    webdriver = get_webdriver(
-        "",
-        headless=args.headless,
-        gecko=args.gecko)
+    webdriver = get_webdriver("", headless=args.headless, gecko=args.gecko)
 
     # Fetching
     temp_dir, dump_file_name = get_vid_dump_flow(
@@ -103,14 +99,10 @@ if __name__ == '__main__':
     # If the file is empty, it means that something went wrong with the
     # webdriver.
     load_dump_file = load_from_file(
-        dump_file_name,
-        "txt",
-        dirname=temp_dir.name,
-        parent=None)
+        dump_file_name, "txt", dirname=temp_dir.name, parent=None
+    )
     while len(load_dump_file) == 0:
-        warnings.warn(
-            "The content of the dump file is empty, retrying...",
-            UserWarning)
+        warnings.warn("The content of the dump file is empty, retrying...", UserWarning)
         temp_dir, dump_file_name = get_vid_dump_flow(
             webdriver,
             partner_hint=args.hint,
@@ -121,13 +113,8 @@ if __name__ == '__main__':
         continue
 
     # webdriver gets a second assignment to avoid connection pool issues.
-    webdriver = get_webdriver(
-        temp_dir.name,
-        headless=args.headless,
-        gecko=args.gecko)
-    photoset_source = get_set_source_flow(
-        webdriver, partner_hint=args.hint
-    )
+    webdriver = get_webdriver(temp_dir.name, headless=args.headless, gecko=args.gecko)
+    photoset_source = get_set_source_flow(webdriver, partner_hint=args.hint)
 
     # Just like the text dump, the source code could be empty and I need to
     # test it.
@@ -140,8 +127,7 @@ if __name__ == '__main__':
 
     db_name = clean_filename(dump_file_name, "db")
     remove_if_exists(db_name)
-    db_conn = sqlite3.connect(
-        f"{is_parent_dir_required(parent=args.parent)}{db_name}")
+    db_conn = sqlite3.connect(f"{is_parent_dir_required(parent=args.parent)}{db_name}")
     cursor = db_conn.cursor()
     cursor.execute(
         """
@@ -162,16 +148,20 @@ if __name__ == '__main__':
     )
 
     parsing = parse_txt_dump(
-        dump_file_name, db_name, db_conn, cursor, dirname=temp_dir.name, parent=args.parent
+        dump_file_name,
+        db_name,
+        db_conn,
+        cursor,
+        dirname=temp_dir.name,
+        parent=args.parent,
     )
     print(
         f"{parsing[1]} video entries have been processed from {dump_file_name} and inserted into\n{parsing[0]}\n"
     )
 
     parsing_photos = db_generate(
-        photoset_source[0],
-        photoset_source[1],
-        parent=args.parent)
+        photoset_source[0], photoset_source[1], parent=args.parent
+    )
     print(
         f"{parsing_photos[1]} photo set entries have been processed and inserted into\n{parsing_photos[0]}\n"
     )

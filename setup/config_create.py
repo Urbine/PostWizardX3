@@ -60,13 +60,13 @@ db_content_hint = dump
 partners= abjav,vjav,Desi Tube
 """
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Welcome to the configuration create module.")
     print("This module will generate the configuration templates for the utilities.")
-    print("Review the changes and modify the fields as needed once the files are generated.\n")
+    print(
+        "Review the changes and modify the fields as needed once the files are generated.\n"
+    )
 
-    core.write_to_file('client_info', 'core/config','ini', CLIENT_INFO_INI)
-    core.write_to_file('tasks_config', 'core/config', 'ini', TASKS_CONF_INI)
-    core.write_to_file('workflows_config', 'core/config', 'ini', WORKFLOWS_CONF_INI)
-
-
+    core.write_to_file("client_info", "core/config", "ini", CLIENT_INFO_INI)
+    core.write_to_file("tasks_config", "core/config", "ini", TASKS_CONF_INI)
+    core.write_to_file("workflows_config", "core/config", "ini", WORKFLOWS_CONF_INI)

@@ -16,13 +16,13 @@ ABJAV_CAMPAIGN_ID = 1291575419
 
 
 def construct_api_dump_url(
-        base_url: str,
-        campgn_id: str | int,
-        sort_crit: str,
-        days: str | int = "",
-        url_limit: str | int = 999999999,
-        sep: CSVSeparators = CSVSeparators.pipe_sep,
-        columns: CSVColumns = CSVColumns
+    base_url: str,
+    campgn_id: str | int,
+    sort_crit: str,
+    days: str | int = "",
+    url_limit: str | int = 999999999,
+    sep: CSVSeparators = CSVSeparators.pipe_sep,
+    columns: CSVColumns = CSVColumns,
 ) -> str:
     """
     Construct the API dump url to access the text content to be parsed by function `adult_next_dump_parse`
@@ -64,7 +64,7 @@ def construct_api_dump_url(
         columns.rating,
         columns.main_thumbnail,
         columns.embed_code,
-        columns.link
+        columns.link,
     ]
 
     csv_columns = f"csv_columns={str(sep).join(column_lst)}"
@@ -72,8 +72,7 @@ def construct_api_dump_url(
     return f"{base_url}{params}{campaign_id}{format}{sorting}{days}{limit}{sep_param}{csv_columns}"
 
 
-def adult_next_dump_parse(filename: str, dirname: str,
-                          partner: str, sep: str) -> str:
+def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
     """
     Parse the text dump based on the parameters that ``construct_api_dump_url`` constructed.
     Once the temporary text file is fetched from the origin, this function will record all the values
@@ -89,7 +88,7 @@ def adult_next_dump_parse(filename: str, dirname: str,
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
-    c_filename = core.clean_filename(filename, 'csv')
+    c_filename = core.clean_filename(filename, "csv")
     path = f"{os.path.abspath(dirname)}/{c_filename}"
     db_name = f"{os.getcwd()}/{filename}-{datetime.date.today()}.db"
     remove_if_exists(db_name)
@@ -145,7 +144,7 @@ def adult_next_dump_parse(filename: str, dirname: str,
                     main_thumbnail,
                     embed_code,
                     website_link,
-                    wp_slug
+                    wp_slug,
                 )
 
                 db_cur.execute(
@@ -161,33 +160,37 @@ def adult_next_dump_parse(filename: str, dirname: str,
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
-        description='AdultNext integration - CLI Interface')
+        description="AdultNext integration - CLI Interface"
+    )
 
-    arg_parser.add_argument('-sort', type=str,
-                            help="""Sorting criteria from possible values:
+    arg_parser.add_argument(
+        "-sort",
+        type=str,
+        help="""Sorting criteria from possible values:
                                       1. popularity
                                       2. rating
                                       3. duration
                                       4. post_date
-                                      5. id (default if no criteria is provided)""")
+                                      5. id (default if no criteria is provided)""",
+    )
 
-    arg_parser.add_argument('-days', type=int,
-                            help='Provide the time period in days')
+    arg_parser.add_argument("-days", type=int, help="Provide the time period in days")
 
-    arg_parser.add_argument(
-        '-limit',
-        type=int,
-        help='amount of urls to process')
+    arg_parser.add_argument("-limit", type=int, help="amount of urls to process")
 
     cli_args = arg_parser.parse_args()
 
     # Build the URL
     main_url = construct_api_dump_url(
-        ABJAV_BASE_URL, ABJAV_CAMPAIGN_ID, cli_args.sort, days=cli_args.days, url_limit=cli_args.limit
+        ABJAV_BASE_URL,
+        ABJAV_CAMPAIGN_ID,
+        cli_args.sort,
+        days=cli_args.days,
+        url_limit=cli_args.limit,
     )
 
     # Create temporary directory
-    temp_dir = tempfile.TemporaryDirectory(dir='.')
+    temp_dir = tempfile.TemporaryDirectory(dir=".")
 
     # Use it to fetch the stream for the `write_to_file` functions.
     core.write_to_file(
@@ -195,9 +198,9 @@ if __name__ == "__main__":
     )
 
     # Parse the temporary csv and generate the database with the data.
-    result = adult_next_dump_parse("abjav-dump", temp_dir.name, 'jav', "|")
+    result = adult_next_dump_parse("abjav-dump", temp_dir.name, "jav", "|")
 
     # Clean the temporary folder
     temp_dir.cleanup()
     print(result)
-    print('Cleaned temporary folder...')
+    print("Cleaned temporary folder...")

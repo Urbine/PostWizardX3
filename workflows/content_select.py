@@ -29,30 +29,39 @@ import warnings
 
 from requests.exceptions import ConnectionError, SSLError
 
-# Local implementations
-from core import (helpers,
-                  InvalidInput,
-                  UnsupportedParameter,
-                  content_select_conf,
-                  wp_auth,
-                  clean_filename)
+# Third-party modules
+from rich.console import Console
 
-from core.config_mgr import WPAuth, ContentSelectConf, GallerySelectConf, EmbedAssistConf
+# Local implementations
+from core import (
+    helpers,
+    InvalidInput,
+    UnsupportedParameter,
+    content_select_conf,
+    wp_auth,
+    clean_filename,
+)
+
+from core.config_mgr import (
+    WPAuth,
+    ContentSelectConf,
+    GallerySelectConf,
+    EmbedAssistConf,
+)
 from integrations import wordpress_api
 from integrations.url_builder import WPEndpoints
 from ml_engine import classify_title, classify_description, classify_tags
 
 
 def clean_partner_tag(partner_tag: str) -> str:
-    """ Clean partner names that could contain apostrophes in them.
+    """Clean partner names that could contain apostrophes in them.
 
     :param partner_tag: ``str`` the conflicting text
     :return: ``str`` cleaned partner tag without the apostrophe.
     """
     # This expression means "not a word and underscore"
     try:
-        no_word: list[str] = re.findall(
-            r"[\W_]+", partner_tag, flags=re.IGNORECASE)
+        no_word: list[str] = re.findall(r"[\W_]+", partner_tag, flags=re.IGNORECASE)
         if no_word[0] == " " and len(no_word) == 1:
             return partner_tag
         elif "'" not in no_word:
@@ -103,10 +112,9 @@ def published_json(title: str, wp_posts_f: list[dict[str, ...]]) -> bool:
     :param wp_posts_f: ``list[dict]`` WordPress Post Information case file (previously loaded and ready to process)
     :return: ``bool`` True if one or more matches is found, False if the result is None.
     """
-    post_titles: list[str] = wordpress_api.get_post_titles_local(
-        wp_posts_f, yoast=True)
+    post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
 
-    comp_title: re.Pattern = re.compile(fr'({title})')
+    comp_title: re.Pattern = re.compile(rf"({title})")
 
     results: list[str] = [
         vid_name for vid_name in post_titles if re.match(comp_title, vid_name)
@@ -117,9 +125,10 @@ def published_json(title: str, wp_posts_f: list[dict[str, ...]]) -> bool:
         return False
 
 
-def filter_published(all_videos: list[tuple],
-                     wp_posts_f: list[dict]) -> list[tuple[str, ...]]:
-    """ ``filter_published`` does its filtering work based on the ``published_json`` function.
+def filter_published(
+    all_videos: list[tuple], wp_posts_f: list[dict]
+) -> list[tuple[str, ...]]:
+    """``filter_published`` does its filtering work based on the ``published_json`` function.
     Actually, the ``published_json`` is the brain behind this function and the reason why I decided to
     separate brain and body, as it were, is modularity. I want to be able to modify the classification rationale
     without affecting the way in which iterations are performed, unless I intend to do so specifically.
@@ -144,8 +153,7 @@ def filter_published(all_videos: list[tuple],
     return not_published
 
 
-def get_tag_ids(wp_posts_f: list[dict],
-                tag_lst: list[str], preset: str) -> list[int]:
+def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list[int]:
     """WordPress uses integers to identify several elements that posts share like models or tags.
     This function is equipped to deal with inconsistencies that are inherent to the way that WP
     handles its tags; for example, some tags can have the same meaning but differ in case.
@@ -239,10 +247,10 @@ def get_model_ids(wp_posts_f: list[dict], model_lst: list[str]) -> list[int]:
 
 
 def identify_missing(
-        wp_data_dic: dict[str, str | int],
-        data_lst: list[str],
-        data_ids: list[int],
-        ignore_case: bool = False,
+    wp_data_dic: dict[str, str | int],
+    data_lst: list[str],
+    data_ids: list[int],
+    ignore_case: bool = False,
 ):
     """This function is a simple algorithm that identifies when a tag or model must be manually recorded
     on WordPress, and it does that with two main assumptions:
@@ -283,7 +291,7 @@ def identify_missing(
 
 
 def fetch_thumbnail(
-        folder: str, slug: str, remote_res: str, thumbnail_name: str = ""
+    folder: str, slug: str, remote_res: str, thumbnail_name: str = ""
 ) -> int:
     """This function handles the renaming and fetching of thumbnails that will be uploaded to
     WordPress as media attachments. It dynamically renames the thumbnails by taking in a URL slug to
@@ -310,17 +318,17 @@ def fetch_thumbnail(
 
 
 def make_payload(
-        vid_slug,
-        status_wp: str,
-        vid_name: str,
-        vid_description: str,
-        banner_tracking_url: str,
-        banner_img: str,
-        partner_name: str,
-        tag_int_lst: list[int],
-        model_int_lst: list[int],
-        categs: list[int] | None = None,
-        wp_auth: WPAuth = wp_auth()
+    vid_slug,
+    status_wp: str,
+    vid_name: str,
+    vid_description: str,
+    banner_tracking_url: str,
+    banner_img: str,
+    partner_name: str,
+    tag_int_lst: list[int],
+    model_int_lst: list[int],
+    categs: list[int] | None = None,
+    wp_auth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Make WordPress ``JSON`` payload with the supplied values.
     This function also injects ``HTML`` code into the payload to display the banner, add ``ALT`` text to it
@@ -370,14 +378,14 @@ def make_payload(
 
 
 def make_payload_simple(
-        vid_slug,
-        status_wp: str,
-        vid_name: str,
-        vid_description: str,
-        tag_int_lst: list[int],
-        model_int_lst: list[int] | None = None,
-        categs: list[int] | None = None,
-        wp_auth: WPAuth = wp_auth()
+    vid_slug,
+    status_wp: str,
+    vid_name: str,
+    vid_description: str,
+    tag_int_lst: list[int],
+    model_int_lst: list[int] | None = None,
+    categs: list[int] | None = None,
+    wp_auth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Makes a simple WordPress JSON payload with the supplied values.
 
@@ -441,7 +449,12 @@ def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
 
 
 def make_slug(
-        partner: str, model: str, title: str, content: str, reverse: bool = False, partner_out: bool = False
+    partner: str,
+    model: str | None,
+    title: str,
+    content: str,
+    reverse: bool = False,
+    partner_out: bool = False,
 ) -> str:
     """This function is a new approach to the generation of slugs inspired by the slug making
     mechanism from gallery_select.py. It takes in strings that will be transformed into URL slugs
@@ -464,7 +477,7 @@ def make_slug(
             if (
                 re.match(r"[\w]+", word, flags=re.IGNORECASE)
                 and word.lower() not in filter_words
-        )
+            )
         ]
     )
 
@@ -497,8 +510,9 @@ def make_slug(
             return f"{partner_sl}-{title_sl}-{content}"
 
 
-def hot_file_sync(bot_config: ContentSelectConf |
-                              GallerySelectConf | EmbedAssistConf) -> bool:
+def hot_file_sync(
+    bot_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+) -> bool:
     """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
     This function leverages the power of the caching mechanism defined
@@ -513,31 +527,31 @@ def hot_file_sync(bot_config: ContentSelectConf |
     with configuration information.
     :return: ``bool``  ``True`` if everything went well or ``False`` if the validation failed)
     """
-    parent = False if os.path.exists(
-        f"./{clean_filename(bot_config.wp_cache_config, 'json')}") else True
+    parent = (
+        False
+        if os.path.exists(f"./{clean_filename(bot_config.wp_cache_config, 'json')}")
+        else True
+    )
     if isinstance(bot_config, GallerySelectConf):
-        wp_filename: str = helpers.clean_filename(
-            bot_config.wp_json_photos, "json")
+        wp_filename: str = helpers.clean_filename(bot_config.wp_json_photos, "json")
     else:
-        wp_filename: str = helpers.clean_filename(
-            bot_config.wp_json_posts, "json")
+        wp_filename: str = helpers.clean_filename(bot_config.wp_json_posts, "json")
     sync_changes: list[dict[str, ...]] = wordpress_api.update_json_cache(
-        photos=True if isinstance(bot_config, GallerySelectConf) else False)
+        photos=True if isinstance(bot_config, GallerySelectConf) else False
+    )
     # Reload config
-    config_json: dict[str, str] = helpers.load_json_ctx(
-        bot_config.wp_cache_config)
+    config_json: dict[str, str] = helpers.load_json_ctx(bot_config.wp_cache_config)
     if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
-        helpers.export_request_json(
-            wp_filename, sync_changes, 1, parent=parent)
+        helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
         return True
     else:
         return False
 
 
 def partner_select(
-        partner_lst: list[str],
-        banner_lsts: list[list[str]],
-        db_name: str,
+    partner_lst: list[str],
+    banner_lsts: list[list[str]],
+    db_name: str,
 ) -> tuple[str, list[str]]:
     """Selects partner and banner list based on their index order.
     As this function is based on index and order of elements, both lists should have the same number of elements.
@@ -593,11 +607,11 @@ def select_guard(db_name: str, partner: str) -> None:
 
 
 def content_select_db_match(
-        hint_lst: list[str],
-        content_hint: str,
-        folder: str = "",
-        prompt_db: bool = False,
-        parent: bool = False,
+    hint_lst: list[str],
+    content_hint: str,
+    folder: str = "",
+    prompt_db: bool = False,
+    parent: bool = False,
 ) -> tuple[Connection, Cursor, str, int]:
     """Give a list of databases, match them with multiple hints and retrieves the most up-to-date filename.
     This is a specialised implementation based on the ``filename_select`` function in the ``core.helpers`` module.
@@ -626,8 +640,10 @@ def content_select_db_match(
     :return: ``tuple[Connection, Cursor, str, int]``
              (database connection, database cursor, database name, common index int)
     """
+    console = Console()
     available_files: list[str] = helpers.search_files_by_ext(
-        "db", folder=folder, parent=parent)
+        "db", folder=folder, parent=parent
+    )
     filtered_files: list[str] = helpers.match_list_elem_date(
         hint_lst,
         available_files,
@@ -636,8 +652,12 @@ def content_select_db_match(
         strict=True,
     )
 
-    relevant_content: list[str] = list(map(lambda indx: filtered_files[indx],
-                                           helpers.match_list_mult(content_hint, filtered_files)))
+    relevant_content: list[str] = list(
+        map(
+            lambda indx: filtered_files[indx],
+            helpers.match_list_mult(content_hint, filtered_files),
+        )
+    )
 
     if prompt_db:
         print(f"\nHere are the available database files:")
@@ -648,17 +668,17 @@ def content_select_db_match(
         pass
     print("\n")
     for num, file in enumerate(hint_lst, start=1):
-        print(f"{num}. {file}")
+        console.print(f"{num}. {file}", style="bold green")
 
     try:
-        select_partner: str = input(f"\nSelect your partner now: ")
+        select_partner: str = console.input(
+            f"[bold yellow]\nSelect your partner now: [bold yellow]"
+        )
         # I just need the first word to match the db.
         try:
-            split_char = re.findall(r"[\W_]+",
-                                    hint_lst[int(select_partner) - 1])[0]
+            split_char = re.findall(r"[\W_]+", hint_lst[int(select_partner) - 1])[0]
 
-            clean_hint: str = hint_lst[int(
-                select_partner) - 1].split(split_char)[0]
+            clean_hint: str = hint_lst[int(select_partner) - 1].split(split_char)[0]
 
         except IndexError:
             clean_hint: str = hint_lst[int(select_partner) - 1]
@@ -670,26 +690,28 @@ def content_select_db_match(
         select_file: int = rel_content
 
         is_parent: str = (
-            helpers.is_parent_dir_required(parent)
-            if folder == ""
-            else f"{folder}/"
+            helpers.is_parent_dir_required(parent) if folder == "" else f"{folder}/"
         )
         db_path: str = f"{is_parent}{relevant_content[select_file]}"
 
         db_new_conn: sqlite3 = sqlite3.connect(db_path)
         db_new_cur: sqlite3 = db_new_conn.cursor()
-        return (db_new_conn, db_new_cur,
-                relevant_content[int(select_file)], select_file)
+        return (
+            db_new_conn,
+            db_new_cur,
+            relevant_content[int(select_file)],
+            select_file,
+        )
     except IndexError or ValueError:
         raise InvalidInput
 
 
 def video_upload_pilot(
-        banner_lsts: list[list[str]],
-        wp_auth: WPAuth = wp_auth(),
-        wp_endpoints: WPEndpoints = WPEndpoints,
-        cs_config: ContentSelectConf = content_select_conf(),
-        parent: bool = False,
+    banner_lsts: list[list[str]],
+    wp_auth: WPAuth = wp_auth(),
+    wp_endpoints: WPEndpoints = WPEndpoints,
+    cs_config: ContentSelectConf = content_select_conf(),
+    parent: bool = False,
 ) -> None:
     """Here is the main coordinating function of this module, the job control that
     uses all previous functions to carry out all the tasks associated with the video upload process in the business.
@@ -756,29 +778,37 @@ def video_upload_pilot(
     :return: ``None``
     """
     # Configuration steps
-    print("\n==> Warming up... ┌(◎_◎)┘ ")
-    hot_file_sync(bot_config=cs_config)
-    partners: list[str] = cs_config.partners.split(',')
-    wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(
-        cs_config.wp_json_posts)
+    console = Console()
+    os.system("clear")
+    with console.status(
+        "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
+        spinner="aesthetic",
+    ):
+        hot_file_sync(bot_config=cs_config)
+    partners: list[str] = cs_config.partners.split(",")
+    wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
     wp_base_url: str = wp_auth.api_base_url
-    os.system('clear')
     db_conn, cur_dump, partner_db_name, partner_indx = content_select_db_match(
         partners, cs_config.content_hint, parent=parent
     )
     all_vals: list[tuple[str, ...]] = helpers.fetch_data_sql(
-        cs_config.sql_query, cur_dump)
+        cs_config.sql_query, cur_dump
+    )
     # Prints out at the end of the uploading session.
     videos_uploaded: int = 0
     partner, banners = partners[partner_indx], banner_lsts[partner_indx]
     select_guard(partner_db_name, partner)
-    not_published_yet: list[tuple[str, ...]
-    ] = filter_published(all_vals, wp_posts_f)
+    not_published_yet: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
-    print(f"There are {total_elems} videos to be published...")
+    os.system("clear")
+    console.print(
+        f"\nThere are {total_elems} videos to be published...",
+        style="bold red",
+        justify="center",
+    )
     # Create a temporary directory for thumbnails.
-    thumbnails_dir = tempfile.TemporaryDirectory(prefix='thumbs', dir='.')
+    thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
     for num, vid in enumerate(not_published_yet):
         (title, *fields) = vid
         description = fields[0]
@@ -790,24 +820,30 @@ def video_upload_pilot(
         thumbnail_url = fields[6]
         tracking_url = fields[7]
         partner_name = partner
-        print(f"\n{' Review this post ':*^30}\n")
-        print(title)
-        print(description)
-        print(f"Duration: {duration}")
-        print(f"Tags: {tags}")
-        print(f"Models: {models}")
-        print(f"Date: {date}")
-        print(f"Thumbnail URL: {thumbnail_url}")
-        print(f"Source URL: {source_url}")
+        console.print(
+            f"\n{' Review this post ':*^30}\n", style="bold yellow", justify="center"
+        )
+        console.print(title, style="green")
+        console.print(description, style="green")
+        console.print(f"Duration: {duration}", style="green")
+        console.print(f"Tags: {tags}", style="green")
+        console.print(f"Models: {models}", style="green")
+        console.print(f"Date: {date}", style="green")
+        console.print(f"Thumbnail URL: {thumbnail_url}", style="green")
+        console.print(f"Source URL: {source_url}", style="green")
         # Centralized control flow
-        add_post = input(
-            "\nAdd post to WP? -> Y/N/ENTER to review next post: ").lower()
+        add_post = console.input(
+            "\n[bold cyan]Add post to WP? -> Y/N/ENTER to review next post: [/bold cyan]",
+        ).lower()
         if add_post == ("y" or "yes"):
             add_post = True
         elif add_post == ("n" or "no"):
             pyclip.detect_clipboard()
             pyclip.clear()
-            print(f"You have created {videos_uploaded} posts in this session!")
+            console.print(
+                f"You have created {videos_uploaded} posts in this session!",
+                style="bold red",
+            )
             break
         else:
             if num < total_elems - 1:
@@ -817,10 +853,17 @@ def video_upload_pilot(
             else:
                 pyclip.detect_clipboard()
                 pyclip.clear()
-                print("\nWe have reviewed all posts for this query.")
-                print("Try a different SQL query or partner. I am ready when you are. ")
-                print(
-                    f"You have created {videos_uploaded} posts in this session!")
+                console.print(
+                    "\nWe have reviewed all posts for this query.", style="bold red"
+                )
+                console.print(
+                    "Try a different SQL query or partner. I am ready when you are. ",
+                    style="bold red",
+                )
+                console.print(
+                    f"You have created {videos_uploaded} posts in this session!",
+                    style="bold red",
+                )
                 break
 
         # In rare occasions, the ``tags`` is None and the real tags are placed in the ``models`` variable
@@ -835,16 +878,16 @@ def video_upload_pilot(
                 f"{fields[8]}-video",
                 make_slug(partner, models, title, "video"),
                 make_slug(partner, models, title, "video", reverse=True),
-                make_slug(partner, models, title, "video", partner_out=True)
+                make_slug(partner, models, title, "video", partner_out=True),
             ]
 
-            print("\n--> Available slugs:\n")
+            console.print("\n--> Available slugs:\n", style="bold red")
 
             for n, slug in enumerate(slugs, start=1):
-                print(f"{n}. -> {slug}")
-            print("--> Enter #5 to provide a custom slug")
+                console.print(f"{n}. -> {slug}", style="bold green")
+            console.print("--> Enter #5 to provide a custom slug", style="bold red")
 
-            match input("\nSelect your slug: "):
+            match console.input("[bold magenta]\nSelect your slug: [/bold magenta]"):
                 case "1":
                     wp_slug: str = slugs[0]
                 case "2":
@@ -856,7 +899,7 @@ def video_upload_pilot(
                 case "5":
                     # Copy the default slug for editing
                     pyclip.copy(slugs[3])
-                    print("Provide a new slug: ")
+                    console.print("Provide a new slug: ", style="bold red")
                     wp_slug: str = input()
                 case _:
                     # TODO: Add ``default_slug`` option to config file.
@@ -869,8 +912,7 @@ def video_upload_pilot(
             partner_tag: str = clean_partner_tag(partner.lower())
             tag_prep.append(partner_tag)
             tag_ints: list[int] = get_tag_ids(wp_posts_f, tag_prep, "tags")
-            all_tags_wp: dict[str, str] = wordpress_api.tag_id_merger_dict(
-                wp_posts_f)
+            all_tags_wp: dict[str, str] = wordpress_api.tag_id_merger_dict(wp_posts_f)
             tag_check: list[str] | None = identify_missing(
                 all_tags_wp, tag_prep, tag_ints, ignore_case=True
             )
@@ -880,9 +922,17 @@ def video_upload_pilot(
             else:
                 # You've hit a snag.
                 for tag in tag_check:
-                    print(f"ATTENTION --> Tag: {tag} not on WordPress.")
-                    print("--> Copying missing tag to your system clipboard.")
-                    print("Paste it into the tags field as soon as possible...\n")
+                    console.print(
+                        f"ATTENTION --> Tag: {tag} not on WordPress.", style="bold red"
+                    )
+                    console.print(
+                        "--> Copying missing tag to your system clipboard.",
+                        style="bold red",
+                    )
+                    console.print(
+                        "Paste it into the tags field as soon as possible...\n",
+                        style="bold yellow",
+                    )
                     pyclip.detect_clipboard()
                     pyclip.copy(tag)
 
@@ -899,7 +949,8 @@ def video_upload_pilot(
                 wp_posts_f, "pornstars", "pornstars"
             )
             new_models: list[str] | None = identify_missing(
-                all_models_wp, model_prep, calling_models)
+                all_models_wp, model_prep, calling_models
+            )
 
             if new_models is None or model_prep[0] == "model-not-found":
                 # All model have been found and located
@@ -908,9 +959,18 @@ def video_upload_pilot(
             else:
                 # There's a new girl in town.
                 for girl in new_models:
-                    print(f"ATTENTION! --> Model: {girl} not on WordPress.")
-                    print("--> Copying missing model name to your system clipboard.")
-                    print("Paste it into the Pornstars field as soon as possible...\n")
+                    console.print(
+                        f"ATTENTION! --> Model: {girl} not on WordPress.",
+                        style="bold red",
+                    )
+                    console.print(
+                        "--> Copying missing model name to your system clipboard.",
+                        style="bold red",
+                    )
+                    console.print(
+                        "Paste it into the Pornstars field as soon as possible...\n",
+                        style="bold yellow",
+                    )
                     pyclip.detect_clipboard()
                     pyclip.copy(girl)
 
@@ -922,21 +982,24 @@ def video_upload_pilot(
             class_title.union(class_tags)
             consolidate_categs = list(class_title)
 
-            print(" \n** I think these categories are appropriate: **\n")
+            console.print(
+                " \n** I think these categories are appropriate: **\n", style="bold red"
+            )
             for num, categ in enumerate(consolidate_categs, start=1):
-                print(f"{num}. {categ}")
+                console.print(f"{num}. {categ}", style="green")
 
-            match input("\nEnter the category number or type in to look for another category in the site: "):
+            match console.input(
+                "[green]\nEnter the category number or type in to look for another category in the site: [green]"
+            ):
                 case _ as option:
                     try:
                         sel_categ = consolidate_categs[int(option) - 1]
-                    except (ValueError or IndexError):
+                    except ValueError or IndexError:
                         sel_categ = option
 
-            categ_ids = get_tag_ids(
-                wp_posts_f, [sel_categ], preset="categories")
+            categ_ids = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
 
-            print("\n--> Making payload...")
+            console.print("\n--> Making payload...", style="bold green")
             payload = make_payload(
                 wp_slug,
                 wp_auth.default_status,
@@ -947,23 +1010,24 @@ def video_upload_pilot(
                 partner_name,
                 tag_ints,
                 calling_models,
-                categs=categ_ids
+                categs=categ_ids,
             )
 
-            print("--> Fetching thumbnail...")
+            console.print("--> Fetching thumbnail...", style="bold green")
             pic_format = clean_filename(wp_slug, cs_config.pic_format)
             try:
-                fetch_thumbnail(
-                    thumbnails_dir.name,
-                    wp_slug,
-                    thumbnail_url)
-                print(
-                    f"--> Stored thumbnail {pic_format} in cache folder {thumbnails_dir.name}"
+                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
+                console.print(
+                    f"--> Stored thumbnail {pic_format} in cache folder {os.path.relpath(thumbnails_dir.name)}",
+                    style="bold green",
                 )
-                print("--> Uploading thumbnail to WordPress Media...")
-                print("--> Adding image attributes on WordPress...")
-                img_attrs: dict[str, str] = make_img_payload(
-                    title, description)
+                console.print(
+                    "--> Uploading thumbnail to WordPress Media...", style="bold green"
+                )
+                console.print(
+                    "--> Adding image attributes on WordPress...", style="bold green"
+                )
+                img_attrs: dict[str, str] = make_img_payload(title, description)
                 upload_img: int = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
@@ -976,70 +1040,100 @@ def video_upload_pilot(
                 # the case. Each successful upload will prompt the program to
                 # clean the thumbnail selectively.
                 if upload_img == 500:
-                    print(
-                        "It is possible that this thumbnail is defective. Check the Thumbnail manually."
+                    console.print(
+                        "It is possible that this thumbnail is defective. Check the Thumbnail manually.",
+                        style="bold red",
                     )
-                    print("--> Proceeding to the next post...\n")
+                    console.print(
+                        "--> Proceeding to the next post...\n", style="bold green"
+                    )
                     continue
                 elif upload_img == (200 or 201):
                     os.remove(f"{thumbnails_dir.name}/{pic_format}")
                 else:
                     pass
 
-                print(f"--> WordPress Media upload status code: {upload_img}")
-                print("--> Creating post on WordPress")
-                push_post = wordpress_api.wp_post_create(
-                    [wp_endpoints.posts], payload)
-                print(f"--> WordPress status code: {push_post}")
+                console.print(
+                    f"--> WordPress Media upload status code: {upload_img}",
+                    style="bold green",
+                )
+                console.print("--> Creating post on WordPress", style="bold green")
+                push_post = wordpress_api.wp_post_create([wp_endpoints.posts], payload)
+                console.print(
+                    f"--> WordPress status code: {push_post}", style="bold green"
+                )
                 # Copy important information to the clipboard.
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
                 pyclip.copy(source_url)
                 pyclip.copy(title)
-                print(
-                    "--> * DONE * Check the post and paste all you need from your clipboard.")
+                console.print(
+                    "--> * DONE * Check the post and paste all you need from your clipboard.",
+                    style="bold green",
+                )
                 videos_uploaded += 1
             except SSLError:
                 pyclip.detect_clipboard()
                 pyclip.clear()
-                print("* There was a connection error while processing this post... *")
-                if input(
-                        "\nDo you want to continue? Y/N/ENTER to exit: ") == ("y" or "yes"):
+                console.print(
+                    "* There was a connection error while processing this post... *",
+                    style="bold red",
+                )
+                if input("\nDo you want to continue? Y/N/ENTER to exit: ") == (
+                    "y" or "yes"
+                ):
                     continue
                 else:
-                    print(
-                        f"You have created {videos_uploaded} posts in this session!")
+                    console.print(
+                        f"You have created {videos_uploaded} posts in this session!",
+                        style="bold red",
+                    )
                     break
             if num < total_elems - 1:
-                next_post = input(
-                    "\nNext post? -> Y/N/ENTER to review next post: ").lower()
+                next_post = console.input(
+                    "[bold cyan]\nNext post? -> Y/N/ENTER to review next post: [/bold cyan]"
+                ).lower()
                 if next_post == ("y" or "yes"):
                     # Clears clipboard after every video.
                     pyclip.clear()
-                    print("\n==> Syncing and caching changes... ε= ᕕ(⎚‿⎚)ᕗ")
-                    try:
-                        sync: bool = hot_file_sync(bot_config=cs_config)
-                    except ConnectionError:
-                        print("Hot File Sync encountered a ConnectionError.")
-                        print(
-                            "Going to next post. I will fetch your changes in a next try.")
-                        print(
-                            "If you want to update again, relaunch the bot or try to add another post and select 'y'")
-                        sync: bool = True
+                    with console.status(
+                        "[bold magenta] Syncing and caching changes... [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink][/bold magenta]\n",
+                        spinner="aesthetic",
+                    ):
+                        try:
+                            sync: bool = hot_file_sync(bot_config=cs_config)
+                        except ConnectionError:
+                            console.print(
+                                "Hot File Sync encountered a ConnectionError.",
+                                style="bold red",
+                            )
+                            console.print(
+                                "Going to next post. I will fetch your changes in a next try.",
+                                style="bold magenta",
+                            )
+                            console.print(
+                                "If you want to update again, relaunch the bot or try to add another post and select 'y'",
+                                style="bold magenta",
+                            )
+                            sync: bool = True
                     if sync:
                         continue
                     else:
-                        print(
+                        console.print(
                             """ERROR: WP JSON Sync failed. Look at the files.
                             Maybe you have to rollback your WordPress cache.
-                            Run: python3 -m integrations.wordpress_api --yoast""")
+                            Run: python3 -m integrations.wordpress_api --yoast""",
+                            style="bold red",
+                        )
                 elif next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid
                     # tracebacks from pyclip
                     pyclip.detect_clipboard()
                     pyclip.clear()
-                    print(
-                        f"You have created {videos_uploaded} posts in this session!")
+                    console.print(
+                        f"You have created {videos_uploaded} posts in this session!",
+                        style="bold yellow",
+                    )
                     thumbnails_dir.cleanup()
                     break
                 else:
@@ -1049,13 +1143,20 @@ def video_upload_pilot(
             else:
                 # Since we ran out of elements the script will end after adding it to WP
                 # So that it doesn't clear the clipboard automatically.
-                print("\nWe have reviewed all posts for this query.")
-                print("Try a different query and run me again.")
+                console.print(
+                    "\nWe have reviewed all posts for this query.", style="bold red"
+                )
+                console.print(
+                    "Try a different query and run me again.", style="bold red"
+                )
                 thumbnails_dir.cleanup()
-                print(
-                    f"You have created {videos_uploaded} posts in this session!")
-                print(
-                    "Waiting for 60 secs to clear the clipboard before you're done with the last post..."
+                console.print(
+                    f"You have created {videos_uploaded} posts in this session!",
+                    style="bold red",
+                )
+                console.print(
+                    "Waiting for 60 secs to clear the clipboard before you're done with the last post...",
+                    style="bold magenta",
                 )
                 time.sleep(60)
                 pyclip.detect_clipboard()
@@ -1064,9 +1165,17 @@ def video_upload_pilot(
         else:
             pyclip.detect_clipboard()
             pyclip.clear()
-            print("\nWe have reviewed all posts for this query.")
-            print("Try a different SQL query or partner. I am ready when you are. ")
-            print(f"You have created {videos_uploaded} posts in this session!")
+            console.print(
+                "\nWe have reviewed all posts for this query.", style="bold red"
+            )
+            console.print(
+                "Try a different SQL query or partner. I am ready when you are. ",
+                style="bold red",
+            )
+            console.print(
+                f"You have created {videos_uploaded} posts in this session!",
+                style="bold red",
+            )
             thumbnails_dir.cleanup()
             break
 

@@ -1,0 +1,25 @@
+[project]
+name = "webmaster-seo-tools"
+version = "0.1.0"
+authors = [
+    {name = "Yoham Gabriel ~ Urbine@GitHub", email = "yohamg@programmer.net" }
+]
+description = "Collection of tools that streamline webmaster SEO workflows."
+readme = "README.md"
+requires-python = ">=3.13"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+dependencies = [
+    "beautifulsoup4~=4.12.3",
+    "pyclip~=0.7.0",
+    "requests-oauthlib~=2.0.0",
+    "requests~=2.32.3",
+    "selenium~=4.24.0",
+    "xlsxwriter~=3.2.0",
+    "joblib~=1.4.2",
+    "nltk~=3.9.1",
+    "scikit-learn~=1.5.2",
+    "rich>=13.9.4",
+]

@@ -25,14 +25,14 @@ from core import helpers, load_file_path
 # Dump format: Dump with | (Select this one on MongerCash)
 # name | description | models | tags | site_name | date | source | thumbnail | tracking
 def parse_txt_dump(
-        filename: str,
-        d_name: str,
-        d_conn: sqlite3,
-        d_cur: sqlite3,
-        dirname: str = "",
-        parent: bool = False,
+    filename: str,
+    d_name: str,
+    d_conn: sqlite3,
+    d_cur: sqlite3,
+    dirname: str = "",
+    parent: bool = False,
 ) -> tuple[str, int]:
-    """ Parse the ``.txt`` file provided, organize and insert the values into a ``sqlite3`` database.
+    """Parse the ``.txt`` file provided, organize and insert the values into a ``sqlite3`` database.
 
     :param filename: ``str`` name of the file to be parsed
     :param d_name: ``str`` Desired name for the resulting database
@@ -56,8 +56,7 @@ def parse_txt_dump(
                 # I am not interested in videos that don't point to a source URL.
                 # In some cases, their tags are moved to the source URL field
                 # and that breaks the slug construction.
-                if dump_line[6] == "" or re.match(
-                        "http", dump_line[6]) is None:
+                if dump_line[6] == "" or re.match("http", dump_line[6]) is None:
                     continue
 
                 title = dump_line[0]
@@ -73,16 +72,13 @@ def parse_txt_dump(
                 # Break down the date and convert it to ISO format to get a date object.
                 # dump_line[5] is initially 'Aug 20th, 2024' but I want a
                 # datetime.date object.
-                date = str(
-                    helpers.parse_date_to_iso(
-                        dump_line[5], m_abbr=True))
+                date = str(helpers.parse_date_to_iso(dump_line[5], m_abbr=True))
 
                 # The duration comes at the end of source urls.
                 pre_duration = dump_line[6].split("/")[-1:][0].split("_")
                 if len(pre_duration) >= 2:
                     duration = (
-                        dump_line[6].split(
-                            "/")[-1:][0].split("_")[-1:][0].split(".")[0]
+                        dump_line[6].split("/")[-1:][0].split("_")[-1:][0].split(".")[0]
                     )
                 else:
                     duration = None
@@ -93,16 +89,14 @@ def parse_txt_dump(
 
                 # Pre_slug is taken from the source URL slug without the
                 # duration value.
-                pre_slug = "-".join(dump_line[6].split("/")
-                                    [-1:][0].split("_")[:-1])
+                pre_slug = "-".join(dump_line[6].split("/")[-1:][0].split("_")[:-1])
 
                 if pre_slug == "":
                     post_slug = dump_line[6].split("/")[-1:][0]
                     # Sometimes, the last element contains a file extension
                     # and I don't want that in my url slugs.
                     if re.findall("[.+]", post_slug) is not None:
-                        post_slug = dump_line[6].split(
-                            "/")[-1:][0].split(".")[0]
+                        post_slug = dump_line[6].split("/")[-1:][0].split(".")[0]
                 else:
                     post_slug = pre_slug
 

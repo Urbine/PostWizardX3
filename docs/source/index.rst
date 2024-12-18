@@ -9,6 +9,7 @@ webmaster-seo-tools documentation
 Welcome to the ``webmaster-seo-tools`` project documentation.
 
 
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:

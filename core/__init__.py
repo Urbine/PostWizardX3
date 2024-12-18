@@ -90,5 +90,5 @@ __all__ = [
     "gallery_select_conf",
     "content_select_conf",
     "embed_assist_conf",
-    "tasks_conf"
+    "tasks_conf",
 ]
