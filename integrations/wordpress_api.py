@@ -37,8 +37,7 @@ from core.config_mgr import WPAuth
 from integrations import WPEndpoints
 
 
-def curl_wp_self_concat(
-        param_lst: list[str], secrets: WPAuth = wp_auth()) -> requests:
+def curl_wp_self_concat(param_lst: list[str], secrets: WPAuth = wp_auth()) -> requests:
     """Makes the ``GET`` request based on the curl mechanism as described on the docs.
 
     ``curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit``
@@ -56,8 +55,7 @@ def curl_wp_self_concat(
     return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"})
 
 
-def wp_post_create(endp_lst: list[str], payload,
-                   secrets: WPAuth = wp_auth()):
+def wp_post_create(endp_lst: list[str], payload, secrets: WPAuth = wp_auth()):
     """Makes the ``POST`` request based on the mechanism as described on the docs.
 
     :param payload: ``dict`` with the post information.
@@ -73,8 +71,11 @@ def wp_post_create(endp_lst: list[str], payload,
     return requests.post(wp_self, json=payload, auth=auth_wp).status_code
 
 
-def create_wp_local_cache(endpoint: WPEndpoints = WPEndpoints, wp_auth: WPAuth = wp_auth(),
-                          photos: bool = False) -> list[dict]:
+def create_wp_local_cache(
+    endpoint: WPEndpoints = WPEndpoints,
+    wp_auth: WPAuth = wp_auth(),
+    photos: bool = False,
+) -> list[dict]:
     """Gets all posts from your WP Site.
     It does this by fetching every page with 10 posts each and concatenating the ``JSON``
     responses to return a single list of dict elements.
@@ -91,17 +92,12 @@ def create_wp_local_cache(endpoint: WPEndpoints = WPEndpoints, wp_auth: WPAuth =
     page_num: int = 1
     x_wp_total = 0
     x_wp_totalpages = 0
-    end_params_posts: list[str] = [
-        endpoint.photos] if photos else [
-        endpoint.posts]
+    end_params_posts: list[str] = [endpoint.photos] if photos else [endpoint.posts]
     page_num_param: bool = False
     wp_cache: str = helpers.clean_filename(
-        wp_auth.wp_photos_file
-        if photos else wp_auth.wp_posts_file, 'json'
+        wp_auth.wp_photos_file if photos else wp_auth.wp_posts_file, "json"
     )
-    print(
-        f"\nCreating WordPress {wp_cache} cache file...\n"
-    )
+    print(f"\nCreating WordPress {wp_cache} cache file...\n")
     while True:
         curl_json = curl_wp_self_concat(end_params_posts)
         if curl_json.status_code == 400:
@@ -125,8 +121,7 @@ def create_wp_local_cache(endpoint: WPEndpoints = WPEndpoints, wp_auth: WPAuth =
                 result_dict.append(item)
 
 
-def get_tags_num_count(
-        wp_posts_f: list[dict], photos: bool = False) -> dict[str, int]:
+def get_tags_num_count(wp_posts_f: list[dict], photos: bool = False) -> dict[str, int]:
     """Counts the occurrences of tags, however, this function fetches the tag numbers
     not the actual names. This is necessary to match everything at a later routine.
 
@@ -195,8 +190,7 @@ def tag_id_merger_dict(wp_posts_f: list[dict]) -> dict[str, str]:
     return {
         tag: t_id
         for tag, t_id in zip(
-            get_tag_count(wp_posts_f).keys(
-            ), get_tags_num_count(wp_posts_f).keys()
+            get_tag_count(wp_posts_f).keys(), get_tags_num_count(wp_posts_f).keys()
         )
     }
 
@@ -216,8 +210,7 @@ def tag_id_count_merger(wp_posts_f: list[dict]) -> list:
         get_tag_count(wp_posts_f).values(),
     )
     Tag_ID_Count = namedtuple("WP_Tags", ["title", "ID", "count"])
-    cooked = [Tag_ID_Count(title, ids, count)
-              for title, ids, count in tag_id_merger]
+    cooked = [Tag_ID_Count(title, ids, count) for title, ids, count in tag_id_merger]
     return cooked
 
 
@@ -239,8 +232,7 @@ def get_tag_id_pairs(wp_posts_f: list[dict]) -> dict[str, list[str]]:
     return tags_c
 
 
-def get_post_titles_local(
-        wp_posts_f: list[dict], yoast: bool = False) -> list[str]:
+def get_post_titles_local(wp_posts_f: list[dict], yoast: bool = False) -> list[str]:
     """Gets a list of all post titles from ``wp_posts_f``. This function is different to others
     because it can extract data from the *Yoast SEO* plugin element, however, it does work
     without it by giving you the rendered title instead.
@@ -282,7 +274,9 @@ def get_tag_count(wp_posts_f: list[dict]) -> dict[str, int]:
     return tags_count
 
 
-def map_posts_by_id(wp_posts_f: list[dict], host_name: None | str = None) -> dict[str, str]:
+def map_posts_by_id(
+    wp_posts_f: list[dict], host_name: None | str = None
+) -> dict[str, str]:
     """Maps post ID to a slug. In WordPress, every post and even field has an ``ID``.
     In this case, this function just maps the slug with the post ID.
     If you set host_name to ``True``, the function will give you the ``hostname`` + ``post_slug``
@@ -292,21 +286,16 @@ def map_posts_by_id(wp_posts_f: list[dict], host_name: None | str = None) -> dic
     :param host_name: ``str`` your hostname/WP site base URL. Default ``None``)
     :return: ``dict[str, str]``
     """
-    u_pack = zip([idd["id"] for idd in wp_posts_f], [url["slug"]
-                                                     for url in wp_posts_f])
+    u_pack = zip([idd["id"] for idd in wp_posts_f], [url["slug"] for url in wp_posts_f])
     if host_name is not None:
         # if the user specifies a hostname with another TLD, .com will not be used!
         # clean_filename has a "trust" mode.
-        return {
-            idd: f"{host_name}/" + url
-            for idd, url in u_pack
-        }
+        return {idd: f"{host_name}/" + url for idd, url in u_pack}
     else:
         return {idd: url for idd, url in u_pack}
 
 
-def map_tags_post_urls(
-        wp_posts_f: list[dict], host_name=None) -> dict[str, list[str]]:
+def map_tags_post_urls(wp_posts_f: list[dict], host_name=None) -> dict[str, list[str]]:
     """This function makes a ``{"Tag": ["post slug", ...]}`` dictionary.
     For example, ``{"some_tag": ["a-post-somewhere-in-wp", ...]}``
 
@@ -328,7 +317,7 @@ def map_tags_post_urls(
 
 
 def map_tags_posts(
-        wp_posts_f: list[dict], host_name: str = None, idd: str = None
+    wp_posts_f: list[dict], host_name: str = None, idd: str = None
 ) -> dict[str, list[str]]:
     """This function makes a ``{"Tag": ["post slug", ...]}`` or ``{"Tag": ["post id", ...]}`` dictionary.
 
@@ -352,8 +341,7 @@ def map_tags_posts(
     return tags_c
 
 
-def map_postsid_category(
-        wp_posts_f: list[dict], host_name=None) -> dict[str, str]:
+def map_postsid_category(wp_posts_f: list[dict], host_name=None) -> dict[str, str]:
     """
     Associates post ``ID`` with a URL. As many functions, it assumes that your *WordPress* installation has
     the *Yoast SEO* plug-in in place.
@@ -383,8 +371,7 @@ def map_postsid_category(
         return {idd: cat for idd, cat in u_pack}
 
 
-def unpack_tpl_excel(
-        tupled_list: tuple[tuple[str]]) -> Generator[str, None, None]:
+def unpack_tpl_excel(tupled_list: tuple[tuple[str]]) -> Generator[str, None, None]:
     """This function was created to write the ``Tuple`` (by coercion) contents of
     another function into an ``.xlsx`` file cell appropriately.
     It was created to address an unwanted behaviour in this line specifically:
@@ -460,8 +447,7 @@ def get_from_class_list(wp_posts_f: list[dict], pattern: str) -> list[str]:
     return [",".join(item) if len(item) != 0 else None for item in class_list]
 
 
-def get_post_descriptions(
-        wp_posts_f: list[dict], yoast: bool = False) -> list[str]:
+def get_post_descriptions(wp_posts_f: list[dict], yoast: bool = False) -> list[str]:
     """As the name indicates, it extracts the WordPress descriptions or commonly called `excerpts` from the
         list of post dictionaries (wp_post_f). It allows for Yoast SEO integration since excerpts can contain
         unwanted HTML entities.
@@ -480,7 +466,7 @@ def get_post_descriptions(
 
 
 def map_wp_class_id(
-        wp_posts_f: list[dict], match_word: str, key_wp: str
+    wp_posts_f: list[dict], match_word: str, key_wp: str
 ) -> dict[str, int]:
     """
     This function parses the wp_posts or wp_photos JSON files to locate and map tags or other
@@ -533,9 +519,9 @@ def map_wp_class_id(
 
 
 def map_wp_class_id_many(
-        wp_posts_f: list[dict], match_word: str, comp_word: str
+    wp_posts_f: list[dict], match_word: str, comp_word: str
 ) -> dict[str, set[str]]:
-    """ Combine two keys in the ``[class-list]`` key.
+    """Combine two keys in the ``[class-list]`` key.
     In this case, the function is useful to map different elements with their respective
     patterns into a single data structure.
 
@@ -573,7 +559,7 @@ def map_wp_class_id_many(
 
 # noinspection PyTypeChecker
 def create_tag_report_excel(
-        wp_posts_f: list[dict], workbook_name: str, parent: bool = False
+    wp_posts_f: list[dict], workbook_name: str, parent: bool = False
 ) -> None:
     """Write the tagging information into an Excel ``.xlsx`` file.
 
@@ -591,14 +577,10 @@ def create_tag_report_excel(
 
     tag_plus_tid.set_column("A:C", 20)
     tag_plus_tid.set_column("D:E", 90)
-    tag_plus_tid.write_row(
-        "A1", ("Tag", "Tag ID", "Videos Tagged", "Tagged IDs"))
-    tag_plus_tid.write_column("A2", tuple(
-        tag_id_merger_dict(wp_posts_f).keys()))
-    tag_plus_tid.write_column("B2", tuple(
-        tag_id_merger_dict(wp_posts_f).values()))
-    tag_plus_tid.write_column("C2", tuple(
-        get_tags_num_count(wp_posts_f).values()))
+    tag_plus_tid.write_row("A1", ("Tag", "Tag ID", "Videos Tagged", "Tagged IDs"))
+    tag_plus_tid.write_column("A2", tuple(tag_id_merger_dict(wp_posts_f).keys()))
+    tag_plus_tid.write_column("B2", tuple(tag_id_merger_dict(wp_posts_f).values()))
+    tag_plus_tid.write_column("C2", tuple(get_tags_num_count(wp_posts_f).values()))
     tag_plus_tid.write_column(
         "D2", unpack_tpl_excel(map_tags_posts(wp_posts_f, idd=True).values())
     )
@@ -610,8 +592,10 @@ def create_tag_report_excel(
     post_id_slug.set_column("C:C", 40)
     post_id_slug.write_row("A1", ("Post ID", "Post Slug", "Post Category"))
     post_id_slug.write_column("A2", tuple(map_posts_by_id(wp_posts_f).keys()))
-    post_id_slug.write_column("B2", tuple(
-        map_posts_by_id(wp_posts_f, host_name=wp_auth().full_base_url).values()))
+    post_id_slug.write_column(
+        "B2",
+        tuple(map_posts_by_id(wp_posts_f, host_name=wp_auth().full_base_url).values()),
+    )
     post_id_slug.write_column(
         "C2", unpack_tpl_excel(map_postsid_category(wp_posts_f).values())
     )
@@ -624,8 +608,12 @@ def create_tag_report_excel(
     return None
 
 
-def update_published_titles_db(wp_posts_f: list[dict], parent: bool = False, photosets: bool = False,
-                               yoast: bool = False) -> None:
+def update_published_titles_db(
+    wp_posts_f: list[dict],
+    parent: bool = False,
+    photosets: bool = False,
+    yoast: bool = False,
+) -> None:
     """Creates a ``SQLite`` db based on the ``wp_post_f`` that will be used by other modules to
         compare information in a different format. Sometimes, titles and descriptions can't be matched by
         the built-in ``re`` module in Python due to character sets or encodings present in different pieces of
@@ -639,8 +627,11 @@ def update_published_titles_db(wp_posts_f: list[dict], parent: bool = False, pho
                    when fields have unwanted HTML entities. Default ``False``.
     :return: ``None`` (Database file in working or parent directory)
     """
-    db_name = (f"wp-photos-{datetime.date.today()}.db"
-               if photosets else f"wp-posts-{datetime.date.today()}.db")
+    db_name = (
+        f"wp-photos-{datetime.date.today()}.db"
+        if photosets
+        else f"wp-posts-{datetime.date.today()}.db"
+    )
     db_full_name = f"{helpers.is_parent_dir_required(parent)}{db_name}"
     # SQLite3 can't overwrite an existing db with the same table.
     helpers.remove_if_exists(db_full_name)
@@ -653,8 +644,7 @@ def update_published_titles_db(wp_posts_f: list[dict], parent: bool = False, pho
         for title, slug in zip(vid_titles, vid_slugs):
             model = title.split(" ")[0]
             cur.execute(
-                "INSERT INTO sets VALUES (?, ?, ?)", (title.title(
-                ), model, slug)
+                "INSERT INTO sets VALUES (?, ?, ?)", (title.title(), model, slug)
             )
             db.commit()
     else:
@@ -663,15 +653,17 @@ def update_published_titles_db(wp_posts_f: list[dict], parent: bool = False, pho
         vid_titles = get_post_titles_local(wp_posts_f)
         vid_models = get_post_models(wp_posts_f)
         for title, models, slug in zip(vid_titles, vid_models, vid_slugs):
-            cur.execute("INSERT INTO videos VALUES (?, ?, ?)",
-                        (title, models, slug))
+            cur.execute("INSERT INTO videos VALUES (?, ?, ?)", (title, models, slug))
             db.commit()
     db.close()
 
 
 def upload_thumbnail(
-        wp_self: str, param_lst: list[str], file_path: str, payload: dict[str, str | int],
-        secrets: WPAuth = wp_auth(),
+    wp_self: str,
+    param_lst: list[str],
+    file_path: str,
+    payload: dict[str, str | int],
+    secrets: WPAuth = wp_auth(),
 ) -> int:
     """Uploads video thumbnail or any other image as a *WordPress* media attachment.
 
@@ -718,8 +710,9 @@ def upload_thumbnail(
         return request.status_code
 
 
-def local_cache_config(wp_filen: str, wp_curr_page: int,
-                       total_posts: int, wp_auth: WPAuth = wp_auth()) -> str:
+def local_cache_config(
+    wp_filen: str, wp_curr_page: int, total_posts: int, wp_auth: WPAuth = wp_auth()
+) -> str:
     """Creates a new config file and locates existing local cache configuration files to update its contents
         with new information about cached pages, post quantity, and date of update.
 
@@ -765,8 +758,11 @@ def local_cache_config(wp_filen: str, wp_curr_page: int,
         )
 
 
-def update_json_cache(photos: bool = False, wp_endpoints: WPEndpoints = WPEndpoints,
-                      wp_auth: WPAuth = wp_auth()) -> list[dict[str, ...]]:
+def update_json_cache(
+    photos: bool = False,
+    wp_endpoints: WPEndpoints = WPEndpoints,
+    wp_auth: WPAuth = wp_auth(),
+) -> list[dict[str, ...]]:
     """Updates the local wp cache files for processing.
     It does this by fetching the last page cached and calculating the
     difference between the total elements variable from the ``HTTP`` request and
@@ -780,18 +776,16 @@ def update_json_cache(photos: bool = False, wp_endpoints: WPEndpoints = WPEndpoi
     config = helpers.load_json_ctx(wp_auth.wp_cache_file)
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
-    params_posts: list[str] = [
-        wp_endpoints.photos] if photos else [
-        wp_endpoints.posts]
+    params_posts: list[str] = [wp_endpoints.photos] if photos else [wp_endpoints.posts]
     x_wp_total = 0
     x_wp_totalpages = 0
     clean_fname = helpers.clean_filename(
-        wp_auth.wp_photos_file
-        if photos else wp_auth.wp_posts_file,
-        ".json")
+        wp_auth.wp_photos_file if photos else wp_auth.wp_posts_file, ".json"
+    )
     # The loop will add 1 to page num when the first request is successful.
-    page_num = [dic[clean_fname]["cached_pages"]
-                for dic in config if clean_fname in dic.keys()][0] - 2
+    page_num = [
+        dic[clean_fname]["cached_pages"] for dic in config if clean_fname in dic.keys()
+    ][0] - 2
     result_dict = helpers.load_json_ctx(clean_fname)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []
@@ -827,8 +821,13 @@ def update_json_cache(photos: bool = False, wp_endpoints: WPEndpoints = WPEndpoi
                     continue
 
 
-def upgrade_wp_local_cache(wp_auth: WPAuth = wp_auth(), photos: bool = False, cached: bool = False,
-                           parent: bool = False, yoast: bool = False) -> None:
+def upgrade_wp_local_cache(
+    wp_auth: WPAuth = wp_auth(),
+    photos: bool = False,
+    cached: bool = False,
+    parent: bool = False,
+    yoast: bool = False,
+) -> None:
     """Updates both the WP post information ``JSON`` file (posts and photos) and creates a ``SQLite3`` database
         using the cached files.
 
@@ -850,14 +849,9 @@ def upgrade_wp_local_cache(wp_auth: WPAuth = wp_auth(), photos: bool = False, ca
     else:
         updated_local_cache = create_wp_local_cache(photos=photos)
 
-    helpers.export_request_json(
-        wp_cache, updated_local_cache, 1, parent=parent)
+    helpers.export_request_json(wp_cache, updated_local_cache, 1, parent=parent)
     local_json: list[dict[str, str]] = helpers.load_json_ctx(wp_cache)
-    update_published_titles_db(
-        local_json,
-        parent=parent,
-        yoast=yoast,
-        photosets=photos)
+    update_published_titles_db(local_json, parent=parent, yoast=yoast, photosets=photos)
     return None
 
 
@@ -872,8 +866,7 @@ if __name__ == "__main__":
         message=".*found in sys.modules after import of package.*",
     )
 
-    args_parser = argparse.ArgumentParser(
-        description="WordPress API Local Module")
+    args_parser = argparse.ArgumentParser(description="WordPress API Local Module")
 
     args_parser.add_argument(
         "--cached",
@@ -891,7 +884,8 @@ if __name__ == "__main__":
 
     args_parser.add_argument(
         "--photos",
-        action="store_true", default=False,
+        action="store_true",
+        default=False,
         help="Update the wp_photos local cache or associated files (db/config).",
     )
 
@@ -901,22 +895,23 @@ if __name__ == "__main__":
         help="Enable Yoast SEO mode in compatible functions.",
     )
 
-    args_parser.add_argument("--excel", action="store_true",
-                             help="Create an MS Excel report with the tag and slug information of the site.")
+    args_parser.add_argument(
+        "--excel",
+        action="store_true",
+        help="Create an MS Excel report with the tag and slug information of the site.",
+    )
 
     args = args_parser.parse_args()
 
     if args.excel:
         imported_json: list[dict] = helpers.load_json_ctx("wp_posts")
-        create_tag_report_excel(imported_json,
-                                f"tag-report-excel-{datetime.date.today()}")
+        create_tag_report_excel(
+            imported_json, f"tag-report-excel-{datetime.date.today()}"
+        )
     else:
         upgrade_wp_local_cache(
-            photos=args.photos,
-            cached=args.cached,
-            parent=args.parent,
-            yoast=args.yoast)
-
+            photos=args.photos, cached=args.cached, parent=args.parent, yoast=args.yoast
+        )
 
     # categories = get_all_categories(hstname, rest_params)
     # export_request_json('wp_categories', categories, parent=True)

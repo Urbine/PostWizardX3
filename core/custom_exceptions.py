@@ -11,6 +11,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+
 class NoSuitableArgument(Exception):
     """
     Used by functions that depend on CLI parameters.
@@ -61,7 +62,5 @@ class UnsupportedParameter(Exception):
 
     def __init__(self, param: str):
         self.param = param
-        self.message = (
-            f"Unsupported parameter {param}. Try again."
-        )
+        self.message = f"Unsupported parameter {param}. Try again."
         super().__init__(self.message)

@@ -206,8 +206,7 @@ def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
     return db_cursor.fetchall()
 
 
-def filename_creation_helper(
-        suggestions: list[str], extension: str = "") -> str:
+def filename_creation_helper(suggestions: list[str], extension: str = "") -> str:
     """Takes a list of suggested filenames or creates a custom filename from user input.
     a user can type in just a filename without extension and the function will validate
     it to provide the correct name as needed.
@@ -226,7 +225,7 @@ def filename_creation_helper(
     )
     try:
         return name_suggest[int(name_select) - 1]
-    except (ValueError or IndexError):
+    except ValueError or IndexError:
         if len(name_select.split(".")) >= 2:
             return name_select
         elif name_select == "":
@@ -235,8 +234,7 @@ def filename_creation_helper(
             return clean_filename(name_select, extension)
 
 
-def filename_select(extension: str, parent: bool = False,
-                    folder: str = "") -> str:
+def filename_select(extension: str, parent: bool = False, folder: str = "") -> str:
     """Gives you a list of files with a certain extension. If you want to access the file from a parent dir,
     either let the destination function handle it for you or specify it yourself.
 
@@ -245,8 +243,7 @@ def filename_select(extension: str, parent: bool = False,
     :param parent: ``True`` to search in parent dir, default set to ``False``.
     :return: File name without relative path.
     """
-    available_files = search_files_by_ext(
-        extension, folder=folder, parent=parent)
+    available_files = search_files_by_ext(extension, folder=folder, parent=parent)
     print(f"\nHere are the available {extension} files:")
     for num, file in enumerate(available_files, start=1):
         print(f"{num}. {file}")
@@ -255,12 +252,11 @@ def filename_select(extension: str, parent: bool = False,
     try:
         return available_files[int(select_file) - 1]
     except IndexError:
-        raise RuntimeError(
-            f"This program requires a {extension} file. Exiting...")
+        raise RuntimeError(f"This program requires a {extension} file. Exiting...")
 
 
 def export_request_json(
-        filename: str, stream, indent: int = 1, parent: bool = False, folder: str = ""
+    filename: str, stream, indent: int = 1, parent: bool = False, folder: str = ""
 ) -> str:
     """This function writes a ``JSON`` file to either your parent or current working dir.
 
@@ -283,8 +279,7 @@ def export_request_json(
     return f_path
 
 
-def export_to_csv_nt(nmedtpl_lst: list, filename: str,
-                     top_row_lst: list[str]) -> None:
+def export_to_csv_nt(nmedtpl_lst: list, filename: str, top_row_lst: list[str]) -> None:
     """Helper function to dump a list of NamedTuples into a ``CSV`` file in current working dir.
 
     :param nmedtpl_lst: ``list[namedtuple]``
@@ -308,11 +303,11 @@ def export_to_csv_nt(nmedtpl_lst: list, filename: str,
 
 
 def get_token_oauth(
-        client_id_: str,
-        uri_callback_: str,
-        client_secret_: str,
-        auth_url_: str,
-        token_url_: str,
+    client_id_: str,
+    uri_callback_: str,
+    client_secret_: str,
+    auth_url_: str,
+    token_url_: str,
 ) -> json:
     """Uses the OAuth2Session module from requests_oauthlib to obtain an
     authentication token for compatible APIs. All parameters are self-explanatory.
@@ -357,7 +352,7 @@ def is_parent_dir_required(parent: bool) -> str:
 
 
 def get_client_info(
-        filename: str, logg_err: bool = False
+    filename: str, logg_err: bool = False
 ) -> dict[str, [str, str]] | None:
     """This function handles API secrets in a way that completely eliminates the need
     to use them inside the code. It can be any ``JSON`` file that you create for that purpose and,
@@ -383,8 +378,7 @@ def get_client_info(
         return None
 
 
-def get_duration(
-        seconds: int | float) -> tuple[int | float, int | float, int | float]:
+def get_duration(seconds: int | float) -> tuple[int | float, int | float, int | float]:
     """Takes the number of seconds and calculates its duration in hours, minutes, and seconds.
 
     :param seconds: ``int``
@@ -424,7 +418,7 @@ def get_from_db(cur: sqlite3, field: str, table: str) -> list[tuple] | None:
 
 
 def get_project_db(
-        parent: bool = False, folder: str = ""
+    parent: bool = False, folder: str = ""
 ) -> tuple[Connection, Cursor, str]:
     """Look for databases in the project files either from a child directory or root.
 
@@ -445,7 +439,7 @@ def get_project_db(
 
 
 def get_webdriver(
-        download_folder: str, headless: bool = False, gecko: bool = False
+    download_folder: str, headless: bool = False, gecko: bool = False
 ) -> webdriver:
     """Get a webdriver with customisable settings via parameters.
 
@@ -458,8 +452,7 @@ def get_webdriver(
         # Configure the Firefox (Gecko) Driver
         gecko_options = webdriver.FirefoxOptions()
         gecko_options.set_preference("browser.download.folderList", 2)
-        gecko_options.set_preference(
-            "browser.download.manager.showWhenStarting", False)
+        gecko_options.set_preference("browser.download.manager.showWhenStarting", False)
         gecko_options.set_preference("browser.download.dir", download_folder)
         gecko_options.set_preference(
             "browser.helperApps.neverAsk.saveToDisk", "application/octet-stream"
@@ -499,8 +492,7 @@ def get_webdriver(
         return webdriver.Chrome(options=chrome_options)
 
 
-def match_list_single(hint: str, items: list,
-                      ignore_case: bool = False) -> int | None:
+def match_list_single(hint: str, items: list, ignore_case: bool = False) -> int | None:
     """Matches a single occurrence of a ``hint`` and returns its ``index`` position.
 
     :param hint: ``str`` pattern or word
@@ -528,9 +520,9 @@ def match_list_single(hint: str, items: list,
 
 
 def match_list_mult(
-        hint: str, list_lookup: list[str], ignore_case: bool = False
+    hint: str, list_lookup: list[str], ignore_case: bool = False
 ) -> list[int]:
-    """ Matches a ``str`` within a list and returns the indexes where such matches occurred.
+    """Matches a ``str`` within a list and returns the indexes where such matches occurred.
 
     :param hint: ``str pattern
     :param list_lookup: the list that is likely to contain the match
@@ -546,12 +538,12 @@ def match_list_mult(
 
 
 def match_list_elem_date(
-        l_hints: list[str],
-        lookup_list: list[str],
-        ignore_case: bool = False,
-        join_hints: tuple[bool, str, str] = (False, "", ""),
-        strict: bool = False,
-        reverse: bool = False,
+    l_hints: list[str],
+    lookup_list: list[str],
+    ignore_case: bool = False,
+    join_hints: tuple[bool, str, str] = (False, "", ""),
+    strict: bool = False,
+    reverse: bool = False,
 ) -> list[str]:
     """Finds matches, within a list of strings, and compares the dates in each of the strings to return the items
     that are associated with the latest dates; therefore, leaving out strings with the same name that do not contain
@@ -595,7 +587,6 @@ def match_list_elem_date(
     up_to_date: list[str] = []
     main_matches: list[str] = []
     for hint in l_hints:
-
         if join_hints[0]:
             spl_hint = hint.split(join_hints[1])
             hint = join_hints[2].join(spl_hint)
@@ -621,8 +612,7 @@ def match_list_elem_date(
         ]
 
         if extract_dates:
-            max_date_items = match_list_mult(
-                str(max(extract_dates)), get_match_items)
+            max_date_items = match_list_mult(str(max(extract_dates)), get_match_items)
             for indx in max_date_items:
                 up_to_date.append(get_match_items[indx])
         elif not strict:
@@ -639,7 +629,7 @@ def match_list_elem_date(
 
 
 def load_file_path(package: str, filename: str) -> Path:
-    """ Load resources stored within folders in packages.
+    """Load resources stored within folders in packages.
     Usually, not all systems can locate the required resources due to the package structure of the project.
     :param package: ``str`` package name, for example, if you have a file name in `./models`
     (being ./ a package itself) you can specify ``package.models`` here.
@@ -672,8 +662,7 @@ def load_json_ctx(filename: str, log_err: bool = False):
         return None
 
 
-def load_from_file(filename: str, extension: str,
-                   dirname: str = "", parent=False):
+def load_from_file(filename: str, extension: str, dirname: str = "", parent=False):
     """Loads the content of any file that could be read with the ``file.read()`` built-in function.\n
     Not suitable for files that require special handling by modules or classes.
 
@@ -728,7 +717,7 @@ def parse_client_config(ini_file: str, package_name: str) -> ConfigParser:
 
 
 def parse_date_to_iso(
-        full_date: str, zero_day: bool = False, m_abbr: bool = False
+    full_date: str, zero_day: bool = False, m_abbr: bool = False
 ) -> date:
     """Breaks down the full date string and converts it to ISO format to get a datetime.date object.
     important: Make sure to import 'from calendar import month_abbr, month_name' as it is required.
@@ -747,13 +736,15 @@ def parse_date_to_iso(
 
     year = str(full_date.split(",")[1].strip())
 
-    # Add one since the lambda obtains "truthy" values and there is an empty string in the list as an offset.
+    # Add one since the lambda obtains "truthy" values and there is an empty
+    # string in the list as an offset.
     month_num = str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     # The date ISO format requires that single numbers are preceded by a 0.
 
     if int(month_num) <= 9:
-        # month_num contains 13 elements, so I need to subtract 1 from the resulting index
+        # month_num contains 13 elements, so I need to subtract 1 from the
+        # resulting index
         month_num = "0" + str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     day_nth = str(full_date.split(",")[0].split(" ")[1])
@@ -770,7 +761,7 @@ def parse_date_to_iso(
 
 
 def search_files_by_ext(
-        extension: str, folder: str, recursive: bool = False, parent=False
+    extension: str, folder: str, recursive: bool = False, parent=False
 ) -> list[str]:
     """This function searches for files with the specified extension
     and returns a list with the files in either parent or current working directories.
@@ -798,9 +789,7 @@ def search_files_by_ext(
         ]
 
 
-def write_to_file(
-        filename: str, folder: str, extension: str, stream: Any
-) -> None:
+def write_to_file(filename: str, folder: str, extension: str, stream: Any) -> None:
     """Write to file initializes a context manager to write a stream of data to a file with
     an extension specified by the user. This helper function reduces the need to repeat the code
     needed for this kind of operation.
@@ -815,9 +804,9 @@ def write_to_file(
     """
     f_name = clean_filename(filename, extension)
     with open(
-            f"{os.path.abspath(folder)}/{f_name}",
-            "w",
-            encoding="utf-8",
+        f"{os.path.abspath(folder)}/{f_name}",
+        "w",
+        encoding="utf-8",
     ) as file:
         file.write(str(stream))
     print(f"Created file {f_name} in {os.path.abspath(folder)}")
@@ -825,7 +814,7 @@ def write_to_file(
 
 
 def load_file_package_scope(package: str, filename: str) -> AnyStr:
-    """ Load file when the program is executed as a module
+    """Load file when the program is executed as a module
     :param package: package name
     :param filename: filename
     :return: AnyStr
