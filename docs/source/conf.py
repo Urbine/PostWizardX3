@@ -9,26 +9,23 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath("../.."))
 
-project = 'webmaster-seo-tools'
-copyright = '2024, Yoham Gabriel (Urbine@GitHub)'
-author = 'Yoham Gabriel (Urbine@GitHub)'
+project = "webmaster-seo-tools"
+copyright = "2024, Yoham Gabriel (Urbine@GitHub)"
+author = "Yoham Gabriel (Urbine@GitHub)"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',
-    'sphinx_autodoc_typehints'
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.napoleon",
+    "sphinx_autodoc_typehints",
 ]
 
-autodoc_type_aliases = {
-    "List": "List",
-    "Dict": "Dict"
-}
+autodoc_type_aliases = {"List": "List", "Dict": "Dict"}
 
 # typehints_use_signature = False
 # simplify_optional_unions = True
@@ -43,15 +40,15 @@ typehints_fully_qualified = True
 # Exclude `__init__` docstrings by default
 napoleon_include_init_with_doc = False
 napoleon_include_private_with_doc = False  # Exclude private members by default
-napoleon_use_param = True         # Use `:param` for parameters
-napoleon_use_rtype = True         # Use `:rtype` for return types
+napoleon_use_param = True  # Use `:param` for parameters
+napoleon_use_rtype = True  # Use `:rtype` for return types
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_theme = "sphinx_rtd_theme"
+html_static_path = ["_static"]

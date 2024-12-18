@@ -4,9 +4,10 @@ those concerned with file/database updates and single-responsibility programs
 that are meant to be called as modules by the former.
 
 """
+
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
-__version__ = '1.0.0'
+__version__ = "1.0.0"
 
 # ** MediaSource Dump Creation `feed_dump_create.py` **
 
@@ -15,13 +16,17 @@ from tasks.feed_dump_create import get_vid_dump_flow
 
 # ** MediaSource Photo Set Scrape `media_source_scrape.py` **
 from tasks.feed_scrape import get_set_source_flow
+
 # ** MediaSource TXT dump parser
 from tasks.parse_txt_dump import parse_txt_dump
+
 # ** MediaSource HTML photoset dump parser
 from tasks.sets_source_parse import db_generate
 
-__all__ = ['parse_partner_name',
-           'get_vid_dump_flow',
-           'get_set_source_flow',
-           'db_generate',
-           'parse_txt_dump']
+__all__ = [
+    "parse_partner_name",
+    "get_vid_dump_flow",
+    "get_set_source_flow",
+    "db_generate",
+    "parse_txt_dump",
+]

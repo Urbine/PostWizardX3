@@ -18,9 +18,8 @@ import os
 import core
 
 
-def clean_outdated(hints_: list[str],
-                   file_lst: list[str], folder: str) -> None:
-    """ Match and identify outdated files, and report to the user which files are
+def clean_outdated(hints_: list[str], file_lst: list[str], folder: str) -> None:
+    """Match and identify outdated files, and report to the user which files are
         being deleted.
 
     :param hints_: ``list[str]`` possible filename hints of the files to be deleted.
@@ -33,20 +32,19 @@ def clean_outdated(hints_: list[str],
         hints_, file_lst, ignore_case=True, strict=True, reverse=True
     )
     for file in outdated:
-        print(f'Removing {os.path.abspath(file)}')
+        print(f"Removing {os.path.abspath(file)}")
         os.remove(file)
 
     if len(outdated) != 0:
         print(f"{'DONE':=^35}")
     else:
-        print('Nothing to clean...')
+        print("Nothing to clean...")
 
     return None
 
 
-if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser(
-        description="Clean local outdated files")
+if __name__ == "__main__":
+    arg_parser = argparse.ArgumentParser(description="Clean local outdated files")
 
     arg_parser.add_argument(
         "--folder",
@@ -65,7 +63,7 @@ if __name__ == '__main__':
     arg_parser.add_argument(
         "--hints",
         type=str,
-        nargs='+',
+        nargs="+",
         help="""This parameter receives the first word of the partner offer for matching.
                 Pass in multiple values separated by space.""",
     )
@@ -82,7 +80,6 @@ if __name__ == '__main__':
     hints = list(args.hints)
 
     # Filter the files to be deleted by their file extension.
-    files = core.search_files_by_ext(
-        args.ext, args.folder, parent=args.parent)
+    files = core.search_files_by_ext(args.ext, args.folder, parent=args.parent)
 
     clean_outdated(hints, files, args.folder)
