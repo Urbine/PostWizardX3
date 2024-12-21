@@ -6,4 +6,4 @@ else
   :
 fi
 
-ruff format $(pwd/*.py)
+find . -name "*.py" -not -path "./.venv/*" | xargs ruff format

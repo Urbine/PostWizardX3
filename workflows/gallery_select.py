@@ -621,6 +621,17 @@ def gallery_upload_pilot(
             break
 
 
+def main(*args, **kwargs):
+    try:
+        gallery_upload_pilot(*args, **kwargs)
+    except KeyboardInterrupt:
+        print("Goodbye! ಠ‿↼")
+        pyclip.detect_clipboard()
+        pyclip.clear()
+        # When quit is called, temp dirs will be automatically cleaned.
+        quit()
+
+
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
         description="Gallery Select Assistant - Behaviour Tweaks"
@@ -659,10 +670,10 @@ if __name__ == "__main__":
         help="Enable headless webdriver execution. Compatibility is experimental with this module.",
     )
 
-    args = arg_parser.parse_args()
+    args_cli = arg_parser.parse_args()
 
-    gallery_upload_pilot(
-        relevancy_on=args.relevancy,
-        gecko=args.gecko,
-        parent=args.parent,
+    main(
+        relevancy_on=args_cli.relevancy,
+        gecko=args_cli.gecko,
+        parent=args_cli.parent,
     )

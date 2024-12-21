@@ -151,7 +151,7 @@ def embedding_pilot(
         console.print(f"Tags: {categories}", style="green")
         console.print(f"WP Slug: {wp_slug}", style="green")
         add_post = console.input(
-            "[bold yellow]\nAdd post to WP? -> Y/N/ENTER to review next post: [/bold yellow]"
+            "[bold yellow]\nAdd post to WP? -> Y/N/ENTER to review next post: [/bold yellow]\n"
         ).lower()
         if add_post == ("y" or "yes"):
             add_post = True
@@ -189,13 +189,15 @@ def embedding_pilot(
                 cs.make_slug(partner, None, title, "video"),
                 cs.make_slug(partner, None, title, "video", reverse=True),
             ]
-            console.print("\n--> Available slugs:", style="bold red")
+            console.print("\n--> Available slugs:", style="bold yellow")
 
             for n, slug in enumerate(slugs, start=1):
                 console.print(f"{n}. -> {slug}", style="bold green")
-            console.print("Select 4 to enter a custom slug.", style="bold red")
+            console.print("Select 4 to enter a custom slug.", style="bold yellow")
 
-            match console.input("[bold red]\n--> Select your slug: [/bold red]"):
+            match console.input(
+                "[bold yellow]\n--> Select your slug: [/bold yellow]\n"
+            ):
                 case "1":
                     wp_slug = slugs[0]
                 case "2":
@@ -239,11 +241,11 @@ def embedding_pilot(
                         )
                         console.print(
                             "--> Copying missing tag to your system clipboard.",
-                            style="bold red",
+                            style="bold yellow",
                         )
                         console.print(
                             "Paste it into the tags field as soon as possible...\n",
-                            style="bold red",
+                            style="bold yellow",
                         )
                         pyclip.detect_clipboard()
                         pyclip.copy(tag)
@@ -258,13 +260,13 @@ def embedding_pilot(
 
             console.print(
                 " \n** I think these categories are appropriate: **\n",
-                style="bold red",
+                style="bold yellow",
             )
             for num, categ in enumerate(consolidate_categs, start=1):
                 console.print(f"{num}. {categ}", style="bold green")
 
             match console.input(
-                "[bold yellow]\nEnter the category number or type in to look for another category in the site: [/bold yellow]"
+                "[bold yellow]\nEnter the category number or type in to look for another category in the site: [/bold yellow]\n"
             ):
                 case _ as option:
                     try:
@@ -351,7 +353,7 @@ def embedding_pilot(
                 pyclip.copy(title)
                 console.print(
                     "--> Check the post and paste all you need from your clipboard.",
-                    style="bold red",
+                    style="bold yellow",
                 )
                 videos_uploaded += 1
             except SSLError:
@@ -368,13 +370,13 @@ def embedding_pilot(
                 else:
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
-                        style="bold red",
+                        style="bold yellow",
                     )
                     thumbnails_dir.cleanup()
                     break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold yellow]\nNext post? -> Y/N/ENTER to review next post: [/bold yellow]"
+                    "[bold yellow]\nNext post? -> Y/N/ENTER to review next post: [/bold yellow]\n"
                 ).lower()
                 if next_post == ("y" or "yes"):
                     # Clears clipboard after every video.
@@ -415,7 +417,7 @@ def embedding_pilot(
                     pyclip.clear()
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
-                        style="bold red",
+                        style="bold yellow",
                     )
                     thumbnails_dir.cleanup()
                     break
@@ -434,7 +436,7 @@ def embedding_pilot(
                 )
                 console.print(
                     f"You have created {videos_uploaded} posts in this session!",
-                    style="bold red",
+                    style="bold yellow",
                 )
                 console.print(
                     "Waiting for 60 secs to clear the clipboard before you're done with the last post...",
@@ -457,11 +459,22 @@ def embedding_pilot(
             )
             console.print(
                 f"You have created {videos_uploaded} posts in this session!",
-                style="bold red",
+                style="bold yellow",
             )
             thumbnails_dir.cleanup()
             break
 
 
+def main():
+    try:
+        embedding_pilot()
+    except KeyboardInterrupt:
+        print("Goodbye! ಠ‿↼")
+        pyclip.detect_clipboard()
+        pyclip.clear()
+        # When quit is called, temp dirs will be automatically cleaned.
+        quit()
+
+
 if __name__ == "__main__":
-    embedding_pilot()
+    main()
