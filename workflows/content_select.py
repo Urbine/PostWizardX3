@@ -674,7 +674,7 @@ def content_select_db_match(
 
     try:
         select_partner: str = console.input(
-            f"[bold yellow]\nSelect your partner now: [bold yellow]"
+            f"[bold yellow]\nSelect your partner now: [bold yellow]\n",
         )
         # I just need the first word to match the db.
         try:
@@ -835,7 +835,7 @@ def video_upload_pilot(
         console.print(f"Source URL: {source_url}", style="green")
         # Centralized control flow
         add_post = console.input(
-            "\n[bold cyan]Add post to WP? -> Y/N/ENTER to review next post: [/bold cyan]",
+            "\n[bold cyan]Add post to WP? -> Y/N/ENTER to review next post: [/bold cyan]\n",
         ).lower()
         if add_post == ("y" or "yes"):
             add_post = True
@@ -844,7 +844,7 @@ def video_upload_pilot(
             pyclip.clear()
             console.print(
                 f"You have created {videos_uploaded} posts in this session!",
-                style="bold red",
+                style="bold yellow",
             )
             break
         else:
@@ -864,7 +864,7 @@ def video_upload_pilot(
                 )
                 console.print(
                     f"You have created {videos_uploaded} posts in this session!",
-                    style="bold red",
+                    style="bold yellow",
                 )
                 break
 
@@ -883,13 +883,13 @@ def video_upload_pilot(
                 make_slug(partner, models, title, "video", partner_out=True),
             ]
 
-            console.print("\n--> Available slugs:\n", style="bold red")
+            console.print("\n--> Available slugs:\n", style="bold yellow")
 
             for n, slug in enumerate(slugs, start=1):
                 console.print(f"{n}. -> {slug}", style="bold green")
-            console.print("--> Enter #5 to provide a custom slug", style="bold red")
+            console.print("--> Enter #5 to provide a custom slug", style="bold yellow")
 
-            match console.input("[bold magenta]\nSelect your slug: [/bold magenta]"):
+            match console.input("[bold magenta]\nSelect your slug: [/bold magenta]\n"):
                 case "1":
                     wp_slug: str = slugs[0]
                 case "2":
@@ -901,7 +901,7 @@ def video_upload_pilot(
                 case "5":
                     # Copy the default slug for editing
                     pyclip.copy(slugs[3])
-                    console.print("Provide a new slug: ", style="bold red")
+                    console.print("Provide a new slug: ", style="bold ")
                     wp_slug: str = input()
                 case _:
                     # TODO: Add ``default_slug`` option to config file.
@@ -929,7 +929,7 @@ def video_upload_pilot(
                     )
                     console.print(
                         "--> Copying missing tag to your system clipboard.",
-                        style="bold red",
+                        style="bold yellow",
                     )
                     console.print(
                         "Paste it into the tags field as soon as possible...\n",
@@ -967,7 +967,7 @@ def video_upload_pilot(
                     )
                     console.print(
                         "--> Copying missing model name to your system clipboard.",
-                        style="bold red",
+                        style="bold yellow",
                     )
                     console.print(
                         "Paste it into the models field as soon as possible...\n",
@@ -985,13 +985,14 @@ def video_upload_pilot(
             consolidate_categs = list(class_title)
 
             console.print(
-                " \n** I think these categories are appropriate: **\n", style="bold red"
+                " \n** I think these categories are appropriate: **\n",
+                style="bold yellow",
             )
             for num, categ in enumerate(consolidate_categs, start=1):
                 console.print(f"{num}. {categ}", style="green")
 
             match console.input(
-                "[green]\nEnter the category number or type in to look for another category in the site: [green]"
+                "[bold yellow]\nEnter the category number or type in to look for another category in the site: [bold yellow]\n"
             ):
                 case _ as option:
                     try:
@@ -1071,7 +1072,7 @@ def video_upload_pilot(
                 pyclip.copy(title)
                 console.print(
                     "--> * DONE * Check the post and paste all you need from your clipboard.",
-                    style="bold green",
+                    style="bold yellow",
                 )
                 videos_uploaded += 1
             except SSLError:
@@ -1088,12 +1089,12 @@ def video_upload_pilot(
                 else:
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
-                        style="bold red",
+                        style="bold yellow",
                     )
                     break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold cyan]\nNext post? -> Y/N/ENTER to review next post: [/bold cyan]"
+                    "[bold cyan]\nNext post? -> Y/N/ENTER to review next post: [/bold cyan]\n"
                 ).lower()
                 if next_post == ("y" or "yes"):
                     # Clears clipboard after every video.
@@ -1154,7 +1155,7 @@ def video_upload_pilot(
                 thumbnails_dir.cleanup()
                 console.print(
                     f"You have created {videos_uploaded} posts in this session!",
-                    style="bold red",
+                    style="bold yellow",
                 )
                 console.print(
                     "Waiting for 60 secs to clear the clipboard before you're done with the last post...",
@@ -1176,7 +1177,7 @@ def video_upload_pilot(
             )
             console.print(
                 f"You have created {videos_uploaded} posts in this session!",
-                style="bold red",
+                style="bold yellow",
             )
             thumbnails_dir.cleanup()
             break
