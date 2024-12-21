@@ -1183,6 +1183,17 @@ def video_upload_pilot(
             break
 
 
+def main(*args, **kwargs):
+    try:
+        video_upload_pilot(*args, **kwargs)
+    except KeyboardInterrupt:
+        print("Goodbye! ಠ‿↼")
+        pyclip.detect_clipboard()
+        pyclip.clear()
+        # When quit is called, temp dirs will be automatically cleaned.
+        quit()
+
+
 if __name__ == "__main__":
     warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -1202,7 +1213,7 @@ if __name__ == "__main__":
                                         you may not want to enable it because this is treated as a package.""",
     )
 
-    args = arg_parser.parse_args()
+    args_cli = arg_parser.parse_args()
 
     banner_partner2_1 = "https://media_source.com/view_banner.php?name=partner2-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
     banner_partner2_2 = "https://media_source.com/view_banner.php?name=partner2-620x77.jpg&filename=7664_name.jpg&type=jpg&download=1"
@@ -1240,4 +1251,4 @@ if __name__ == "__main__":
         banner_lst_partner6,
     ]
 
-    video_upload_pilot(banner_lists, parent=args.parent)
+    main(banner_lists, parent=args_cli.parent)

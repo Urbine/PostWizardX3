@@ -465,5 +465,16 @@ def embedding_pilot(
             break
 
 
+def main():
+    try:
+        embedding_pilot()
+    except KeyboardInterrupt:
+        print("Goodbye! ಠ‿↼")
+        pyclip.detect_clipboard()
+        pyclip.clear()
+        # When quit is called, temp dirs will be automatically cleaned.
+        quit()
+
+
 if __name__ == "__main__":
-    embedding_pilot()
+    main()
