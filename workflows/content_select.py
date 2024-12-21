@@ -13,24 +13,24 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+# Standard Library
 import argparse
 import os
-from sqlite3 import Connection, Cursor
-
-import pyclip
 import random
 import re
-import requests
-import readline
+import readline  # Imported to enable standard input manipulation.
 import tempfile
 import time
 import sqlite3
 import warnings
 
 from requests.exceptions import ConnectionError, SSLError
+from sqlite3 import Connection, Cursor
 
 # Third-party modules
+import pyclip
 from rich.console import Console
+
 
 # Local implementations
 from core import (
@@ -42,15 +42,17 @@ from core import (
     clean_filename,
 )
 
+from integrations import wordpress_api
+from integrations.url_builder import WPEndpoints
+from ml_engine import classify_title, classify_description, classify_tags
+
+# Imported for typing purposes
 from core.config_mgr import (
     WPAuth,
     ContentSelectConf,
     GallerySelectConf,
     EmbedAssistConf,
 )
-from integrations import wordpress_api
-from integrations.url_builder import WPEndpoints
-from ml_engine import classify_title, classify_description, classify_tags
 
 
 def clean_partner_tag(partner_tag: str) -> str:
