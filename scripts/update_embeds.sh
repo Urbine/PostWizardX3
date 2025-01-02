@@ -17,8 +17,8 @@ echo "** Updating Tube Corporate Feeds databases... **"
 python3 -m integrations.tube_corp_feeds -days 7 -sort popularity -limit 100
 echo -e "\n"
 echo "** Updating AdultNext's Abjav database... **"
-# Same parameters for the AdultNext API integration
-python3 -m integrations.adult_next_api -days 7 -sort popularity -limit 100
+# 30 days for the AdultNext API integration
+python3 -m integrations.adult_next_api -days 30 -sort popularity -limit 100
 echo -e "\n"
 echo "** Cleaning old databases... **"
 

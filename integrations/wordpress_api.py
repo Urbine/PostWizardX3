@@ -31,6 +31,8 @@ from typing import Generator
 # Third-party modules
 import xlsxwriter
 
+import core
+
 # Local implementations
 from core import helpers, wp_auth
 from core.config_mgr import WPAuth
@@ -134,7 +136,7 @@ def get_tags_num_count(wp_posts_f: list[dict], photos: bool = False) -> dict[str
     for dic in wp_posts_f:
         for tag_num in dic[content]:
             if tag_num in tags_nums_count.keys():
-                tags_nums_count[tag_num] = tags_nums_count[tag_num] + 1
+                tags_nums_count[tag_num] += 1
                 continue
             else:
                 tags_nums_count[tag_num] = 1
@@ -552,6 +554,91 @@ def map_wp_class_id_many(
     return result_dict
 
 
+def count_wp_class_id(
+    wp_posts_f: list[dict], match_word: str, key_wp: str
+) -> dict[str, int]:
+    """
+    This function parses the wp_posts or wp_photos JSON files to locate and count tags or other
+    keywords (e.g. models) that WordPress includes in the ``['class_list']`` key.
+    This function is based on ``map_wp_class_id`` and implements its basic idea (match_word vs key_wp).
+
+    :param wp_posts_f: list[dict] (wp_posts or wp_photos) previously loaded in the program.
+    :param match_word: ``str`` prefix of the keywords that you want to match.
+    :param key_wp: ``str`` key where the numeric values are located.
+    :return: ``dict[str, int]`` {'keyword': associated numeric value}
+    """
+    result_dict = {}
+    for elem in wp_posts_f:
+        kw = [
+            " ".join(item.split("-")[1:]).title()
+            for item in elem["class_list"]
+            if re.findall(match_word, item)
+        ]
+        for item in kw:
+            if item not in result_dict.keys():
+                result_dict[item] = 1
+            else:
+                result_dict[item] += 1
+    return result_dict
+
+
+def count_track_wp_class_id(
+    wp_posts_f: list[dict],
+    match_word: str,
+    track_match_wrd: str,
+    hint_list: list[str],
+) -> dict[str, tuple[int, str]]:
+    """
+    This function parses the wp_posts or wp_photos JSON files to locate and count tags or other
+    keywords (e.g. models) that WordPress includes in the ``['class_list']`` key.
+    In case there is a relationship between elements in the ``['class_list']`` key, the function takes a tracking word
+    (any pattern that is associated with ``match_word``) to return a tuple with ``match_word`` count and the flag that
+    realise the relationship with ``track_match_wrd`` by using a list of hints (``hint_list``).
+
+    The problem sustains the existence of this function resides in the need to map the models, video count and partner.
+    Both model and partner (elements in the ``['class_list']`` key) are related and; therefore, such connection
+    is realised by a list of hints that make sorting and matching easier.
+
+    This function is based on ``map_wp_class_id`` and implements its basic idea (match_word vs key_wp)
+    for more information about mechanism of matching, see the docstring for ``map_wp_class_id``
+
+    :param wp_posts_f: list[dict] (wp_posts or wp_photos) previously loaded in the program.
+    :param match_word: ``str`` prefix of the keywords that you want to match.
+    :param track_match_wrd: ``str`` pattern that will be matched and has a relationship with ``match_word``
+    :param hint_list: ``list[str]`` Matching hints that are related to ``track_match_wrd``
+    :return: ``dict[str, tuple[int, str]`` {'keyword': (count: int, matching_track_word: str)}
+    """
+    result_dict = {}
+    for elem in wp_posts_f:
+        kw = [
+            " ".join(item.split("-")[1:]).title()
+            for item in elem["class_list"]
+            if re.findall(match_word, item)
+        ]
+
+        track_kw = [
+            " ".join(item.split("-")[1:]).title()
+            for item in elem["class_list"]
+            if re.findall(track_match_wrd, item)
+        ]
+
+        for item in kw:
+            if item not in result_dict.keys():
+                match = [
+                    hint for hint in hint_list if core.match_list_single(hint, track_kw)
+                ]
+                tr_kw = match[0] if match else False
+
+                if tr_kw:
+                    result_dict[item] = (1, tr_kw)
+                else:
+                    result_dict[item] = (1, "AdultNext/TubeCorporate")
+
+            else:
+                result_dict[item] = (result_dict[item][0] + 1, result_dict[item][1])
+    return result_dict
+
+
 # CSV output is possible, not very effective, though.
 # export_to_csv_nt(tag_master_merger_ntpl(imported_json),
 # "sample", ["Title", "Tag ID", "# of Taggings"])
@@ -571,6 +658,24 @@ def create_tag_report_excel(
     workbook_fname = helpers.clean_filename(workbook_name, ".xlsx")
     dir_prefix = helpers.is_parent_dir_required(parent)
 
+    # Tag IDs and Tag Count
+    tags_match_key = ("tag", "tags")
+    tags_dict = map_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
+    tags_count = count_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
+
+    # Model Partner hints
+    hints = [
+        "Asian Sex Diary",
+        "Euro Sex Diary",
+        "Tuktuk Patrol",
+        "Trike Patrol",
+        "Paradise Gfs",
+    ]
+    # Model video count
+    model_wp_class_count = count_track_wp_class_id(
+        wp_posts_f, "pornstars", "tag", hints
+    )
+
     workbook = xlsxwriter.Workbook(f"{dir_prefix}{workbook_fname}")
     # Tag & Tag ID Fields, Videos Tagged, Video IDs.
     tag_plus_tid = workbook.add_worksheet(name="Tag Fields & Videos Tagged")
@@ -578,9 +683,9 @@ def create_tag_report_excel(
     tag_plus_tid.set_column("A:C", 20)
     tag_plus_tid.set_column("D:E", 90)
     tag_plus_tid.write_row("A1", ("Tag", "Tag ID", "Videos Tagged", "Tagged IDs"))
-    tag_plus_tid.write_column("A2", tuple(tag_id_merger_dict(wp_posts_f).keys()))
-    tag_plus_tid.write_column("B2", tuple(tag_id_merger_dict(wp_posts_f).values()))
-    tag_plus_tid.write_column("C2", tuple(get_tags_num_count(wp_posts_f).values()))
+    tag_plus_tid.write_column("A2", tuple(tags_dict.keys()))
+    tag_plus_tid.write_column("B2", tuple(tags_dict.values()))
+    tag_plus_tid.write_column("C2", tuple(tags_count.values()))
     tag_plus_tid.write_column(
         "D2", unpack_tpl_excel(map_tags_posts(wp_posts_f, idd=True).values())
     )
@@ -600,10 +705,24 @@ def create_tag_report_excel(
         "C2", unpack_tpl_excel(map_postsid_category(wp_posts_f).values())
     )
 
+    # Model video count
+    model_count = workbook.add_worksheet(name="Video count by Model")
+    model_count.set_column("A:A", 20)
+    model_count.set_column("B:B", 15)
+    model_count.set_column("C:C", 25)
+    model_count.write_row("A1", ("Model Name", "Video Count", "Partner Name"))
+    model_count.write_column("A2", tuple(model_wp_class_count.keys()))
+    model_count.write_column(
+        "B2", tuple([count[0] for count in model_wp_class_count.values()])
+    )
+    model_count.write_column(
+        "C2", tuple([count[1] for count in model_wp_class_count.values()])
+    )
+
     workbook.close()
 
     print(
-        f"\nFind the new .xlsx file in \n{helpers.cwd_or_parent_path(parent=parent)}\n"
+        f"\nFind the new file {workbook_fname} in \n{helpers.cwd_or_parent_path(parent=parent)}\n"
     )
     return None
 
@@ -904,7 +1023,7 @@ if __name__ == "__main__":
     args = args_parser.parse_args()
 
     if args.excel:
-        imported_json: list[dict] = helpers.load_json_ctx("wp_posts")
+        imported_json: list[dict] = helpers.load_json_ctx(wp_auth().wp_posts_file)
         create_tag_report_excel(
             imported_json, f"tag-report-excel-{datetime.date.today()}"
         )
