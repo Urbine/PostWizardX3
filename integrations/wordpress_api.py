@@ -658,6 +658,24 @@ def create_tag_report_excel(
     workbook_fname = helpers.clean_filename(workbook_name, ".xlsx")
     dir_prefix = helpers.is_parent_dir_required(parent)
 
+    # Tag IDs and Tag Count
+    tags_match_key = ("tag", "tags")
+    tags_dict = map_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
+    tags_count = count_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
+
+    # Model Partner hints
+    hints = [
+        "PartnerOne",
+        "PartnerFour",
+        "PartnerTwo",
+        "PartnerThree",
+        "PartnerFive",
+    ]
+    # Model video count
+    model_wp_class_count = count_track_wp_class_id(
+        wp_posts_f, "authors", "tag", hints
+    )
+
     workbook = xlsxwriter.Workbook(f"{dir_prefix}{workbook_fname}")
     # Tag & Tag ID Fields, Videos Tagged, Video IDs.
     tag_plus_tid = workbook.add_worksheet(name="Tag Fields & Videos Tagged")
@@ -665,9 +683,9 @@ def create_tag_report_excel(
     tag_plus_tid.set_column("A:C", 20)
     tag_plus_tid.set_column("D:E", 90)
     tag_plus_tid.write_row("A1", ("Tag", "Tag ID", "Videos Tagged", "Tagged IDs"))
-    tag_plus_tid.write_column("A2", tuple(tag_id_merger_dict(wp_posts_f).keys()))
-    tag_plus_tid.write_column("B2", tuple(tag_id_merger_dict(wp_posts_f).values()))
-    tag_plus_tid.write_column("C2", tuple(get_tags_num_count(wp_posts_f).values()))
+    tag_plus_tid.write_column("A2", tuple(tags_dict.keys()))
+    tag_plus_tid.write_column("B2", tuple(tags_dict.values()))
+    tag_plus_tid.write_column("C2", tuple(tags_count.values()))
     tag_plus_tid.write_column(
         "D2", unpack_tpl_excel(map_tags_posts(wp_posts_f, idd=True).values())
     )
@@ -687,10 +705,24 @@ def create_tag_report_excel(
         "C2", unpack_tpl_excel(map_postsid_category(wp_posts_f).values())
     )
 
+    # Model video count
+    model_count = workbook.add_worksheet(name="Video count by Model")
+    model_count.set_column("A:A", 20)
+    model_count.set_column("B:B", 15)
+    model_count.set_column("C:C", 25)
+    model_count.write_row("A1", ("Model Name", "Video Count", "Partner Name"))
+    model_count.write_column("A2", tuple(model_wp_class_count.keys()))
+    model_count.write_column(
+        "B2", tuple([count[0] for count in model_wp_class_count.values()])
+    )
+    model_count.write_column(
+        "C2", tuple([count[1] for count in model_wp_class_count.values()])
+    )
+
     workbook.close()
 
     print(
-        f"\nFind the new .xlsx file in \n{helpers.cwd_or_parent_path(parent=parent)}\n"
+        f"\nFind the new file {workbook_fname} in \n{helpers.cwd_or_parent_path(parent=parent)}\n"
     )
     return None
 
