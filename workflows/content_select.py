@@ -29,8 +29,9 @@ from sqlite3 import Connection, Cursor
 
 # Third-party modules
 import pyclip
+import requests
 from rich.console import Console
-
+from rich.prompt import Prompt
 
 # Local implementations
 from core import (
