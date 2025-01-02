@@ -29,8 +29,9 @@ from sqlite3 import Connection, Cursor
 
 # Third-party modules
 import pyclip
+import requests
 from rich.console import Console
-
+from rich.prompt import Prompt
 
 # Local implementations
 from core import (
@@ -717,9 +718,7 @@ def video_upload_pilot(
 ) -> None:
     """Here is the main coordinating function of this module, the job control that
     uses all previous functions to carry out all the tasks associated with the video upload process in the business.
-    In fact, by convention, this function must be called main(), but that name does not really reflect
-    the excitement of what it accomplishes and the collaboration with other members of the module plus other modules
-    and local implementations. This function is a real pilot and here's a quick breakdown of its workflow:
+    This function is a real pilot and here's a quick breakdown of its workflow:
 
     **Note: This won't be a detailed description, however, it will give you a better notion of
     how this code accomplishes these tasks.**

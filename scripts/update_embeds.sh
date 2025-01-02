@@ -17,8 +17,8 @@ echo "** Updating Feed Beta Feeds databases... **"
 python3 -m integrations.feed_beta_api -days 7 -sort popularity -limit 100
 echo -e "\n"
 echo "** Updating FeedAlpha database... **"
-# Same parameters for the FeedAlpha API integration
-python3 -m integrations.feed_alpha_api -days 7 -sort popularity -limit 100
+# 30 days for the FeedAlpha API integration
+python3 -m integrations.feed_alpha_api -days 30 -sort popularity -limit 100
 echo -e "\n"
 echo "** Cleaning old databases... **"
 
