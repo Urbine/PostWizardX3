@@ -31,6 +31,8 @@ from typing import Generator
 # Third-party modules
 import xlsxwriter
 
+import core
+
 # Local implementations
 from core import helpers, wp_auth
 from core.config_mgr import WPAuth
@@ -134,7 +136,7 @@ def get_tags_num_count(wp_posts_f: list[dict], photos: bool = False) -> dict[str
     for dic in wp_posts_f:
         for tag_num in dic[content]:
             if tag_num in tags_nums_count.keys():
-                tags_nums_count[tag_num] = tags_nums_count[tag_num] + 1
+                tags_nums_count[tag_num] += 1
                 continue
             else:
                 tags_nums_count[tag_num] = 1
@@ -549,6 +551,91 @@ def map_wp_class_id_many(
                 result_dict[item] = set(kw)
             else:
                 result_dict[item].union(set(kw))
+    return result_dict
+
+
+def count_wp_class_id(
+    wp_posts_f: list[dict], match_word: str, key_wp: str
+) -> dict[str, int]:
+    """
+    This function parses the wp_posts or wp_photos JSON files to locate and count tags or other
+    keywords (e.g. models) that WordPress includes in the ``['class_list']`` key.
+    This function is based on ``map_wp_class_id`` and implements its basic idea (match_word vs key_wp).
+
+    :param wp_posts_f: list[dict] (wp_posts or wp_photos) previously loaded in the program.
+    :param match_word: ``str`` prefix of the keywords that you want to match.
+    :param key_wp: ``str`` key where the numeric values are located.
+    :return: ``dict[str, int]`` {'keyword': associated numeric value}
+    """
+    result_dict = {}
+    for elem in wp_posts_f:
+        kw = [
+            " ".join(item.split("-")[1:]).title()
+            for item in elem["class_list"]
+            if re.findall(match_word, item)
+        ]
+        for item in kw:
+            if item not in result_dict.keys():
+                result_dict[item] = 1
+            else:
+                result_dict[item] += 1
+    return result_dict
+
+
+def count_track_wp_class_id(
+    wp_posts_f: list[dict],
+    match_word: str,
+    track_match_wrd: str,
+    hint_list: list[str],
+) -> dict[str, tuple[int, str]]:
+    """
+    This function parses the wp_posts or wp_photos JSON files to locate and count tags or other
+    keywords (e.g. models) that WordPress includes in the ``['class_list']`` key.
+    In case there is a relationship between elements in the ``['class_list']`` key, the function takes a tracking word
+    (any pattern that is associated with ``match_word``) to return a tuple with ``match_word`` count and the flag that
+    realise the relationship with ``track_match_wrd`` by using a list of hints (``hint_list``).
+
+    The problem sustains the existence of this function resides in the need to map the models, video count and partner.
+    Both model and partner (elements in the ``['class_list']`` key) are related and; therefore, such connection
+    is realised by a list of hints that make sorting and matching easier.
+
+    This function is based on ``map_wp_class_id`` and implements its basic idea (match_word vs key_wp)
+    for more information about mechanism of matching, see the docstring for ``map_wp_class_id``
+
+    :param wp_posts_f: list[dict] (wp_posts or wp_photos) previously loaded in the program.
+    :param match_word: ``str`` prefix of the keywords that you want to match.
+    :param track_match_wrd: ``str`` pattern that will be matched and has a relationship with ``match_word``
+    :param hint_list: ``list[str]`` Matching hints that are related to ``track_match_wrd``
+    :return: ``dict[str, tuple[int, str]`` {'keyword': (count: int, matching_track_word: str)}
+    """
+    result_dict = {}
+    for elem in wp_posts_f:
+        kw = [
+            " ".join(item.split("-")[1:]).title()
+            for item in elem["class_list"]
+            if re.findall(match_word, item)
+        ]
+
+        track_kw = [
+            " ".join(item.split("-")[1:]).title()
+            for item in elem["class_list"]
+            if re.findall(track_match_wrd, item)
+        ]
+
+        for item in kw:
+            if item not in result_dict.keys():
+                match = [
+                    hint for hint in hint_list if core.match_list_single(hint, track_kw)
+                ]
+                tr_kw = match[0] if match else False
+
+                if tr_kw:
+                    result_dict[item] = (1, tr_kw)
+                else:
+                    result_dict[item] = (1, "PartnerSeven/FeedBeta")
+
+            else:
+                result_dict[item] = (result_dict[item][0] + 1, result_dict[item][1])
     return result_dict
 
 
