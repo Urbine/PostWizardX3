@@ -1023,7 +1023,7 @@ if __name__ == "__main__":
     args = args_parser.parse_args()
 
     if args.excel:
-        imported_json: list[dict] = helpers.load_json_ctx("wp_posts")
+        imported_json: list[dict] = helpers.load_json_ctx(wp_auth().wp_posts_file)
         create_tag_report_excel(
             imported_json, f"tag-report-excel-{datetime.date.today()}"
         )
