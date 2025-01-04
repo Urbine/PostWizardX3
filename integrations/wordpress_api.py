@@ -715,13 +715,22 @@ def create_tag_report_excel(
     model_count.set_column("A:A", 20)
     model_count.set_column("B:B", 15)
     model_count.set_column("C:C", 25)
-    model_count.write_row("A1", ("Model Name", "Video Count", "Partner Name"))
+    model_count.set_column("D:D", 50)
+    model_count.write_row(
+        "A1", ("Model Name", "Video Count", "Partner Name", "Post IDs")
+    )
     model_count.write_column("A2", tuple(model_wp_class_count.keys()))
     model_count.write_column(
-        "B2", tuple([count[0] for count in model_wp_class_count.values()])
+        "B2", tuple([count[0][0] for count in model_wp_class_count.values()])
     )
     model_count.write_column(
-        "C2", tuple([count[1] for count in model_wp_class_count.values()])
+        "C2", tuple([partner[0][1] for partner in model_wp_class_count.values()])
+    )
+    par_strip = lambda tp: str(tp).strip(")").strip("(")
+    t_comma_out = lambda tp: par_strip(tp) if len(tp) > 1 else par_strip(tp).strip(",")
+    model_count.write_column(
+        "D2",
+        tuple(map(t_comma_out, map(lambda tp: tp[1:], model_wp_class_count.values()))),
     )
 
     workbook.close()
