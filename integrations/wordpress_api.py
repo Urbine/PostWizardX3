@@ -587,7 +587,7 @@ def count_track_wp_class_id(
     match_word: str,
     track_match_wrd: str,
     hint_list: list[str],
-) -> dict[str, tuple[int, str]]:
+) -> dict[str, tuple[tuple[int | str]]]:
     """
     This function parses the wp_posts or wp_photos JSON files to locate and count tags or other
     keywords (e.g. models) that WordPress includes in the ``['class_list']`` key.
@@ -595,7 +595,7 @@ def count_track_wp_class_id(
     (any pattern that is associated with ``match_word``) to return a tuple with ``match_word`` count and the flag that
     realise the relationship with ``track_match_wrd`` by using a list of hints (``hint_list``).
 
-    The problem sustains the existence of this function resides in the need to map the models, video count and partner.
+    The problem that sustains the existence of this function resides in the need to map the models, video count and partner.
     Both model and partner (elements in the ``['class_list']`` key) are related and; therefore, such connection
     is realised by a list of hints that make sorting and matching easier.
 
@@ -622,6 +622,7 @@ def count_track_wp_class_id(
             if re.findall(track_match_wrd, item)
         ]
 
+        post_id = elem["id"]
         for item in kw:
             if item not in result_dict.keys():
                 match = [
@@ -630,13 +631,17 @@ def count_track_wp_class_id(
                 tr_kw = match[0] if match else False
 
                 if tr_kw:
-                    result_dict[item] = (1, tr_kw)
+                    result_dict[item] = [(1, tr_kw), post_id]
                 else:
-                    result_dict[item] = (1, "AdultNext/TubeCorporate")
-
+                    result_dict[item] = [(1, "AdultNext/TubeCorporate"), post_id]
             else:
-                result_dict[item] = (result_dict[item][0] + 1, result_dict[item][1])
-    return result_dict
+                result_dict[item][0] = (
+                    result_dict[item][0][0] + 1,
+                    result_dict[item][0][1],
+                )
+                result_dict[item].append(post_id)
+    # Packing into tuples makes it easier to process for reporting purposes.
+    return {r: tuple(vals) for r, vals in result_dict.items()}
 
 
 # CSV output is possible, not very effective, though.
@@ -710,13 +715,22 @@ def create_tag_report_excel(
     model_count.set_column("A:A", 20)
     model_count.set_column("B:B", 15)
     model_count.set_column("C:C", 25)
-    model_count.write_row("A1", ("Model Name", "Video Count", "Partner Name"))
+    model_count.set_column("D:D", 50)
+    model_count.write_row(
+        "A1", ("Model Name", "Video Count", "Partner Name", "Post IDs")
+    )
     model_count.write_column("A2", tuple(model_wp_class_count.keys()))
     model_count.write_column(
-        "B2", tuple([count[0] for count in model_wp_class_count.values()])
+        "B2", tuple([count[0][0] for count in model_wp_class_count.values()])
     )
     model_count.write_column(
-        "C2", tuple([count[1] for count in model_wp_class_count.values()])
+        "C2", tuple([partner[0][1] for partner in model_wp_class_count.values()])
+    )
+    par_strip = lambda tp: str(tp).strip(")").strip("(")
+    t_comma_out = lambda tp: par_strip(tp) if len(tp) > 1 else par_strip(tp).strip(",")
+    model_count.write_column(
+        "D2",
+        tuple(map(t_comma_out, map(lambda tp: tp[1:], model_wp_class_count.values()))),
     )
 
     workbook.close()
@@ -982,7 +996,6 @@ if __name__ == "__main__":
     warnings.filterwarnings(
         "ignore",
         category=RuntimeWarning,
-        message=".*found in sys.modules after import of package.*",
     )
 
     args_parser = argparse.ArgumentParser(description="WordPress API Local Module")
