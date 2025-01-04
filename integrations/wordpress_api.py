@@ -587,7 +587,7 @@ def count_track_wp_class_id(
     match_word: str,
     track_match_wrd: str,
     hint_list: list[str],
-) -> dict[str, tuple[int, str]]:
+) -> dict[str, tuple[tuple[int | str]]]:
     """
     This function parses the wp_posts or wp_photos JSON files to locate and count tags or other
     keywords (e.g. models) that WordPress includes in the ``['class_list']`` key.
@@ -595,7 +595,7 @@ def count_track_wp_class_id(
     (any pattern that is associated with ``match_word``) to return a tuple with ``match_word`` count and the flag that
     realise the relationship with ``track_match_wrd`` by using a list of hints (``hint_list``).
 
-    The problem sustains the existence of this function resides in the need to map the models, video count and partner.
+    The problem that sustains the existence of this function resides in the need to map the models, video count and partner.
     Both model and partner (elements in the ``['class_list']`` key) are related and; therefore, such connection
     is realised by a list of hints that make sorting and matching easier.
 
@@ -622,6 +622,7 @@ def count_track_wp_class_id(
             if re.findall(track_match_wrd, item)
         ]
 
+        post_id = elem["id"]
         for item in kw:
             if item not in result_dict.keys():
                 match = [
@@ -630,13 +631,17 @@ def count_track_wp_class_id(
                 tr_kw = match[0] if match else False
 
                 if tr_kw:
-                    result_dict[item] = (1, tr_kw)
+                    result_dict[item] = [(1, tr_kw), post_id]
                 else:
-                    result_dict[item] = (1, "PartnerSeven/FeedBeta")
-
+                    result_dict[item] = [(1, "PartnerSeven/FeedBeta"), post_id]
             else:
-                result_dict[item] = (result_dict[item][0] + 1, result_dict[item][1])
-    return result_dict
+                result_dict[item][0] = (
+                    result_dict[item][0][0] + 1,
+                    result_dict[item][0][1],
+                )
+                result_dict[item].append(post_id)
+    # Packing into tuples makes it easier to process for reporting purposes.
+    return {r: tuple(vals) for r, vals in result_dict.items()}
 
 
 # CSV output is possible, not very effective, though.
