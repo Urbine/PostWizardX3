@@ -996,7 +996,6 @@ if __name__ == "__main__":
     warnings.filterwarnings(
         "ignore",
         category=RuntimeWarning,
-        message=".*found in sys.modules after import of package.*",
     )
 
     args_parser = argparse.ArgumentParser(description="WordPress API Local Module")
