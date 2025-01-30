@@ -302,20 +302,30 @@ def upload_image_set(
     else:
         pass
 
+    # Prepare the image new name so that separators are replaced by hyphens.
+    split_char = (
+        lambda name: chars[0] if (chars := re.findall(r"[\W_]+", name)) else " "
+    )
+    new_name_img = lambda name: "-".join(name.split(split_char(name)))
+
     for number, image in enumerate(thumbnails, start=1):
         img_attrs: dict[str, str] = make_gallery_payload(title, number)
+        new_img = os.path.abspath(f"{folder}/{new_name_img(image)}")
+        os.renames(os.path.abspath(f"{folder}/{image}"), new_img)
         status_code: int = wordpress_api.upload_thumbnail(
             wp_params.api_base_url,
             ["/media"],
-            f"{os.path.abspath(folder)}/{image}",
+            f"{new_img}",
             img_attrs,
         )
         # If upload is successful, the thumbnail is no longer useful.
         if status_code == (200 or 201):
-            os.remove(f"{os.path.abspath(folder)}/{image}")
+            os.remove(new_img)
         else:
             pass
-        print(f"* Image {number} | {image} --> Status code: {status_code}")
+        print(
+            f"* Image {number} | {new_name_img(image)} --> Status code: {status_code}"
+        )
     try:
         # Check if I have paths instead of filenames
         if len(thumbnails[0].split("/")) > 1:

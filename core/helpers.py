@@ -14,7 +14,6 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-import configparser
 import csv
 import glob
 import importlib.resources
@@ -23,6 +22,7 @@ import os
 import re
 import shutil
 import sqlite3
+import subprocess
 from typing import AnyStr, Any
 import urllib
 import urllib.request
@@ -822,3 +822,19 @@ def load_file_package_scope(package: str, filename: str) -> AnyStr:
     with importlib.resources.path(package, filename) as file_path:
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
+
+def imagick(img_path: Path, quality: int, target: str):
+    """Convert images to a target file format via the ImageMagick library
+       installed in the system.
+    :param img_path: ``Path`` - Image URI
+    :param quality: ``int`` image quality (0 to 100)
+    :param target: ``str`` target file format
+    :return: ``None``
+    """
+    if os.path.exists(img_path):
+        get_file = lambda dirpath: clean_filename(dirpath.split('/')[-1].split('.')[0], target)
+        img = img_path
+        subprocess.Popen(f'magick {img} -quality {quality} ./{get_file(img)}', shell=True).wait()
+    else:
+        raise FileNotFoundError(f'File {img_path} was not found!')
+    return None
