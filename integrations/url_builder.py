@@ -4,6 +4,7 @@ Contribute to better organization of the code by providing common elements that 
 """
 
 from dataclasses import dataclass
+from enum import Enum
 
 
 @dataclass(frozen=True)
@@ -61,3 +62,19 @@ class WPEndpoints:
     field_link: str = "link"
     categories: str = "/categories"
     media: str = "/media"
+
+
+@dataclass(frozen=True)
+class XScope:
+    READ: str = "tweet.read"
+    WRITE: str = "tweet.write"
+    OFFLINE: str = "offline.access"
+    MEDIA: str = "media.write"
+    USREAD: str = "users.read"
+
+
+@dataclass(frozen=True)
+class XEndpoints:
+    token_url: str = "https://api.x.com/2/oauth2/token"
+    authorise_url: str = "https://x.com/i/oauth2/authorize?"
+    tweets: str = "https://api.x.com/2/tweets"
