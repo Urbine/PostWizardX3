@@ -14,14 +14,17 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+import base64
 import csv
 import glob
 import importlib.resources
 import json
 import os
+import random
 import re
 import shutil
 import sqlite3
+import string
 import subprocess
 from typing import AnyStr, Any
 import urllib
@@ -37,6 +40,7 @@ from requests_oauthlib import OAuth2Session
 from selenium import webdriver
 from sqlite3 import OperationalError, Connection, Cursor
 
+# Local implmentations
 from core.custom_exceptions import ConfigFileNotFound
 
 # This way OAuthlib won't enforce HTTPS connections.
@@ -325,7 +329,7 @@ def get_token_oauth(
     )
     authorization_url, state = oauth_session.authorization_url(auth_url_)
     print(f"Please go to {authorization_url} and authorize access.")
-    authorization_response = input("Enter the full callback URL: ")
+    authorization_response = uri_callback_
     token = oauth_session.fetch_token(
         token_url_,
         authorization_response=authorization_response,
@@ -838,3 +842,25 @@ def imagick(img_path: Path, quality: int, target: str):
     else:
         raise FileNotFoundError(f'File {img_path} was not found!')
     return None
+
+
+def str_encode_b64(encode_str: str) -> str:
+    """Encode any string by using the Base64 algorithm.
+
+    :param encode_str: ``str`` to encode
+    :return:
+    """
+    encode_bytes = encode_str.encode("ascii")
+    b64_bytes = base64.b64encode(encode_bytes)
+    return b64_bytes.decode("ascii")
+
+
+def generate_random_str(k: int) -> str:
+    """Generate random string of ASCII characters based on a sample size ``k``.
+
+    :param k: ``int`` Number of letters per random string or "sample size"
+    :return: ``str``
+    """
+    letters = string.ascii_letters
+    random_string = "".join(random.choices(letters, k=k))
+    return random_string

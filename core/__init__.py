@@ -40,6 +40,7 @@ from core.helpers import get_dict_key
 from core.helpers import get_duration
 from core.helpers import get_from_db
 from core.helpers import get_project_db
+from core.helpers import generate_random_str
 from core.helpers import get_token_oauth
 from core.helpers import get_webdriver
 from core.helpers import is_parent_dir_required
@@ -74,6 +75,7 @@ __all__ = [
     "get_duration",
     "get_from_db",
     "get_project_db",
+    "generate_random_str",
     "get_token_oauth",
     "get_webdriver",
     "is_parent_dir_required",
