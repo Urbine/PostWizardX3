@@ -122,6 +122,21 @@ class TasksConf:
         return "TasksConf()"
 
 
+@dataclass(frozen=True)
+class XAuth:
+    uri_callback: str
+    x_username: str
+    x_passw: str
+    x_email: str
+    client_id: str
+    client_secret: str
+    api_key: str
+    api_secret: str
+
+    def __repr__(self):
+        return "XAuth(client_id, client_secret)"
+
+
 # client_info.ini
 client_info = parse_client_config("client_info", "core.config")
 
@@ -152,6 +167,19 @@ def yandex_auth() -> YandexAuth:
     return YandexAuth(
         client_id=client_info["Yandex"]["client_id"],
         client_secret=client_info["Yandex"]["client_secret"],
+    )
+
+
+def x_auth():
+    return XAuth(
+        client_id=client_info["x_api"]["client_id"],
+        client_secret=client_info["x_api"]["client_id"],
+        api_key=client_info["x_api"]["api_key"],
+        api_secret=client_info["x_api"]["api_secret"],
+        uri_callback=client_info["x_api"]["uri_callback"],
+        x_username=client_info["x_api"]["x_username"],
+        x_passw=client_info["x_api"]["x_passw"],
+        x_email=client_info["x_api"]["x_email"],
     )
 
 
