@@ -25,6 +25,14 @@ __author_email__ = "yohamg@programmer.net"
 from dataclasses import dataclass
 
 from core.helpers import parse_client_config
+from core.custom_exceptions import InvalidConfiguration
+
+
+def is_config_enabled(config_file_key):
+    if config_file_key.title() == "True" or config_file_key.title() == "False":
+        return eval(config_file_key.title())
+    else:
+        raise InvalidConfiguration(config_file_key)
 
 
 @dataclass(frozen=True)
@@ -67,6 +75,7 @@ class ContentSelectConf:
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
+    imagick: bool
     sql_query: str
     content_hint: str
     partners: str
@@ -78,6 +87,7 @@ class ContentSelectConf:
 @dataclass(frozen=True)
 class GallerySelectConf:
     pic_format: str
+    imagick: bool
     wp_json_photos: str
     wp_json_posts: str
     wp_cache_config: str
@@ -94,6 +104,7 @@ class EmbedAssistConf:
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
+    imagick: bool
     sql_query: str
     content_hint: str
     partners: str
@@ -152,7 +163,10 @@ def content_select_conf() -> ContentSelectConf:
     return ContentSelectConf(
         wp_json_posts=workflows_config["content_select"]["wp_json_posts"],
         wp_cache_config=workflows_config["content_select"]["wp_cache_config"],
-        pic_format=workflows_config["content_select"]["pic_format"],
+        pic_format=workflows_config["general_config"]["pic_format"],
+        imagick=is_config_enabled(
+            workflows_config["general_config"]["imagick_enabled"]
+        ),
         sql_query=workflows_config["content_select"]["sql_query"],
         content_hint=workflows_config["content_select"]["db_content_hint"],
         partners=workflows_config["content_select"]["partners"],
@@ -161,7 +175,10 @@ def content_select_conf() -> ContentSelectConf:
 
 def gallery_select_conf() -> GallerySelectConf:
     return GallerySelectConf(
-        pic_format=workflows_config["gallery_select"]["pic_format"],
+        pic_format=workflows_config["general_config"]["pic_format"],
+        imagick=is_config_enabled(
+            workflows_config["general_config"]["imagick_enabled"]
+        ),
         wp_json_photos=workflows_config["gallery_select"]["wp_json_photos"],
         wp_json_posts=workflows_config["gallery_select"]["wp_json_posts"],
         wp_cache_config=workflows_config["gallery_select"]["wp_cache_config"],
@@ -175,7 +192,10 @@ def embed_assist_conf() -> EmbedAssistConf:
     return EmbedAssistConf(
         wp_json_posts=workflows_config["embed_assist"]["wp_json_posts"],
         wp_cache_config=workflows_config["embed_assist"]["wp_cache_config"],
-        pic_format=workflows_config["embed_assist"]["pic_format"],
+        pic_format=workflows_config["general_config"]["pic_format"],
+        imagick=is_config_enabled(
+            workflows_config["general_config"]["imagick_enabled"]
+        ),
         sql_query=workflows_config["embed_assist"]["sql_query"],
         content_hint=workflows_config["embed_assist"]["db_content_hint"],
         partners=workflows_config["embed_assist"]["partners"],
