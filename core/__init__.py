@@ -15,6 +15,7 @@ from core.config_mgr import gallery_select_conf
 from core.config_mgr import content_select_conf
 from core.config_mgr import embed_assist_conf
 from core.config_mgr import tasks_conf
+from core.config_mgr import x_auth
 
 # Custom Exceptions `custom_exceptions.py`
 from core.custom_exceptions import InvalidInput
@@ -39,6 +40,7 @@ from core.helpers import get_dict_key
 from core.helpers import get_duration
 from core.helpers import get_from_db
 from core.helpers import get_project_db
+from core.helpers import generate_random_str
 from core.helpers import get_token_oauth
 from core.helpers import get_webdriver
 from core.helpers import is_parent_dir_required
@@ -73,6 +75,7 @@ __all__ = [
     "get_duration",
     "get_from_db",
     "get_project_db",
+    "generate_random_str",
     "get_token_oauth",
     "get_webdriver",
     "is_parent_dir_required",
@@ -91,4 +94,5 @@ __all__ = [
     "content_select_conf",
     "embed_assist_conf",
     "tasks_conf",
+    "x_auth",
 ]

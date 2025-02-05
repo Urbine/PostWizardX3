@@ -18,7 +18,7 @@ import argparse
 import os
 import random
 import re
-import readline  # Imported to enable standard input manipulation.
+import readline  # Imported to enable Standard Input manipulation. Don't remove!
 import tempfile
 import time
 import sqlite3
@@ -31,7 +31,6 @@ from sqlite3 import Connection, Cursor
 import pyclip
 import requests
 from rich.console import Console
-from rich.prompt import Prompt
 
 # Local implementations
 from core import (
@@ -294,7 +293,7 @@ def identify_missing(
 
 
 def fetch_thumbnail(
-    folder: str, slug: str, remote_res: str, thumbnail_name: str = ""
+    folder: str, slug: str, remote_res: str, format: str, thumbnail_name: str = ""
 ) -> int:
     """This function handles the renaming and fetching of thumbnails that will be uploaded to
     WordPress as media attachments. It dynamically renames the thumbnails by taking in a URL slug to
@@ -305,6 +304,7 @@ def fetch_thumbnail(
     :param folder: ``str`` thumbnails dir
     :param slug: ``str`` URL slug
     :param remote_res: ``str`` thumbnail download URL
+    :param format: ``str`` target image format used for conversion.
     :param thumbnail_name: ``str`` used in case the user wants to upload different thumbnails
     and wishes to keep the names.
     :return: ``int`` (status code from requests)
@@ -317,6 +317,9 @@ def fetch_thumbnail(
         name: str = thumbnail_name
     with open(f"{thumbnail_dir}/{slug}{name}.jpg", "wb") as img:
         img.write(remote_data.content)
+
+    # Image conversion to a target format
+    helpers.imagick(f"{thumbnail_dir}/{slug}{name}.jpg", 80, format)
     return remote_data.status_code
 
 
@@ -705,7 +708,7 @@ def content_select_db_match(
             relevant_content[int(select_file)],
             select_file,
         )
-    except IndexError or ValueError:
+    except (IndexError, ValueError):
         raise InvalidInput
 
 
@@ -1018,7 +1021,7 @@ def video_upload_pilot(
             console.print("--> Fetching thumbnail...", style="bold green")
             pic_format = clean_filename(wp_slug, cs_config.pic_format)
             try:
-                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
+                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url, "webp")
                 console.print(
                     f"--> Stored thumbnail {pic_format} in cache folder {os.path.relpath(thumbnails_dir.name)}",
                     style="bold green",

@@ -4,6 +4,7 @@ Contribute to better organization of the code by providing common elements that 
 """
 
 from dataclasses import dataclass
+from enum import Enum
 
 
 @dataclass(frozen=True)
@@ -34,14 +35,15 @@ class CSVColumns:
 
 
 @dataclass(frozen=True)
-class CSVSeparators:
+class URLEncode:
     """
-    Encoded separators for the URL params
+    Encoded separators for URL params
     """
 
-    pipe_sep: str = "%7C"
-    comma_sep: str = "%2C"
-    semicolon_sep: str = "%3B"
+    PIPE: str = "%7C"
+    COMMA: str = "%2C"
+    SEMICOLON: str = "%3B"
+    SPACE: str = "%20"
 
 
 @dataclass(frozen=True)
@@ -61,3 +63,19 @@ class WPEndpoints:
     field_link: str = "link"
     categories: str = "/categories"
     media: str = "/media"
+
+
+@dataclass(frozen=True)
+class XScope:
+    READ: str = "tweet.read"
+    WRITE: str = "tweet.write"
+    OFFLINE: str = "offline.access"
+    MEDIA: str = "media.write"
+    USREAD: str = "users.read"
+
+
+@dataclass(frozen=True)
+class XEndpoints:
+    token_url: str = "https://api.x.com/2/oauth2/token"
+    authorise_url: str = "https://x.com/i/oauth2/authorize?"
+    tweets: str = "https://api.x.com/2/tweets"

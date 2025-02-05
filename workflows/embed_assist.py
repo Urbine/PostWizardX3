@@ -301,7 +301,9 @@ def embedding_pilot(
             )
             console.print("--> Fetching thumbnail...", style="bold green")
             try:
-                cs.fetch_thumbnail(thumbnails_dir.name, wp_slug, main_thumbnail_name)
+                cs.fetch_thumbnail(
+                    thumbnails_dir.name, wp_slug, main_thumbnail_name, "webp"
+                )
                 console.print(
                     f"--> Stored thumbnail {wp_slug}.jpg in cache folder {os.path.relpath(thumbnails_dir.name)}",
                     style="bold green",

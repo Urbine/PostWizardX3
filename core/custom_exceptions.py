@@ -64,3 +64,15 @@ class UnsupportedParameter(Exception):
         self.param = param
         self.message = f"Unsupported parameter {param}. Try again."
         super().__init__(self.message)
+
+
+class InvalidConfiguration(Exception):
+    """
+    Handle configuration errors that may occur on keys dealing with boolean values or
+    values that must abide by Python's syntactic rules.
+    """
+
+    def __init__(self, param: str):
+        self.param = param
+        self.message = f"Correct configuration key {str(param)} and try again."
+        super().__init__(self.message)

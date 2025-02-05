@@ -11,7 +11,7 @@ import tempfile
 
 # Local implementations
 import core
-from .url_builder import CSVColumns, CSVSeparators
+from .url_builder import CSVColumns, URLEncode
 from core.helpers import clean_file_cache, remove_if_exists
 
 VJAV_BASE_URL = "https://vjav.com/admin/feeds/embed/?source=576422190"
@@ -23,7 +23,7 @@ def construct_tube_dump_url(
     sort_crit: str,
     days: str | int = "",
     url_limit: str | int = 999999999,
-    sep: CSVSeparators = CSVSeparators.pipe_sep,
+    sep: URLEncode = URLEncode.PIPE,
     columns: CSVColumns = CSVColumns,
 ) -> str:
     """
