@@ -7,7 +7,7 @@ import tempfile
 # Local implementations
 import core
 from core.helpers import clean_file_cache, remove_if_exists
-from .url_builder import CSVColumns, CSVSeparators
+from .url_builder import CSVColumns, URLEncode
 
 # Constants
 
@@ -21,7 +21,7 @@ def construct_api_dump_url(
     sort_crit: str,
     days: str | int = "",
     url_limit: str | int = 999999999,
-    sep: CSVSeparators = CSVSeparators.pipe_sep,
+    sep: URLEncode = URLEncode.PIPE,
     columns: CSVColumns = CSVColumns,
 ) -> str:
     """

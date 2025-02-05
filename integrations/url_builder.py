@@ -35,14 +35,15 @@ class CSVColumns:
 
 
 @dataclass(frozen=True)
-class CSVSeparators:
+class URLEncode:
     """
-    Encoded separators for the URL params
+    Encoded separators for URL params
     """
 
-    pipe_sep: str = "%7C"
-    comma_sep: str = "%2C"
-    semicolon_sep: str = "%3B"
+    PIPE: str = "%7C"
+    COMMA: str = "%2C"
+    SEMICOLON: str = "%3B"
+    SPACE: str = "%20"
 
 
 @dataclass(frozen=True)
