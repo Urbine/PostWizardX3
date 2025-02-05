@@ -18,13 +18,16 @@ import os
 import core
 
 
-def clean_outdated(hints_: list[str], file_lst: list[str], folder: str) -> None:
+def clean_outdated(
+    hints_: list[str], file_lst: list[str], folder: str, silent: bool = False
+) -> None:
     """Match and identify outdated files, and report to the user which files are
         being deleted.
 
     :param hints_: ``list[str]`` possible filename hints of the files to be deleted.
     :param file_lst: ``list[str]`` file list filtered by extension (externally)
     :param folder: ``str`` folder that will be examined by the function.
+    :param silent: ``bool`` supresses the debugging output.
     :return: ``None``
     """
     os.chdir(folder)
@@ -32,13 +35,15 @@ def clean_outdated(hints_: list[str], file_lst: list[str], folder: str) -> None:
         hints_, file_lst, ignore_case=True, strict=True, reverse=True
     )
     for file in outdated:
-        print(f"Removing {os.path.abspath(file)}")
+        if not silent:
+            print(f"Removing {os.path.abspath(file)}")
         os.remove(file)
 
-    if len(outdated) != 0:
-        print(f"{'DONE':=^35}")
-    else:
-        print("Nothing to clean...")
+    if not silent:
+        if len(outdated) != 0:
+            print(f"{'DONE':=^35}")
+        else:
+            print("Nothing to clean...")
 
     return None
 
