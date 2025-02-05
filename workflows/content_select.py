@@ -18,7 +18,7 @@ import argparse
 import os
 import random
 import re
-import readline  # Imported to enable standard input manipulation.
+import readline  # Imported to enable Standard Input manipulation. Don't remove!
 import tempfile
 import time
 import sqlite3
@@ -31,7 +31,6 @@ from sqlite3 import Connection, Cursor
 import pyclip
 import requests
 from rich.console import Console
-from rich.prompt import Prompt
 
 # Local implementations
 from core import (
@@ -709,7 +708,7 @@ def content_select_db_match(
             relevant_content[int(select_file)],
             select_file,
         )
-    except IndexError or ValueError:
+    except (IndexError, ValueError):
         raise InvalidInput
 
 
