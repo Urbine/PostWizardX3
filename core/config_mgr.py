@@ -25,6 +25,14 @@ __author_email__ = "yohamg@programmer.net"
 from dataclasses import dataclass
 
 from core.helpers import parse_client_config
+from core.custom_exceptions import InvalidConfiguration
+
+
+def is_config_enabled(config_file_key):
+    if config_file_key.title() == "True" or config_file_key.title() == "False":
+        return eval(config_file_key.title())
+    else:
+        raise InvalidConfiguration(config_file_key)
 
 
 @dataclass(frozen=True)
@@ -67,6 +75,7 @@ class ContentSelectConf:
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
+    imagick: bool
     sql_query: str
     content_hint: str
     partners: str
@@ -78,6 +87,7 @@ class ContentSelectConf:
 @dataclass(frozen=True)
 class GallerySelectConf:
     pic_format: str
+    imagick: bool
     wp_json_photos: str
     wp_json_posts: str
     wp_cache_config: str
@@ -94,6 +104,7 @@ class EmbedAssistConf:
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
+    imagick: bool
     sql_query: str
     content_hint: str
     partners: str
@@ -109,6 +120,21 @@ class TasksConf:
 
     def __repr__(self):
         return "TasksConf()"
+
+
+@dataclass(frozen=True)
+class XAuth:
+    uri_callback: str
+    x_username: str
+    x_passw: str
+    x_email: str
+    client_id: str
+    client_secret: str
+    api_key: str
+    api_secret: str
+
+    def __repr__(self):
+        return "XAuth(client_id, client_secret)"
 
 
 # client_info.ini
@@ -144,6 +170,19 @@ def yandex_auth() -> YandexAuth:
     )
 
 
+def x_auth():
+    return XAuth(
+        client_id=client_info["x_api"]["client_id"],
+        client_secret=client_info["x_api"]["client_id"],
+        api_key=client_info["x_api"]["api_key"],
+        api_secret=client_info["x_api"]["api_secret"],
+        uri_callback=client_info["x_api"]["uri_callback"],
+        x_username=client_info["x_api"]["x_username"],
+        x_passw=client_info["x_api"]["x_passw"],
+        x_email=client_info["x_api"]["x_email"],
+    )
+
+
 # workflows_config.ini
 workflows_config = parse_client_config("workflows_config", "core.config")
 
@@ -152,7 +191,10 @@ def content_select_conf() -> ContentSelectConf:
     return ContentSelectConf(
         wp_json_posts=workflows_config["content_select"]["wp_json_posts"],
         wp_cache_config=workflows_config["content_select"]["wp_cache_config"],
-        pic_format=workflows_config["content_select"]["pic_format"],
+        pic_format=workflows_config["general_config"]["pic_format"],
+        imagick=is_config_enabled(
+            workflows_config["general_config"]["imagick_enabled"]
+        ),
         sql_query=workflows_config["content_select"]["sql_query"],
         content_hint=workflows_config["content_select"]["db_content_hint"],
         partners=workflows_config["content_select"]["partners"],
@@ -161,7 +203,10 @@ def content_select_conf() -> ContentSelectConf:
 
 def gallery_select_conf() -> GallerySelectConf:
     return GallerySelectConf(
-        pic_format=workflows_config["gallery_select"]["pic_format"],
+        pic_format=workflows_config["general_config"]["pic_format"],
+        imagick=is_config_enabled(
+            workflows_config["general_config"]["imagick_enabled"]
+        ),
         wp_json_photos=workflows_config["gallery_select"]["wp_json_photos"],
         wp_json_posts=workflows_config["gallery_select"]["wp_json_posts"],
         wp_cache_config=workflows_config["gallery_select"]["wp_cache_config"],
@@ -175,7 +220,10 @@ def embed_assist_conf() -> EmbedAssistConf:
     return EmbedAssistConf(
         wp_json_posts=workflows_config["embed_assist"]["wp_json_posts"],
         wp_cache_config=workflows_config["embed_assist"]["wp_cache_config"],
-        pic_format=workflows_config["embed_assist"]["pic_format"],
+        pic_format=workflows_config["general_config"]["pic_format"],
+        imagick=is_config_enabled(
+            workflows_config["general_config"]["imagick_enabled"]
+        ),
         sql_query=workflows_config["embed_assist"]["sql_query"],
         content_hint=workflows_config["embed_assist"]["db_content_hint"],
         partners=workflows_config["embed_assist"]["partners"],
