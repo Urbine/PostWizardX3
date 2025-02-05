@@ -818,7 +818,8 @@ def write_to_file(filename: str, folder: str, extension: str, stream: Any) -> No
 
 
 def load_file_package_scope(package: str, filename: str) -> AnyStr:
-    """Load file when the program is executed as a module
+    """Load file when the program is executed as a module.
+
     :param package: package name
     :param filename: filename
     :return: AnyStr
@@ -827,20 +828,24 @@ def load_file_package_scope(package: str, filename: str) -> AnyStr:
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
 
+
 def imagick(img_path: Path, quality: int, target: str):
     """Convert images to a target file format via the ImageMagick library
        installed in the system.
+
     :param img_path: ``Path`` - Image URI
     :param quality: ``int`` image quality (0 to 100)
     :param target: ``str`` target file format
     :return: ``None``
     """
     if os.path.exists(img_path):
-        get_file = lambda dirpath: clean_filename(dirpath.split('/')[-1].split('.')[0], target)
-        img = img_path
-        subprocess.Popen(f'magick {img} -quality {quality} ./{get_file(img)}', shell=True).wait()
+        img = os.path.split(img_path)
+        get_file = lambda dirpath: clean_filename(dirpath[1], target)
+        subprocess.Popen(
+            f"magick {img} -quality {quality} {img[0]}/{get_file(img)}", shell=True
+        ).wait()
     else:
-        raise FileNotFoundError(f'File {img_path} was not found!')
+        raise FileNotFoundError(f"File {img_path} was not found!")
     return None
 
 
