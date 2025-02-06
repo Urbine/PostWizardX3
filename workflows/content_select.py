@@ -40,10 +40,11 @@ from core import (
     content_select_conf,
     wp_auth,
     clean_filename,
+    x_auth,
 )
 
-from integrations import wordpress_api
-from integrations.url_builder import WPEndpoints
+from integrations import wordpress_api, x_api
+from integrations.url_builder import WPEndpoints, XEndpoints
 from ml_engine import classify_title, classify_description, classify_tags
 
 # Imported for typing purposes
@@ -712,6 +713,66 @@ def content_select_db_match(
         raise InvalidInput
 
 
+def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
+    """Create a post with a random action call for the X platform.
+
+    :param description: ``str`` Video description
+    :param post_url: ``str`` Video post url on WordPress
+    :return: ``int`` POST request status code.
+    """
+    cs_conf = content_select_conf()
+    site_name = cs_conf.site_name
+    calls_to_action = [
+        f"Watch more on {site_name}:",
+        f"Take a quick look on {site_name}:",
+        f"Watch the action for free on {site_name}:",
+        f"Don't miss out. Watch now on {site_name}:",
+        f"Don't miss out. Watch more on {site_name}:",
+        f"Watch for free on {site_name}:",
+        "Click below to watch for free:",
+        "Check out this content:",
+        f"{site_name} has it all for free:",
+        f"All the Good stuff. Only on {site_name}:"
+        "I bet you haven't watched this one:"
+        "Here's what you requested:",
+        "This is available at no cost:",
+        f"Recommended for you:",
+        f"Check out {site_name} today:",
+        "Watch today for free:",
+        "Don't miss this:",
+        "Discover something new:",
+        f"Brought to you by {site_name}:",
+    ]
+    # Env variable "X_TOKEN" is assigned in function ``x_api.refresh_flow()``
+    bearer_token = os.environ.get("X_TOKEN")
+    if not post_text:
+        post_text = f"{description} {random.choice(calls_to_action)} {post_url}"
+    else:
+        post_text = f"{description} {post_text} {post_url}"
+    request = x_api.post_x(post_text, bearer_token, XEndpoints())
+    return request.status_code
+
+
+def wp_publish_checker(
+    post_slug: str, cs_conf: ContentSelectConf | EmbedAssistConf | GallerySelectConf
+) -> bool | None:
+    hot_sync = hot_file_sync(cs_conf)
+    while hot_sync:
+        posts_file = (
+            cs_conf.wp_json_photos
+            if isinstance(cs_conf, GallerySelectConf)
+            else cs_conf.wp_json_posts
+        )
+        wp_postf = helpers.load_json_ctx(posts_file)
+        slugs = wordpress_api.get_slugs(wp_postf)
+        if post_slug in slugs:
+            os.environ["LATEST_POST"] = wp_postf[0]["link"]
+            return True
+        # Retry every two seconds
+        time.sleep(2)
+        hot_sync = hot_file_sync(cs_conf)
+
+
 def video_upload_pilot(
     banner_lsts: list[list[str]],
     wp_auth: WPAuth = wp_auth(),
@@ -789,6 +850,7 @@ def video_upload_pilot(
         spinner="aesthetic",
     ):
         hot_file_sync(bot_config=cs_config)
+        x_api.refresh_flow(x_auth(), XEndpoints())
     partners: list[str] = cs_config.partners.split(",")
     wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
     wp_base_url: str = wp_auth.api_base_url
@@ -1073,9 +1135,37 @@ def video_upload_pilot(
                 pyclip.copy(source_url)
                 pyclip.copy(title)
                 console.print(
-                    "--> * DONE * Check the post and paste all you need from your clipboard.",
-                    style="bold yellow",
+                    "--> Check the post and paste all you need from your clipboard.",
+                    style="bold green",
                 )
+                if cs_config.x_posting_enabled:
+                    status_msg = "Checking WP status and preparing for X posting."
+                    with console.status(
+                        f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
+                        spinner="earth",
+                    ):
+                        is_published = wp_publish_checker(wp_slug, cs_config)
+                    if is_published:
+                        if cs_config.x_posting_auto:
+                            x_post_create = x_post_creator(
+                                description, os.environ.get("LATEST_POST")
+                            )
+                        else:
+                            post_text = console.input(
+                                "[bold yellow]Enter your additional post text here or press enter to use default configs: [bold yellow]\n"
+                            )
+                            x_post_create = x_post_creator(
+                                description,
+                                os.environ.get("LATEST_POST"),
+                                post_text=post_text,
+                            )
+                        if x_post_create == 201:
+                            console.print(
+                                "--> Post has been published on WP and shared on X.",
+                                style="bold yellow",
+                            )
+                else:
+                    pass
                 videos_uploaded += 1
             except SSLError:
                 pyclip.detect_clipboard()

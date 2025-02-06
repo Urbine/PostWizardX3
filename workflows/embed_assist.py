@@ -24,12 +24,10 @@ import time
 from rich.console import Console
 
 # Local implementations
-from core import helpers
-import workflows.content_select as cs
-from core.config_mgr import embed_assist_conf, wp_auth
-
-from integrations import wordpress_api, WPEndpoints
+from core import helpers, embed_assist_conf, wp_auth, x_auth, clean_filename
+from integrations import wordpress_api, x_api, WPEndpoints, XEndpoints
 from ml_engine import classify_title, classify_description
+import workflows.content_select as cs
 
 
 def filter_tags(tgs: str, filter_lst: list[str]) -> list[str]:
@@ -102,6 +100,7 @@ def embedding_pilot(
         spinner="aesthetic",
     ):
         cs.hot_file_sync(bot_config=embed_ast_conf)
+        x_api.refresh_flow(x_auth(), XEndpoints())
     wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
     partner_list = embed_ast_conf.partners.split(",")
     os.system("clear")
@@ -355,8 +354,36 @@ def embedding_pilot(
                 pyclip.copy(title)
                 console.print(
                     "--> Check the post and paste all you need from your clipboard.",
-                    style="bold yellow",
+                    style="bold green",
                 )
+                if embed_ast_conf.x_posting_enabled:
+                    status_msg = "Checking WP status and preparing for X posting."
+                    with console.status(
+                        f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
+                        spinner="earth",
+                    ):
+                        is_published = cs.wp_publish_checker(wp_slug, embed_ast_conf)
+                    if is_published:
+                        if embed_ast_conf.x_posting_auto:
+                            x_post_create = cs.x_post_creator(
+                                title, os.environ.get("LATEST_POST")
+                            )
+                        else:
+                            post_text = console.input(
+                                "[bold yellow]Enter your additional post text here or press enter to use default configs: [bold yellow]\n"
+                            )
+                            x_post_create = cs.x_post_creator(
+                                title,
+                                os.environ.get("LATEST_POST"),
+                                post_text=post_text,
+                            )
+                        if x_post_create == 201:
+                            console.print(
+                                "--> Post has been published on WP and shared on X.",
+                                style="bold yellow",
+                            )
+                else:
+                    pass
                 videos_uploaded += 1
             except SSLError:
                 pyclip.detect_clipboard()

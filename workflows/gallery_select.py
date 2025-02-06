@@ -36,14 +36,16 @@ from workflows.content_select import (
     select_guard,
     published_json,
     content_select_db_match,
+    wp_publish_checker,
+    x_post_creator,
 )
 from core.helpers import clean_file_cache
 
-from core import helpers, media_source_auth, gallery_select_conf, wp_auth
+from core import helpers, media_source_auth, gallery_select_conf, wp_auth, x_auth
 
 # Imported for typing purposes
 from core.config_mgr import MediaSourceAuth, WPAuth, GallerySelectConf
-from integrations import wordpress_api, WPEndpoints
+from integrations import wordpress_api, x_api, WPEndpoints, XEndpoints
 
 
 def fetch_zip(
@@ -425,6 +427,7 @@ def gallery_upload_pilot(
         spinner="aesthetic",
     ):
         hot_file_sync(bot_config=gallery_sel_conf)
+        x_api.refresh_flow(x_auth(), XEndpoints())
     wp_photos_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_photos)
     wp_posts_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_posts)
     partners: list[str] = gallery_sel_conf.partners.split(",")
@@ -538,6 +541,37 @@ def gallery_upload_pilot(
                     "--> Check the set and paste your focus phrase on WP.",
                     style="bold magenta",
                 )
+                if gallery_sel_conf.x_posting_enabled:
+                    status_msg = "Checking WP status and preparing for X posting."
+                    with console.status(
+                        f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
+                        spinner="earth",
+                    ):
+                        # Env variable 'SET_SLUG' is assigned in function ``make_photos_payload``
+                        is_published = wp_publish_checker(
+                            os.environ.get("SET_SLUG"), gallery_sel_conf
+                        )
+                    if is_published:
+                        if gallery_sel_conf.x_posting_auto:
+                            x_post_create = x_post_creator(
+                                title, os.environ.get("LATEST_POST")
+                            )
+                        else:
+                            post_text = console.input(
+                                "[bold yellow]Enter your additional post text here or press enter to use default configs: [bold yellow]\n"
+                            )
+                            x_post_create = x_post_creator(
+                                title,
+                                os.environ.get("LATEST_POST"),
+                                post_text=post_text,
+                            )
+                        if x_post_create == 201:
+                            console.print(
+                                "--> Post has been published on WP and shared on X.",
+                                style="bold yellow",
+                            )
+                else:
+                    pass
                 galleries_uploaded += 1
             except ConnectionError:
                 pyclip.detect_clipboard()
