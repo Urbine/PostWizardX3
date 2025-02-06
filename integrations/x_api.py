@@ -1,11 +1,19 @@
+"""
+X Social integration for the content management bots.
+As of now, this integration is capable of interacting with the
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
+# Std Library
 import argparse
-import datetime
 import os
-import requests
 import time
 
 # Third-party modules
 import pyclip
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -13,14 +21,15 @@ from selenium.common.exceptions import NoSuchElementException
 
 # Local implementations
 import core
-from core import x_auth, generate_random_str, get_webdriver
+from core import x_auth, generate_random_str, get_webdriver, RefreshTokenError
+from core.config_mgr import XAuth  # Imported for type annotations.
 from .url_builder import URLEncode, XScope, XEndpoints
 from workflows import clean_outdated
 
 
-def curl_auth_x(xauth):
+def curl_auth_x(xauth: XAuth, x_endpoints: XEndpoints):
     response = requests.post(
-        xauth.api_token_url,
+        x_endpoints.token_url,
         data={"grant_type": "client_credentials"},
         auth=(xauth.api_key, xauth.api_secret),
     )
@@ -37,7 +46,7 @@ def post_x(post_text: str, api_token: str, x_endpoints: XEndpoints):
     return requests.post(post_url, json=post_data, headers=headers)
 
 
-def x_oauth_pkce(xauth, x_endpoints: XEndpoints):
+def x_oauth_pkce(xauth: XAuth, x_endpoints: XEndpoints):
     space = URLEncode.SPACE
     params = {
         "response_type": "code",
@@ -51,7 +60,7 @@ def x_oauth_pkce(xauth, x_endpoints: XEndpoints):
     return requests.get(x_endpoints.authorise_url, params=params).url
 
 
-def access_token(code: str, xauth, x_endpoints: XEndpoints):
+def access_token(code: str, xauth: XAuth, x_endpoints: XEndpoints):
     token_url = x_endpoints.token_url
     header = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -71,9 +80,8 @@ def access_token(code: str, xauth, x_endpoints: XEndpoints):
     ).json()
 
 
-def refresh_token_x(refresh_token: str, xauth, x_endpoints: XEndpoints):
+def refresh_token_x(refresh_token: str, xauth: XAuth, x_endpoints: XEndpoints):
     token_url = x_endpoints.token_url
-    credentials = f"{xauth.client_id}:{xauth.client_secret}"
     header = {
         "Content-Type": "application/x-www-form-urlencoded",
     }
@@ -86,10 +94,10 @@ def refresh_token_x(refresh_token: str, xauth, x_endpoints: XEndpoints):
         data=data,
         auth=(xauth.client_id, xauth.client_secret),
         headers=header,
-    ).json()
+    )
 
 
-def authorise_app_x(xauth, x_endpoints: XEndpoints, headless=True, gecko=False):
+def authorise_app_x(xauth: XAuth, x_endpoints: XEndpoints, headless=True, gecko=False):
     webdrv = get_webdriver(".", headless=headless, gecko=gecko)
     with webdrv as driver:
         url = x_oauth_pkce(xauth, x_endpoints)
@@ -139,7 +147,7 @@ def authorise_app_x(xauth, x_endpoints: XEndpoints, headless=True, gecko=False):
         login_btn.click()
         time.sleep(5)
 
-        get_code = lambda url: url.split("=")[-1]
+        get_code = lambda callback: callback.split("=")[-1]
 
         # This process is likely to fail due to suspicious activity detected by X.
         try:
@@ -152,7 +160,7 @@ def authorise_app_x(xauth, x_endpoints: XEndpoints, headless=True, gecko=False):
             token_code = get_code(driver.current_url)
         except NoSuchElementException:
             driver.close()
-            print("Automatic authorization process failed. Try again with this URL.")
+            print("Automatic authorization process failed. Try with this URL.")
             print(f"Paste the following in a browser (already copied): {url}")
             pyclip.detect_clipboard()
             pyclip.copy(url)
@@ -163,7 +171,7 @@ def authorise_app_x(xauth, x_endpoints: XEndpoints, headless=True, gecko=False):
     return token_code
 
 
-def load_tokens_local(folder: str) -> tuple[str, str] | None:
+def load_tokens_json(folder: str) -> tuple[str, str] | None:
     local_files = core.search_files_by_ext("json", folder)
     # In case there are outdated files
     clean_outdated(["token-x"], local_files, folder, silent=True)
@@ -174,23 +182,36 @@ def load_tokens_local(folder: str) -> tuple[str, str] | None:
         return None
 
 
-def refresh_flow_x(xauth, x_endpoints: XEndpoints, folder: str) -> tuple[str, str]:
-    tkn_filename = f"token-x-{datetime.date.today()}"
-    current_tokens = load_tokens_local(folder)
-    core.export_request_json(
-        tkn_filename, refresh_token_x(current_tokens[1], xauth, x_endpoints)
+def write_tokens_cinfo(new_bearer_token: str, new_refresh_token: str) -> None:
+    core.write_config_file(
+        "client_info", "core.config", "x_api", "access_token", new_bearer_token
     )
-    new_tokens = load_tokens_local(folder)
-    return new_tokens
+    core.write_config_file(
+        "client_info", "core.config", "x_api", "refresh_token", new_refresh_token
+    )
+    return None
+
+
+def refresh_flow(xauth: XAuth, x_endpoints: XEndpoints) -> None:
+    refresh_token = xauth.refresh_token
+    new_request = refresh_token_x(refresh_token, xauth, x_endpoints)
+    status_code = new_request.status_code
+    if status_code == 200:
+        new_tokens = new_request.json()
+        new_refresh_token = new_tokens["refresh_token"]
+        new_bearer = new_tokens["access_token"]
+        write_tokens_cinfo(new_bearer, new_refresh_token)
+        os.environ["X_TOKEN"] = new_bearer
+    else:
+        raise RefreshTokenError(new_request.reason)
+    return None
 
 
 def main(*args, **kwargs):
     ch_code = authorise_app_x(*args, **kwargs)
-    token_filename = f"token-x-{datetime.date.today()}"
-    core.export_request_json(
-        token_filename, access_token(ch_code, x_auth(), XEndpoints())
-    )
-    print(f"Check for file {token_filename}.json in {os.getcwd()}")
+    new_tokens = access_token(ch_code, x_auth(), XEndpoints())
+    write_tokens_cinfo(new_tokens["access_token"], new_tokens["refresh_token"])
+    print(f"The client_info.ini file has been updated with the new tokens.")
 
 
 if __name__ == "__main__":
@@ -212,5 +233,5 @@ if __name__ == "__main__":
         help="Use the Gecko webdriver for the automation.",
     )
 
-    arg_s = arg.parse_args()
-    main(x_auth(), XEndpoints(), headless=arg_s.headless, gecko=arg_s.gecko)
+    args_cli = arg.parse_args()
+    main(x_auth(), XEndpoints(), headless=args_cli.headless, gecko=args_cli.gecko)

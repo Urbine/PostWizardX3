@@ -9,6 +9,14 @@ else
   :
 fi
 
+venv=$(pwd | grep -c venv)
+if [ "$venv" = 1 ];then
+  # Go to parent dir if executed from .venv
+  cd ..
+else
+  :
+fi
+
 echo "--> Testing function clean_filename from the common package:"
 python3 -m unittest ./tests/test_clean_filename.py
 

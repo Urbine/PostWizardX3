@@ -11,12 +11,11 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Std Library
+
 import os
 import pyclip
-from requests.exceptions import ConnectionError, SSLError
-import readline
-import sys
+from requests.exceptions import SSLError
+import readline  # Imported to enable Standard Input manipulation. Don't remove!
 import tempfile
 import time
 
@@ -24,12 +23,10 @@ import time
 from rich.console import Console
 
 # Local implementations
-from core import helpers
-import workflows.content_select as cs
-from core.config_mgr import embed_assist_conf, wp_auth
-
-from integrations import wordpress_api, WPEndpoints
+from core import helpers, embed_assist_conf, wp_auth, x_auth, clean_filename
+from integrations import wordpress_api, x_api, WPEndpoints, XEndpoints
 from ml_engine import classify_title, classify_description
+import workflows.content_select as cs
 
 
 def filter_tags(tgs: str, filter_lst: list[str]) -> list[str]:
@@ -83,7 +80,7 @@ def filter_published_embeds(
 
 def embedding_pilot(
     embed_ast_conf=embed_assist_conf(),
-    wp_auth=wp_auth(),
+    wpauths=wp_auth(),
     wp_endpoints: WPEndpoints = WPEndpoints,
 ) -> None:
     """
@@ -91,7 +88,7 @@ def embedding_pilot(
     implementations of Japanese adult content providers in the ``integrations`` package.
 
     :param embed_ast_conf: ``EmbedAssistConf`` Object with configuration info for this bot.
-    :param wp_auth: ``WPAuth`` object that contains configuration of your site.
+    :param wpauths: ``WPAuth`` object that contains configuration of your site.
     :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
     :return: ``None``
     """
@@ -102,6 +99,7 @@ def embedding_pilot(
         spinner="aesthetic",
     ):
         cs.hot_file_sync(bot_config=embed_ast_conf)
+        x_api.refresh_flow(x_auth(), XEndpoints())
     wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
     partner_list = embed_ast_conf.partners.split(",")
     os.system("clear")
@@ -110,7 +108,7 @@ def embedding_pilot(
         partner_list, embed_ast_conf.content_hint
     )
 
-    wp_base_url = wp_auth.api_base_url
+    wp_base_url = wpauths.api_base_url
     videos_uploaded: int = 0
     partner = partner_list[partner_indx]
     cs.select_guard(db_dump_name, partner)
@@ -262,8 +260,8 @@ def embedding_pilot(
                 " \n** I think these categories are appropriate: **\n",
                 style="bold yellow",
             )
-            for num, categ in enumerate(consolidate_categs, start=1):
-                console.print(f"{num}. {categ}", style="bold green")
+            for numbr, categ in enumerate(consolidate_categs, start=1):
+                console.print(f"{numbr}. {categ}", style="bold green")
 
             match console.input(
                 "[bold yellow]\nEnter the category number or type in to look for another category in the site: [/bold yellow]\n"
@@ -293,19 +291,27 @@ def embedding_pilot(
             console.print("\n--> Making payload...", style="bold green")
             payload = cs.make_payload_simple(
                 wp_slug,
-                wp_auth.default_status,
+                wpauths.default_status,
                 title,
                 title,
                 tag_ints,
                 categs=category,
             )
             console.print("--> Fetching thumbnail...", style="bold green")
+            pic_format = (
+                embed_ast_conf.pic_format
+                if embed_ast_conf.imagick
+                else embed_ast_conf.pic_fallback
+            )
+            thumbnail = clean_filename(wp_slug, pic_format)
             try:
                 cs.fetch_thumbnail(
-                    thumbnails_dir.name, wp_slug, main_thumbnail_name, "webp"
+                    thumbnails_dir.name,
+                    wp_slug,
+                    main_thumbnail_name,
                 )
                 console.print(
-                    f"--> Stored thumbnail {wp_slug}.jpg in cache folder {os.path.relpath(thumbnails_dir.name)}",
+                    f"--> Stored thumbnail {thumbnail} in cache folder {os.path.relpath(thumbnails_dir.name)}",
                     style="bold green",
                 )
                 console.print(
@@ -318,7 +324,7 @@ def embedding_pilot(
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
-                    f"{thumbnails_dir.name}/{wp_slug}.jpg",
+                    f"{thumbnails_dir.name}/{thumbnail}",
                     img_attrs,
                 )
 
@@ -335,7 +341,7 @@ def embedding_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(f"{thumbnails_dir.name}/{wp_slug}.jpg")
+                    os.remove(f"{thumbnails_dir.name}/{thumbnail}")
                 else:
                     pass
 
@@ -355,8 +361,36 @@ def embedding_pilot(
                 pyclip.copy(title)
                 console.print(
                     "--> Check the post and paste all you need from your clipboard.",
-                    style="bold yellow",
+                    style="bold green",
                 )
+                if embed_ast_conf.x_posting_enabled:
+                    status_msg = "Checking WP status and preparing for X posting."
+                    with console.status(
+                        f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
+                        spinner="earth",
+                    ):
+                        is_published = cs.wp_publish_checker(wp_slug, embed_ast_conf)
+                    if is_published:
+                        if embed_ast_conf.x_posting_auto:
+                            x_post_create = cs.x_post_creator(
+                                title, os.environ.get("LATEST_POST")
+                            )
+                        else:
+                            post_text = console.input(
+                                "[bold yellow]Enter your additional post text here or press enter to use default configs: [bold yellow]\n"
+                            )
+                            x_post_create = cs.x_post_creator(
+                                title,
+                                os.environ.get("LATEST_POST"),
+                                post_text=post_text,
+                            )
+                        if x_post_create == 201:
+                            console.print(
+                                "--> Post has been published on WP and shared on X.",
+                                style="bold yellow",
+                            )
+                else:
+                    pass
                 videos_uploaded += 1
             except SSLError:
                 pyclip.detect_clipboard()
@@ -378,41 +412,9 @@ def embedding_pilot(
                     break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold yellow]\nNext post? -> Y/N/ENTER to review next post: [/bold yellow]\n"
+                    "[bold yellow]\nNext post? -> N/ENTER to review next post: [/bold yellow]\n"
                 ).lower()
-                if next_post == ("y" or "yes"):
-                    # Clears clipboard after every video.
-                    pyclip.clear()
-                    with console.status(
-                        "[bold magenta] Syncing and caching changes... [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink][/bold magenta]\n",
-                        spinner="aesthetic",
-                    ):
-                        try:
-                            sync = cs.hot_file_sync(bot_config=embed_ast_conf)
-                        except ConnectionError:
-                            console.print(
-                                "Hot File Sync encountered a ConnectionError.",
-                                style="bold red",
-                            )
-                            console.print(
-                                "Going to next post. I will fetch your changes in a next try.",
-                                style="bold magenta",
-                            )
-                            console.print(
-                                "If you want to update again, relaunch the bot.",
-                                style="bold magenta",
-                            )
-                            sync = True
-                    if sync:
-                        continue
-                    else:
-                        console.print(
-                            """ERROR: WP JSON Sync failed. Look at the files.
-                            Maybe you have to rollback your WordPress cache.
-                            Run: python3 -m integrations.wordpress_api --posts""",
-                            style="bold red",
-                        )
-                elif next_post == ("n" or "no"):
+                if next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid tracebacks
                     # from pyclip
                     pyclip.detect_clipboard()

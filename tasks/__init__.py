@@ -10,9 +10,7 @@ __email__ = "yohamg@programmer.net"
 __version__ = "1.0.0"
 
 # ** MongerCash Dump Creation `mcash_dump_create.py` **
-
-from tasks.mcash_dump_create import parse_partner_name
-from tasks.mcash_dump_create import get_vid_dump_flow
+from tasks.mcash_dump_create import parse_partner_name, get_vid_dump_flow
 
 # ** MongerCash Photo Set Scrape `m_cash_scrape.py` **
 from tasks.mcash_scrape import get_set_source_flow

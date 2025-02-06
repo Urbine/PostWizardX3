@@ -24,15 +24,7 @@ __author_email__ = "yohamg@programmer.net"
 
 from dataclasses import dataclass
 
-from core.helpers import parse_client_config
-from core.custom_exceptions import InvalidConfiguration
-
-
-def is_config_enabled(config_file_key):
-    if config_file_key.title() == "True" or config_file_key.title() == "False":
-        return eval(config_file_key.title())
-    else:
-        raise InvalidConfiguration(config_file_key)
+from .helpers import parse_client_config
 
 
 @dataclass(frozen=True)
@@ -75,10 +67,17 @@ class ContentSelectConf:
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
+    pic_fallback: str
     imagick: bool
+    quality: int
     sql_query: str
     content_hint: str
     partners: str
+    assets_conf: str
+    site_name: str
+    domain_tld: str
+    x_posting_auto: bool
+    x_posting_enabled: bool
 
     def __repr__(self):
         return "ContentSelectConf()"
@@ -87,13 +86,19 @@ class ContentSelectConf:
 @dataclass(frozen=True)
 class GallerySelectConf:
     pic_format: str
+    pic_fallback: str
     imagick: bool
+    quality: int
     wp_json_photos: str
     wp_json_posts: str
     wp_cache_config: str
     sql_query: str
     content_hint: str
     partners: str
+    site_name: str
+    domain_tld: str
+    x_posting_auto: bool
+    x_posting_enabled: bool
 
     def __repr__(self):
         return "GallerySelectConf()"
@@ -104,10 +109,16 @@ class EmbedAssistConf:
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
+    pic_fallback: str
     imagick: bool
+    quality: int
     sql_query: str
     content_hint: str
     partners: str
+    site_name: str
+    domain_tld: str
+    x_posting_auto: bool
+    x_posting_enabled: bool
 
     def __repr__(self):
         return "EmbedAssistConf()"
@@ -132,6 +143,8 @@ class XAuth:
     client_secret: str
     api_key: str
     api_secret: str
+    access_token: str
+    refresh_token: str
 
     def __repr__(self):
         return "XAuth(client_id, client_secret)"
@@ -180,6 +193,8 @@ def x_auth():
         x_username=client_info["x_api"]["x_username"],
         x_passw=client_info["x_api"]["x_passw"],
         x_email=client_info["x_api"]["x_email"],
+        access_token=client_info["x_api"]["access_token"],
+        refresh_token=client_info["x_api"]["refresh_token"],
     )
 
 
@@ -189,44 +204,63 @@ workflows_config = parse_client_config("workflows_config", "core.config")
 
 def content_select_conf() -> ContentSelectConf:
     return ContentSelectConf(
-        wp_json_posts=workflows_config["content_select"]["wp_json_posts"],
-        wp_cache_config=workflows_config["content_select"]["wp_cache_config"],
+        wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
+        wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
         pic_format=workflows_config["general_config"]["pic_format"],
-        imagick=is_config_enabled(
-            workflows_config["general_config"]["imagick_enabled"]
-        ),
+        pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
+        imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
+        quality=int(workflows_config["general_config"]["conversion_quality"]),
         sql_query=workflows_config["content_select"]["sql_query"],
         content_hint=workflows_config["content_select"]["db_content_hint"],
+        assets_conf=workflows_config["content_select"]["assets_conf"],
         partners=workflows_config["content_select"]["partners"],
+        site_name=workflows_config["general_config"]["website_name"],
+        domain_tld=workflows_config["general_config"]["domain_tld"],
+        x_posting_auto=workflows_config.getboolean("content_select", "x_posting_auto"),
+        x_posting_enabled=workflows_config.getboolean(
+            "content_select", "x_posting_enabled"
+        ),
     )
 
 
 def gallery_select_conf() -> GallerySelectConf:
     return GallerySelectConf(
         pic_format=workflows_config["general_config"]["pic_format"],
-        imagick=is_config_enabled(
-            workflows_config["general_config"]["imagick_enabled"]
-        ),
+        pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
+        imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
+        quality=int(workflows_config["general_config"]["conversion_quality"]),
         wp_json_photos=workflows_config["gallery_select"]["wp_json_photos"],
-        wp_json_posts=workflows_config["gallery_select"]["wp_json_posts"],
-        wp_cache_config=workflows_config["gallery_select"]["wp_cache_config"],
+        wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
+        wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
         content_hint=workflows_config["gallery_select"]["db_content_hint"],
         sql_query=workflows_config["gallery_select"]["sql_query"],
         partners=workflows_config["gallery_select"]["partners"],
+        site_name=workflows_config["general_config"]["website_name"],
+        domain_tld=workflows_config["general_config"]["domain_tld"],
+        x_posting_auto=workflows_config.getboolean("gallery_select", "x_posting_auto"),
+        x_posting_enabled=workflows_config.getboolean(
+            "gallery_select", "x_posting_enabled"
+        ),
     )
 
 
 def embed_assist_conf() -> EmbedAssistConf:
     return EmbedAssistConf(
-        wp_json_posts=workflows_config["embed_assist"]["wp_json_posts"],
-        wp_cache_config=workflows_config["embed_assist"]["wp_cache_config"],
+        wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
+        wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
         pic_format=workflows_config["general_config"]["pic_format"],
-        imagick=is_config_enabled(
-            workflows_config["general_config"]["imagick_enabled"]
-        ),
+        pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
+        imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
+        quality=int(workflows_config["general_config"]["conversion_quality"]),
         sql_query=workflows_config["embed_assist"]["sql_query"],
         content_hint=workflows_config["embed_assist"]["db_content_hint"],
         partners=workflows_config["embed_assist"]["partners"],
+        site_name=workflows_config["general_config"]["website_name"],
+        domain_tld=workflows_config["general_config"]["domain_tld"],
+        x_posting_auto=workflows_config.getboolean("embed_assist", "x_posting_auto"),
+        x_posting_enabled=workflows_config.getboolean(
+            "gallery_select", "x_posting_enabled"
+        ),
     )
 
 

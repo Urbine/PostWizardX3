@@ -1,5 +1,5 @@
 """
-content_select is the biggest of three bots that streamline the content upload and
+content_select is the biggest out of three bots that streamline the content upload and
 integration of content in my WordPress site.
 
 It is able to identify the data sources dynamically and serve as an assistant powered
@@ -13,7 +13,6 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Standard Library
 import argparse
 import os
 import random
@@ -32,18 +31,23 @@ import pyclip
 import requests
 from rich.console import Console
 
+import core
+
 # Local implementations
 from core import (
-    helpers,
     InvalidInput,
     UnsupportedParameter,
+    HotFileSyncIntegrityError,
+    parse_client_config,
     content_select_conf,
+    helpers,
     wp_auth,
     clean_filename,
+    x_auth,
 )
 
-from integrations import wordpress_api
-from integrations.url_builder import WPEndpoints
+from integrations import wordpress_api, x_api
+from integrations.url_builder import WPEndpoints, XEndpoints
 from ml_engine import classify_title, classify_description, classify_tags
 
 # Imported for typing purposes
@@ -74,6 +78,25 @@ def clean_partner_tag(partner_tag: str) -> str:
             return "".join(partner_tag.split(split_char))
     except IndexError:
         return partner_tag
+
+
+def asset_parser(bot_config: ContentSelectConf, partner: str):
+    # Load assets conf
+    assets = parse_client_config(bot_config.assets_conf, "core.config")
+    sections = assets.sections()
+    # Split the partner tag to know what part of the partners name is part of a section.
+    spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
+    wrd_list = clean_partner_tag(partner).split(spl_char(partner))
+    find_me = lambda wrd, sec: re.findall(wrd, sec, flags=re.IGNORECASE)
+    for sec in sections:
+        for wrd in wrd_list:
+            matches = find_me(wrd, sec)
+            if matches:
+                right_section = assets[sec]
+                return list(right_section.values())
+            else:
+                continue
+    return None
 
 
 def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
@@ -293,7 +316,7 @@ def identify_missing(
 
 
 def fetch_thumbnail(
-    folder: str, slug: str, remote_res: str, format: str, thumbnail_name: str = ""
+    folder: str, slug: str, remote_res: str, thumbnail_name: str = ""
 ) -> int:
     """This function handles the renaming and fetching of thumbnails that will be uploaded to
     WordPress as media attachments. It dynamically renames the thumbnails by taking in a URL slug to
@@ -304,22 +327,31 @@ def fetch_thumbnail(
     :param folder: ``str`` thumbnails dir
     :param slug: ``str`` URL slug
     :param remote_res: ``str`` thumbnail download URL
-    :param format: ``str`` target image format used for conversion.
     :param thumbnail_name: ``str`` used in case the user wants to upload different thumbnails
     and wishes to keep the names.
     :return: ``int`` (status code from requests)
     """
     thumbnail_dir: str = folder
     remote_data: requests = requests.get(remote_res)
+    cs_conf = content_select_conf()
     if thumbnail_name != "":
         name: str = f"-{thumbnail_name.split('.')[0]}"
     else:
         name: str = thumbnail_name
-    with open(f"{thumbnail_dir}/{slug}{name}.jpg", "wb") as img:
+    img_name = clean_filename(f"{slug}{name}", cs_conf.pic_fallback)
+    with open(f"{thumbnail_dir}/{img_name}", "wb") as img:
         img.write(remote_data.content)
 
-    # Image conversion to a target format
-    helpers.imagick(f"{thumbnail_dir}/{slug}{name}.jpg", 80, format)
+    # Image conversion to a target format if available
+    if cs_conf.imagick:
+        helpers.imagick(
+            f"{thumbnail_dir}/{slug}{name}.{cs_conf.pic_fallback}",
+            cs_conf.quality,
+            cs_conf.pic_format,
+        )
+    else:
+        pass
+
     return remote_data.status_code
 
 
@@ -333,8 +365,9 @@ def make_payload(
     partner_name: str,
     tag_int_lst: list[int],
     model_int_lst: list[int],
+    bot_conf: ContentSelectConf = content_select_conf(),
     categs: list[int] | None = None,
-    wp_auth: WPAuth = wp_auth(),
+    wpauth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Make WordPress ``JSON`` payload with the supplied values.
     This function also injects ``HTML`` code into the payload to display the banner, add ``ALT`` text to it
@@ -353,19 +386,20 @@ def make_payload(
     :param partner_name: ``str`` The offer you are promoting
     :param tag_int_lst: ``list[int]`` tag ID list
     :param model_int_lst: ``list[int]`` model ID list
+    :param bot_conf: ``ContentSelectConf`` Bot configuration object
     :param categs: ``list[int]`` category numbers to be passed with the post information
-    :param wp_auth: ``WPAuth`` Object with the author information.
+    :param wpauth: ``WPAuth`` Object with the author information.
     :return: ``dict[str, str | int]``
     """
     # Added an author field to the client_info config file.
-    author: int = int(wp_auth.author_admin)
+    author: int = int(wpauth.author_admin)
     payload_post: dict = {
         "slug": f"{vid_slug}",
         "status": f"{status_wp}",
         "type": "post",
-        "link": f"https://whoresmen.com/{vid_slug}/",
+        "link": f"{wpauth.full_base_url.strip('/')}/{vid_slug}/",
         "title": f"{vid_name}",
-        "content": f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt="{vid_name} | {partner_name} on WhoresMen.com"/></a></figure>',
+        "content": f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt="{vid_name} | {partner_name} on {bot_conf.site_name}{bot_conf.domain_tld}"/></a></figure>',
         "excerpt": f"<p>{vid_description}</p>\n",
         "author": author,
         "featured_media": 0,
@@ -428,28 +462,29 @@ def make_payload_simple(
     return payload_post
 
 
-def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
+def make_img_payload(vid_title: str, vid_description: str, bot_config: ContentSelectConf = content_select_conf()) -> dict[str, str]:
     """Similar to the make_payload function, this one makes the payload for the video thumbnails,
     it gives them the video description and focus key phrase, which is the video title plus a call to
     action in case that ALT text appears on the image search vertical, and they want to watch the video.
 
     :param vid_title: ``str`` self-explanatory
     :param vid_description: ``str`` self-explanatory
+    :param bot_config: ``ContentSelectConf`` Uses general configuration options to customise payloads.
     :return: ``dict[str, str]``
     """
     # In case that the description is the same as the title, the program will send
     # a different payload to avoid over-optimization
     if vid_title == vid_description:
         img_payload: dict[str, str] = {
-            "alt_text": f"{vid_title} on WhoresMen.com",
-            "caption": f"{vid_title} on WhoresMen.com",
-            "description": f"{vid_title} on WhoresMen.com",
+            "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
+            "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
+            "description": f"{vid_title} {bot_config.site_name}{bot_config.domain_tld}",
         }
     else:
         img_payload: dict[str, str] = {
-            "alt_text": f"{vid_title} on WhoresMen.com - {vid_description}",
-            "caption": f"{vid_title} on WhoresMen.com - {vid_description}",
-            "description": f"{vid_title} on WhoresMen.com - {vid_description}",
+            "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
+            "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
+            "description": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
         }
     return img_payload
 
@@ -551,7 +586,7 @@ def hot_file_sync(
         helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
         return True
     else:
-        return False
+        raise HotFileSyncIntegrityError
 
 
 def partner_select(
@@ -712,8 +747,67 @@ def content_select_db_match(
         raise InvalidInput
 
 
+def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
+    """Create a post with a random action call for the X platform.
+
+    :param description: ``str`` Video description
+    :param post_url: ``str`` Video post url on WordPress
+    :return: ``int`` POST request status code.
+    """
+    cs_conf = content_select_conf()
+    site_name = cs_conf.site_name
+    calls_to_action = [
+        f"Watch more on {site_name}:",
+        f"Take a quick look on {site_name}:",
+        f"Watch the action for free on {site_name}:",
+        f"Don't miss out. Watch now on {site_name}:",
+        f"Don't miss out. Watch more on {site_name}:",
+        f"Watch for free on {site_name}:",
+        "Click below to watch for free:",
+        "You won't need another video after this one:",
+        f"{site_name} has it all for free:",
+        f"All the Good stuff. Only on {site_name}:"
+        "I bet you haven't watched this one:"
+        "Well, you asked for it:",
+        "I can't believe this is free:",
+        f"Specially for you:",
+        f"Check out {site_name} today:",
+        "Watch today for free:",
+        "You're missing out on the action:",
+        "When you thought you've watch it all:",
+        f"Brought to you by {site_name}:",
+    ]
+    # Env variable "X_TOKEN" is assigned in function ``x_api.refresh_flow()``
+    bearer_token = os.environ.get("X_TOKEN")
+    if not post_text:
+        post_text = f"{description} {random.choice(calls_to_action)} {post_url}"
+    else:
+        post_text = f"{description} {post_text} {post_url}"
+    request = x_api.post_x(post_text, bearer_token, XEndpoints())
+    return request.status_code
+
+
+def wp_publish_checker(
+    post_slug: str, cs_conf: ContentSelectConf | EmbedAssistConf | GallerySelectConf
+) -> bool | None:
+    hot_sync = hot_file_sync(cs_conf)
+    while hot_sync:
+        posts_file = (
+            cs_conf.wp_json_photos
+            if isinstance(cs_conf, GallerySelectConf)
+            else cs_conf.wp_json_posts
+        )
+        wp_postf = helpers.load_json_ctx(posts_file)
+        slugs = wordpress_api.get_slugs(wp_postf)
+        if post_slug in slugs:
+            os.environ["LATEST_POST"] = wp_postf[0]["link"]
+            return True
+        # Retry every two seconds
+        time.sleep(2)
+        hot_sync = hot_file_sync(cs_conf)
+
+
 def video_upload_pilot(
-    banner_lsts: list[list[str]],
     wp_auth: WPAuth = wp_auth(),
     wp_endpoints: WPEndpoints = WPEndpoints,
     cs_config: ContentSelectConf = content_select_conf(),
@@ -773,7 +867,6 @@ def video_upload_pilot(
             **When it reaches the point where there is only one element to show, the program will communicate
             that to the user and wait 60 seconds before cleaning cache files and clipboard data.**
 
-    :param banner_lsts: ``list[list[str]]`` banner URLS to make the post payload.
     :param wp_auth: ``WPAuth`` element provided by the ``core.config_mgr`` module.
                      Set by default and bound to change based on the config file.
     :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
@@ -789,6 +882,7 @@ def video_upload_pilot(
         spinner="aesthetic",
     ):
         hot_file_sync(bot_config=cs_config)
+        x_api.refresh_flow(x_auth(), XEndpoints())
     partners: list[str] = cs_config.partners.split(",")
     wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
     wp_base_url: str = wp_auth.api_base_url
@@ -800,7 +894,8 @@ def video_upload_pilot(
     )
     # Prints out at the end of the uploading session.
     videos_uploaded: int = 0
-    partner, banners = partners[partner_indx], banner_lsts[partner_indx]
+    partner = partners[partner_indx]
+    banners = asset_parser(cs_config, partner)
     select_guard(partner_db_name, partner)
     not_published_yet: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
@@ -978,7 +1073,7 @@ def video_upload_pilot(
                     pyclip.detect_clipboard()
                     pyclip.copy(girl)
 
-            # NaiveBayes classification for titles, descriptions, and tags
+            # NaiveBayes/MaxEnt classification for titles, descriptions, and tags
             class_title = classify_title(title)
             class_description = classify_description(description)
             class_tags = classify_tags(tags)
@@ -1019,11 +1114,17 @@ def video_upload_pilot(
             )
 
             console.print("--> Fetching thumbnail...", style="bold green")
-            pic_format = clean_filename(wp_slug, cs_config.pic_format)
+
+            # Check whether ImageMagick conversion has been enabled in config.
+            pic_format = (
+                cs_config.pic_format if cs_config.imagick else cs_config.pic_fallback
+            )
+            thumbnail = clean_filename(wp_slug, pic_format)
+
             try:
-                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url, "webp")
+                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
                 console.print(
-                    f"--> Stored thumbnail {pic_format} in cache folder {os.path.relpath(thumbnails_dir.name)}",
+                    f"--> Stored thumbnail {thumbnail} in cache folder {os.path.relpath(thumbnails_dir.name)}",
                     style="bold green",
                 )
                 console.print(
@@ -1036,7 +1137,7 @@ def video_upload_pilot(
                 upload_img: int = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
-                    f"{thumbnails_dir.name}/{pic_format}",
+                    f"{thumbnails_dir.name}/{thumbnail}",
                     img_attrs,
                 )
 
@@ -1054,7 +1155,7 @@ def video_upload_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(f"{thumbnails_dir.name}/{pic_format}")
+                    os.remove(f"{thumbnails_dir.name}/{thumbnail}")
                 else:
                     pass
 
@@ -1073,9 +1174,37 @@ def video_upload_pilot(
                 pyclip.copy(source_url)
                 pyclip.copy(title)
                 console.print(
-                    "--> * DONE * Check the post and paste all you need from your clipboard.",
-                    style="bold yellow",
+                    "--> Check the post and paste all you need from your clipboard.",
+                    style="bold green",
                 )
+                if cs_config.x_posting_enabled:
+                    status_msg = "Checking WP status and preparing for X posting."
+                    with console.status(
+                        f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
+                        spinner="earth",
+                    ):
+                        is_published = wp_publish_checker(wp_slug, cs_config)
+                    if is_published:
+                        if cs_config.x_posting_auto:
+                            x_post_create = x_post_creator(
+                                description, os.environ.get("LATEST_POST")
+                            )
+                        else:
+                            post_text = console.input(
+                                "[bold yellow]Enter your additional post text here or press enter to use default configs: [bold yellow]\n"
+                            )
+                            x_post_create = x_post_creator(
+                                description,
+                                os.environ.get("LATEST_POST"),
+                                post_text=post_text,
+                            )
+                        if x_post_create == 201:
+                            console.print(
+                                "--> Post has been published on WP and shared on X.",
+                                style="bold yellow",
+                            )
+                else:
+                    pass
                 videos_uploaded += 1
             except SSLError:
                 pyclip.detect_clipboard()
@@ -1096,43 +1225,11 @@ def video_upload_pilot(
                     break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold cyan]\nNext post? -> Y/N/ENTER to review next post: [/bold cyan]\n"
+                    "[bold cyan]\nNext post? -> N/ENTER to review next post: [/bold cyan]\n"
                 ).lower()
-                if next_post == ("y" or "yes"):
-                    # Clears clipboard after every video.
-                    pyclip.clear()
-                    with console.status(
-                        "[bold magenta] Syncing and caching changes... [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink][/bold magenta]\n",
-                        spinner="aesthetic",
-                    ):
-                        try:
-                            sync: bool = hot_file_sync(bot_config=cs_config)
-                        except ConnectionError:
-                            console.print(
-                                "Hot File Sync encountered a ConnectionError.",
-                                style="bold red",
-                            )
-                            console.print(
-                                "Going to next post. I will fetch your changes in a next try.",
-                                style="bold magenta",
-                            )
-                            console.print(
-                                "If you want to update again, relaunch the bot or try to add another post and select 'y'",
-                                style="bold magenta",
-                            )
-                            sync: bool = True
-                    if sync:
-                        continue
-                    else:
-                        console.print(
-                            """ERROR: WP JSON Sync failed. Look at the files.
-                            Maybe you have to rollback your WordPress cache.
-                            Run: python3 -m integrations.wordpress_api --yoast""",
-                            style="bold red",
-                        )
-                elif next_post == ("n" or "no"):
+                if next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid
-                    # tracebacks from pyclip
+                    # tracebacks from pyclip and enable cross-platform support.
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     console.print(
@@ -1185,9 +1282,9 @@ def video_upload_pilot(
             break
 
 
-def main(*args, **kwargs):
+def main(**kwargs):
     try:
-        video_upload_pilot(*args, **kwargs)
+        video_upload_pilot(**kwargs)
     except KeyboardInterrupt:
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()
@@ -1217,40 +1314,4 @@ if __name__ == "__main__":
 
     args_cli = arg_parser.parse_args()
 
-    banner_tuktuk_1 = "https://mongercash.com/view_banner.php?name=tktkp-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
-    banner_tuktuk_2 = "https://mongercash.com/view_banner.php?name=tuktuk620x77.jpg&filename=7664_name.jpg&type=jpg&download=1"
-    banner_tuktuk_3 = "https://mongercash.com/view_banner.php?name=tktkp-850x80.jpg&amp;filename=9934_name.jpg&amp;type=jpg&amp;download=1"
-
-    banner_asd_1 = "https://mongercash.com/view_banner.php?name=asd-640x90.gif&filename=6377_name.gif&type=gif&download=1"
-    banner_asd_2 = "https://mongercash.com/view_banner.php?name=asd-header-970x170.png&filename=6871_name.png&type=png&download=1"
-    banner_asd_3 = "https://mongercash.com/view_banner.php?name=asd-channel-footer-950%20x%20250.png&filename=6864_name.png&type=png&download=1"
-
-    banner_trike_1 = "https://mongercash.com/view_banner.php?name=tp-728x90.gif&amp;filename=9924_name.gif&amp;type=gif&amp;download=1"
-    banner_trike_2 = "https://mongercash.com/view_banner.php?name=tp-850x80.jpg&filename=9921_name.jpg&type=jpg&download=1"
-    banner_trike_3 = "https://mongercash.com/view_banner.php?name=trike%20patrol%20850x80.gif&amp;filename=7675_name.gif&amp;type=gif&amp;download=1"
-
-    banner_euro_1 = "https://mongercash.com/view_banner.php?name=esd-730x90-1.png&filename=12419_name.png&type=png&download=1"
-    banner_euro_2 = "https://mongercash.com/view_banner.php?name=esd-1323x270-2.png&filename=12414_name.png&type=png&download=1"
-    banner_euro_3 = "https://mongercash.com/view_banner.php?name=esd-876x75-1.png&filename=12416_name.png&type=png&download=1"
-
-    banner_paradise_1 = "https://mongercash.com/view_banner.php?name=1323x270.jpg&filename=8879_name.jpg&type=jpg&download=1"
-
-    banner_toticos_1 = "https://mongercash.com/view_banner.php?name=tot-600x120-2.gif&filename=2605_name.gif&type=gif&download=1"
-
-    banner_lst_asd = [banner_asd_1, banner_asd_2, banner_asd_3]
-    banner_lst_tktk = [banner_tuktuk_1, banner_tuktuk_2, banner_tuktuk_3]
-    banner_lst_trike = [banner_trike_1, banner_trike_2, banner_trike_3]
-    banner_lst_esd = [banner_euro_1, banner_euro_2, banner_euro_3]
-    banner_lst_paradise = [banner_paradise_1]
-    banner_lst_toticos = [banner_toticos_1]
-
-    banner_lists = [
-        banner_lst_asd,
-        banner_lst_tktk,
-        banner_lst_trike,
-        banner_lst_esd,
-        banner_lst_paradise,
-        banner_lst_toticos,
-    ]
-
-    main(banner_lists, parent=args_cli.parent)
+    main(parent=args_cli.parent)
