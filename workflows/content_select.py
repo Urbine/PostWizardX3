@@ -37,6 +37,7 @@ import core
 from core import (
     InvalidInput,
     UnsupportedParameter,
+    HotFileSyncIntegrityError,
     parse_client_config,
     content_select_conf,
     helpers,
@@ -585,7 +586,7 @@ def hot_file_sync(
         helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
         return True
     else:
-        return False
+        raise HotFileSyncIntegrityError
 
 
 def partner_select(
@@ -1224,43 +1225,11 @@ def video_upload_pilot(
                     break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold cyan]\nNext post? -> Y/N/ENTER to review next post: [/bold cyan]\n"
+                    "[bold cyan]\nNext post? -> N/ENTER to review next post: [/bold cyan]\n"
                 ).lower()
-                if next_post == ("y" or "yes"):
-                    # Clears clipboard after every video.
-                    pyclip.clear()
-                    with console.status(
-                        "[bold magenta] Syncing and caching changes... [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink][/bold magenta]\n",
-                        spinner="aesthetic",
-                    ):
-                        try:
-                            sync: bool = hot_file_sync(bot_config=cs_config)
-                        except ConnectionError:
-                            console.print(
-                                "Hot File Sync encountered a ConnectionError.",
-                                style="bold red",
-                            )
-                            console.print(
-                                "Going to next post. I will fetch your changes in a next try.",
-                                style="bold magenta",
-                            )
-                            console.print(
-                                "If you want to update again, relaunch the bot or try to add another post and select 'y'",
-                                style="bold magenta",
-                            )
-                            sync: bool = True
-                    if sync:
-                        continue
-                    else:
-                        console.print(
-                            """ERROR: WP JSON Sync failed. Look at the files.
-                            Maybe you have to rollback your WordPress cache.
-                            Run: python3 -m integrations.wordpress_api --yoast""",
-                            style="bold red",
-                        )
-                elif next_post == ("n" or "no"):
+                if next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid
-                    # tracebacks from pyclip
+                    # tracebacks from pyclip and enable cross-platform support.
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     console.print(

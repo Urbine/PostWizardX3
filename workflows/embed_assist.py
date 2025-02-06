@@ -412,41 +412,9 @@ def embedding_pilot(
                     break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold yellow]\nNext post? -> Y/N/ENTER to review next post: [/bold yellow]\n"
+                    "[bold yellow]\nNext post? -> N/ENTER to review next post: [/bold yellow]\n"
                 ).lower()
-                if next_post == ("y" or "yes"):
-                    # Clears clipboard after every video.
-                    pyclip.clear()
-                    with console.status(
-                        "[bold magenta] Syncing and caching changes... [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink][/bold magenta]\n",
-                        spinner="aesthetic",
-                    ):
-                        try:
-                            sync = cs.hot_file_sync(bot_config=embed_ast_conf)
-                        except ConnectionError:
-                            console.print(
-                                "Hot File Sync encountered a ConnectionError.",
-                                style="bold red",
-                            )
-                            console.print(
-                                "Going to next post. I will fetch your changes in a next try.",
-                                style="bold magenta",
-                            )
-                            console.print(
-                                "If you want to update again, relaunch the bot.",
-                                style="bold magenta",
-                            )
-                            sync = True
-                    if sync:
-                        continue
-                    else:
-                        console.print(
-                            """ERROR: WP JSON Sync failed. Look at the files.
-                            Maybe you have to rollback your WordPress cache.
-                            Run: python3 -m integrations.wordpress_api --posts""",
-                            style="bold red",
-                        )
-                elif next_post == ("n" or "no"):
+                if next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid tracebacks
                     # from pyclip
                     pyclip.detect_clipboard()
