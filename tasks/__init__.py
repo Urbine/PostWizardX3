@@ -10,9 +10,7 @@ __email__ = "yohamg@programmer.net"
 __version__ = "1.0.0"
 
 # ** MediaSource Dump Creation `feed_dump_create.py` **
-
-from tasks.feed_dump_create import parse_partner_name
-from tasks.feed_dump_create import get_vid_dump_flow
+from tasks.feed_dump_create import parse_partner_name, get_vid_dump_flow
 
 # ** MediaSource Photo Set Scrape `media_source_scrape.py` **
 from tasks.feed_scrape import get_set_source_flow
