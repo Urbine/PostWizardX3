@@ -59,6 +59,8 @@ __all__ = [
     "NoSuitableArgument",
     "UnsupportedParameter",
     "InvalidInput",
+    "RefreshTokenError",
+    "HotFileSyncIntegrityError",
     "access_url",
     "access_url_bs4",
     "clean_filename",
