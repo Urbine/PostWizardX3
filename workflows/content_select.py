@@ -1,5 +1,5 @@
 """
-content_select is the biggest of three bots that streamline the content upload and
+content_select is the biggest out of three bots that streamline the content upload and
 integration of content in my WordPress site.
 
 It is able to identify the data sources dynamically and serve as an assistant powered
@@ -13,7 +13,6 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Standard Library
 import argparse
 import os
 import random
@@ -32,12 +31,15 @@ import pyclip
 import requests
 from rich.console import Console
 
+import core
+
 # Local implementations
 from core import (
-    helpers,
     InvalidInput,
     UnsupportedParameter,
+    parse_client_config,
     content_select_conf,
+    helpers,
     wp_auth,
     clean_filename,
     x_auth,
@@ -75,6 +77,25 @@ def clean_partner_tag(partner_tag: str) -> str:
             return "".join(partner_tag.split(split_char))
     except IndexError:
         return partner_tag
+
+
+def asset_parser(bot_config: ContentSelectConf, partner: str):
+    # Load assets conf
+    assets = parse_client_config(bot_config.assets_conf, "core.config")
+    sections = assets.sections()
+    # Split the partner tag to know what part of the partners name is part of a section.
+    spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
+    wrd_list = clean_partner_tag(partner).split(spl_char(partner))
+    find_me = lambda wrd, sec: re.findall(wrd, sec, flags=re.IGNORECASE)
+    for sec in sections:
+        for wrd in wrd_list:
+            matches = find_me(wrd, sec)
+            if matches:
+                right_section = assets[sec]
+                return list(right_section.values())
+            else:
+                continue
+    return None
 
 
 def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
@@ -334,8 +355,9 @@ def make_payload(
     partner_name: str,
     tag_int_lst: list[int],
     model_int_lst: list[int],
+    bot_conf: ContentSelectConf = content_select_conf(),
     categs: list[int] | None = None,
-    wp_auth: WPAuth = wp_auth(),
+    wpauth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Make WordPress ``JSON`` payload with the supplied values.
     This function also injects ``HTML`` code into the payload to display the banner, add ``ALT`` text to it
@@ -354,19 +376,20 @@ def make_payload(
     :param partner_name: ``str`` The offer you are promoting
     :param tag_int_lst: ``list[int]`` tag ID list
     :param model_int_lst: ``list[int]`` model ID list
+    :param bot_conf: ``ContentBotConf`` Bot configuration object
     :param categs: ``list[int]`` category numbers to be passed with the post information
-    :param wp_auth: ``WPAuth`` Object with the author information.
+    :param wpauth: ``WPAuth`` Object with the author information.
     :return: ``dict[str, str | int]``
     """
     # Added an author field to the client_info config file.
-    author: int = int(wp_auth.author_admin)
+    author: int = int(wpauth.author_admin)
     payload_post: dict = {
         "slug": f"{vid_slug}",
         "status": f"{status_wp}",
         "type": "post",
-        "link": f"https://example.com/{vid_slug}/",
+        "link": f"{wpauth.full_base_url.strip('/')}/{vid_slug}/",
         "title": f"{vid_name}",
-        "content": f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt="{vid_name} | {partner_name} on example.com"/></a></figure>',
+        "content": f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt="{vid_name} | {partner_name} on {bot_conf.site_name}{bot_conf.domain_tld}"/></a></figure>',
         "excerpt": f"<p>{vid_description}</p>\n",
         "author": author,
         "featured_media": 0,
@@ -429,28 +452,29 @@ def make_payload_simple(
     return payload_post
 
 
-def make_img_payload(vid_title: str, vid_description: str) -> dict[str, str]:
+def make_img_payload(vid_title: str, vid_description: str, bot_config: ContentSelectConf = content_select_conf()) -> dict[str, str]:
     """Similar to the make_payload function, this one makes the payload for the video thumbnails,
     it gives them the video description and focus key phrase, which is the video title plus a call to
     action in case that ALT text appears on the image search vertical, and they want to watch the video.
 
     :param vid_title: ``str`` self-explanatory
     :param vid_description: ``str`` self-explanatory
+    :param bot_config: ``ContentBotConf`` Uses general configuration options to customise payloads.
     :return: ``dict[str, str]``
     """
     # In case that the description is the same as the title, the program will send
     # a different payload to avoid over-optimization
     if vid_title == vid_description:
         img_payload: dict[str, str] = {
-            "alt_text": f"{vid_title} on example.com",
-            "caption": f"{vid_title} on example.com",
-            "description": f"{vid_title} on example.com",
+            "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
+            "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
+            "description": f"{vid_title} {bot_config.site_name}{bot_config.domain_tld}",
         }
     else:
         img_payload: dict[str, str] = {
-            "alt_text": f"{vid_title} on example.com - {vid_description}",
-            "caption": f"{vid_title} on example.com - {vid_description}",
-            "description": f"{vid_title} on example.com - {vid_description}",
+            "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
+            "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
+            "description": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
         }
     return img_payload
 
@@ -774,7 +798,6 @@ def wp_publish_checker(
 
 
 def video_upload_pilot(
-    banner_lsts: list[list[str]],
     wp_auth: WPAuth = wp_auth(),
     wp_endpoints: WPEndpoints = WPEndpoints,
     cs_config: ContentSelectConf = content_select_conf(),
@@ -834,7 +857,6 @@ def video_upload_pilot(
             **When it reaches the point where there is only one element to show, the program will communicate
             that to the user and wait 60 seconds before cleaning cache files and clipboard data.**
 
-    :param banner_lsts: ``list[list[str]]`` banner URLS to make the post payload.
     :param wp_auth: ``WPAuth`` element provided by the ``core.config_mgr`` module.
                      Set by default and bound to change based on the config file.
     :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
@@ -862,7 +884,8 @@ def video_upload_pilot(
     )
     # Prints out at the end of the uploading session.
     videos_uploaded: int = 0
-    partner, banners = partners[partner_indx], banner_lsts[partner_indx]
+    partner = partners[partner_indx]
+    banners = asset_parser(cs_config, partner)
     select_guard(partner_db_name, partner)
     not_published_yet: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
@@ -1040,7 +1063,7 @@ def video_upload_pilot(
                     pyclip.detect_clipboard()
                     pyclip.copy(author)
 
-            # NaiveBayes classification for titles, descriptions, and tags
+            # NaiveBayes/MaxEnt classification for titles, descriptions, and tags
             class_title = classify_title(title)
             class_description = classify_description(description)
             class_tags = classify_tags(tags)
@@ -1275,9 +1298,9 @@ def video_upload_pilot(
             break
 
 
-def main(*args, **kwargs):
+def main(**kwargs):
     try:
-        video_upload_pilot(*args, **kwargs)
+        video_upload_pilot(**kwargs)
     except KeyboardInterrupt:
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()
@@ -1307,40 +1330,4 @@ if __name__ == "__main__":
 
     args_cli = arg_parser.parse_args()
 
-    banner_partner2_1 = "https://media_source.com/view_banner.php?name=partner2-728x90.gif&amp;filename=9936_name.gif&amp;type=gif&amp;download=1"
-    banner_partner2_2 = "https://media_source.com/view_banner.php?name=partner2-620x77.jpg&filename=7664_name.jpg&type=jpg&download=1"
-    banner_partner2_3 = "https://media_source.com/view_banner.php?name=partner2-850x80.jpg&amp;filename=9934_name.jpg&amp;type=jpg&amp;download=1"
-
-    banner_partner1_1 = "https://media_source.com/view_banner.php?name=partner1-640x90.gif&filename=6377_name.gif&type=gif&download=1"
-    banner_partner1_2 = "https://media_source.com/view_banner.php?name=partner1-header-970x170.png&filename=6871_name.png&type=png&download=1"
-    banner_partner1_3 = "https://media_source.com/view_banner.php?name=partner1-channel-footer-950%20x%20250.png&filename=6864_name.png&type=png&download=1"
-
-    banner_partner3_1 = "https://media_source.com/view_banner.php?name=tp-728x90.gif&amp;filename=9924_name.gif&amp;type=gif&amp;download=1"
-    banner_partner3_2 = "https://media_source.com/view_banner.php?name=tp-850x80.jpg&filename=9921_name.jpg&type=jpg&download=1"
-    banner_partner3_3 = "https://media_source.com/view_banner.php?name=partner3-850x80.gif&amp;filename=7675_name.gif&amp;type=gif&amp;download=1"
-
-    banner_partner4_1 = "https://media_source.com/view_banner.php?name=esd-730x90-1.png&filename=12419_name.png&type=png&download=1"
-    banner_partner4_2 = "https://media_source.com/view_banner.php?name=esd-1323x270-2.png&filename=12414_name.png&type=png&download=1"
-    banner_partner4_3 = "https://media_source.com/view_banner.php?name=esd-876x75-1.png&filename=12416_name.png&type=png&download=1"
-
-    banner_partner5_1 = "https://media_source.com/view_banner.php?name=1323x270.jpg&filename=8879_name.jpg&type=jpg&download=1"
-
-    banner_partner6_1 = "https://media_source.com/view_banner.php?name=partner6-600x120-2.gif&filename=2605_name.gif&type=gif&download=1"
-
-    banner_lst_partner1 = [banner_partner1_1, banner_partner1_2, banner_partner1_3]
-    banner_lst_partner2 = [banner_partner2_1, banner_partner2_2, banner_partner2_3]
-    banner_lst_partner3 = [banner_partner3_1, banner_partner3_2, banner_partner3_3]
-    banner_lst_partner4 = [banner_partner4_1, banner_partner4_2, banner_partner4_3]
-    banner_lst_partner5 = [banner_partner5_1]
-    banner_lst_partner6 = [banner_partner6_1]
-
-    banner_lists = [
-        banner_lst_partner1,
-        banner_lst_partner2,
-        banner_lst_partner3,
-        banner_lst_partner4,
-        banner_lst_partner5,
-        banner_lst_partner6,
-    ]
-
-    main(banner_lists, parent=args_cli.parent)
+    main(parent=args_cli.parent)
