@@ -143,6 +143,8 @@ class XAuth:
     client_secret: str
     api_key: str
     api_secret: str
+    access_token: str
+    refresh_token: str
 
     def __repr__(self):
         return "XAuth(client_id, client_secret)"
@@ -191,6 +193,8 @@ def x_auth():
         x_username=client_info["x_api"]["x_username"],
         x_passw=client_info["x_api"]["x_passw"],
         x_email=client_info["x_api"]["x_email"],
+        access_token=client_info["x_api"]["access_token"],
+        refresh_token=client_info["x_api"]["refresh_token"],
     )
 
 
