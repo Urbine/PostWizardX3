@@ -46,11 +46,10 @@ class ConfigFileNotFound(Exception):
 
     """
 
-    def __init__(self, filename: str):
+    def __init__(self, filename: str, package: str):
         self.filename = filename
-        self.message = (
-            f"Filename {filename} does not exist. Create it if you haven't already."
-        )
+        self.package = package
+        self.message = f"Filename {filename} does not exist in package {package}. Create it if you haven't already."
         super().__init__(self.message)
 
 
@@ -74,5 +73,32 @@ class InvalidConfiguration(Exception):
 
     def __init__(self, param: str):
         self.param = param
-        self.message = f"Correct configuration key {str(param)} and try again."
+        self.message = f"Value {str(param)} is unsupported."
+        super().__init__(self.message)
+
+
+class RefreshTokenError(Exception):
+    """
+    Handle X API refresh token errors.
+    """
+
+    def __init__(self, reason: str):
+        self.json = reason
+        self.message = f"{reason}"
+        self.help = "Regenerate the tokens and try again: python3 -m integrations.x_api --headless"
+        super().__init__(self.message, self.help)
+
+
+class HotFileSyncIntegrityError(Exception):
+    """
+    Notifies the user about failures in the HotFileSync process.
+    Changes will not touch the wp_posts.json file if the config cannot be validated.
+    In this case, you may want to investigate what went wrong, but it is way easier to
+    rebuild the WordPress post caching and its config file.
+    """
+
+    def __init__(self):
+        self.message = """WP JSON HotSync validation failed.
+                          Maybe you have to rebuild your WordPress cache and its config.
+                          Run (in project root): python3 -m integrations.wordpress_api --yoast"""
         super().__init__(self.message)
