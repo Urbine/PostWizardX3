@@ -24,7 +24,6 @@ __author_email__ = "yohamg@programmer.net"
 
 from dataclasses import dataclass
 
-from core.helpers import parse_client_config
 from core.custom_exceptions import InvalidConfiguration
 
 
@@ -33,6 +32,7 @@ def is_config_enabled(config_file_key):
         return eval(config_file_key.title())
     else:
         raise InvalidConfiguration(config_file_key)
+from .helpers import parse_client_config
 
 
 @dataclass(frozen=True)

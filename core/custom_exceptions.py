@@ -46,11 +46,10 @@ class ConfigFileNotFound(Exception):
 
     """
 
-    def __init__(self, filename: str):
+    def __init__(self, filename: str, package: str):
         self.filename = filename
-        self.message = (
-            f"Filename {filename} does not exist. Create it if you haven't already."
-        )
+        self.package = package
+        self.message = f"Filename {filename} does not exist in package {package}. Create it if you haven't already."
         super().__init__(self.message)
 
 
