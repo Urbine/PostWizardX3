@@ -711,12 +711,13 @@ def parse_client_config(ini_file: str, package_name: str) -> ConfigParser:
     :return: ``ConfigParser``
     """
     f_ini = clean_filename(ini_file, "ini")
-    config = ConfigParser()
-    with importlib.resources.path(package_name, f_ini) as f_path:
-        if os.path.exists(f_path):
+    config = ConfigParser(interpolation=None)
+    try:
+        with importlib.resources.path(package_name, f_ini) as f_path:
+            os.environ["CLIENT_INFO_PATH"] = str(f_path)
             config.read(f_path)
-        else:
-            raise ConfigFileNotFound(str(f_path))
+    except ModuleNotFoundError:
+        raise ConfigFileNotFound(f_ini, package_name)
     return config
 
 
@@ -817,6 +818,25 @@ def write_to_file(filename: str, folder: str, extension: str, stream: Any) -> No
     return None
 
 
+def write_config_file(
+    filename: str, package: str, section: str, option: str, value: str
+) -> None:
+    """Modify specific sections, options and values in an .ini configuration file.
+
+    :param filename: ``str`` .ini config filename.
+    :param package: ``str`` origin package in the project.
+    :param section: ``str`` config section header name.
+    :param option: ``str`` config option.
+    :param value: ``str`` config option value.
+    :return: ``None`` (Writes .ini config file)
+    """
+    config = parse_client_config(filename, package)
+    config.set(section, option, str(value))
+    with open(os.environ.get("CLIENT_INFO_PATH"), "w") as update:
+        config.write(update)
+    return None
+
+
 def load_file_package_scope(package: str, filename: str) -> AnyStr:
     """Load file when the program is executed as a module.
 
@@ -829,7 +849,7 @@ def load_file_package_scope(package: str, filename: str) -> AnyStr:
             return f.read()
 
 
-def imagick(img_path: Path, quality: int, target: str):
+def imagick(img_path: Path | str, quality: int, target: str):
     """Convert images to a target file format via the ImageMagick library
        installed in the system.
 
