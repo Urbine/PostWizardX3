@@ -315,7 +315,7 @@ def identify_missing(
 
 
 def fetch_thumbnail(
-    folder: str, slug: str, remote_res: str, format: str, thumbnail_name: str = ""
+    folder: str, slug: str, remote_res: str, thumbnail_name: str = ""
 ) -> int:
     """This function handles the renaming and fetching of thumbnails that will be uploaded to
     WordPress as media attachments. It dynamically renames the thumbnails by taking in a URL slug to
@@ -326,22 +326,31 @@ def fetch_thumbnail(
     :param folder: ``str`` thumbnails dir
     :param slug: ``str`` URL slug
     :param remote_res: ``str`` thumbnail download URL
-    :param format: ``str`` target image format used for conversion.
     :param thumbnail_name: ``str`` used in case the user wants to upload different thumbnails
     and wishes to keep the names.
     :return: ``int`` (status code from requests)
     """
     thumbnail_dir: str = folder
     remote_data: requests = requests.get(remote_res)
+    cs_conf = content_select_conf()
     if thumbnail_name != "":
         name: str = f"-{thumbnail_name.split('.')[0]}"
     else:
         name: str = thumbnail_name
-    with open(f"{thumbnail_dir}/{slug}{name}.jpg", "wb") as img:
+    img_name = clean_filename(f"{slug}{name}", cs_conf.pic_fallback)
+    with open(f"{thumbnail_dir}/{img_name}", "wb") as img:
         img.write(remote_data.content)
 
-    # Image conversion to a target format
-    helpers.imagick(f"{thumbnail_dir}/{slug}{name}.jpg", 80, format)
+    # Image conversion to a target format if available
+    if cs_conf.imagick:
+        helpers.imagick(
+            f"{thumbnail_dir}/{slug}{name}.{cs_conf.pic_fallback}",
+            cs_conf.quality,
+            cs_conf.pic_format,
+        )
+    else:
+        pass
+
     return remote_data.status_code
 
 
@@ -1104,11 +1113,17 @@ def video_upload_pilot(
             )
 
             console.print("--> Fetching thumbnail...", style="bold green")
-            pic_format = clean_filename(wp_slug, cs_config.pic_format)
+
+            # Check whether ImageMagick conversion has been enabled in config.
+            pic_format = (
+                cs_config.pic_format if cs_config.imagick else cs_config.pic_fallback
+            )
+            thumbnail = clean_filename(wp_slug, pic_format)
+
             try:
-                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url, "webp")
+                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
                 console.print(
-                    f"--> Stored thumbnail {pic_format} in cache folder {os.path.relpath(thumbnails_dir.name)}",
+                    f"--> Stored thumbnail {thumbnail} in cache folder {os.path.relpath(thumbnails_dir.name)}",
                     style="bold green",
                 )
                 console.print(
@@ -1121,7 +1136,7 @@ def video_upload_pilot(
                 upload_img: int = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
-                    f"{thumbnails_dir.name}/{pic_format}",
+                    f"{thumbnails_dir.name}/{thumbnail}",
                     img_attrs,
                 )
 
@@ -1139,7 +1154,7 @@ def video_upload_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(f"{thumbnails_dir.name}/{pic_format}")
+                    os.remove(f"{thumbnails_dir.name}/{thumbnail}")
                 else:
                     pass
 

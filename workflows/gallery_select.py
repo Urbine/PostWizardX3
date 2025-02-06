@@ -8,7 +8,6 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Std Library
 import argparse
 import os.path
 import re
@@ -39,7 +38,6 @@ from workflows.content_select import (
     wp_publish_checker,
     x_post_creator,
 )
-from core.helpers import clean_file_cache
 
 from core import helpers, media_source_auth, gallery_select_conf, wp_auth, x_auth
 
@@ -137,7 +135,7 @@ def extract_zip(zip_path: str, extr_dir: str):
             pass
         finally:
             # We always have to clean up.
-            clean_file_cache(os.path.relpath(zip_path), ".zip")
+            core.clean_file_cache(os.path.relpath(zip_path), ".zip")
     except (IndexError, zipfile.BadZipfile):
         return None
 
@@ -251,12 +249,13 @@ def make_photos_payload(
     if reverse_slug:
         # '-pics' tells Google the main content of the page.
         final_slug: str = (
-            f'{wp_pre_slug}-{"-".join(partner_name.lower().split(" "))}-pics'
+            f"{wp_pre_slug}-{'-'.join(partner_name.lower().split(' '))}-pics"
         )
     else:
         final_slug: str = (
-            f'{"-".join(partner_name.lower().split(" "))}-{wp_pre_slug}-pics'
+            f"{'-'.join(partner_name.lower().split(' '))}-{wp_pre_slug}-pics"
         )
+    os.environ["SET_SLUG"] = final_slug
 
     # Added an author field to the client_info config file.
     author: int = int(wp_auth.author_admin)
@@ -522,10 +521,9 @@ def gallery_upload_pilot(
                     headless=headless,
                 )
                 extract_zip(temp_dir.name, thumbnails_dir.name)
-
-                console.print("--> Creating set on WordPress", style="bold green")
                 upload_image_set("*", thumbnails_dir.name, title)
 
+                console.print("--> Creating set on WordPress", style="bold green")
                 push_post = wordpress_api.wp_post_create([wp_endpoints.photos], payload)
                 console.print(
                     f"--> WordPress status code: {push_post}", style="bold green"
