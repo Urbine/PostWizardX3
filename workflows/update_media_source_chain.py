@@ -18,8 +18,9 @@ likely to fail in each of the jobs.\m
 
 There is a missing step: clean outdated files to avoid file accumulation in the project
 directory. There is another workflow in this package that can do it, however, I want to
-run the ``clean_outdated_files`` module manually in case I want to check the new and old files,
-however, it could be added in the future.
+run the ``clean_outdated_files`` module manually in case I want to check the new and old files.
+In my main workflow, I include this step in a bash script that calls ``clean_outdated_files.py``
+from this package.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
