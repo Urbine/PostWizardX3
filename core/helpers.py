@@ -17,6 +17,7 @@ __author_email__ = "yohamg@programmer.net"
 import base64
 import csv
 import glob
+import hashlib
 import importlib.resources
 import json
 import os
@@ -878,6 +879,15 @@ def str_encode_b64(encode_str: str) -> str:
     encode_bytes = encode_str.encode("ascii")
     b64_bytes = base64.b64encode(encode_bytes)
     return b64_bytes.decode("ascii")
+
+
+def sha256_hash_generate(r_str: str) -> str:
+    """Generate SHA256 hash from random string.
+
+    :param r_str: ``str`` random string
+    :return: ``str`` SHA256 hash string
+    """
+    return hashlib.sha256(r_str.encode()).hexdigest()
 
 
 def generate_random_str(k: int) -> str:
