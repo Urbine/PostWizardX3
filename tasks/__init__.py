@@ -16,7 +16,7 @@ from tasks.feed_dump_create import parse_partner_name, get_vid_dump_flow
 from tasks.feed_scrape import get_set_source_flow
 
 # ** MediaSource TXT dump parser
-from tasks.parse_txt_dump import parse_txt_dump
+from tasks.parse_txt_dump import parse_txt_dump_chain
 
 # ** MediaSource HTML photoset dump parser
 from tasks.sets_source_parse import db_generate
@@ -26,5 +26,5 @@ __all__ = [
     "get_vid_dump_flow",
     "get_set_source_flow",
     "db_generate",
-    "parse_txt_dump",
+    "parse_txt_dump_chain",
 ]

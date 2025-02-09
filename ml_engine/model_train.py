@@ -19,13 +19,11 @@ copy of the WordPress cache file in your local storage.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Standard Library
 import re
 import time
 from itertools import chain
