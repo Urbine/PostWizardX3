@@ -11,6 +11,9 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+from Cython.Compiler.Errors import message
+from requests import Request, Response
+
 
 class NoSuitableArgument(Exception):
     """
@@ -89,6 +92,20 @@ class RefreshTokenError(Exception):
         super().__init__(self.message, self.help)
 
 
+class AccessTokenRetrivalError(Exception):
+    """
+    Notifies the user when the authorization flow is unsuccessful.
+    """
+
+    def __init__(self, res: Response):
+        self.status = res.status_code
+        self.reason = res.reason
+        self.message = (
+            f"No Access Token found: \nStatus: {self.status} \nReason: {self.reason}"
+        )
+        super().__init__(self.message)
+
+
 class HotFileSyncIntegrityError(Exception):
     """
     Notifies the user about failures in the HotFileSync process.
@@ -101,4 +118,16 @@ class HotFileSyncIntegrityError(Exception):
         self.message = """WP JSON HotSync validation failed.
                           Maybe you have to rebuild your WordPress cache and its config.
                           Run (in project root): python3 -m integrations.wordpress_api --yoast"""
+        super().__init__(self.message)
+
+
+class AssetsNotFoundError(Exception):
+    """
+    Notifies the user in case there are no assets in the asset config file.
+    However, if there is no config file, exception ``ConfigFileNotFound`` may occur first.
+    """
+
+    def __init__(self):
+        self.message = """No assets found in config file. 
+                          Make sure you add your assets to the corresponding file before launching this application."""
         super().__init__(self.message)

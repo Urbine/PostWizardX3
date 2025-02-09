@@ -27,6 +27,8 @@ from core.custom_exceptions import (
     UnsupportedParameter,
     RefreshTokenError,
     HotFileSyncIntegrityError,
+    AssetsNotFoundError,
+    AccessTokenRetrivalError,
 )
 
 
@@ -74,6 +76,8 @@ __all__ = [
     "InvalidInput",
     "RefreshTokenError",
     "HotFileSyncIntegrityError",
+    "AssetsNotFoundError",
+    "AccessTokenRetrivalError",
     "access_url",
     "access_url_bs4",
     "clean_filename",
