@@ -57,15 +57,16 @@ def fetch_zip(
     """Fetch a .zip archive from the internet by following set of authentication and retrieval
     steps via automated execution of a browser instance (webdriver).
 
+    **Note about ``headless`` mode: In this function, I have performed testing of a headless retrieval of the .zip
+    archive, however, ``headless`` mode seems incompatible for this process. I am leaving the parameter to explore the
+    execution in other platforms like Microsoft Windows as this function has been tested in Linux for the most
+    part.**
+
     :param dwn_dir: ``str``  Download directory. Typically, a temporary location.
     :param remote_res: ``str`` Archive download URL. It must be a direct link (automatic download)
-    :param parent: ``bool``  ``True`` if your download dir is in MONGER_CASH_INFOa parent directory. Default ``False``
+    :param parent: ``bool``  ``True`` if your download dir is in a parent directory. Default ``False``
     :param gecko: ``bool`` ``True`` if you want to use Gecko (Firefox) webdriver instead of Chrome. Default ``False``
     :param headless: ``bool`` ``True`` if you want headless execution. Default ``False``.
-    Note about ``headless`` mode: In this function, I have performed testing of a headless retrieval of the .zip
-    archive, however, ``headless`` mode seems incompatible for this process. I am leaving the parameter to explore the
-    execution in other platforms like Microsoft Windows as this function has been tested in Linux Fedora for the most
-    part.
     :param m_cash_auth: ``MongerCashAuth`` object with authentication information to access MongerCash.
     :return: ``None``
     """
@@ -281,7 +282,7 @@ def upload_image_set(
     :param ext: ``str`` image file extension to look for.
     :param folder:  ``str`` Your thumbnails folder, just the name is necessary.
     :param title: ``str`` gallery name
-    :param wp_params: ``WPAuth``object with the base URL of the WP site.
+    :param wp_params: ``WPAuth`` object with the base URL of the WP site.
     :return: ``None``
     """
     # Making sure folder is accessible.
@@ -411,8 +412,7 @@ def gallery_upload_pilot(
 
     :param relevancy_on: ``bool`` ``True`` to enable the relevancy algorithm (experimental). Default ``False``
     :param gecko: ``bool`` ``True`` if you want to use the Gecko webdriver. Default ``False`` (Chrome)
-    :param headless: ``bool`` ``True`` will enable the ``headless`` of the webdriver.
-    For more information on this refer to the ``fetch_zip`` documentation on this module.
+    :param headless: ``bool`` ``True`` will enable the ``headless`` of the webdriver. For more information on this refer to the ``fetch_zip`` documentation on this module.
     :param parent: ``bool`` ``True`` if you are operating in the parent directory. Default ``False``
     :param wp_admin_auth: ``WPAuth`` object with information about you WP site.
     :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.

@@ -1,8 +1,15 @@
 """
-Gather information from the vjav API, parse it and insert it into a SQLite3 database.
+Gather information from the VJAV and DesiTube public APIs, parse it and insert it into a SQLite3 database.
+Provides interactivity via CLI for users.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+
 """
 
-# Std Library
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import argparse
 import datetime
 import os
@@ -12,7 +19,7 @@ import tempfile
 # Local implementations
 import core
 from .url_builder import CSVColumns, URLEncode
-from core.helpers import clean_file_cache, remove_if_exists
+from core.helpers import remove_if_exists
 
 VJAV_BASE_URL = "https://vjav.com/admin/feeds/embed/?source=576422190"
 DESI_T_BASE_URL = "https://desiporn.tube/admin/feeds/embed/?source=576422190"

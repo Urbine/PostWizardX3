@@ -1,3 +1,14 @@
+"""
+Implementation if the AdultNext public API.
+This module requests, normalises, provides interactivity via CLI and stores information in a SQLite3 format.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import argparse
 import datetime
 import os.path
@@ -6,7 +17,7 @@ import tempfile
 
 # Local implementations
 import core
-from core.helpers import clean_file_cache, remove_if_exists
+from core.helpers import remove_if_exists
 from .url_builder import CSVColumns, URLEncode
 
 # Constants

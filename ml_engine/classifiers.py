@@ -15,7 +15,6 @@ Classification models used in this project use the Supervised Learning methodolo
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"

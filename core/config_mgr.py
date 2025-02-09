@@ -16,7 +16,6 @@ This avoids side effects or unexpected behaviour.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
@@ -24,11 +23,16 @@ __author_email__ = "yohamg@programmer.net"
 
 from dataclasses import dataclass
 
-from .helpers import parse_client_config
+from core.helpers import parse_client_config
 
 
 @dataclass(frozen=True)
 class WPAuth:
+    """
+    Immutable dataclass responsible for holding WordPress secret structure,
+    site information, configuration filenames, and behavioural constants.
+    """
+
     user: str
     app_password: str
     author_admin: str
@@ -46,6 +50,10 @@ class WPAuth:
 
 @dataclass(frozen=True)
 class MongerCashAuth:
+    """
+    Immutable dataclass with the MongerCash secret structure.
+    """
+
     username: str
     password: str
 
@@ -55,6 +63,10 @@ class MongerCashAuth:
 
 @dataclass(frozen=True)
 class YandexAuth:
+    """
+    Immutable dataclass responsible for ordering Yandex API details.
+    """
+
     client_id: str
     client_secret: str
 
@@ -64,6 +76,11 @@ class YandexAuth:
 
 @dataclass(frozen=True)
 class ContentSelectConf:
+    """
+    Immutable dataclass responsible for holding content-select
+    bot configuration variables and behavioural tweaks.
+    """
+
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
@@ -85,6 +102,11 @@ class ContentSelectConf:
 
 @dataclass(frozen=True)
 class GallerySelectConf:
+    """
+    Immutable dataclass responsible for holding gallery-select
+    bot configuration variables and behavioural tweaks.
+    """
+
     pic_format: str
     pic_fallback: str
     imagick: bool
@@ -106,6 +128,11 @@ class GallerySelectConf:
 
 @dataclass(frozen=True)
 class EmbedAssistConf:
+    """
+    Immutable dataclass responsible for holding embed-assist
+    bot configuration variables and behavioural tweaks.
+    """
+
     wp_json_posts: str
     wp_cache_config: str
     pic_format: str
@@ -126,6 +153,10 @@ class EmbedAssistConf:
 
 @dataclass(frozen=True)
 class TasksConf:
+    """
+    Immutable dataclass for configuration constants for the ``tasks`` package.
+    """
+
     mcash_dump_url: str
     mcash_set_url: str
 
@@ -135,6 +166,11 @@ class TasksConf:
 
 @dataclass(frozen=True)
 class XAuth:
+    """
+    Immutable dataclass responsible for structuring X platform secrets
+    and API configurable and non-constant parameters.
+    """
+
     uri_callback: str
     x_username: str
     x_passw: str
@@ -155,6 +191,10 @@ client_info = parse_client_config("client_info", "core.config")
 
 
 def wp_auth() -> WPAuth:
+    """ Factory function for dataclass ``WPAuth``
+
+    :return: ``WPAuth``
+    """
     return WPAuth(
         user=client_info["WP_Admin"]["user"],
         app_password=client_info["WP_Admin"]["app_password"],
@@ -170,6 +210,10 @@ def wp_auth() -> WPAuth:
 
 
 def monger_cash_auth() -> MongerCashAuth:
+    """ Factory function for dataclass ``MongerCashAuth``
+
+    :return: ``MongerCashAuth``
+    """
     return MongerCashAuth(
         username=client_info["MongerCash"]["username"],
         password=client_info["MongerCash"]["password"],
@@ -177,13 +221,21 @@ def monger_cash_auth() -> MongerCashAuth:
 
 
 def yandex_auth() -> YandexAuth:
+    """ Factory function for dataclass ``YandexAuth``
+
+    :return: ``YandexAuth``
+    """
     return YandexAuth(
         client_id=client_info["Yandex"]["client_id"],
         client_secret=client_info["Yandex"]["client_secret"],
     )
 
 
-def x_auth():
+def x_auth() -> XAuth:
+    """ Factory function for dataclass ``XAuth``
+
+    :return: ``XAuth``
+    """
     return XAuth(
         client_id=client_info["x_api"]["client_id"],
         client_secret=client_info["x_api"]["client_id"],
@@ -203,6 +255,10 @@ workflows_config = parse_client_config("workflows_config", "core.config")
 
 
 def content_select_conf() -> ContentSelectConf:
+    """ Factory function for dataclass ``ContentSelectConf``
+
+    :return: ``ContentSelectConf``
+    """
     return ContentSelectConf(
         wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
         wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
@@ -224,6 +280,10 @@ def content_select_conf() -> ContentSelectConf:
 
 
 def gallery_select_conf() -> GallerySelectConf:
+    """ Factory function for dataclass ``EmbedAssistConf``
+
+    :return: ``EmbedAssistConf``
+    """
     return GallerySelectConf(
         pic_format=workflows_config["general_config"]["pic_format"],
         pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
@@ -245,6 +305,10 @@ def gallery_select_conf() -> GallerySelectConf:
 
 
 def embed_assist_conf() -> EmbedAssistConf:
+    """ Factory function for dataclass ``EmbedAssistConf``
+
+    :return: ``EmbedAssistConf``
+    """
     return EmbedAssistConf(
         wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
         wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
@@ -269,6 +333,10 @@ tasks_config = parse_client_config("tasks_config", "core.config")
 
 
 def tasks_conf() -> TasksConf:
+    """ Factory function for dataclass ``TasksConf``
+
+    :return: ``TasksConf``
+    """
     return TasksConf(
         mcash_dump_url=tasks_config["dump_create_config"]["mcash_dump_url"],
         mcash_set_url=tasks_config["dump_create_config"]["mcash_set_url"],

@@ -1,9 +1,7 @@
 """
-This module stores the helper functions that collaborate
-with other local implementations.
+This module stores the helper functions that collaborate with other local implementations.
 
 The file also adds bits of reusable business logic from other modules.
-
 Helpers must have a reusable implementation of commonly-used code.
 
 Author: Yoham Gabriel Urbine@GitHub
@@ -17,6 +15,7 @@ __author_email__ = "yohamg@programmer.net"
 import base64
 import csv
 import glob
+import hashlib
 import importlib.resources
 import json
 import os
@@ -192,6 +191,8 @@ def cwd_or_parent_path(parent: bool = False) -> str:
 
 def export_client_info() -> dict[str, dict[str, str]]:
     """Help dataclasses set a ``default_factory`` field for the client info function.
+    **Note: No longer used due to core.config_mgr implementation.**
+
     :return: ``dict[str, dict[str, str]`` Client info loaded ``JSON``
     """
     info = get_client_info("client_info")
@@ -528,10 +529,10 @@ def match_list_mult(
 ) -> list[int]:
     """Matches a ``str`` within a list and returns the indexes where such matches occurred.
 
-    :param hint: ``str pattern
-    :param list_lookup: the list that is likely to contain the match
-    :param ignore_case: ``True`` to enable the ``re.IGNORECASE`` flag for matches. Default ``False``.
-    :return: ``list[int]`` list of matching index positions
+    :param hint: ``str`` pattern
+    :param list_lookup: the list likely to contain the match.
+    :param ignore_case: ``True`` to enable the ``re.IGNORECASE`` flag for matches. Default ``False``
+    :return: ``list[int]`` list of matching index positions.
     """
     ignore_case = re.IGNORECASE if ignore_case else 0
     return [
@@ -560,7 +561,7 @@ def match_list_elem_date(
     the matches; in other words, it excludes the matches if you don't want to use them in your functionality.
 
     For example, I have to match strings with the hints ``['foo', 'bar']`` within a list
-    ``['foo-2024-11-04', 'foo-2024-11-02', 'bar-2024-10-29', 'bar-2024']`` the function will find multiple occurrences
+    ``['foo-2024-11-04', 'foo-2024-11-02', 'bar-2024-10-29', 'bar-2024-09-20']`` the function will find multiple occurrences
     of the hints and for each hint in the list do the following:
 
     1. manipulate the hint with split and join if needed (in case there is a known pattern in place)
@@ -632,16 +633,19 @@ def match_list_elem_date(
         return up_to_date
 
 
-def load_file_path(package: str, filename: str) -> Path:
+def load_file_path(package: str, filename: str) -> Path | None:
     """Load resources stored within folders in packages.
     Usually, not all systems can locate the required resources due to the package structure of the project.
-    :param package: ``str`` package name, for example, if you have a file name in `./models`
-    (being ./ a package itself) you can specify ``package.models`` here.
+
+    :param package: ``str`` package name, for example, if you have a file name in `./models` (being ./ a package itself) you can specify ``package.models`` here.
     :param filename: ``str`` name of the filename you are trying to load.
     :return: ``Path`` object
     """
-    with importlib.resources.path(package, filename) as n_path:
-        return n_path
+    try:
+        with importlib.resources.path(package, filename) as n_path:
+            return n_path
+    except ModuleNotFoundError:
+        raise FileNotFoundError
 
 
 def load_json_ctx(filename: str, log_err: bool = False):
@@ -851,7 +855,14 @@ def load_file_package_scope(package: str, filename: str) -> AnyStr:
 
 def imagick(img_path: Path | str, quality: int, target: str):
     """Convert images to a target file format via the ImageMagick library
-       installed in the system.
+    installed in the system.
+
+    The ``convert`` command is deprecated in ImageMagick 7 (IMv7).
+    Therefore, ``magick`` or ``magick convert`` are the modern way.
+    This means that, if this command does not work in your platform, you need to either
+    modify this to ``convert`` instead of the modern command or just update your IM version.
+    However, if you work with PNG files with transparent background, don't use an older version
+    of IM.That said, it won't look good, but it depends on what you need.
 
     :param img_path: ``Path`` - Image URI
     :param quality: ``int`` image quality (0 to 100)
@@ -878,6 +889,15 @@ def str_encode_b64(encode_str: str) -> str:
     encode_bytes = encode_str.encode("ascii")
     b64_bytes = base64.b64encode(encode_bytes)
     return b64_bytes.decode("ascii")
+
+
+def sha256_hash_generate(r_str: str) -> str:
+    """Generate SHA256 hash from random string.
+
+    :param r_str: ``str`` random string
+    :return: ``str`` SHA256 hash string
+    """
+    return hashlib.sha256(r_str.encode()).hexdigest()
 
 
 def generate_random_str(k: int) -> str:

@@ -38,6 +38,7 @@ from core import (
     InvalidInput,
     UnsupportedParameter,
     HotFileSyncIntegrityError,
+    AssetsNotFoundError,
     parse_client_config,
     content_select_conf,
     helpers,
@@ -81,22 +82,34 @@ def clean_partner_tag(partner_tag: str) -> str:
 
 
 def asset_parser(bot_config: ContentSelectConf, partner: str):
+    """Parse asset images for post payload building from the specified file in the
+    ``workflows_config.ini`` file.
+
+    :param bot_config: ``ContentSelectConf`` bot config factory function.
+    :param partner: ``str`` partner name
+    :return: ``list[str]`` asset images or banners.
+    """
     # Load assets conf
     assets = parse_client_config(bot_config.assets_conf, "core.config")
     sections = assets.sections()
     # Split the partner tag to know what part of the partners name is part of a section.
     spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
     wrd_list = clean_partner_tag(partner).split(spl_char(partner))
-    find_me = lambda wrd, sec: re.findall(wrd, sec, flags=re.IGNORECASE)
+    find_me = lambda word, section: re.findall(word, section, flags=re.IGNORECASE)
+    assets_list: list[str] = []
     for sec in sections:
         for wrd in wrd_list:
             matches = find_me(wrd, sec)
             if matches:
                 right_section = assets[sec]
-                return list(right_section.values())
+                assets_list = list(right_section.values())
+                break
             else:
                 continue
-    return None
+    if assets_list:
+        return assets_list
+    else:
+        raise AssetsNotFoundError
 
 
 def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
@@ -288,8 +301,7 @@ def identify_missing(
     lenient with tags (ignore_case = True) and strict with models (ignore_case = False), this is optional though.
     Ignore case was implemented based on the considerations that I have shared so far.
 
-    :param wp_data_dic: ``dict[str, str | int]`` returned by either ``map_wp_model_id`` or ``tag_id_merger_dict``
-    from module ``integrations.wordpress_api``
+    :param wp_data_dic: ``dict[str, str | int]`` returned by either ``map_wp_model_id`` or ``tag_id_merger_dict`` from module ``integrations.wordpress_api``
     :param data_lst: ``list[str]`` tags or models
     :param data_ids: ``list[int]`` tag or model IDs.
     :param ignore_case: ``bool`` True, enforce case policy. Default False.
@@ -327,8 +339,7 @@ def fetch_thumbnail(
     :param folder: ``str`` thumbnails dir
     :param slug: ``str`` URL slug
     :param remote_res: ``str`` thumbnail download URL
-    :param thumbnail_name: ``str`` used in case the user wants to upload different thumbnails
-    and wishes to keep the names.
+    :param thumbnail_name: ``str`` in case the user wants to upload different thumbnails and wishes to keep the names.
     :return: ``int`` (status code from requests)
     """
     thumbnail_dir: str = folder
@@ -462,7 +473,11 @@ def make_payload_simple(
     return payload_post
 
 
-def make_img_payload(vid_title: str, vid_description: str, bot_config: ContentSelectConf = content_select_conf()) -> dict[str, str]:
+def make_img_payload(
+    vid_title: str,
+    vid_description: str,
+    bot_config: ContentSelectConf = content_select_conf(),
+) -> dict[str, str]:
     """Similar to the make_payload function, this one makes the payload for the video thumbnails,
     it gives them the video description and focus key phrase, which is the video title plus a call to
     action in case that ALT text appears on the image search vertical, and they want to watch the video.
@@ -558,15 +573,14 @@ def hot_file_sync(
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
     This function leverages the power of the caching mechanism defined
     in wordpress_api.py that dynamically appends new items in order and keeps track of cached pages with the
-    total count of posts at the time of update. hot_file_sync just updates the JSON cache of the WP site and
+    total count of posts at the time of update. ``hot_file_sync`` just updates the JSON cache of the WP site and
     reloads the local cache configuration file to validate the changes.
 
-    Hot Sync will write the changes once the new changes are validated and compared with the local config file.
+    Hot Sync will write the changes once the new ones are validated and compared with the local config file.
     In other words, if it isn't right, the WP post file remains untouched.
 
-    :param bot_config: ``ContentSelectConf`` or ``GallerySelectConf`` or ``EmbedAssistConf``
-    with configuration information.
-    :return: ``bool``  ``True`` if everything went well or ``False`` if the validation failed)
+    :param bot_config: ``ContentSelectConf`` or ``GallerySelectConf`` or ``EmbedAssistConf`` with configuration information.
+    :return: ``bool`` - ``True`` if everything went well or raise ``HotFileSyncIntegrityError`` if the validation failed)
     """
     parent = (
         False
@@ -577,9 +591,11 @@ def hot_file_sync(
         wp_filename: str = helpers.clean_filename(bot_config.wp_json_photos, "json")
     else:
         wp_filename: str = helpers.clean_filename(bot_config.wp_json_posts, "json")
+
     sync_changes: list[dict[str, ...]] = wordpress_api.update_json_cache(
         photos=True if isinstance(bot_config, GallerySelectConf) else False
     )
+
     # Reload config
     config_json: dict[str, str] = helpers.load_json_ctx(bot_config.wp_cache_config)
     if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
@@ -596,7 +612,7 @@ def partner_select(
 ) -> tuple[str, list[str]]:
     """Selects partner and banner list based on their index order.
     As this function is based on index and order of elements, both lists should have the same number of elements.
-
+    **Note: No longer in use since there are better implementations now**
 
     :param partner_lst: ``list[str]`` - partner offers
     :param banner_lsts: ``list[list[str]]`` list of banners to select from.
@@ -626,14 +642,14 @@ def select_guard(db_name: str, partner: str) -> None:
     proprietary banners and tracking links.
 
     It is important to note that this function was designed at a time when the user had to
-    manually select a database. However, with functions like ``content_select_db_match``, the
+    manually select a database. However, with functions like ``content_select_db_match`` , the
     program will obtain the most appropriate database automatically. Despite the latter, ``select_guard``
     has been kept in place to alert the user of any errors that may arise and still serve the purpose
     that led to its creation.
 
     :param db_name: ``str`` user-selected database name
     :param partner: ``str`` user-selected partner offering
-    :return: ``None`` / If the assertion fails the execution will stop gracefully.
+    :return: ``None`` If the assertion fails the execution will stop gracefully.
     """
     # Find the split character as I just need to get the first word of the name
     # to match it with partner selected by the user
@@ -660,26 +676,26 @@ def content_select_db_match(
     ``content_select_db_match`` finds a common index where the correct partner offer and database are located
     within two separate lists: the available ``.db`` file list and a list of partner offers.
     In order to accomplish this, the modules in the ``tasks`` package apply a consistent naming convention that
-    looks like ``partner-name-date-content-type-in-ISO-format``; those filenames are further analysed by an algorithm
+    looks like ``partner-name-content-type-date-in-ISO-format``; those filenames are further analysed by an algorithm
     that matches strings found in a lookup list.
 
     For more information on how this matching works and the algorithm behind it, refer to the documentation for
     ``match_list_mult`` and ``match_list_elem_date`` in the ``core.helpers`` module.
 
-    :param hint_lst: ``list[str]`` words/patterns to match.
-    :param content_hint: ``str`` type of content, typically ``vids`` or ``photos``
-
     **Note: As part of the above-mentioned naming convention, the files include a content type hint.
     This allows the algorithm to identify video or photo databases, depending on the module
-    calling the function. However, this hint can be any word that you use consistently in your filenames.**
+    calling the function. However, this hint can be any word that you use consistently in your filenames.
+    Also, if you want to access the file from a parent dir, either let the destination function handle it for you
+    or specify it yourself. Everytime Python runs the file as a module or runs it on an interpreter outside your
+    virtual environment, relative paths prove inefficient. However, this issue has been largely solved by using
+    package notation with standard library and local implementations.**
 
+    :param hint_lst: ``list[str]`` words/patterns to match.
+    :param content_hint: ``str`` type of content, typically ``vids`` or ``photos``
     :param prompt_db: ``True`` if you want to prompt the user to select db. Default ``False``.
     :param folder: ``str`` where you want to look for files
     :param parent: ``True`` to search in parent dir, default set to ``False``.
-    If you want to access the file from a parent dir,
-    either let the destination function handle it for you or specify it yourself.
-    :return: ``tuple[Connection, Cursor, str, int]``
-             (database connection, database cursor, database name, common index int)
+    :return: ``tuple[Connection, Cursor, str, int]`` (database connection, database cursor, database name, common index int)
     """
     console = Console()
     available_files: list[str] = helpers.search_files_by_ext(
@@ -749,9 +765,16 @@ def content_select_db_match(
 
 def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
     """Create a post with a random action call for the X platform.
+    Depending on your bot configuration, you can pass in your own post text and
+    override the random call to action. If you just don't feel like typing and
+    want to post without the randon text, the default value is an empty string.
+
+    Set the ``x_posting_auto`` option in ``workflows_config.ini`` to ``False`` ,
+    so that you get to type when you interact with the bots.
 
     :param description: ``str`` Video description
     :param post_url: ``str`` Video post url on WordPress
+    :param post_text: ``str`` in certain circumstances
     :return: ``int`` POST request status code.
     """
     cs_conf = content_select_conf()
@@ -790,6 +813,18 @@ def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
 def wp_publish_checker(
     post_slug: str, cs_conf: ContentSelectConf | EmbedAssistConf | GallerySelectConf
 ) -> bool | None:
+    """Check for the publication a post in real time by using iteration of the Hot File Sync
+    algorithm. It will detect that you have effectively hit the publish button, so that functionality
+    that directly depends on the post being online can take it from there.
+
+    The function assigns environment variable ``"LATEST_POST"`` since objects
+    present in this application do not usually work with full qualified links because it is
+    not necessary. This mechanism has also proven effective for manipulating pieces of information during runtime.
+
+    :param post_slug: ``str`` self-explanatory
+    :param cs_conf: ``ContentSelectConf`` | ``EmbedAssistConf`` | ``GallerySelectConf`` - Config objects
+    :return: ``None`` | ``True``
+    """
     hot_sync = hot_file_sync(cs_conf)
     while hot_sync:
         posts_file = (
@@ -820,9 +855,9 @@ def video_upload_pilot(
     **Note: This won't be a detailed description, however, it will give you a better notion of
     how this code accomplishes these tasks.**
 
-    1) Calls hot_file_sync to begin the session with a fresh set of data. \n
+    1) Calls hot_file_sync and x_api.refresh_flow() to begin the session with a fresh set of data. \n
     2) Sets up the required files and data structures by using configuration constants. \n
-    3) Assigns the video results from fetch_data_sql to a local variable. \n
+    3) Assigns the results from content_select_db_match to the partner index, db, and banner partner variables. \n
     4) Assigns the WP API base url to a local variable. \n
     5) Gathers input from the user and then validates. \n
     6) Validates user input and ensures a sensible choice is picked. \n
@@ -867,8 +902,7 @@ def video_upload_pilot(
             **When it reaches the point where there is only one element to show, the program will communicate
             that to the user and wait 60 seconds before cleaning cache files and clipboard data.**
 
-    :param wp_auth: ``WPAuth`` element provided by the ``core.config_mgr`` module.
-                     Set by default and bound to change based on the config file.
+    :param wp_auth: ``WPAuth`` element provided by the ``core.config_mgr`` module. Set by default and bound to change based on the config file.
     :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
     :param cs_config: ``ContentSelectConf`` Object that contains configuration options for this module.
     :param parent: ``True`` if you want to locate relevant files in the parent directory. Default False
@@ -1186,6 +1220,7 @@ def video_upload_pilot(
                         is_published = wp_publish_checker(wp_slug, cs_config)
                     if is_published:
                         if cs_config.x_posting_auto:
+                            # Environment "LATEST_POST" variable assigned in wp_publish_checker()
                             x_post_create = x_post_creator(
                                 description, os.environ.get("LATEST_POST")
                             )

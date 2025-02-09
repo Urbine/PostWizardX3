@@ -44,6 +44,14 @@ integrations.wordpress\_api module
    :undoc-members:
    :show-inheritance:
 
+integrations.x\_api module
+--------------------------
+
+.. automodule:: integrations.x_api
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

@@ -1,7 +1,14 @@
 """
 Help in the construction of API URLs that other modules need to gather information from a remote source.
 Contribute to better organization of the code by providing common elements that some APIs need in this package.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+
 """
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
 
 from dataclasses import dataclass
 from enum import Enum

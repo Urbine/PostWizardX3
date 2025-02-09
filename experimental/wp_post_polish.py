@@ -45,7 +45,8 @@ with web_driver as driver:
     # Authenticate / Solve math challenge
     username_box.send_keys(username)
     pass_box.send_keys(password)
-    math_challenge_box.send_keys(eval(sum))
+    # Be careful. Eval is evil.
+    math_challenge_box.send_keys(str(eval(sum)))
     time.sleep(3)
 
     # Get Login Button

@@ -24,7 +24,7 @@ from core import helpers, load_file_path
 # Make sure that you get a dump file with all these fields:
 # Dump format: Dump with | (Select this one on MongerCash)
 # name | description | models | tags | site_name | date | source | thumbnail | tracking
-def parse_txt_dump(
+def parse_txt_dump_chain(
     filename: str,
     d_name: str,
     d_conn: sqlite3,
