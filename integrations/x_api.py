@@ -19,6 +19,8 @@ import argparse
 import os
 import time
 
+from typing import Any
+
 # Third-party modules
 import pyclip
 import requests
@@ -37,6 +39,7 @@ from core import (
     sha256_hash_generate,
     RefreshTokenError,
     x_auth,
+    AccessTokenRetrivalError,
 )
 
 from core.config_mgr import XAuth  # Imported for type annotations.
@@ -152,7 +155,9 @@ def access_token(code: str, xauth: XAuth, x_endpoints: XEndpoints) -> Response:
         data=data,
         auth=(xauth.client_id, xauth.client_secret),
         headers=header,
-    ).json()
+    )
+
+
 def refresh_token_x(
     refresh_token: str, xauth: XAuth, x_endpoints: XEndpoints
 ) -> Response:
@@ -351,7 +356,12 @@ def main(*args, **kwargs) -> None:
     """
     ch_code = authorise_app_x(*args, **kwargs)
     new_tokens = access_token(ch_code, x_auth(), XEndpoints())
-    write_tokens_cinfo(new_tokens["access_token"], new_tokens["refresh_token"])
+    try:
+        write_tokens_cinfo(
+            new_tokens.json()["access_token"], new_tokens.json()["refresh_token"]
+        )
+    except KeyError:
+        raise AccessTokenRetrivalError(new_tokens)
     print(f"The client_info.ini file has been updated with the new tokens.")
 
 
