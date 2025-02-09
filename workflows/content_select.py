@@ -38,6 +38,7 @@ from core import (
     InvalidInput,
     UnsupportedParameter,
     HotFileSyncIntegrityError,
+    AssetsNotFoundError,
     parse_client_config,
     content_select_conf,
     helpers,
@@ -81,22 +82,34 @@ def clean_partner_tag(partner_tag: str) -> str:
 
 
 def asset_parser(bot_config: ContentSelectConf, partner: str):
+    """Parse asset images for post payload building from the specified file in the
+    ``workflows_config.ini`` file.
+
+    :param bot_config: ``ContentBotConf`` bot config factory function.
+    :param partner: ``str`` partner name
+    :return: ``list[str]`` asset images or banners.
+    """
     # Load assets conf
     assets = parse_client_config(bot_config.assets_conf, "core.config")
     sections = assets.sections()
     # Split the partner tag to know what part of the partners name is part of a section.
     spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
     wrd_list = clean_partner_tag(partner).split(spl_char(partner))
-    find_me = lambda wrd, sec: re.findall(wrd, sec, flags=re.IGNORECASE)
+    find_me = lambda word, section: re.findall(word, section, flags=re.IGNORECASE)
+    assets_list: list[str] = []
     for sec in sections:
         for wrd in wrd_list:
             matches = find_me(wrd, sec)
             if matches:
                 right_section = assets[sec]
-                return list(right_section.values())
+                assets_list = list(right_section.values())
+                break
             else:
                 continue
-    return None
+    if assets_list:
+        return assets_list
+    else:
+        raise AssetsNotFoundError
 
 
 def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
