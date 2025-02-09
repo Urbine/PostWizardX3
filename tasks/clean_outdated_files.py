@@ -4,13 +4,11 @@ Accepts CLI arguments to fine-tune its cleaning behaviour and scope.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Std Library
 import argparse
 import os
 
@@ -22,7 +20,7 @@ def clean_outdated(
     hints_: list[str], file_lst: list[str], folder: str, silent: bool = False
 ) -> None:
     """Match and identify outdated files, and report to the user which files are
-        being deleted.
+    being deleted.
 
     :param hints_: ``list[str]`` possible filename hints of the files to be deleted.
     :param file_lst: ``list[str]`` file list filtered by extension (externally)
