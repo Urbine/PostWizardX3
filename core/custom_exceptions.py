@@ -85,11 +85,12 @@ class RefreshTokenError(Exception):
     Handle X API refresh token errors.
     """
 
-    def __init__(self, reason: str):
-        self.json = reason
-        self.message = f"{reason}"
+    def __init__(self, res: Response):
+        self.status = res.status_code
+        self.reason = res.reason
         self.help = "Regenerate the tokens and try again: python3 -m integrations.x_api --headless"
-        super().__init__(self.message, self.help)
+        self.message = f"Status code: {self.status} \nReason: {self.reason}"
+        super().__init__(f"{self.message} \n{self.help}")
 
 
 class AccessTokenRetrivalError(Exception):

@@ -203,7 +203,7 @@ def refresh_flow(xauth: XAuth, x_endpoints: XEndpoints) -> None:
         write_tokens_cinfo(new_bearer, new_refresh_token)
         os.environ["X_TOKEN"] = new_bearer
     else:
-        raise RefreshTokenError(new_request.reason)
+        raise RefreshTokenError(new_request)
     return None
 
 
