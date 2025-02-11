@@ -95,6 +95,8 @@ class ContentSelectConf:
     domain_tld: str
     x_posting_auto: bool
     x_posting_enabled: bool
+    telegram_posting_auto: bool
+    telegram_posting_enabled: bool
 
     def __repr__(self):
         return "ContentBotConf()"
@@ -121,6 +123,8 @@ class GallerySelectConf:
     domain_tld: str
     x_posting_auto: bool
     x_posting_enabled: bool
+    telegram_posting_auto: bool
+    telegram_posting_enabled: bool
 
     def __repr__(self):
         return "GalleryBotConf()"
@@ -146,6 +150,8 @@ class EmbedAssistConf:
     domain_tld: str
     x_posting_auto: bool
     x_posting_enabled: bool
+    telegram_posting_auto: bool
+    telegram_posting_enabled: bool
 
     def __repr__(self):
         return "EmbedAssistBotConf()"
@@ -186,12 +192,26 @@ class XAuth:
         return "XAuth(client_id, client_secret)"
 
 
+@dataclass(frozen=True)
+class BotAuth:
+    """
+    Immutable class in charge of providing secrets for the BotFather
+    service for Telegram Bot implementations.
+    """
+
+    telegram_chat_id: str
+    token: str
+
+    def __repr__(self):
+        return "BotAuth()"
+
+
 # client_info.ini
 client_info = parse_client_config("client_info", "core.config")
 
 
 def wp_auth() -> WPAuth:
-    """ Factory function for dataclass ``WPAuth``
+    """Factory function for dataclass ``WPAuth``
 
     :return: ``WPAuth``
     """
@@ -210,7 +230,7 @@ def wp_auth() -> WPAuth:
 
 
 def media_source_auth() -> MediaSourceAuth:
-    """ Factory function for dataclass ``MediaSourceAuth``
+    """Factory function for dataclass ``MediaSourceAuth``
 
     :return: ``MediaSourceAuth``
     """
@@ -221,7 +241,7 @@ def media_source_auth() -> MediaSourceAuth:
 
 
 def yandex_auth() -> YandexAuth:
-    """ Factory function for dataclass ``YandexAuth``
+    """Factory function for dataclass ``YandexAuth``
 
     :return: ``YandexAuth``
     """
@@ -232,7 +252,7 @@ def yandex_auth() -> YandexAuth:
 
 
 def x_auth() -> XAuth:
-    """ Factory function for dataclass ``XAuth``
+    """Factory function for dataclass ``XAuth``
 
     :return: ``XAuth``
     """
@@ -250,12 +270,23 @@ def x_auth() -> XAuth:
     )
 
 
+def bot_father() -> BotAuth:
+    """Factory function for dataclass ``BotAuth``.
+
+    :return: ``BotAuth``
+    """
+    return BotAuth(
+        telegram_chat_id=client_info["telegram_botfather"]["telegram_group_channel_id"],
+        token=client_info["telegram_botfather"]["bot_token"],
+    )
+
+
 # workflows_config.ini
 workflows_config = parse_client_config("workflows_config", "core.config")
 
 
 def content_select_conf() -> ContentSelectConf:
-    """ Factory function for dataclass ``ContentBotConf``
+    """Factory function for dataclass ``ContentBotConf``
 
     :return: ``ContentBotConf``
     """
@@ -276,11 +307,17 @@ def content_select_conf() -> ContentSelectConf:
         x_posting_enabled=workflows_config.getboolean(
             "content_select", "x_posting_enabled"
         ),
+        telegram_posting_auto=workflows_config.getboolean(
+            "content_select", "telegram_posting_auto"
+        ),
+        telegram_posting_enabled=workflows_config.getboolean(
+            "content_select", "telegram_posting_enabled"
+        ),
     )
 
 
 def gallery_select_conf() -> GallerySelectConf:
-    """ Factory function for dataclass ``EmbedAssistBotConf``
+    """Factory function for dataclass ``EmbedAssistBotConf``
 
     :return: ``EmbedAssistBotConf``
     """
@@ -301,11 +338,17 @@ def gallery_select_conf() -> GallerySelectConf:
         x_posting_enabled=workflows_config.getboolean(
             "gallery_select", "x_posting_enabled"
         ),
+        telegram_posting_auto=workflows_config.getboolean(
+            "gallery_select", "telegram_posting_auto"
+        ),
+        telegram_posting_enabled=workflows_config.getboolean(
+            "gallery_select", "telegram_posting_enabled"
+        ),
     )
 
 
 def embed_assist_conf() -> EmbedAssistConf:
-    """ Factory function for dataclass ``EmbedAssistBotConf``
+    """Factory function for dataclass ``EmbedAssistBotConf``
 
     :return: ``EmbedAssistBotConf``
     """
@@ -325,6 +368,12 @@ def embed_assist_conf() -> EmbedAssistConf:
         x_posting_enabled=workflows_config.getboolean(
             "gallery_select", "x_posting_enabled"
         ),
+        telegram_posting_auto=workflows_config.getboolean(
+            "embed_assist", "telegram_posting_auto"
+        ),
+        telegram_posting_enabled=workflows_config.getboolean(
+            "embed_assist", "telegram_posting_enabled"
+        ),
     )
 
 
@@ -333,7 +382,7 @@ tasks_config = parse_client_config("tasks_config", "core.config")
 
 
 def tasks_conf() -> TasksConf:
-    """ Factory function for dataclass ``TasksConf``
+    """Factory function for dataclass ``TasksConf``
 
     :return: ``TasksConf``
     """
