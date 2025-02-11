@@ -44,7 +44,7 @@ class CSVColumns:
 @dataclass(frozen=True)
 class URLEncode:
     """
-    Encoded separators for URL params
+    Builder dataclass for encoded separators for URL params.
     """
 
     PIPE: str = "%7C"
@@ -55,6 +55,10 @@ class URLEncode:
 
 @dataclass(frozen=True)
 class WPEndpoints:
+    """
+    Builder dataclass for the WordPress API Endpoints.
+    """
+
     users: str = "/users?"
     posts: str = "/posts"
     photos: str = "/photos"
@@ -74,6 +78,10 @@ class WPEndpoints:
 
 @dataclass(frozen=True)
 class XScope:
+    """
+    Builder dataclass for the X API scopes.
+    """
+
     READ: str = "tweet.read"
     WRITE: str = "tweet.write"
     OFFLINE: str = "offline.access"
@@ -83,6 +91,34 @@ class XScope:
 
 @dataclass(frozen=True)
 class XEndpoints:
+    """
+    Builder dataclass for the X API Endpoints.
+    """
+
     token_url: str = "https://api.x.com/2/oauth2/token"
     authorise_url: str = "https://x.com/i/oauth2/authorize?"
     tweets: str = "https://api.x.com/2/tweets"
+
+
+@dataclass(frozen=True)
+class BotFatherCommands:
+    """
+    Builder dataclass for the BotFather REST API Commands.
+    """
+
+    api_url: str = "https://api.telegram.org/bot"
+    get_me: str = "/getMe"
+    send_message = "/sendMessage"
+
+
+@dataclass(frozen=True)
+class BotFatherEndpoints:
+    """
+    Builder dataclass for the BotFather REST API Command Endpoints.
+    """
+
+    chat_id: str = "?chat_id="
+    text: str = "&text="
+    parse_mode = "&parse_mode="
+    parse_mode_mdv2: str = "MarkdownV2"
+    prefer_large_media = "prefer_large_media="

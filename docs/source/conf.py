@@ -54,9 +54,9 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 html_theme_options = {
     # Toc options
-    'collapse_navigation': True,
-    'sticky_navigation': True,
-    'navigation_depth': 4,
-    'includehidden': False,
-    'titles_only': False
+    "collapse_navigation": True,
+    "sticky_navigation": True,
+    "navigation_depth": 4,
+    "includehidden": False,
+    "titles_only": False,
 }
