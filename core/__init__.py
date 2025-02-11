@@ -17,6 +17,7 @@ from core.config_mgr import (
     embed_assist_conf,
     tasks_conf,
     x_auth,
+    bot_father,
 )
 
 
@@ -84,7 +85,6 @@ __all__ = [
     "filename_select",
     "export_request_json",
     "get_duration",
-    "get_project_db",
     "generate_random_str",
     "sha256_hash_generate",
     "str_encode_b64",
@@ -109,4 +109,5 @@ __all__ = [
     "embed_assist_conf",
     "tasks_conf",
     "x_auth",
+    "bot_father",
 ]

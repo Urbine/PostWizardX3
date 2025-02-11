@@ -14,7 +14,7 @@ __author_email__ = "yohamg@programmer.net"
 
 import os
 import pyclip
-from requests.exceptions import SSLError
+from requests.exceptions import SSLError, ConnectionError
 import readline  # Imported to enable Standard Input manipulation. Don't remove!
 import tempfile
 import time
@@ -363,43 +363,83 @@ def embedding_pilot(
                     "--> Check the post and paste all you need from your clipboard.",
                     style="bold green",
                 )
-                if embed_ast_conf.x_posting_enabled:
-                    status_msg = "Checking WP status and preparing for X posting."
+                if (
+                    embed_ast_conf.x_posting_enabled
+                    or embed_ast_conf.telegram_posting_enabled
+                ):
+                    status_msg = "Checking WP status and preparing for social sharing."
                     with console.status(
                         f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
                         spinner="earth",
                     ):
                         is_published = cs.wp_publish_checker(wp_slug, embed_ast_conf)
                     if is_published:
-                        if embed_ast_conf.x_posting_auto:
-                            x_post_create = cs.x_post_creator(
-                                title, os.environ.get("LATEST_POST")
-                            )
-                        else:
-                            post_text = console.input(
-                                "[bold yellow]Enter your additional post text here or press enter to use default configs: [bold yellow]\n"
-                            )
-                            x_post_create = cs.x_post_creator(
-                                title,
-                                os.environ.get("LATEST_POST"),
-                                post_text=post_text,
-                            )
-                        if x_post_create == 201:
-                            console.print(
-                                "--> Post has been published on WP and shared on X.",
-                                style="bold yellow",
-                            )
+                        if embed_ast_conf.x_posting_enabled:
+                            if embed_ast_conf.x_posting_auto:
+                                # Environment "LATEST_POST" variable assigned in wp_publish_checker()
+                                x_post_create = cs.x_post_creator(
+                                    title, os.environ.get("LATEST_POST")
+                                )
+                            else:
+                                post_text = console.input(
+                                    "[bold yellow]Enter your additional X post text here or press enter to use default configs: [bold yellow]\n"
+                                )
+                                x_post_create = cs.x_post_creator(
+                                    title,
+                                    os.environ.get("LATEST_POST"),
+                                    post_text=post_text,
+                                )
+                            if x_post_create == 201:
+                                console.print(
+                                    "--> Post has been published on WP and shared on X.\n",
+                                    style="bold yellow",
+                                )
+                            else:
+                                console.print(
+                                    f"--> There was an error while trying to share on X.\n Status: {x_post_create}",
+                                    style="bold red",
+                                )
+
+                        if embed_ast_conf.telegram_posting_enabled:
+                            if embed_ast_conf.telegram_posting_auto:
+                                telegram_msg = cs.telegram_send_message(
+                                    title,
+                                    os.environ.get("LATEST_POST"),
+                                    embed_ast_conf,
+                                )
+                            else:
+                                post_text = console.input(
+                                    "[bold yellow]Enter your additional Telegram message here or press enter to use default configs: [bold yellow]\n"
+                                )
+                                telegram_msg = cs.telegram_send_message(
+                                    title,
+                                    os.environ.get("LATEST_POST"),
+                                    embed_ast_conf,
+                                    msg_text=post_text,
+                                )
+
+                            if telegram_msg == 200:
+                                console.print(
+                                    # Env variable assigned in botfather_telegram.send_message()
+                                    f"--> Message sent to Telegram {os.environ.get('T_CHAT_ID')}",
+                                    style="bold yellow",
+                                )
+                            else:
+                                console.print(
+                                    f"--> There was an error while trying to communicate with Telegram.\n Status: {telegram_msg}",
+                                    style="bold red",
+                                )
                 else:
                     pass
                 videos_uploaded += 1
-            except SSLError:
+            except (SSLError, ConnectionError):
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
                     "* There was a connection error while processing this post... *",
                     style="bold red",
                 )
-                if input("\nDo you want to continue? Y/N/ENTER to exit: ") == (
+                if input("\nDo you want to continue? Y/ENTER to exit: ") == (
                     "y" or "yes"
                 ):
                     continue
@@ -442,15 +482,15 @@ def embedding_pilot(
                     f"You have created {videos_uploaded} posts in this session!",
                     style="bold yellow",
                 )
-                console.print(
-                    "Waiting for 60 secs to clear the clipboard before you're done with the last post...",
-                    style="bold magenta",
-                )
-                thumbnails_dir.cleanup()
-                time.sleep(60)
-                pyclip.detect_clipboard()
-                pyclip.clear()
-                break
+                with console.status(
+                    f"[bold green] Waiting on publication to quit safely [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
+                    spinner="earth",
+                ):
+                    if cs.wp_publish_checker(wp_slug, embed_ast_conf):
+                        pyclip.detect_clipboard()
+                        pyclip.clear()
+                        thumbnails_dir.cleanup()
+                        break
         else:
             pyclip.detect_clipboard()
             pyclip.clear()

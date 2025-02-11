@@ -324,7 +324,7 @@ def refresh_flow(xauth: XAuth, x_endpoints: XEndpoints) -> None:
     the API endpoints that depend on bearer tokens.
 
     **Please note that you can't expect to read from client_info.ini (or any other required files)
-    during runtime since the application already has to load the config before this step and stores a snapshot of it
+    during runtime since the application already loads the config before this step and stores a snapshot of it
     in memory and/or compiled files. That is why function refresh_flow() stores the bearer token
     in an environment variable, so that our application can make use of it during runtime.
     Factory functions tied to core.config_mgr authentication dataclasses are immutable and, therefore,

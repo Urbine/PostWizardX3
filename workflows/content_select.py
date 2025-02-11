@@ -23,7 +23,7 @@ import time
 import sqlite3
 import warnings
 
-from requests.exceptions import ConnectionError, SSLError
+from requests.exceptions import SSLError, ConnectionError
 from sqlite3 import Connection, Cursor
 
 # Third-party modules
@@ -45,10 +45,16 @@ from core import (
     wp_auth,
     clean_filename,
     x_auth,
+    bot_father,
 )
 
-from integrations import wordpress_api, x_api
-from integrations.url_builder import WPEndpoints, XEndpoints
+from integrations import wordpress_api, x_api, botfather_telegram
+from integrations.url_builder import (
+    WPEndpoints,
+    XEndpoints,
+    BotFatherCommands,
+    BotFatherEndpoints,
+)
 from ml_engine import classify_title, classify_description, classify_tags
 
 # Imported for typing purposes
@@ -799,15 +805,74 @@ def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
         "You're missing out on the action:",
         "When you thought you've watch it all:",
         f"Brought to you by {site_name}:",
+        "Watch now:",
+        "Watch free:Click to watch full video:",
+        "Don't miss out:",
     ]
     # Env variable "X_TOKEN" is assigned in function ``x_api.refresh_flow()``
     bearer_token = os.environ.get("X_TOKEN")
     if not post_text:
-        post_text = f"{description} {random.choice(calls_to_action)} {post_url}"
+        post_text = f"{description} | {random.choice(calls_to_action)} {post_url}"
     else:
         post_text = f"{description} {post_text} {post_url}"
     request = x_api.post_x(post_text, bearer_token, XEndpoints())
     return request.status_code
+
+
+def telegram_send_message(
+    description: str,
+    post_url: str,
+    bot_config: ContentSelectConf | EmbedAssistConf | GallerySelectConf,
+    msg_text: str = "",
+) -> int:
+    """Set up a message template for the Telegram BotFather function ``send_message()``
+    Parameters are self-explanatory.
+
+    :param description: ``str``
+    :param msg_text: ``str``
+    :param post_url: ``str``
+    :param bot_config: ``ContentSelectConf`` | ``EmbedAssistConf`` | ``GallerySelectConf``
+    :return: ``int``
+    """
+    site_name = bot_config.site_name
+    calls_to_action = [
+        f"Watch more on {site_name}:",
+        f"Take a quick look on {site_name}:",
+        f"Watch the action for free on {site_name}:",
+        f"Don't miss out. Watch now on {site_name}:",
+        f"Don't miss out. Watch more on {site_name}:",
+        f"Watch for free on {site_name}:",
+        "Click below to watch for free:",
+        "You won't need another video after this one:",
+        f"{site_name} has it all for free:",
+        f"All the Good stuff. Only on {site_name}:"
+        "I bet you haven't watched this one:"
+        "Well, you asked for it:",
+        "I can't believe this is free:",
+        f"Specially for you:",
+        f"Check out {site_name} today:",
+        "Watch today for free:",
+        "You're missing out on the action:",
+        "When you thought you've watch it all:",
+        f"Brought to you by {site_name}:",
+        "Watch now:",
+        "Watch free:Click to watch full video:",
+        "Don't miss out:",
+    ]
+    auto_mode = bot_config.telegram_posting_auto
+    if auto_mode:
+        msg_text = random.choice(calls_to_action)
+    else:
+        pass
+    message = (
+        f"{description} | {msg_text} {post_url}"
+        if auto_mode
+        else f"{description} {msg_text} {post_url}"
+    )
+    req = botfather_telegram.send_message(
+        bot_father(), BotFatherCommands(), BotFatherEndpoints(), message
+    )
+    return req.status_code
 
 
 def wp_publish_checker(
@@ -818,7 +883,7 @@ def wp_publish_checker(
     that directly depends on the post being online can take it from there.
 
     The function assigns environment variable ``"LATEST_POST"`` since objects
-    present in this application do not usually work with full qualified links because it is
+    present in this application do not usually work with fully qualified links because it is
     not necessary. This mechanism has also proven effective for manipulating pieces of information during runtime.
 
     :param post_slug: ``str`` self-explanatory
@@ -1211,44 +1276,79 @@ def video_upload_pilot(
                     "--> Check the post and paste all you need from your clipboard.",
                     style="bold green",
                 )
-                if cs_config.x_posting_enabled:
-                    status_msg = "Checking WP status and preparing for X posting."
+                if cs_config.x_posting_enabled or cs_config.telegram_posting_enabled:
+                    status_msg = "Checking WP status and preparing for social sharing."
                     with console.status(
                         f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
                         spinner="earth",
                     ):
                         is_published = wp_publish_checker(wp_slug, cs_config)
                     if is_published:
-                        if cs_config.x_posting_auto:
-                            # Environment "LATEST_POST" variable assigned in wp_publish_checker()
-                            x_post_create = x_post_creator(
-                                description, os.environ.get("LATEST_POST")
-                            )
-                        else:
-                            post_text = console.input(
-                                "[bold yellow]Enter your additional post text here or press enter to use default configs: [bold yellow]\n"
-                            )
-                            x_post_create = x_post_creator(
-                                description,
-                                os.environ.get("LATEST_POST"),
-                                post_text=post_text,
-                            )
-                        if x_post_create == 201:
-                            console.print(
-                                "--> Post has been published on WP and shared on X.",
-                                style="bold yellow",
-                            )
+                        if cs_config.x_posting_enabled:
+                            if cs_config.x_posting_auto:
+                                # Environment "LATEST_POST" variable assigned in wp_publish_checker()
+                                x_post_create = x_post_creator(
+                                    description, os.environ.get("LATEST_POST")
+                                )
+                            else:
+                                post_text = console.input(
+                                    "[bold yellow]Enter your additional X post text here or press enter to use default configs: [bold yellow]\n"
+                                )
+                                x_post_create = x_post_creator(
+                                    description,
+                                    os.environ.get("LATEST_POST"),
+                                    post_text=post_text,
+                                )
+                            if x_post_create == 201:
+                                console.print(
+                                    "--> Post has been published on WP and shared on X.\n",
+                                    style="bold yellow",
+                                )
+                            else:
+                                console.print(
+                                    f"--> There was an error while trying to share on X.\n Status: {x_post_create}",
+                                    style="bold red",
+                                )
+
+                        if cs_config.telegram_posting_enabled:
+                            if cs_config.telegram_posting_auto:
+                                telegram_msg = telegram_send_message(
+                                    description,
+                                    os.environ.get("LATEST_POST"),
+                                    cs_config,
+                                )
+                            else:
+                                post_text = console.input(
+                                    "[bold yellow]Enter your additional Telegram message here or press enter to use default configs: [bold yellow]\n"
+                                )
+                                telegram_msg = telegram_send_message(
+                                    description,
+                                    os.environ.get("LATEST_POST"),
+                                    cs_config,
+                                    msg_text=post_text,
+                                )
+                            if telegram_msg == 200:
+                                console.print(
+                                    # Env variable assigned in botfather_telegram.send_message()
+                                    f"--> Message sent to Telegram {os.environ.get('T_CHAT_ID')}",
+                                    style="bold yellow",
+                                )
+                            else:
+                                console.print(
+                                    f"--> There was an error while trying to communicate with Telegram.\n Status: {telegram_msg}",
+                                    style="bold red",
+                                )
                 else:
                     pass
                 videos_uploaded += 1
-            except SSLError:
+            except (SSLError, ConnectionError):
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
                     "* There was a connection error while processing this post... *",
                     style="bold red",
                 )
-                if input("\nDo you want to continue? Y/N/ENTER to exit: ") == (
+                if input("\nDo you want to continue? Y/ENTER to exit: ") == (
                     "y" or "yes"
                 ):
                     continue
@@ -1291,14 +1391,15 @@ def video_upload_pilot(
                     f"You have created {videos_uploaded} posts in this session!",
                     style="bold yellow",
                 )
-                console.print(
-                    "Waiting for 60 secs to clear the clipboard before you're done with the last post...",
-                    style="bold magenta",
-                )
-                time.sleep(60)
-                pyclip.detect_clipboard()
-                pyclip.clear()
-                break
+                with console.status(
+                    f"[bold green] Waiting on publication to quit safely [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
+                    spinner="earth",
+                ):
+                    if wp_publish_checker(wp_slug, cs_config):
+                        pyclip.detect_clipboard()
+                        pyclip.clear()
+                        thumbnails_dir.cleanup()
+                        break
         else:
             pyclip.detect_clipboard()
             pyclip.clear()

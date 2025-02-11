@@ -12,6 +12,14 @@ integrations.adult\_next\_api module
    :undoc-members:
    :show-inheritance:
 
+integrations.botfather\_telegram module
+---------------------------------------
+
+.. automodule:: integrations.botfather_telegram
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 integrations.callback\_server module
 ------------------------------------
 

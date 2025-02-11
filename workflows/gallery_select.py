@@ -17,7 +17,7 @@ import tempfile
 import time
 import zipfile
 from sqlite3 import OperationalError
-from requests import ConnectionError
+from requests.exceptions import ConnectionError, SSLError
 
 # Third-party modules
 from rich.console import Console
@@ -37,6 +37,7 @@ from workflows.content_select import (
     content_select_db_match,
     wp_publish_checker,
     x_post_creator,
+    telegram_send_message,
 )
 
 from core import helpers, monger_cash_auth, gallery_select_conf, wp_auth, x_auth
@@ -214,7 +215,7 @@ def make_photos_payload(
     partner_name: str,
     tags: list[int],
     reverse_slug: bool = False,
-    wp_auth: WPAuth = wp_auth(),
+    wpauth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Construct the photos payload that will be sent with all the parameters for the
     WordPress REST API request to create a ``photos`` post.
@@ -225,7 +226,7 @@ def make_photos_payload(
     :param partner_name: ``str`` partner offer that I am promoting
     :param tags: ``list[int]`` tag IDs that will be sent to WordPress for classification and integration.
     :param reverse_slug: ``bool`` ``True`` if you want to reverse the permalink (slug) construction.
-    :param wp_auth: ``WPAuth`` Object with the author information.
+    :param wpauth: ``WPAuth`` Object with the author information.
     :return: ``dict[str, str | int]``
     """
     filter_words: set[str] = {"on", "in", "at", "&", "and"}
@@ -256,16 +257,17 @@ def make_photos_payload(
         final_slug: str = (
             f"{'-'.join(partner_name.lower().split(' '))}-{wp_pre_slug}-pics"
         )
+    # Setting Env variable since the slug is needed outside this function.
     os.environ["SET_SLUG"] = final_slug
 
     # Added an author field to the client_info config file.
-    author: int = int(wp_auth.author_admin)
+    author: int = int(wpauth.author_admin)
 
     payload_post: dict[str, str | int] = {
         "slug": final_slug,
         "status": f"{status_wp}",
         "type": "photos",
-        "link": f"{wp_auth.full_base_url}/{final_slug}/",
+        "link": f"{wpauth.full_base_url}/{final_slug}/",
         "title": f"{set_name}",
         "author": author,
         "featured_media": 0,
@@ -539,39 +541,77 @@ def gallery_upload_pilot(
                     "--> Check the set and paste your focus phrase on WP.",
                     style="bold magenta",
                 )
-                if gallery_sel_conf.x_posting_enabled:
-                    status_msg = "Checking WP status and preparing for X posting."
+                if (
+                    gallery_sel_conf.x_posting_enabled
+                    or gallery_sel_conf.telegram_posting_enabled
+                ):
+                    status_msg = "Checking WP status and preparing for social sharing."
                     with console.status(
                         f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
                         spinner="earth",
                     ):
-                        # Env variable 'SET_SLUG' is assigned in function ``make_photos_payload``
                         is_published = wp_publish_checker(
                             os.environ.get("SET_SLUG"), gallery_sel_conf
                         )
                     if is_published:
-                        if gallery_sel_conf.x_posting_auto:
-                            x_post_create = x_post_creator(
-                                title, os.environ.get("LATEST_POST")
-                            )
-                        else:
-                            post_text = console.input(
-                                "[bold yellow]Enter your additional post text here or press enter to use default configs: [bold yellow]\n"
-                            )
-                            x_post_create = x_post_creator(
-                                title,
-                                os.environ.get("LATEST_POST"),
-                                post_text=post_text,
-                            )
-                        if x_post_create == 201:
-                            console.print(
-                                "--> Post has been published on WP and shared on X.",
-                                style="bold yellow",
-                            )
+                        if gallery_sel_conf.x_posting_enabled:
+                            if gallery_sel_conf.x_posting_auto:
+                                # Environment "LATEST_POST" variable assigned in wp_publish_checker()
+                                x_post_create = x_post_creator(
+                                    title, os.environ.get("LATEST_POST")
+                                )
+                            else:
+                                post_text = console.input(
+                                    "[bold yellow]Enter your additional X post text here or press enter to use default configs: [bold yellow]\n"
+                                )
+                                x_post_create = x_post_creator(
+                                    title,
+                                    os.environ.get("LATEST_POST"),
+                                    post_text=post_text,
+                                )
+                            if x_post_create == 201:
+                                console.print(
+                                    "--> Post has been published on WP and shared on X.\n",
+                                    style="bold yellow",
+                                )
+                            else:
+                                console.print(
+                                    f"--> There was an error while trying to share on X.\n Status: {x_post_create}",
+                                    style="bold red",
+                                )
+
+                        if gallery_sel_conf.telegram_posting_enabled:
+                            if gallery_sel_conf.telegram_posting_auto:
+                                telegram_msg = telegram_send_message(
+                                    title,
+                                    os.environ.get("LATEST_POST"),
+                                    gallery_sel_conf,
+                                )
+                            else:
+                                post_text = console.input(
+                                    "[bold yellow]Enter your additional Telegram message here or press enter to use default configs: [bold yellow]\n"
+                                )
+                                telegram_msg = telegram_send_message(
+                                    title,
+                                    os.environ.get("LATEST_POST"),
+                                    gallery_sel_conf,
+                                    msg_text=post_text,
+                                )
+                            if telegram_msg == 200:
+                                console.print(
+                                    # Env variable assigned in botfather_telegram.send_message()
+                                    f"--> Message sent to Telegram {os.environ.get('T_CHAT_ID')}",
+                                    style="bold yellow",
+                                )
+                            else:
+                                console.print(
+                                    f"--> There was an error while trying to communicate with Telegram.\n Status: {telegram_msg}",
+                                    style="bold red",
+                                )
                 else:
                     pass
                 galleries_uploaded += 1
-            except ConnectionError:
+            except (SSLError, ConnectionError):
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -579,7 +619,7 @@ def gallery_upload_pilot(
                     style="bold red",
                 )
                 if console.input(
-                    "[bold yellow]\nDo you want to continue? Y/N/ENTER to exit: [/bold yellow]"
+                    "[bold yellow]\nDo you want to continue? Y/ENTER to exit: [/bold yellow]"
                 ) == ("y" or "yes"):
                     continue
                 else:
@@ -592,7 +632,7 @@ def gallery_upload_pilot(
                     break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold yellow]\nNext set? -> Y/N/ENTER to review next set: [/bold yellow]"
+                    "[bold yellow]\nNext set? -> N/ENTER to review next set: [/bold yellow]"
                 ).lower()
                 if next_post == ("y" or "yes"):
                     # Clears clipboard after every video.
@@ -635,15 +675,16 @@ def gallery_upload_pilot(
                 )
                 temp_dir.cleanup()
                 thumbnails_dir.cleanup()
-                console.print(
-                    "Waiting for 60 secs to clear the clipboard before you're done with the last set...",
-                    style="bold cyan",
-                )
-                time.sleep(60)
-                pyclip.detect_clipboard()
-                pyclip.clear()
-
-                break
+                with console.status(
+                    f"[bold green] Waiting on publication to quit safely [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
+                    spinner="earth",
+                ):
+                    # Env variable "SET_SLUG" assigned in function make_photos_payload()
+                    if wp_publish_checker(os.environ.get("SET_SLUG"), gallery_sel_conf):
+                        pyclip.detect_clipboard()
+                        pyclip.clear()
+                        thumbnails_dir.cleanup()
+                        break
         else:
             pyclip.detect_clipboard()
             pyclip.clear()
