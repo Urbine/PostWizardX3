@@ -366,7 +366,7 @@ def embed_assist_conf() -> EmbedAssistConf:
         domain_tld=workflows_config["general_config"]["domain_tld"],
         x_posting_auto=workflows_config.getboolean("embed_assist", "x_posting_auto"),
         x_posting_enabled=workflows_config.getboolean(
-            "gallery_select", "x_posting_enabled"
+            "embed_assist", "x_posting_enabled"
         ),
         telegram_posting_auto=workflows_config.getboolean(
             "embed_assist", "telegram_posting_auto"
