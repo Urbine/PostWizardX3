@@ -11,7 +11,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-
+import logging
 import os
 import pyclip
 from requests.exceptions import SSLError, ConnectionError
@@ -92,6 +92,12 @@ def embedding_pilot(
     :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
     :return: ``None``
     """
+    # Time start
+    time_start = time.time()
+
+    # Configuration steps
+    path_this = __file__
+    cs.logging_setup(embed_ast_conf, path_this)
     console = Console()
     os.system("clear")
     with console.status(
@@ -101,26 +107,39 @@ def embedding_pilot(
         cs.hot_file_sync(bot_config=embed_ast_conf)
         x_api.refresh_flow(x_auth(), XEndpoints())
     wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
+    logging.info(f"Reading WordPress Post cache: {embed_ast_conf.wp_json_posts}")
     partner_list = embed_ast_conf.partners.split(",")
     os.system("clear")
-
+    logging.info(f"Loading partners variable: {partner_list}")
     db_conn, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
         partner_list, embed_ast_conf.content_hint
     )
 
     wp_base_url = wpauths.api_base_url
+    logging.info(f"Using {wp_base_url} as WordPress API base url")
     videos_uploaded: int = 0
     partner = partner_list[partner_indx]
+    logging.info(f"Matched {db_dump_name} for {partner} index {partner_indx}")
     cs.select_guard(db_dump_name, partner)
+    logging.info("Select guard cleared...")
     all_vals: list[tuple[str]] = helpers.fetch_data_sql(
         embed_ast_conf.sql_query, cur_dump
     )
+    logging.info(f"{len(all_vals)} elements found in database {db_dump_name}")
     not_published_yet = filter_published_embeds(wp_posts_f, all_vals)
     total_elems = len(not_published_yet)
+    logging.info(f"Detected {total_elems} to be published")
     os.system("clear")
+    console.print(
+        f"\nThere are {total_elems} videos to be published...",
+        style="bold red",
+        justify="center",
+    )
     # Create a temporary directory for thumbnails
     thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
+    logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
     for num, vid in enumerate(not_published_yet):
+        logging.info(f"Displaying on iteration {num} data: {vid}")
         id_ = vid[0]
         title = vid[1]
         duration = vid[2]
@@ -152,21 +171,36 @@ def embedding_pilot(
             "[bold yellow]\nAdd post to WP? -> Y/N/ENTER to review next post: [/bold yellow]\n"
         ).lower()
         if add_post == ("y" or "yes"):
+            logging.info(f"User accepted video element {num} for processing")
             add_post = True
         elif add_post == ("n" or "no"):
+            logging.info("User declined further activity with the bot")
             pyclip.detect_clipboard()
             pyclip.clear()
             console.print(
                 f"You have created {videos_uploaded} posts in this session!",
                 style="bold magenta",
             )
+            thumbnails_dir.cleanup()
+            time_end = time.time()
+            h, mins, secs = helpers.get_duration(time_end - time_start)
+            logging.info(
+                f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+            )
+            logging.shutdown()
             break
         else:
             if num < total_elems - 1:
+                logging.info(
+                    f"Moving forward - ENTER action detected. State: num={num} total_elems={total_elems}"
+                )
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 continue
             else:
+                logging.info(
+                    f"List exhausted. State: num={num} total_elems={total_elems}"
+                )
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -180,6 +214,16 @@ def embedding_pilot(
                     f"You have created {videos_uploaded} posts in this session!",
                     style="bold magenta",
                 )
+                thumbnails_dir.cleanup()
+                time_end = time.time()
+                h, mins, secs = helpers.get_duration(time_end - time_start)
+                logging.info(
+                    f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                )
+                logging.info(
+                    "Cleaning clipboard and temporary directories. Quitting..."
+                )
+                logging.shutdown()
                 break
         if add_post:
             slugs = [
@@ -209,6 +253,8 @@ def embedding_pilot(
                 case _:
                     # Parsing slug by default.
                     wp_slug = slugs[0]
+
+            logging.info(f"WP Slug - Selected: {wp_slug}")
 
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make them more general.
@@ -245,6 +291,7 @@ def embedding_pilot(
                             "Paste it into the tags field as soon as possible...\n",
                             style="bold yellow",
                         )
+                        logging.warning(f"Missing tag detected: {tag}")
                         pyclip.detect_clipboard()
                         pyclip.copy(tag)
                     else:
@@ -255,6 +302,7 @@ def embedding_pilot(
             class_tags = classify_description(categories)
             class_title.union(class_tags)
             consolidate_categs = list(class_title)
+            logging.info(f"Suggested categories ML: {consolidate_categs}")
 
             console.print(
                 " \n** I think these categories are appropriate: **\n",
@@ -269,8 +317,10 @@ def embedding_pilot(
                 case _ as option:
                     try:
                         sel_categ = consolidate_categs[int(option) - 1]
+                        logging.info(f"User selected category: {sel_categ}")
                     except (ValueError, IndexError):
                         sel_categ = option
+                        logging.info(f"User typed in category: {option}")
 
             categ_ids = cs.get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
             if not sel_categ:
@@ -297,6 +347,8 @@ def embedding_pilot(
                 tag_ints,
                 categs=category,
             )
+            logging.info(f"Generated payload: {payload}")
+
             console.print("--> Fetching thumbnail...", style="bold green")
             pic_format = (
                 embed_ast_conf.pic_format
@@ -304,6 +356,8 @@ def embedding_pilot(
                 else embed_ast_conf.pic_fallback
             )
             thumbnail = clean_filename(wp_slug, pic_format)
+            logging.info(f"Thumbnail name: {thumbnail}")
+
             try:
                 cs.fetch_thumbnail(
                     thumbnails_dir.name,
@@ -321,6 +375,7 @@ def embedding_pilot(
                     "--> Adding image attributes on WordPress...", style="bold green"
                 )
                 img_attrs = cs.make_img_payload(title, title)
+                logging.info(f"Image Attrs: {img_attrs}")
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
@@ -332,6 +387,9 @@ def embedding_pilot(
                 # upload_thumbnail will report a 500 status code when this is the
                 # case.
                 if upload_img == 500:
+                    logging.warning(
+                        f"Defective thumbnail - Bot abandoned current flow."
+                    )
                     console.print(
                         "It is possible that this thumbnail is defective. Check the Thumbnail manually.",
                         style="bold red",
@@ -341,7 +399,8 @@ def embedding_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(f"{thumbnails_dir.name}/{thumbnail}")
+                    os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
+                    logging.info(f"Uploaded and removed: {removed_img}")
                 else:
                     pass
 
@@ -351,6 +410,7 @@ def embedding_pilot(
                 )
                 console.print("--> Creating post on WordPress", style="bold green")
                 push_post = wordpress_api.wp_post_create([wp_endpoints.posts], payload)
+                logging.info(f"WordPress post push status: {push_post}")
                 console.print(
                     f"--> WordPress status code: {push_post}", style="bold green"
                 )
@@ -375,7 +435,9 @@ def embedding_pilot(
                         is_published = cs.wp_publish_checker(wp_slug, embed_ast_conf)
                     if is_published:
                         if embed_ast_conf.x_posting_enabled:
+                            logging.info("X Posting - Enabled in workflows config")
                             if embed_ast_conf.x_posting_auto:
+                                logging.info("X Posting Automatic detected in config")
                                 # Environment "LATEST_POST" variable assigned in wp_publish_checker()
                                 x_post_create = cs.x_post_creator(
                                     title, os.environ.get("LATEST_POST")
@@ -384,11 +446,19 @@ def embedding_pilot(
                                 post_text = console.input(
                                     "[bold yellow]Enter your additional X post text here or press enter to use default configs: [bold yellow]\n"
                                 )
+                                logging.info(
+                                    f"User entered custom post text: {post_text}"
+                                )
                                 x_post_create = cs.x_post_creator(
                                     title,
                                     os.environ.get("LATEST_POST"),
                                     post_text=post_text,
                                 )
+
+                                # Copy custom post text for the following prompt
+                                pyclip.detect_clipboard()
+                                pyclip.copy(post_text)
+
                             if x_post_create == 201:
                                 console.print(
                                     "--> Post has been published on WP and shared on X.\n",
@@ -401,7 +471,13 @@ def embedding_pilot(
                                 )
 
                         if embed_ast_conf.telegram_posting_enabled:
+                            logging.info(
+                                "Telegram Posting - Enabled in workflows config"
+                            )
                             if embed_ast_conf.telegram_posting_auto:
+                                logging.info(
+                                    "Telegram Posting Automatic detected in config"
+                                )
                                 telegram_msg = cs.telegram_send_message(
                                     title,
                                     os.environ.get("LATEST_POST"),
@@ -429,32 +505,48 @@ def embedding_pilot(
                                     f"--> There was an error while trying to communicate with Telegram.\n Status: {telegram_msg}",
                                     style="bold red",
                                 )
+                            logging.info(
+                                f"Telegram message status code: {telegram_msg}"
+                            )
                 else:
                     pass
                 videos_uploaded += 1
-            except (SSLError, ConnectionError):
+            except (SSLError, ConnectionError) as e:
+                logging.warning(f"Caught exception {str(e)} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
                     "* There was a connection error while processing this post... *",
                     style="bold red",
                 )
-                if input("\nDo you want to continue? Y/ENTER to exit: ") == (
-                    "y" or "yes"
-                ):
+                if console.input(
+                    "\n[bold green] Do you want to continue? Y/ENTER to exit: [bold green]"
+                ) == ("y" or "yes"):
+                    logging.info(f"User accepted to continue after catching {str(e)}")
                     continue
                 else:
+                    logging.info(f"User declined after catching {str(e)}")
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
                     )
                     thumbnails_dir.cleanup()
+                    time_end = time.time()
+                    h, mins, secs = helpers.get_duration(time_end - time_start)
+                    logging.info(
+                        f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                    )
+                    logging.info(
+                        "Cleaning clipboard and temporary directories. Quitting..."
+                    )
+                    logging.shutdown()
                     break
             if num < total_elems - 1:
                 next_post = console.input(
                     "[bold yellow]\nNext post? -> N/ENTER to review next post: [/bold yellow]\n"
                 ).lower()
                 if next_post == ("n" or "no"):
+                    logging.info("User declined further activity with the bot")
                     # The terminating parts add this function to avoid tracebacks
                     # from pyclip
                     pyclip.detect_clipboard()
@@ -464,14 +556,29 @@ def embedding_pilot(
                         style="bold yellow",
                     )
                     thumbnails_dir.cleanup()
+                    time_end = time.time()
+                    h, mins, secs = helpers.get_duration(time_end - time_start)
+                    logging.info(
+                        f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                    )
+                    logging.info(
+                        "Cleaning clipboard and temporary directories. Quitting..."
+                    )
+                    logging.shutdown()
                     break
                 else:
+                    logging.info(
+                        "User accepted to continue after successful post creation."
+                    )
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     continue
             else:
                 # Since we ran out of elements the script will end after adding it to WP
                 # So that it doesn't clear the clipboard automatically.
+                logging.info(
+                    f"List exhausted. State: num={num} total_elems={total_elems}"
+                )
                 console.print(
                     "\nWe have reviewed all posts for this query.", style="bold red"
                 )
@@ -482,16 +589,18 @@ def embedding_pilot(
                     f"You have created {videos_uploaded} posts in this session!",
                     style="bold yellow",
                 )
-                with console.status(
-                    f"[bold green] Waiting on publication to quit safely [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
-                    spinner="earth",
-                ):
-                    if cs.wp_publish_checker(wp_slug, embed_ast_conf):
-                        pyclip.detect_clipboard()
-                        pyclip.clear()
-                        thumbnails_dir.cleanup()
-                        break
+                thumbnails_dir.cleanup()
+                time_end = time.time()
+                h, mins, secs = helpers.get_duration(time_end - time_start)
+                logging.info(
+                    f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                )
+                logging.info(
+                    "Cleaning clipboard and temporary directories. Quitting..."
+                )
+                logging.shutdown()
         else:
+            logging.info(f"List exhausted. State: num={num} total_elems={total_elems}")
             pyclip.detect_clipboard()
             pyclip.clear()
             console.print(
@@ -506,6 +615,13 @@ def embedding_pilot(
                 style="bold yellow",
             )
             thumbnails_dir.cleanup()
+            time_end = time.time()
+            h, mins, secs = helpers.get_duration(time_end - time_start)
+            logging.info(
+                f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+            )
+            logging.info("Cleaning clipboard and temporary directories. Quitting...")
+            logging.shutdown()
             break
 
 
@@ -513,6 +629,8 @@ def main():
     try:
         embedding_pilot()
     except KeyboardInterrupt:
+        logging.critical(f"KeyboardInterrupt exception detected")
+        logging.info("Cleaning clipboard and temporary directories. Quitting...")
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()
         pyclip.clear()

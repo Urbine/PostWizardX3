@@ -132,3 +132,16 @@ class AssetsNotFoundError(Exception):
         self.message = """No assets found in config file. 
                           Make sure you add your assets to the corresponding file before launching this application."""
         super().__init__(self.message)
+
+
+class LoggingDirectoryNotAccessible(Exception):
+    """
+    Notifies the user that the logging directory is not accessible.
+    """
+
+    def __init__(self, logging_dirname: str):
+        self.message = f"Logging directory {logging_dirname} cannot be created nor accessed. Check the workflows_config.ini file again!\n"
+        self.help = (
+            "Just in case, only add the directory name. The application will detect it."
+        )
+        super().__init__(self.message + self.help)

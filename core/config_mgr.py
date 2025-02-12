@@ -93,6 +93,7 @@ class ContentSelectConf:
     assets_conf: str
     site_name: str
     domain_tld: str
+    logging_dirname: str
     x_posting_auto: bool
     x_posting_enabled: bool
     telegram_posting_auto: bool
@@ -121,6 +122,7 @@ class GallerySelectConf:
     partners: str
     site_name: str
     domain_tld: str
+    logging_dirname: str
     x_posting_auto: bool
     x_posting_enabled: bool
     telegram_posting_auto: bool
@@ -148,6 +150,7 @@ class EmbedAssistConf:
     partners: str
     site_name: str
     domain_tld: str
+    logging_dirname: str
     x_posting_auto: bool
     x_posting_enabled: bool
     telegram_posting_auto: bool
@@ -303,6 +306,7 @@ def content_select_conf() -> ContentSelectConf:
         partners=workflows_config["content_select"]["partners"],
         site_name=workflows_config["general_config"]["website_name"],
         domain_tld=workflows_config["general_config"]["domain_tld"],
+        logging_dirname=workflows_config["general_config"]["logging_dirname"],
         x_posting_auto=workflows_config.getboolean("content_select", "x_posting_auto"),
         x_posting_enabled=workflows_config.getboolean(
             "content_select", "x_posting_enabled"
@@ -334,6 +338,7 @@ def gallery_select_conf() -> GallerySelectConf:
         partners=workflows_config["gallery_select"]["partners"],
         site_name=workflows_config["general_config"]["website_name"],
         domain_tld=workflows_config["general_config"]["domain_tld"],
+        logging_dirname=workflows_config["general_config"]["logging_dirname"],
         x_posting_auto=workflows_config.getboolean("gallery_select", "x_posting_auto"),
         x_posting_enabled=workflows_config.getboolean(
             "gallery_select", "x_posting_enabled"
@@ -364,6 +369,7 @@ def embed_assist_conf() -> EmbedAssistConf:
         partners=workflows_config["embed_assist"]["partners"],
         site_name=workflows_config["general_config"]["website_name"],
         domain_tld=workflows_config["general_config"]["domain_tld"],
+        logging_dirname=workflows_config["general_config"]["logging_dirname"],
         x_posting_auto=workflows_config.getboolean("embed_assist", "x_posting_auto"),
         x_posting_enabled=workflows_config.getboolean(
             "embed_assist", "x_posting_enabled"
