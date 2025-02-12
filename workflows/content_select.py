@@ -589,7 +589,7 @@ def make_slug(
     :param partner_out: ``bool`` ``True`` if you want to build slugs without the partner name. Default ``False``.
     :return: ``str`` formatted string of a WordPress-ready URL slug.
     """
-    filter_words: set[str] = {"at", "&", "and"}
+    filter_words: set[str] = {"at", "&", "and", "!", ",", "-", ""}
     title_sl: str = "-".join(
         [
             word.lower()
