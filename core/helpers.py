@@ -18,6 +18,7 @@ import glob
 import hashlib
 import importlib.resources
 import json
+import logging
 import os
 import random
 import re
@@ -659,10 +660,13 @@ def load_json_ctx(filename: str, log_err: bool = False):
     parent = not os.path.exists(f"./{json_file}")
     parent_or_cwd = is_parent_dir_required(parent)
     try:
-        with open(f"{parent_or_cwd}{json_file}", "r", encoding="utf-8") as f:
+        with open(
+            json_file := f"{parent_or_cwd}{json_file}", "r", encoding="utf-8"
+        ) as f:
             imp_json = json.load(f)
         return imp_json
     except FileNotFoundError:
+        logging.critical(f"Raised FileNotFoundError: {json_file} not found!")
         if log_err:
             print(
                 f"File {parent_or_cwd}{json_file} not found! Double-check the filename."
