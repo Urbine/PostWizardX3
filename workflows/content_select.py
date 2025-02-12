@@ -144,20 +144,36 @@ def asset_parser(bot_config: ContentSelectConf, partner: str):
     # Split the partner tag to know what part of the partners name is part of a section.
     spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
     wrd_list = clean_partner_tag(partner).split(spl_char(partner))
-    find_me = lambda word, section: re.findall(word, section, flags=re.IGNORECASE)
-    assets_list: list[str] = []
-    for sec in sections:
-        for wrd in wrd_list:
-            matches = find_me(wrd, sec)
-            if matches:
-                right_section = assets[sec]
-                assets_list = list(right_section.values())
-                break
-            else:
-                continue
+    find_me = (
+        lambda word, section: matches[0]
+        if (matches := re.findall(word, section, flags=re.IGNORECASE))
+        else matches
+    )
+    assets_list = []
+    for wrd in wrd_list:
+        # The main lambda has re.findall with IGNORECASE flag, however
+        # list index lookup does take word case into consideration for str comparison.
+        wrd_to_lc = wrd.lower()
+
+        # To ensure uniqueness in the hints provided, the count of matches must be 1.
+        # If the same word is found more than once, then the match is not unique.
+        matches = (
+            temp_lst := [find_me(wrd_to_lc, section) for section in sections]
+        ).count(wrd_to_lc)
+        if matches == 1:
+            match_indx = temp_lst.index(wrd_to_lc)
+            logging.info(
+                f'Asset parsing result: found "{wrd}" in section: {sections[match_indx]}'
+            )
+            assets_list = list(assets[sections[match_indx]].values())
+            break
+        else:
+            continue
+
     if assets_list:
         return assets_list
     else:
+        logging.critical(f"Raised AssetsNotFoundError - Quitting...")
         raise AssetsNotFoundError
 
 
