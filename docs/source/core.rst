@@ -55,6 +55,8 @@ However, here is a template that can help you get started:
     wp_cache_file = wp_cache_config.json
     wp_posts_file = wp_posts.json
     wp_photos_file = wp_photos.json
+    # Only the directory name
+    logging_dirname = logs
 
     [MongerCash]
     username = <mcash_username>

@@ -17,7 +17,11 @@ import core
 
 
 def clean_outdated(
-    hints_: list[str], file_lst: list[str], folder: str, silent: bool = False
+    hints_: list[str],
+    file_lst: list[str],
+    folder: str,
+    silent: bool = False,
+    invert_clean: bool = False,
 ) -> None:
     """Match and identify outdated files, and report to the user which files are
     being deleted.
@@ -25,12 +29,14 @@ def clean_outdated(
     :param hints_: ``list[str]`` possible filename hints of the files to be deleted.
     :param file_lst: ``list[str]`` file list filtered by extension (externally)
     :param folder: ``str`` folder that will be examined by the function.
-    :param silent: ``bool`` supresses the debugging output.
+    :param silent: ``bool`` suppresses the debugging output.
+    :param invert_clean: ``bool`` Cleans files matching today's date.
     :return: ``None``
     """
+    reverse = True if not invert_clean else False
     os.chdir(folder)
     outdated = core.match_list_elem_date(
-        hints_, file_lst, ignore_case=True, strict=True, reverse=True
+        hints_, file_lst, ignore_case=True, strict=True, reverse=reverse
     )
     for file in outdated:
         if not silent:
@@ -78,6 +84,13 @@ if __name__ == "__main__":
         help="Set if you want to remove the specific files in the parent dir.",
     )
 
+    arg_parser.add_argument(
+        "--invert",
+        action="store_true",
+        default=False,
+        help="Clean today's matching files and leaves outdated ones untouched.",
+    )
+
     args = arg_parser.parse_args()
 
     hints = list(args.hints)
@@ -85,4 +98,4 @@ if __name__ == "__main__":
     # Filter the files to be deleted by their file extension.
     files = core.search_files_by_ext(args.ext, args.folder, parent=args.parent)
 
-    clean_outdated(hints, files, args.folder)
+    clean_outdated(hints, files, args.folder, invert_clean=args.invert)

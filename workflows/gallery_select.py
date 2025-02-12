@@ -9,6 +9,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import argparse
+import logging
 import os.path
 import re
 import shutil
@@ -38,6 +39,7 @@ from workflows.content_select import (
     wp_publish_checker,
     x_post_creator,
     telegram_send_message,
+    logging_setup,
 )
 
 from core import helpers, monger_cash_auth, gallery_select_conf, wp_auth, x_auth
@@ -72,6 +74,13 @@ def fetch_zip(
     :return: ``None``
     """
     webdrv: webdriver = helpers.get_webdriver(dwn_dir, gecko=gecko, headless=headless)
+
+    webdrv_user_sel = "Gecko" if gecko else "Chrome"
+    logging.info(
+        f"User selected webdriver {webdrv_user_sel} -> Headless? {str(headless)}"
+    )
+    logging.info(f"Using {dwn_dir} for downloads as per function params")
+
     username: str = m_cash_auth.username
     password: str = m_cash_auth.password
     with webdrv as driver:
@@ -103,9 +112,11 @@ def fetch_zip(
             pass
 
     time.sleep(5)
-    print(
-        f"--> Fetched file {helpers.search_files_by_ext('zip', parent=parent, folder=os.path.relpath(dwn_dir))[0]}"
-    )
+    zip_set = helpers.search_files_by_ext(
+        "zip", parent=parent, folder=os.path.relpath(dwn_dir)
+    )[0]
+    print(f"--> Fetched file {zip_set}")
+    logging.info(f"--> Fetched archive file {zip_set}")
     return None
 
 
@@ -122,23 +133,29 @@ def extract_zip(zip_path: str, extr_dir: str):
         "zip", folder=os.path.relpath(zip_path)
     )
     try:
-        with zipfile.ZipFile(f"{os.path.abspath(zip_path)}/{get_zip[0]}", "r") as zipf:
+        with zipfile.ZipFile(
+            zip_path := f"{os.path.abspath(zip_path)}/{get_zip[0]}", "r"
+        ) as zipf:
             zipf.extractall(path=os.path.abspath(extr_dir))
         print(
             f"--> Extracted files from {get_zip[0]} in folder {os.path.relpath(extr_dir)}"
         )
+        logging.info(f"Extracted {zip_path}")
         print(f"--> Tidying up...")
         try:
             # Some archives have a separate set of redundant files in that folder.
             # I don't want them.
-            shutil.rmtree(f"{extr_dir}/__MACOSX")
+            shutil.rmtree(junk_folder := f"{extr_dir}/__MACOSX")
+            logging.info(f"Junk folder {junk_folder} detected and cleaned.")
         except FileNotFoundError:
             # Sometimes, this can blow up if that directory is not there.
             pass
         finally:
             # We always have to clean up.
+            logging.info(f"Cleaning remaining archive in {zip_path}")
             core.clean_file_cache(os.path.relpath(zip_path), ".zip")
-    except (IndexError, zipfile.BadZipfile):
+    except (IndexError, zipfile.BadZipfile) as e:
+        logging.error(f"Something went wrong with the archive extraction -> {str(e)}")
         return None
 
 
@@ -294,13 +311,18 @@ def upload_image_set(
     if len(thumbnails) == 0:
         # Assumes the thumbnails are contained in a directory
         # This could be caused by the archive extraction
+        logging.info("Thumbnail contained in directory")
         files: list[str] = helpers.search_files_by_ext(
             "jpg", recursive=True, folder=os.path.relpath(folder)
         )
         thumbnails: list[str] = ["/".join(path.split("/")[-2:]) for path in files]
 
     if len(thumbnails) != 0:
-        print(f"--> Uploading set with {len(thumbnails)} images to WordPress Media...")
+        logging.info(
+            prnt_imgs
+            := f"--> Uploading set with {len(thumbnails)} images to WordPress Media..."
+        )
+        print(prnt_imgs)
         print("--> Adding image attributes on WordPress...")
         thumbnails.sort()
     else:
@@ -324,17 +346,23 @@ def upload_image_set(
         )
         # If upload is successful, the thumbnail is no longer useful.
         if status_code == (200 or 201):
+            logging.info(f"Removing --> {new_img}")
             os.remove(new_img)
         else:
             pass
-        print(
-            f"* Image {number} | {new_name_img(image)} --> Status code: {status_code}"
+        logging.info(
+            img_seq
+            := f"* Image {number} | {new_name_img(image)} --> Status code: {status_code}"
         )
+        print(img_seq)
     try:
         # Check if I have paths instead of filenames
         if len(thumbnails[0].split("/")) > 1:
             # Get rid of the folder.
-            shutil.rmtree(f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}")
+            shutil.rmtree(
+                remove_dir := f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}"
+            )
+            logging.info(f"Removed dir -> {remove_dir}")
         else:
             pass
     except (IndexError, AttributeError):
@@ -421,46 +449,68 @@ def gallery_upload_pilot(
     :param gallery_sel_conf: ``GallerySelectConf`` object with configuration options for this module.
     :return: ``None``
     """
-    # Configuring the required files
+    # Time start
+    time_start = time.time()
+
+    # Configuration steps
+    path_this = __file__
+    logging_setup(gallery_sel_conf, path_this)
+
     console = Console()
+    os.system("clear")
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
         spinner="aesthetic",
     ):
         hot_file_sync(bot_config=gallery_sel_conf)
         x_api.refresh_flow(x_auth(), XEndpoints())
+
     wp_photos_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_photos)
+    logging.info(f"Reading WordPress Posts cache: {gallery_sel_conf.wp_json_posts}")
     wp_posts_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_posts)
+    logging.info(f"Reading WordPress Photos cache: {gallery_sel_conf.wp_json_posts}")
     partners: list[str] = gallery_sel_conf.partners.split(",")
+    logging.info(f"Loading partners variable: {partners}")
     db_conn, cur_partner, db_name_partner, partner_indx = content_select_db_match(
         partners, gallery_sel_conf.content_hint, parent=parent
+    )
+    logging.info(
+        f"Matched {db_name_partner} for {partners[partner_indx]} index {partner_indx}"
     )
     all_galleries: list[tuple[str, ...]] = core.fetch_data_sql(
         gallery_sel_conf.sql_query, cur_partner
     )
+    logging.info(f"{len(all_galleries)} elements found in database {db_name_partner}")
     # Prints out at the end of the uploading session.
     galleries_uploaded: int = 0
     partner_: str = partners[partner_indx]
     # Gatekeeper function
     select_guard(db_name_partner, partner_)
+    logging.info("Select guard cleared...")
     if relevancy_on:
+        logging.info("Relevancy algorithm on...")
         not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
     else:
         # In theory, this will work sometimes since I modify some of the
         # gallery names to reflect the queries we rank for on Google.
+        logging.info("Relevancy algorithm off...")
         not_published_yet = filter_published(all_galleries, wp_photos_f)
     # You can keep on getting sets until this variable is equal to one.
     total_elems: int = len(not_published_yet)
+    logging.info(f"Detected {total_elems} to be published")
+    os.system("clear")
     console.print(
         f"There are {total_elems} sets to be published...",
-        style="bold yellow",
+        style="bold red",
         justify="center",
     )
     # Create temporary directories
     temp_dir = tempfile.TemporaryDirectory(dir=".")
     thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
+    logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
     for num, photo in enumerate(not_published_yet):
         (title, *fields) = photo
+        logging.info(f"Displaying on iteration {num} data: {photo}")
         title: str = title
         date: str = fields[0]
         download_url: str = fields[1]
@@ -471,24 +521,41 @@ def gallery_upload_pilot(
         console.print(f"Download URL: \n{download_url}", style="green")
         # Centralized control flow
         add_post: str | bool = console.input(
-            "[bold yellow]\nAdd set to WP? -> Y/N/ENTER to review next set: [/bold yellow]"
+            "[bold yellow]\nAdd set to WP? -> Y/N/ENTER to review next set: [/bold yellow]\n"
         ).lower()
         if add_post == ("y" or "yes"):
+            logging.info(f"User accepted video element {num} for processing")
             add_post: bool = True
         elif add_post == ("n" or "no"):
+            logging.info("User declined further interaction with the bot")
             pyclip.detect_clipboard()
             pyclip.clear()
             console.print(
                 f"You have created {galleries_uploaded} sets in this session!",
                 style="bold red",
             )
+            temp_dir.cleanup()
+            thumbnails_dir.cleanup()
+            time_end = time.time()
+            h, mins, secs = helpers.get_duration(time_end - time_start)
+            logging.info(
+                f"User created {galleries_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+            )
+            logging.info("Cleaning clipboard and temporary directories. Quitting...")
+            logging.shutdown()
             break
         else:
             if num < total_elems - 1:
+                logging.info(
+                    f"Moving forward - ENTER action detected. State: num={num} total_elems={total_elems}"
+                )
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 continue
             else:
+                logging.info(
+                    f"List exhausted. State: num={num} total_elems={total_elems}"
+                )
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -502,6 +569,17 @@ def gallery_upload_pilot(
                     f"You have created {galleries_uploaded} sets in this session!",
                     style="bold red",
                 )
+                temp_dir.cleanup()
+                thumbnails_dir.cleanup()
+                time_end = time.time()
+                h, mins, secs = helpers.get_duration(time_end - time_start)
+                logging.info(
+                    f"User created {galleries_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                )
+                logging.info(
+                    "Cleaning clipboard and temporary directories. Quitting..."
+                )
+                logging.shutdown()
                 break
         if add_post:
             console.print("\n--> Making payload...", style="bold green")
@@ -514,6 +592,8 @@ def gallery_upload_pilot(
                 reverse_slug=True,
             )
 
+            logging.info(f"Generated payload: {payload}")
+
             try:
                 fetch_zip(
                     temp_dir.name,
@@ -525,11 +605,12 @@ def gallery_upload_pilot(
                 extract_zip(temp_dir.name, thumbnails_dir.name)
                 upload_image_set("*", thumbnails_dir.name, title)
 
+                logging.info(f"WP Slug - Selected: {os.environ.get('SET_SLUG')}")
+
                 console.print("--> Creating set on WordPress", style="bold green")
                 push_post = wordpress_api.wp_post_create([wp_endpoints.photos], payload)
-                console.print(
-                    f"--> WordPress status code: {push_post}", style="bold green"
-                )
+                logging.info(wp_push_msg := f"WordPress post push status: {push_post}")
+                console.print(wp_push_msg, style="bold green")
 
                 # Copy important information to the clipboard.
                 # Some tag strings end with ';'
@@ -555,7 +636,9 @@ def gallery_upload_pilot(
                         )
                     if is_published:
                         if gallery_sel_conf.x_posting_enabled:
+                            logging.info("X Posting - Enabled in workflows config")
                             if gallery_sel_conf.x_posting_auto:
+                                logging.info("X Posting Automatic detected in config")
                                 # Environment "LATEST_POST" variable assigned in wp_publish_checker()
                                 x_post_create = x_post_creator(
                                     title, os.environ.get("LATEST_POST")
@@ -564,11 +647,19 @@ def gallery_upload_pilot(
                                 post_text = console.input(
                                     "[bold yellow]Enter your additional X post text here or press enter to use default configs: [bold yellow]\n"
                                 )
+                                logging.info(
+                                    f"User entered custom post text: {post_text}"
+                                )
                                 x_post_create = x_post_creator(
                                     title,
                                     os.environ.get("LATEST_POST"),
                                     post_text=post_text,
                                 )
+
+                                # Copy custom post text for the following prompt
+                                pyclip.detect_clipboard()
+                                pyclip.copy(post_text)
+
                             if x_post_create == 201:
                                 console.print(
                                     "--> Post has been published on WP and shared on X.\n",
@@ -579,9 +670,16 @@ def gallery_upload_pilot(
                                     f"--> There was an error while trying to share on X.\n Status: {x_post_create}",
                                     style="bold red",
                                 )
+                            logging.info(f"X post status code: {x_post_create}")
 
                         if gallery_sel_conf.telegram_posting_enabled:
+                            logging.info(
+                                "Telegram Posting - Enabled in workflows config"
+                            )
                             if gallery_sel_conf.telegram_posting_auto:
+                                logging.info(
+                                    "Telegram Posting Automatic detected in config"
+                                )
                                 telegram_msg = telegram_send_message(
                                     title,
                                     os.environ.get("LATEST_POST"),
@@ -597,6 +695,7 @@ def gallery_upload_pilot(
                                     gallery_sel_conf,
                                     msg_text=post_text,
                                 )
+
                             if telegram_msg == 200:
                                 console.print(
                                     # Env variable assigned in botfather_telegram.send_message()
@@ -608,10 +707,14 @@ def gallery_upload_pilot(
                                     f"--> There was an error while trying to communicate with Telegram.\n Status: {telegram_msg}",
                                     style="bold red",
                                 )
+                            logging.info(
+                                f"Telegram message status code: {telegram_msg}"
+                            )
                 else:
                     pass
                 galleries_uploaded += 1
-            except (SSLError, ConnectionError):
+            except (SSLError, ConnectionError) as e:
+                logging.warning(f"Caught exception {str(e)} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -621,30 +724,31 @@ def gallery_upload_pilot(
                 if console.input(
                     "[bold yellow]\nDo you want to continue? Y/ENTER to exit: [/bold yellow]"
                 ) == ("y" or "yes"):
+                    logging.info(f"User accepted to continue after catching {str(e)}")
                     continue
                 else:
+                    logging.info(f"User declined after catching {str(e)}")
                     console.print(
                         f"You have created {galleries_uploaded} set in this session!",
                         style="bold yellow",
                     )
                     temp_dir.cleanup()
                     thumbnails_dir.cleanup()
+                    time_end = time.time()
+                    h, mins, secs = helpers.get_duration(time_end - time_start)
+                    logging.info(
+                        f"User created {galleries_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                    )
+                    logging.info(
+                        "Cleaning clipboard and temporary directories. Quitting..."
+                    )
+                    logging.shutdown()
                     break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold yellow]\nNext set? -> N/ENTER to review next set: [/bold yellow]"
+                    "[bold yellow]\nNext set? -> N/ENTER to review next set: [/bold yellow]\n"
                 ).lower()
-                if next_post == ("y" or "yes"):
-                    # Clears clipboard after every video.
-                    pyclip.clear()
-                    with console.status(
-                        "[bold magenta] Syncing and caching changes... [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink][/bold magenta]\n",
-                        spinner="aesthetic",
-                    ):
-                        hot_file_sync(bot_config=gallery_sel_conf)
-                        not_published_yet = filter_published(all_galleries, wp_photos_f)
-                        continue
-                elif next_post == ("n" or "no"):
+                if next_post == ("n" or "no"):
                     # The terminating parts add this function to avoid
                     # tracebacks from pyclip
                     pyclip.detect_clipboard()
@@ -655,12 +759,27 @@ def gallery_upload_pilot(
                     )
                     temp_dir.cleanup()
                     thumbnails_dir.cleanup()
+                    time_end = time.time()
+                    h, mins, secs = helpers.get_duration(time_end - time_start)
+                    logging.info(
+                        f"User created {galleries_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                    )
+                    logging.info(
+                        "Cleaning clipboard and temporary directories. Quitting..."
+                    )
+                    logging.shutdown()
                     break
                 else:
+                    logging.info(
+                        "User accepted to continue after successful post creation."
+                    )
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     continue
             else:
+                logging.info(
+                    f"List exhausted. State: num={num} total_elems={total_elems}"
+                )
                 # Since we ran out of elements the script will end after adding it to WP
                 # So that it doesn't clear the clipboard automatically.
                 console.print(
@@ -675,17 +794,17 @@ def gallery_upload_pilot(
                 )
                 temp_dir.cleanup()
                 thumbnails_dir.cleanup()
-                with console.status(
-                    f"[bold green] Waiting on publication to quit safely [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
-                    spinner="earth",
-                ):
-                    # Env variable "SET_SLUG" assigned in function make_photos_payload()
-                    if wp_publish_checker(os.environ.get("SET_SLUG"), gallery_sel_conf):
-                        pyclip.detect_clipboard()
-                        pyclip.clear()
-                        thumbnails_dir.cleanup()
-                        break
+                time_end = time.time()
+                h, mins, secs = helpers.get_duration(time_end - time_start)
+                logging.info(
+                    f"User created {galleries_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                )
+                logging.info(
+                    "Cleaning clipboard and temporary directories. Quitting..."
+                )
+                logging.shutdown()
         else:
+            logging.info(f"List exhausted. State: num={num} total_elems={total_elems}")
             pyclip.detect_clipboard()
             pyclip.clear()
             console.print(
@@ -701,6 +820,13 @@ def gallery_upload_pilot(
             )
             temp_dir.cleanup()
             thumbnails_dir.cleanup()
+            time_end = time.time()
+            h, mins, secs = helpers.get_duration(time_end - time_start)
+            logging.info(
+                f"User created {galleries_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+            )
+            logging.info("Cleaning clipboard and temporary directories. Quitting...")
+            logging.shutdown()
             break
 
 
@@ -708,6 +834,8 @@ def main(*args, **kwargs):
     try:
         gallery_upload_pilot(*args, **kwargs)
     except KeyboardInterrupt:
+        logging.critical(f"KeyboardInterrupt exception detected")
+        logging.info("Cleaning clipboard and temporary directories. Quitting...")
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()
         pyclip.clear()

@@ -16,6 +16,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import argparse
+import logging
 import os
 import time
 
@@ -343,7 +344,9 @@ def refresh_flow(xauth: XAuth, x_endpoints: XEndpoints) -> None:
         new_bearer = new_tokens["access_token"]
         write_tokens_cinfo(new_bearer, new_refresh_token)
         os.environ["X_TOKEN"] = new_bearer
+        logging.info('Token refreshed and saved in environment under "X_TOKEN"')
     else:
+        logging.critical(f"Raised RefreshTokenError. JSON Response {new_request}")
         raise RefreshTokenError(new_request)
     return None
 

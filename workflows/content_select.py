@@ -14,6 +14,8 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import argparse
+import datetime
+import logging
 import os
 import random
 import re
@@ -31,7 +33,6 @@ import pyclip
 import requests
 from rich.console import Console
 
-import core
 
 # Local implementations
 from core import (
@@ -39,6 +40,9 @@ from core import (
     UnsupportedParameter,
     HotFileSyncIntegrityError,
     AssetsNotFoundError,
+    LoggingDirectoryNotAccessible,
+    get_duration,
+    generate_random_str,
     parse_client_config,
     content_select_conf,
     helpers,
@@ -64,6 +68,45 @@ from core.config_mgr import (
     GallerySelectConf,
     EmbedAssistConf,
 )
+
+
+def logging_setup(
+    bot_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+    path_to_this: str,
+) -> None:
+    """Initiate the basic logging configuration for bots in the ``workflows`` package.
+
+    :param bot_config: ``ContentSelectConf`` | ``GallerySelectConf`` | ``EmbedAssistConf`` - config functions
+    :param path_to_this: ``str`` - Equivalent to __file__ but passed in as a parameter.
+    :return: ``None``
+    """
+    get_filename = lambda f: os.path.basename(f).split(".")[0]
+    uniq_log_id = generate_random_str(5).lower()
+    log_name = (
+        f"{get_filename(path_to_this)}-log-{uniq_log_id}-{datetime.date.today()}.log"
+    )
+    log_dirname_cfg = bot_config.logging_dirname
+
+    if os.path.exists(log_dirname_cfg):
+        log_dir_path = os.path.abspath(log_dirname_cfg)
+    elif os.path.exists(log_dir_parent := f"../{log_dirname_cfg}"):
+        log_dir_path = log_dir_parent
+    else:
+        try:
+            os.mkdir(log_dirname_cfg)
+            log_dir_path = log_dirname_cfg
+        except OSError:
+            raise LoggingDirectoryNotAccessible(log_dirname_cfg)
+
+    logging.basicConfig(
+        filename=f"{log_dir_path}/{log_name}",
+        filemode="w+",
+        level=logging.INFO,
+        encoding="utf8",
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        force=True,
+    )
+    return None
 
 
 def clean_partner_tag(partner_tag: str) -> str:
@@ -101,20 +144,36 @@ def asset_parser(bot_config: ContentSelectConf, partner: str):
     # Split the partner tag to know what part of the partners name is part of a section.
     spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
     wrd_list = clean_partner_tag(partner).split(spl_char(partner))
-    find_me = lambda word, section: re.findall(word, section, flags=re.IGNORECASE)
-    assets_list: list[str] = []
-    for sec in sections:
-        for wrd in wrd_list:
-            matches = find_me(wrd, sec)
-            if matches:
-                right_section = assets[sec]
-                assets_list = list(right_section.values())
-                break
-            else:
-                continue
+    find_me = (
+        lambda word, section: matches[0]
+        if (matches := re.findall(word, section, flags=re.IGNORECASE))
+        else matches
+    )
+    assets_list = []
+    for wrd in wrd_list:
+        # The main lambda has re.findall with IGNORECASE flag, however
+        # list index lookup does take word case into consideration for str comparison.
+        wrd_to_lc = wrd.lower()
+
+        # To ensure uniqueness in the hints provided, the count of matches must be 1.
+        # If the same word is found more than once, then the match is not unique.
+        matches = (
+            temp_lst := [find_me(wrd_to_lc, section) for section in sections]
+        ).count(wrd_to_lc)
+        if matches == 1:
+            match_indx = temp_lst.index(wrd_to_lc)
+            logging.info(
+                f'Asset parsing result: found "{wrd}" in section: {sections[match_indx]}'
+            )
+            assets_list = list(assets[sections[match_indx]].values())
+            break
+        else:
+            continue
+
     if assets_list:
         return assets_list
     else:
+        logging.critical(f"Raised AssetsNotFoundError - Quitting...")
         raise AssetsNotFoundError
 
 
@@ -525,13 +584,12 @@ def make_slug(
     :param partner: ``str`` video partner/br``and
     :param model:  ``str`` video model
     :param title: ``str`` Video title
-    :param content: ``str`` type of content, in this file it is simply `video` but it could be `pics`
-                    this parameter tells Google about the main content of the page.
+    :param content: ``str`` type of content, in this file it is simply `video` but it could be `pics` this parameter tells Google about the main content of the page.
     :param reverse: ``bool``  ``True`` if you want to place the video title in front of the permalink. Default ``False``
     :param partner_out: ``bool`` ``True`` if you want to build slugs without the partner name. Default ``False``.
     :return: ``str`` formatted string of a WordPress-ready URL slug.
     """
-    filter_words: set[str] = {"at", "&", "and"}
+    filter_words: set[str] = {"at", "&", "and", "!", ",", "-", ""}
     title_sl: str = "-".join(
         [
             word.lower()
@@ -553,7 +611,7 @@ def make_slug(
         )
 
         content: str = f"-{content}" if content != "" or None else ""
-        # Note: the ``reverse`` flag acts primarily on the partner tag, so if it does not make sense to implement
+        # Note: the ``reverse`` flag acts primarily on the partner tag, so it does not make sense to implement
         # further logic for the ``partner_out`` flag. In case you're wondering why the ``elif`` block does not
         # check for ``reverse`` too.
         if reverse:
@@ -606,8 +664,13 @@ def hot_file_sync(
     config_json: dict[str, str] = helpers.load_json_ctx(bot_config.wp_cache_config)
     if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
         helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
+        logging.info(
+            f"Exporting new WordPress caching config: {bot_config.wp_cache_config}"
+        )
+        logging.info("HotFileSync Successful")
         return True
     else:
+        logging.critical("Raised HotFileSyncIntegrityError - Quitting...")
         raise HotFileSyncIntegrityError
 
 
@@ -664,6 +727,9 @@ def select_guard(db_name: str, partner: str) -> None:
     try:
         assert re.match(spl_dbname(db_name)[0], partner, flags=re.IGNORECASE)
     except AssertionError:
+        logging.critical(
+            f"Select guard detected issues for db_name: {db_name} partner: {partner} split: {match_regex}"
+        )
         print("\nBe careful! Partner and database must match. Re-run...")
         print(f"The program selected {db_name} for partner {partner}.")
         quit()
@@ -816,6 +882,8 @@ def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
     else:
         post_text = f"{description} {post_text} {post_url}"
     request = x_api.post_x(post_text, bearer_token, XEndpoints())
+    logging.info(f"Sent to X -> {post_text}")
+    logging.info(f"X post metadata -> {request.json()}")
     return request.status_code
 
 
@@ -872,6 +940,8 @@ def telegram_send_message(
     req = botfather_telegram.send_message(
         bot_father(), BotFatherCommands(), BotFatherEndpoints(), message
     )
+    logging.info(f"Sent to Telegram -> {message}")
+    logging.info(f"BotFather post metadata -> {req.json()}")
     return req.status_code
 
 
@@ -890,6 +960,8 @@ def wp_publish_checker(
     :param cs_conf: ``ContentSelectConf`` | ``EmbedAssistConf`` | ``GallerySelectConf`` - Config objects
     :return: ``None`` | ``True``
     """
+    retries = 0
+    start_check = time.time()
     hot_sync = hot_file_sync(cs_conf)
     while hot_sync:
         posts_file = (
@@ -901,9 +973,16 @@ def wp_publish_checker(
         slugs = wordpress_api.get_slugs(wp_postf)
         if post_slug in slugs:
             os.environ["LATEST_POST"] = wp_postf[0]["link"]
+            end_check = time.time()
+            h, min, secs = get_duration(end_check - start_check)
+            logging.info(
+                f"wp_publish_checker took -> hours: {h} mins: {min} secs: {secs} in {retries} retries"
+            )
             return True
+
         # Retry every two seconds
-        time.sleep(2)
+        time.sleep(5)
+        retries += 1
         hot_sync = hot_file_sync(cs_conf)
 
 
@@ -913,59 +992,10 @@ def video_upload_pilot(
     cs_config: ContentSelectConf = content_select_conf(),
     parent: bool = False,
 ) -> None:
-    """Here is the main coordinating function of this module, the job control that
-    uses all previous functions to carry out all the tasks associated with the video upload process in the business.
-    This function is a real pilot and here's a quick breakdown of its workflow:
-
-    **Note: This won't be a detailed description, however, it will give you a better notion of
-    how this code accomplishes these tasks.**
-
-    1) Calls hot_file_sync and x_api.refresh_flow() to begin the session with a fresh set of data. \n
-    2) Sets up the required files and data structures by using configuration constants. \n
-    3) Assigns the results from content_select_db_match to the partner index, db, and banner partner variables. \n
-    4) Assigns the WP API base url to a local variable. \n
-    5) Gathers input from the user and then validates. \n
-    6) Validates user input and ensures a sensible choice is picked. \n
-    7) Calls filter_published to get a set of fresh videos to start the control loop (result assigned to variable). \n
-    8) Control loop starts with the enumerate function and the filtered dataset. \n
-
-        8.1) Unpacks values from every tuple. \n
-        8.2) Constructs a '-video' slug to make sure it conforms to Google's policies about content main topic. \n
-        8.3) Prints relevant metadata about the video for the user. \n
-        8.4) Prompts the user with options to either upload the current item, exit or fetch the next element. \n
-        8.5) Handles the options according to the control number of the loop and executes the following: \n
-
-            8.5.1) Upload the video:
-                => Prepares additional validation with the supplied metadata. \n
-                **Function calls:** \n
-                --> get_tag_ids/get_model_ids \n
-                --> wordpress_api.tag_id_merger_dict \n
-                --> wordpress_api.map_wp_model_id \n
-                --> identify_missing \n
-                --> make_payload \n
-                --> fetch_thumbnail \n
-                --> wordpress_api.wp_post_create \n
-                --> make_img_payload \n
-                --> wordpress_api.upload_thumbnail \n
-                --> pyclip.copy(source_url) \n
-                --> pyclip.copy(title) \n
-                --> Prompts the user to continue \n
-                --> If the user continues: \n
-                    -> pyclip.clear()
-                    -> hot_file_sync
-                    -> filter_published (assigns it to out-of-loop scope) \n
-            8.5.2) The user chooses not to continue
-                **Function calls:** \n
-                --> pyclip.detect_clipboard()
-                --> pyclip.clear()
-                --> clean_file_cache \n
-                --> *BREAK*
-            8.5.3) The user presses enter
-                --> *CONTINUE*
-            8.6) The loop will continue until the control variable total_elems is 1 since the loop wants to
-            tell the user when it is no longer possible for them to fetch more items.
-            **When it reaches the point where there is only one element to show, the program will communicate
-            that to the user and wait 60 seconds before cleaning cache files and clipboard data.**
+    """Coordinate execution of all functions that interact with the video upload process.
+    In other words, this function gives continuity to what ``workflows.update_mcash_chain`` does with
+    the data processing and normalisation. Of course, that is just one way to put it since all other
+    members in the module undertake a fraction of work, thus, each output is received and made meaningful here.
 
     :param wp_auth: ``WPAuth`` element provided by the ``core.config_mgr`` module. Set by default and bound to change based on the config file.
     :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
@@ -973,7 +1003,12 @@ def video_upload_pilot(
     :param parent: ``True`` if you want to locate relevant files in the parent directory. Default False
     :return: ``None``
     """
+    # Time start
+    time_start = time.time()
+
     # Configuration steps
+    path_this = __file__
+    logging_setup(cs_config, path_this)
     console = Console()
     os.system("clear")
     with console.status(
@@ -982,23 +1017,33 @@ def video_upload_pilot(
     ):
         hot_file_sync(bot_config=cs_config)
         x_api.refresh_flow(x_auth(), XEndpoints())
+
     partners: list[str] = cs_config.partners.split(",")
+    logging.info(f"Loading partners variable: {partners}")
     wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
+    logging.info(f"Reading WordPress Post cache: {cs_config.wp_json_posts}")
     wp_base_url: str = wp_auth.api_base_url
+    logging.info(f"Using {wp_base_url} as WordPress API base url")
     db_conn, cur_dump, partner_db_name, partner_indx = content_select_db_match(
         partners, cs_config.content_hint, parent=parent
+    )
+    logging.info(
+        f"Matched {partner_db_name} for {partners[partner_indx]} index {partner_indx}"
     )
     all_vals: list[tuple[str, ...]] = helpers.fetch_data_sql(
         cs_config.sql_query, cur_dump
     )
+    logging.info(f"{len(all_vals)} elements found in database {partner_db_name}")
     # Prints out at the end of the uploading session.
     videos_uploaded: int = 0
     partner = partners[partner_indx]
     banners = asset_parser(cs_config, partner)
     select_guard(partner_db_name, partner)
+    logging.info("Select guard cleared...")
     not_published_yet: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
+    logging.info(f"Detected {total_elems} to be published")
     os.system("clear")
     console.print(
         f"\nThere are {total_elems} videos to be published...",
@@ -1007,8 +1052,10 @@ def video_upload_pilot(
     )
     # Create a temporary directory for thumbnails.
     thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
+    logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
     for num, vid in enumerate(not_published_yet):
         (title, *fields) = vid
+        logging.info(f"Displaying on iteration {num} data: {vid}")
         description = fields[0]
         models = fields[1]
         tags = fields[2]
@@ -1034,21 +1081,37 @@ def video_upload_pilot(
             "\n[bold cyan]Add post to WP? -> Y/N/ENTER to review next post: [/bold cyan]\n",
         ).lower()
         if add_post == ("y" or "yes"):
+            logging.info(f"User accepted video element {num} for processing")
             add_post = True
         elif add_post == ("n" or "no"):
+            logging.info("User declined further activity with the bot")
             pyclip.detect_clipboard()
             pyclip.clear()
             console.print(
                 f"You have created {videos_uploaded} posts in this session!",
                 style="bold yellow",
             )
+            thumbnails_dir.cleanup()
+            time_end = time.time()
+            h, mins, secs = get_duration(time_end - time_start)
+            logging.info(
+                f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+            )
+            logging.info("Cleaning clipboard and temporary directories. Quitting...")
+            logging.shutdown()
             break
         else:
             if num < total_elems - 1:
+                logging.info(
+                    f"Moving forward - ENTER action detected. State: num={num} total_elems={total_elems}"
+                )
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 continue
             else:
+                logging.info(
+                    f"List exhausted. State: num={num} total_elems={total_elems}"
+                )
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -1062,6 +1125,16 @@ def video_upload_pilot(
                     f"You have created {videos_uploaded} posts in this session!",
                     style="bold yellow",
                 )
+                thumbnails_dir.cleanup()
+                time_end = time.time()
+                h, mins, secs = get_duration(time_end - time_start)
+                logging.info(
+                    f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                )
+                logging.info(
+                    "Cleaning clipboard and temporary directories. Quitting..."
+                )
+                logging.shutdown()
                 break
 
         # In rare occasions, the ``tags`` is None and the real tags are placed in the ``models`` variable
@@ -1104,6 +1177,7 @@ def video_upload_pilot(
                     # Smart slug by default (partner_out).
                     wp_slug: str = slugs[3]
 
+            logging.info(f"WP Slug - Selected: {wp_slug}")
             tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
 
             # Making sure that the partner tag does not have apostrophes
@@ -1131,6 +1205,7 @@ def video_upload_pilot(
                         "Paste it into the tags field as soon as possible...\n",
                         style="bold yellow",
                     )
+                    logging.warning(f"Missing tag detected: {tag}")
                     pyclip.detect_clipboard()
                     pyclip.copy(tag)
 
@@ -1169,6 +1244,7 @@ def video_upload_pilot(
                         "Paste it into the Pornstars field as soon as possible...\n",
                         style="bold yellow",
                     )
+                    logging.warning(f"Missing model: {girl}")
                     pyclip.detect_clipboard()
                     pyclip.copy(girl)
 
@@ -1179,6 +1255,7 @@ def video_upload_pilot(
             class_title.union(class_description)
             class_title.union(class_tags)
             consolidate_categs = list(class_title)
+            logging.info(f"Suggested categories ML: {consolidate_categs}")
 
             console.print(
                 " \n** I think these categories are appropriate: **\n",
@@ -1193,8 +1270,10 @@ def video_upload_pilot(
                 case _ as option:
                     try:
                         sel_categ = consolidate_categs[int(option) - 1]
+                        logging.info(f"User selected category: {sel_categ}")
                     except ValueError or IndexError:
                         sel_categ = option
+                        logging.info(f"User typed in category: {option}")
 
             categ_ids = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
 
@@ -1211,7 +1290,7 @@ def video_upload_pilot(
                 calling_models,
                 categs=categ_ids,
             )
-
+            logging.info(f"Generated payload: {payload}")
             console.print("--> Fetching thumbnail...", style="bold green")
 
             # Check whether ImageMagick conversion has been enabled in config.
@@ -1219,6 +1298,7 @@ def video_upload_pilot(
                 cs_config.pic_format if cs_config.imagick else cs_config.pic_fallback
             )
             thumbnail = clean_filename(wp_slug, pic_format)
+            logging.info(f"Thumbnail name: {thumbnail}")
 
             try:
                 fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
@@ -1239,12 +1319,16 @@ def video_upload_pilot(
                     f"{thumbnails_dir.name}/{thumbnail}",
                     img_attrs,
                 )
+                logging.info(f"Image Attrs: {img_attrs}")
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
                 # upload_thumbnail will report a 500 status code when this is
                 # the case. Each successful upload will prompt the program to
                 # clean the thumbnail selectively.
                 if upload_img == 500:
+                    logging.warning(
+                        f"Defective thumbnail - Bot abandoned current flow."
+                    )
                     console.print(
                         "It is possible that this thumbnail is defective. Check the Thumbnail manually.",
                         style="bold red",
@@ -1254,7 +1338,8 @@ def video_upload_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(f"{thumbnails_dir.name}/{thumbnail}")
+                    os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
+                    logging.info(f"Uploaded and removed: {removed_img}")
                 else:
                     pass
 
@@ -1264,6 +1349,7 @@ def video_upload_pilot(
                 )
                 console.print("--> Creating post on WordPress", style="bold green")
                 push_post = wordpress_api.wp_post_create([wp_endpoints.posts], payload)
+                logging.info(f"WordPress post push status: {push_post}")
                 console.print(
                     f"--> WordPress status code: {push_post}", style="bold green"
                 )
@@ -1285,7 +1371,9 @@ def video_upload_pilot(
                         is_published = wp_publish_checker(wp_slug, cs_config)
                     if is_published:
                         if cs_config.x_posting_enabled:
+                            logging.info("X Posting - Enabled in workflows config")
                             if cs_config.x_posting_auto:
+                                logging.info("X Posting Automatic detected in config")
                                 # Environment "LATEST_POST" variable assigned in wp_publish_checker()
                                 x_post_create = x_post_creator(
                                     description, os.environ.get("LATEST_POST")
@@ -1294,11 +1382,19 @@ def video_upload_pilot(
                                 post_text = console.input(
                                     "[bold yellow]Enter your additional X post text here or press enter to use default configs: [bold yellow]\n"
                                 )
+                                logging.info(
+                                    f"User entered custom post text: {post_text}"
+                                )
                                 x_post_create = x_post_creator(
                                     description,
                                     os.environ.get("LATEST_POST"),
                                     post_text=post_text,
                                 )
+
+                                # Copy custom post text for the following prompt
+                                pyclip.detect_clipboard()
+                                pyclip.copy(post_text)
+
                             if x_post_create == 201:
                                 console.print(
                                     "--> Post has been published on WP and shared on X.\n",
@@ -1309,9 +1405,16 @@ def video_upload_pilot(
                                     f"--> There was an error while trying to share on X.\n Status: {x_post_create}",
                                     style="bold red",
                                 )
+                            logging.info(f"X post status code: {x_post_create}")
 
                         if cs_config.telegram_posting_enabled:
+                            logging.info(
+                                "Telegram Posting - Enabled in workflows config"
+                            )
                             if cs_config.telegram_posting_auto:
+                                logging.info(
+                                    "Telegram Posting Automatic detected in config"
+                                )
                                 telegram_msg = telegram_send_message(
                                     description,
                                     os.environ.get("LATEST_POST"),
@@ -1327,6 +1430,7 @@ def video_upload_pilot(
                                     cs_config,
                                     msg_text=post_text,
                                 )
+
                             if telegram_msg == 200:
                                 console.print(
                                     # Env variable assigned in botfather_telegram.send_message()
@@ -1338,31 +1442,48 @@ def video_upload_pilot(
                                     f"--> There was an error while trying to communicate with Telegram.\n Status: {telegram_msg}",
                                     style="bold red",
                                 )
+                            logging.info(
+                                f"Telegram message status code: {telegram_msg}"
+                            )
                 else:
                     pass
                 videos_uploaded += 1
-            except (SSLError, ConnectionError):
+            except (SSLError, ConnectionError) as e:
+                logging.warning(f"Caught exception {str(e)} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
                     "* There was a connection error while processing this post... *",
                     style="bold red",
                 )
-                if input("\nDo you want to continue? Y/ENTER to exit: ") == (
-                    "y" or "yes"
-                ):
+                if console.input(
+                    "\n[bold green] Do you want to continue? Y/ENTER to exit: [bold green]"
+                ) == ("y" or "yes"):
+                    logging.info(f"User accepted to continue after catching {str(e)}")
                     continue
                 else:
+                    logging.info(f"User declined after catching {str(e)}")
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
                     )
+                    thumbnails_dir.cleanup()
+                    time_end = time.time()
+                    h, mins, secs = helpers.get_duration(time_end - time_start)
+                    logging.info(
+                        f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                    )
+                    logging.info(
+                        "Cleaning clipboard and temporary directories. Quitting..."
+                    )
+                    logging.shutdown()
                     break
             if num < total_elems - 1:
                 next_post = console.input(
                     "[bold cyan]\nNext post? -> N/ENTER to review next post: [/bold cyan]\n"
                 ).lower()
                 if next_post == ("n" or "no"):
+                    logging.info("User declined further activity with the bot")
                     # The terminating parts add this function to avoid
                     # tracebacks from pyclip and enable cross-platform support.
                     pyclip.detect_clipboard()
@@ -1372,14 +1493,29 @@ def video_upload_pilot(
                         style="bold yellow",
                     )
                     thumbnails_dir.cleanup()
+                    time_end = time.time()
+                    h, mins, secs = get_duration(time_end - time_start)
+                    logging.info(
+                        f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                    )
+                    logging.info(
+                        "Cleaning clipboard and temporary directories. Quitting..."
+                    )
+                    logging.shutdown()
                     break
                 else:
+                    logging.info(
+                        "User accepted to continue after successful post creation."
+                    )
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     continue
             else:
                 # Since we ran out of elements the script will end after adding it to WP
                 # So that it doesn't clear the clipboard automatically.
+                logging.info(
+                    f"List exhausted. State: num={num} total_elems={total_elems}"
+                )
                 console.print(
                     "\nWe have reviewed all posts for this query.", style="bold red"
                 )
@@ -1391,16 +1527,17 @@ def video_upload_pilot(
                     f"You have created {videos_uploaded} posts in this session!",
                     style="bold yellow",
                 )
-                with console.status(
-                    f"[bold green] Waiting on publication to quit safely [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
-                    spinner="earth",
-                ):
-                    if wp_publish_checker(wp_slug, cs_config):
-                        pyclip.detect_clipboard()
-                        pyclip.clear()
-                        thumbnails_dir.cleanup()
-                        break
+                time_end = time.time()
+                h, mins, secs = get_duration(time_end - time_start)
+                logging.info(
+                    f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                )
+                logging.info(
+                    "Cleaning clipboard and temporary directories. Quitting..."
+                )
+                logging.shutdown()
         else:
+            logging.info(f"List exhausted. State: num={num} total_elems={total_elems}")
             pyclip.detect_clipboard()
             pyclip.clear()
             console.print(
@@ -1415,6 +1552,13 @@ def video_upload_pilot(
                 style="bold yellow",
             )
             thumbnails_dir.cleanup()
+            time_end = time.time()
+            h, mins, secs = get_duration(time_end - time_start)
+            logging.info(
+                f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+            )
+            logging.info("Cleaning clipboard and temporary directories. Quitting...")
+            logging.shutdown()
             break
 
 
@@ -1422,10 +1566,13 @@ def main(**kwargs):
     try:
         video_upload_pilot(**kwargs)
     except KeyboardInterrupt:
+        logging.critical(f"KeyboardInterrupt exception detected")
+        logging.info("Cleaning clipboard and temporary directories. Quitting...")
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()
         pyclip.clear()
         # When quit is called, temp dirs will be automatically cleaned.
+        logging.shutdown()
         quit()
 
 

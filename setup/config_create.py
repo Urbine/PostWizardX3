@@ -71,6 +71,8 @@ website_name = <YOUR_SITE_DISPLAY_NAME>
 domain_tld = <TLD>
 wp_json_posts = wp_posts.json
 wp_cache_config = wp_cache_config.json
+# Only the directory name
+logging_dirname = logs
 
 [content_select]
 pic_format = .jpg
