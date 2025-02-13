@@ -1,16 +1,27 @@
 workflows package
 =================
 
+The essence of software packages is the ability to automate with the combination of libraries
+and tasks that take care of portions of work. In this sense, the crucial part to understanding the role of
+workflows is thinking about them as orchestration artifacts.
+
+.. seealso::
+   For an introduction to the bots in this package, refer to:
+   `Get to Know the Bots <home.html#get-to-know-the-bots>`_
+
+   If you want to expand your knowledge about common command line arguments
+   used in this project, head over to `integrations package <integrations.html#integrations-package>`_
+
+.. tip::
+   Before going all in here, take a look at the documentation for the
+   `integrations.wordpress_api <integrations.html#module-integrations.wordpress_api>`_
+   since ``workflows`` are heavily dependent on this integration to accomplish most functionality related to
+   content management, post classification, caching, etc.
+   Grasping on the logic there will make it easier to read this page.
+
+
 Submodules
 ----------
-
-workflows.clean\_outdated\_files module
----------------------------------------
-
-.. automodule:: workflows.clean_outdated_files
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 workflows.content\_select module
 --------------------------------
