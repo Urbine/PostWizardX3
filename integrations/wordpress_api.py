@@ -292,7 +292,7 @@ def map_posts_by_id(
     in every iteration, otherwise it will give you the slug only by default.
 
     :param wp_posts_f: ``list[dict]`` Posts ``JSON`` file
-    :param host_name: ``str`` your hostname/WP site base URL. Default ``None``)
+    :param host_name: ``str`` your hostname/WP site base URL. Default ``None``
     :return: ``dict[str, str]``
     """
     u_pack = zip([idd["id"] for idd in wp_posts_f], [url["slug"] for url in wp_posts_f])
