@@ -6,7 +6,7 @@ cached by the ``integrations.wordpress_api`` in the general site posts informati
 
 1. NaiveBayesClassifier from the Natural Language Toolkit ``NLTK`` library
 2. MaxentClassifier (Maximum Entropy modeling) from ``NLTK``
-3. NLTK Wrapper of SciKit-learn's Multinomial NaiveBayes for NLTK features
+3. NLTK Wrapper of ``SciKit-learn`` Multinomial NaiveBayes for ``NLTK`` features
 
 Such models will be used by the main workflows to classify and predict content based
 on the current classification information available on the website.
