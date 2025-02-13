@@ -11,8 +11,9 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from Cython.Compiler.Errors import message
-from requests import Request, Response
+import os
+
+from requests import Response
 
 
 class NoSuitableArgument(Exception):
@@ -21,11 +22,10 @@ class NoSuitableArgument(Exception):
     Raise if the expected parameters are not provided by the user.
     """
 
-    def __init__(self, message: str):
-        """
-        :param message: text provided to the constructor by the user.
-        """
-        super().__init__(message)
+    def __init__(self, package: str, file: str):
+        self.file = (lambda f: os.path.basename(f).split(".")[0])(file)
+        self.package = package
+        super().__init__(f"Try: python3 -m {self.package}.{self.file} --help")
 
 
 class InvalidInput(Exception):
@@ -58,7 +58,7 @@ class ConfigFileNotFound(Exception):
 
 class UnsupportedParameter(Exception):
     """
-    Handle instances where the user provides a value that the function
+    Handle instances where the user or controlling function provides a value that the function
     does not support. Typically used in lieu of ValueError.
     """
 
@@ -74,9 +74,8 @@ class InvalidConfiguration(Exception):
     values that must abide by Python's syntactic rules.
     """
 
-    def __init__(self, param: str):
-        self.param = param
-        self.message = f"Value {str(param)} is unsupported."
+    def __init__(self):
+        self.message = f"Double check your True/False (boolean) values in configuration options."
         super().__init__(self.message)
 
 
@@ -118,7 +117,7 @@ class HotFileSyncIntegrityError(Exception):
     def __init__(self):
         self.message = """WP JSON HotSync validation failed.
                           Maybe you have to rebuild your WordPress cache and its config.
-                          Run (in project root): python3 -m integrations.wordpress_api --yoast"""
+                          Run (in project root): python3 -m integrations.wordpress_api --posts --yoast"""
         super().__init__(self.message)
 
 
@@ -134,7 +133,7 @@ class AssetsNotFoundError(Exception):
         super().__init__(self.message)
 
 
-class LoggingDirectoryNotAccessible(Exception):
+class UnavailableLoggingDirectory(Exception):
     """
     Notifies the user that the logging directory is not accessible.
     """

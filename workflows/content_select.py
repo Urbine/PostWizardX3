@@ -40,7 +40,7 @@ from core import (
     UnsupportedParameter,
     HotFileSyncIntegrityError,
     AssetsNotFoundError,
-    LoggingDirectoryNotAccessible,
+    UnavailableLoggingDirectory,
     get_duration,
     generate_random_str,
     parse_client_config,
@@ -97,7 +97,7 @@ def logging_setup(
             os.mkdir(log_dirname_cfg)
             log_dir_path = log_dirname_cfg
         except OSError:
-            raise LoggingDirectoryNotAccessible(log_dirname_cfg)
+            raise UnavailableLoggingDirectory(log_dirname_cfg)
 
     logging.basicConfig(
         filename=f"{log_dir_path}/{log_name}",

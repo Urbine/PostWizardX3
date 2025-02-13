@@ -1002,25 +1002,21 @@ hostname: str = wp_auth().hostname
 b_url: str = wp_auth().api_base_url
 
 if __name__ == "__main__":
-    # Suppress RuntimeWarnings during import
-    warnings.filterwarnings(
-        "ignore",
-        category=RuntimeWarning,
-    )
-
     args_parser = argparse.ArgumentParser(description="WordPress API Local Module")
 
     args_parser.add_argument(
         "--cached",
         action="store_true",
+        default=False,
         help="""Select this flag if you already have a cached copy of your JSON file.
-                      In case you need to recreate your config files, database or JSON files use do not set this flag.
+                      In case you need to recreate your config files, database or JSON files do not set this flag.
                       Using this flag will allow you to recreate the config and database with cached data.""",
     )
 
     args_parser.add_argument(
         "--parent",
         action="store_true",
+        default=False,
         help="Place the output of these functions in the relative parent directory.",
     )
 
@@ -1032,14 +1028,23 @@ if __name__ == "__main__":
     )
 
     args_parser.add_argument(
+        "--posts",
+        action="store_true",
+        default=False,
+        help="Update the wp_posts local cache or associated files (db/config).",
+    )
+
+    args_parser.add_argument(
         "--yoast",
         action="store_true",
+        default=False,
         help="Enable Yoast SEO mode in compatible functions.",
     )
 
     args_parser.add_argument(
         "--excel",
         action="store_true",
+        default=False,
         help="Create an MS Excel report with the tag and slug information of the site.",
     )
 
@@ -1050,13 +1055,12 @@ if __name__ == "__main__":
         create_tag_report_excel(
             imported_json, f"tag-report-excel-{datetime.date.today()}"
         )
-    else:
+    elif args.posts or args.photos:
         upgrade_wp_local_cache(
             photos=args.photos, cached=args.cached, parent=args.parent, yoast=args.yoast
         )
-
-    # categories = get_all_categories(hstname, rest_params)
-    # export_request_json('wp_categories', categories, parent=True)
+    else:
+        raise NoSuitableArgument(__package__, __file__)
 
     # ==== WP Posts json data structure ====
     # title: imported_json[0]['title']['rendered']
