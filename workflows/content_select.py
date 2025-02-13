@@ -67,16 +67,17 @@ from core.config_mgr import (
     ContentSelectConf,
     GallerySelectConf,
     EmbedAssistConf,
+    UpdateMediaSource,
 )
 
 
 def logging_setup(
-    bot_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+    bot_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf | UpdateMediaSource,
     path_to_this: str,
 ) -> None:
     """Initiate the basic logging configuration for bots in the ``workflows`` package.
 
-    :param bot_config: ``ContentBotConf`` | ``GalleryBotConf`` | ``EmbedAssistBotConf`` - config functions
+    :param bot_config: ``ContentBotConf`` | ``GalleryBotConf`` | ``EmbedAssistBotConf`` | ``UpdateMediaSource`` - config functions
     :param path_to_this: ``str`` - Equivalent to __file__ but passed in as a parameter.
     :return: ``None``
     """
