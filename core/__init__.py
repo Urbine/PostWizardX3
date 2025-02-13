@@ -68,7 +68,6 @@ from core.helpers import (
     write_config_file,
 )
 
-
 __all__ = [
     "NoSuitableArgument",
     "UnsupportedParameter",
@@ -96,6 +95,7 @@ __all__ = [
     "is_parent_dir_required",
     "match_list_elem_date",
     "match_list_mult",
+    "match_list_single",
     "load_file_path",
     "load_from_file",
     "load_json_ctx",

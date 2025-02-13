@@ -363,9 +363,10 @@ def main(*args, **kwargs) -> None:
         write_tokens_cinfo(
             new_tokens.json()["access_token"], new_tokens.json()["refresh_token"]
         )
+        print(f"The client_info.ini file has been updated with the new tokens.")
     except KeyError:
         raise AccessTokenRetrivalError(new_tokens)
-    print(f"The client_info.ini file has been updated with the new tokens.")
+
 
 
 if __name__ == "__main__":
