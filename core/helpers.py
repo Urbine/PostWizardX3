@@ -445,10 +445,14 @@ def get_project_db(
 
 
 def get_webdriver(
-    download_folder: str, headless: bool = False, gecko: bool = False
+    download_folder: str,
+    headless: bool = False,
+    gecko: bool = False,
+    no_imgs: bool = False,
 ) -> webdriver:
     """Get a webdriver with customisable settings via parameters.
 
+    :param no_imgs: ``bool`` - Disable image loading for scraping performance gain
     :param download_folder: self-explanatory. Works with relative or absolute paths
     :param headless: ``True`` to enable headless webdriver execution. Default ``False``.
     :param gecko: True to obtain a gecko webdriver instance. Default Chrome Webdriver ``gecko=False``.
@@ -467,6 +471,8 @@ def get_webdriver(
 
         if headless:
             gecko_options.add_argument("--headless")
+        elif no_imgs:
+            gecko_options.set_preference("permissions.default.image", 2)
         else:
             pass
 
@@ -492,6 +498,8 @@ def get_webdriver(
 
         if headless:
             chrome_options.add_argument("--headless")
+        elif no_imgs:
+            chrome_options.add_argument("--blink-settings=imagesEnabled=false")
         else:
             pass
 

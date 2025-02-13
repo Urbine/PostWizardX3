@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.abspath("../.."))
 
 project = "webmaster-seo-tools"
-copyright = "2024, Yoham Gabriel (Urbine@GitHub)"
+copyright = "2025, Yoham Gabriel (Urbine@GitHub)"
 author = "Yoham Gabriel (Urbine@GitHub)"
 
 # -- General configuration ---------------------------------------------------
@@ -32,7 +32,7 @@ autodoc_type_aliases = {"List": "List", "Dict": "Dict"}
 # autodoc_preserve_defaults = False
 # typehints_defaults = "comma"
 typehints_use_rtype = False
-typehints_fully_qualified = True
+typehints_fully_qualified = False
 
 # In conf.py
 
@@ -52,9 +52,11 @@ exclude_patterns = []
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+html_title = "webmaster-seo-tools | Internal Docs"
+html_favicon = "_static/wm.png"
 html_theme_options = {
     # Toc options
-    "collapse_navigation": True,
+    "collapse_navigation": False,
     "sticky_navigation": True,
     "navigation_depth": 4,
     "includehidden": False,

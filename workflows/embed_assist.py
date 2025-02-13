@@ -14,12 +14,12 @@ __author_email__ = "yohamg@programmer.net"
 import logging
 import os
 import pyclip
-from requests.exceptions import SSLError, ConnectionError
 import readline  # Imported to enable Standard Input manipulation. Don't remove!
 import tempfile
 import time
 
 # Third-party modules
+from requests.exceptions import SSLError, ConnectionError
 from rich.console import Console
 
 # Local implementations
@@ -386,6 +386,7 @@ def embedding_pilot(
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
                 # upload_thumbnail will report a 500 status code when this is the
                 # case.
+                # More information in integrations.wordpress_api.upload_thumbnail docs
                 if upload_img == 500:
                     logging.warning(
                         f"Defective thumbnail - Bot abandoned current flow."
@@ -399,6 +400,8 @@ def embedding_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
+                    # Each successful upload will prompt the program to
+                    # clean the thumbnail selectively.
                     os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
                     logging.info(f"Uploaded and removed: {removed_img}")
                 else:

@@ -17,15 +17,16 @@ import sqlite3
 import tempfile
 import time
 import zipfile
+
 from sqlite3 import OperationalError
-from requests.exceptions import ConnectionError, SSLError
 
 # Third-party modules
-from rich.console import Console
 import pyclip
+from rich.console import Console
 from selenium import webdriver  # Imported for type annotations
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
+from requests.exceptions import ConnectionError, SSLError
 
 # Local implementations
 import core
@@ -60,10 +61,18 @@ def fetch_zip(
     """Fetch a .zip archive from the internet by following set of authentication and retrieval
     steps via automated execution of a browser instance (webdriver).
 
-    **Note about ``headless`` mode: In this function, I have performed testing of a headless retrieval of the .zip
-    archive, however, ``headless`` mode seems incompatible for this process. I am leaving the parameter to explore the
+    **Note about "headless" mode: In this function, I have performed testing for a headless retrieval of the .zip
+    archive, however, "headless" mode seems incompatible for this process. I am leaving the parameter to explore the
     execution in other platforms like Microsoft Windows as this function has been tested in Linux for the most
     part.**
+
+    *Take into consideration that function fetch_zip() downloads files and Chrome does not usually wait
+    until current downloads finish before closing running browser instances; fixes have been applied here to correct that behaviour.*
+
+    *Headless mode does not show users why a certain iteration of the program failed and, due to the many factors, including but not limited to,
+    internet connection speeds, the browser instance may require user collaboration to ensure the file has been
+    downloaded and the former could then be closed either automatically or explicitly.*
+    **For this reason, refrain from using headless mode with this module.**
 
     :param dwn_dir: ``str``  Download directory. Typically, a temporary location.
     :param remote_res: ``str`` Archive download URL. It must be a direct link (automatic download)
@@ -73,7 +82,7 @@ def fetch_zip(
     :param m_cash_auth: ``MongerCashAuth`` object with authentication information to access MongerCash.
     :return: ``None``
     """
-    webdrv: webdriver = helpers.get_webdriver(dwn_dir, gecko=gecko, headless=headless)
+    webdrv: webdriver = helpers.get_webdriver(dwn_dir, headless=headless, gecko=gecko)
 
     webdrv_user_sel = "Gecko" if gecko else "Chrome"
     logging.info(
@@ -311,7 +320,7 @@ def upload_image_set(
     if len(thumbnails) == 0:
         # Assumes the thumbnails are contained in a directory
         # This could be caused by the archive extraction
-        logging.info("Thumbnail contained in directory")
+        logging.info("Thumbnails contained in directory - Running recursive search")
         files: list[str] = helpers.search_files_by_ext(
             "jpg", recursive=True, folder=os.path.relpath(folder)
         )
@@ -329,6 +338,7 @@ def upload_image_set(
         pass
 
     # Prepare the image new name so that separators are replaced by hyphens.
+    # E.g. this_is_a_cool_pic.jpg => this-is-a-cool-pic.jpg
     split_char = (
         lambda name: chars[0] if (chars := re.findall(r"[\W_]+", name)) else " "
     )
@@ -506,6 +516,7 @@ def gallery_upload_pilot(
     )
     # Create temporary directories
     temp_dir = tempfile.TemporaryDirectory(dir=".")
+    logging.info(f"Created {temp_dir.name} for temporary file download & extraction")
     thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
     logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
     for num, photo in enumerate(not_published_yet):

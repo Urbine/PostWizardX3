@@ -25,12 +25,12 @@ import time
 import sqlite3
 import warnings
 
-from requests.exceptions import SSLError, ConnectionError
 from sqlite3 import Connection, Cursor
 
 # Third-party modules
 import pyclip
 import requests
+from requests.exceptions import SSLError, ConnectionError
 from rich.console import Console
 
 
@@ -40,7 +40,7 @@ from core import (
     UnsupportedParameter,
     HotFileSyncIntegrityError,
     AssetsNotFoundError,
-    LoggingDirectoryNotAccessible,
+    UnavailableLoggingDirectory,
     get_duration,
     generate_random_str,
     parse_client_config,
@@ -67,16 +67,17 @@ from core.config_mgr import (
     ContentSelectConf,
     GallerySelectConf,
     EmbedAssistConf,
+    UpdateMCash,
 )
 
 
 def logging_setup(
-    bot_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+    bot_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf | UpdateMCash,
     path_to_this: str,
 ) -> None:
     """Initiate the basic logging configuration for bots in the ``workflows`` package.
 
-    :param bot_config: ``ContentSelectConf`` | ``GallerySelectConf`` | ``EmbedAssistConf`` - config functions
+    :param bot_config: ``ContentSelectConf`` | ``GallerySelectConf`` | ``EmbedAssistConf`` | ``UpdateMCash`` - config functions
     :param path_to_this: ``str`` - Equivalent to __file__ but passed in as a parameter.
     :return: ``None``
     """
@@ -96,7 +97,7 @@ def logging_setup(
             os.mkdir(log_dirname_cfg)
             log_dir_path = log_dirname_cfg
         except OSError:
-            raise LoggingDirectoryNotAccessible(log_dirname_cfg)
+            raise UnavailableLoggingDirectory(log_dirname_cfg)
 
     logging.basicConfig(
         filename=f"{log_dir_path}/{log_name}",
@@ -356,9 +357,9 @@ def identify_missing(
     ignore_case: bool = False,
 ):
     """This function is a simple algorithm that identifies when a tag or model must be manually recorded
-    on WordPress, and it does that with two main assumptions:
-    1) "If I have x tags/models, I must have x integers/IDs"
-    2) "If there is a value with no ID, it just means that there is none and has to be created"
+    on WordPress, and it does that with two main assumptions:\n
+    1) "If I have x tags/models, I must have x integers/IDs"\n
+    2) "If there is a value with no ID, it just means that there is none and has to be created"\n
     Number 1 is exactly the first test for our values so, most of the time, if our results are consistent,
     this function returns None and no other operations are carried out. It acts exactly like a gatekeeper.
     In case the opposite is true, the function will examine why those IDs are missing and return the culprits (2).
@@ -581,7 +582,7 @@ def make_slug(
     mechanism from gallery_select.py. It takes in strings that will be transformed into URL slugs
     that will help us optimise the permalinks for SEO purposes.
 
-    :param partner: ``str`` video partner/br``and
+    :param partner: ``str`` video partner
     :param model:  ``str`` video model
     :param title: ``str`` Video title
     :param content: ``str`` type of content, in this file it is simply `video` but it could be `pics` this parameter tells Google about the main content of the page.
@@ -961,6 +962,7 @@ def wp_publish_checker(
     :return: ``None`` | ``True``
     """
     retries = 0
+    retry_offset = 1
     start_check = time.time()
     hot_sync = hot_file_sync(cs_conf)
     while hot_sync:
@@ -980,8 +982,10 @@ def wp_publish_checker(
             )
             return True
 
-        # Retry every two seconds
-        time.sleep(5)
+        # Retry offset grows in one second per retry to optimise pooling
+        # Also avoid Connection Aborted tracebacks.
+        time.sleep(retry_offset)
+        retry_offset += 2
         retries += 1
         hot_sync = hot_file_sync(cs_conf)
 
@@ -1323,8 +1327,8 @@ def video_upload_pilot(
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
                 # upload_thumbnail will report a 500 status code when this is
-                # the case. Each successful upload will prompt the program to
-                # clean the thumbnail selectively.
+                # the case. More information in integrations.wordpress_api.upload_thumbnail docs
+
                 if upload_img == 500:
                     logging.warning(
                         f"Defective thumbnail - Bot abandoned current flow."
@@ -1338,6 +1342,8 @@ def video_upload_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
+                    # Each successful upload will prompt the program to
+                    # clean the thumbnail selectively.
                     os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
                     logging.info(f"Uploaded and removed: {removed_img}")
                 else:

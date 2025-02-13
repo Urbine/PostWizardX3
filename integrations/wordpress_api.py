@@ -32,12 +32,9 @@ from typing import Generator
 # Third-party modules
 import xlsxwriter
 
-import core
-
 # Local implementations
-from core import helpers, wp_auth
-from core.config_mgr import WPAuth
-from integrations import WPEndpoints
+from core import ExcelReportImportError, NoSuitableArgument, helpers
+from core.config_mgr import WPAuth, wp_auth
 
 
 def curl_wp_self_concat(param_lst: list[str], secrets: WPAuth = wp_auth()) -> requests:
@@ -75,19 +72,19 @@ def wp_post_create(endp_lst: list[str], payload, secrets: WPAuth = wp_auth()):
 
 
 def create_wp_local_cache(
-    endpoint: WPEndpoints = WPEndpoints,
-    wp_auth: WPAuth = wp_auth(),
-    photos: bool = False,
+    wpauth: WPAuth = wp_auth(), photos: bool = False
 ) -> list[dict]:
     """Gets all posts from your WP Site.
     It does this by fetching every page with 10 posts each and concatenating the ``JSON``
     responses to return a single list of dict elements.
 
-    :param endpoint: ``WPEndpoints`` object with the WordPress REST Endpoints
-    :param wp_auth: ``WPAuth`` object with local configuration options and important filenames.
+    :param wpauth: ``WPAuth`` object with local configuration options and important filenames.
     :param photos: ``bool`` ``True`` if you want to cache photo posts. Default ``False``
     :return: ``list[dict]``
     """
+    from integrations.url_builder import WPEndpoints
+
+    endpoints: WPEndpoints = WPEndpoints()
     # Accumulation of dict elements for concatenation.
     result_dict: list[dict] = []
     # List of parameters that I intend to concatenate to the base URL.
@@ -95,10 +92,10 @@ def create_wp_local_cache(
     page_num: int = 1
     x_wp_total = 0
     x_wp_totalpages = 0
-    end_params_posts: list[str] = [endpoint.photos] if photos else [endpoint.posts]
+    end_params_posts: list[str] = [endpoints.photos] if photos else [endpoints.posts]
     page_num_param: bool = False
     wp_cache: str = helpers.clean_filename(
-        wp_auth.wp_photos_file if photos else wp_auth.wp_posts_file, "json"
+        wpauth.wp_photos_file if photos else wpauth.wp_posts_file, "json"
     )
     print(f"\nCreating WordPress {wp_cache} cache file...\n")
     while True:
@@ -115,7 +112,7 @@ def create_wp_local_cache(
                 headers = curl_json.headers
                 x_wp_total += int(headers["x-wp-total"])
                 x_wp_totalpages += int(headers["x-wp-totalpages"])
-                end_params_posts.append(endpoint.page)
+                end_params_posts.append(endpoints.page)
                 end_params_posts.append(str(page_num))
                 page_num_param = True
             else:
@@ -295,7 +292,7 @@ def map_posts_by_id(
     in every iteration, otherwise it will give you the slug only by default.
 
     :param wp_posts_f: ``list[dict]`` Posts ``JSON`` file
-    :param host_name: ``str`` your hostname/WP site base URL. Default ``None``)
+    :param host_name: ``str`` your hostname/WP site base URL. Default ``None``
     :return: ``dict[str, str]``
     """
     u_pack = zip([idd["id"] for idd in wp_posts_f], [url["slug"] for url in wp_posts_f])
@@ -636,7 +633,9 @@ def count_track_wp_class_id(
         for item in kw:
             if item not in result_dict.keys():
                 match = [
-                    hint for hint in hint_list if core.match_list_single(hint, track_kw)
+                    hint
+                    for hint in hint_list
+                    if helpers.match_list_single(hint, track_kw)
                 ]
                 tr_kw = match[0] if match else False
 
@@ -670,6 +669,14 @@ def create_tag_report_excel(
     :param workbook_name: ``str`` workbook name with or without extension.
     :return: ``None``
     """
+    try:
+        from core.config_mgr import content_select_conf
+
+        hints = content_select_conf().partners.split(",")
+    except ModuleNotFoundError:
+        hints = []
+        pass
+
     workbook_fname = helpers.clean_filename(workbook_name, ".xlsx")
     dir_prefix = helpers.is_parent_dir_required(parent)
 
@@ -679,13 +686,7 @@ def create_tag_report_excel(
     tags_count = count_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
 
     # Model Partner hints
-    hints = [
-        "Asian Sex Diary",
-        "Euro Sex Diary",
-        "Tuktuk Patrol",
-        "Trike Patrol",
-        "Paradise Gfs",
-    ]
+
     # Model video count
     model_wp_class_count = count_track_wp_class_id(
         wp_posts_f, "pornstars", "tag", hints
@@ -854,19 +855,19 @@ def upload_thumbnail(
 
 
 def local_cache_config(
-    wp_filen: str, wp_curr_page: int, total_posts: int, wp_auth: WPAuth = wp_auth()
+    wp_filen: str, wp_curr_page: int, total_posts: int, wpauth: WPAuth = wp_auth()
 ) -> str:
     """Creates a new config file and locates existing local cache configuration files to update its contents
         with new information about cached pages, post quantity, and date of update.
 
     :param wp_filen: ``str`` Name of the current WordPress Post/Photo file to link the file
                       with its corresponding configuration.
-    :param wp_auth: ``WPAuth`` object with file configuration information.
+    :param wpauth: ``WPAuth`` object with file configuration information.
     :param wp_curr_page: ``int`` Last cached page.
     :param total_posts: ``int`` self-explanatory, obtained from another function.
     :return: Function ``helpers.export_request_json`` with a return type of ``str``.
     """
-    wp_cache_filename = wp_auth.wp_cache_file
+    wp_cache_filename = wpauth.wp_cache_file
     wp_filen = helpers.clean_filename(wp_filen, ".json")
     parent = False if os.path.exists(f"./{wp_cache_filename}") else True
     locate_conf = helpers.search_files_by_ext(".json", "", parent=parent)
@@ -902,9 +903,7 @@ def local_cache_config(
 
 
 def update_json_cache(
-    photos: bool = False,
-    wp_endpoints: WPEndpoints = WPEndpoints,
-    wp_auth: WPAuth = wp_auth(),
+    photos: bool = False, wpauth: WPAuth = wp_auth()
 ) -> list[dict[str, ...]]:
     """Updates the local wp cache files for processing.
     It does this by fetching the last page cached and calculating the
@@ -912,18 +911,20 @@ def update_json_cache(
     the reported items in the local configuration file.
 
     :param photos: ``bool`` ``True`` if you are processing the ``photos`` WordPress cache.
-    :param wp_endpoints: ``WPEndpoints`` object to access the WordPress REST API Endpoints.
-    :param wp_auth: ``WPAuth`` object with file configuration information.
+    :param wpauth: ``WPAuth`` object with file configuration information.
     :return: ``list[dict]`` Updated ``JSON`` cache file.
     """
-    config = helpers.load_json_ctx(wp_auth.wp_cache_file)
+    from integrations.url_builder import WPEndpoints
+
+    wp_endpoints: WPEndpoints = WPEndpoints()
+    config = helpers.load_json_ctx(wpauth.wp_cache_file)
     # List of parameters that I intend to concatenate to the base URL.
     # /posts/page=1
     params_posts: list[str] = [wp_endpoints.photos] if photos else [wp_endpoints.posts]
     x_wp_total = 0
     x_wp_totalpages = 0
     clean_fname = helpers.clean_filename(
-        wp_auth.wp_photos_file if photos else wp_auth.wp_posts_file, ".json"
+        wpauth.wp_photos_file if photos else wpauth.wp_posts_file, ".json"
     )
     # The loop will add 1 to page num when the first request is successful.
     page_num = [
@@ -965,7 +966,7 @@ def update_json_cache(
 
 
 def upgrade_wp_local_cache(
-    wp_auth: WPAuth = wp_auth(),
+    wpauth: WPAuth = wp_auth(),
     photos: bool = False,
     cached: bool = False,
     parent: bool = False,
@@ -974,7 +975,7 @@ def upgrade_wp_local_cache(
     """Updates both the WP post information ``JSON`` file (posts and photos) and creates a ``SQLite3`` database
         using the cached files.
 
-    :param wp_auth: ``WPAuth`` object with file configuration information.
+    :param wpauth: ``WPAuth`` object with file configuration information.
     :param photos: ``bool`` ``True`` if you are processing the ``photos`` WordPress cache.
     :param cached: ``True`` to update db and config files with cached data. Default ``False``
                    If set to `True`, the ``cache`` and ``config`` files will be rebuilt.
@@ -986,7 +987,7 @@ def upgrade_wp_local_cache(
              make sure to load the appropriate file with the ``JSON`` built-in functions or the local ``helpers`` module.
              For example: ``imported_json: list[dict] = helpers.load_json_ctx("wp_posts", parent=True)``
     """
-    wp_cache = wp_auth.wp_photos_file if photos else wp_auth.wp_posts_file
+    wp_cache = wpauth.wp_photos_file if photos else wpauth.wp_posts_file
     if cached:
         updated_local_cache = update_json_cache(photos=photos)
     else:
@@ -1002,25 +1003,21 @@ hostname: str = wp_auth().hostname
 b_url: str = wp_auth().api_base_url
 
 if __name__ == "__main__":
-    # Suppress RuntimeWarnings during import
-    warnings.filterwarnings(
-        "ignore",
-        category=RuntimeWarning,
-    )
-
     args_parser = argparse.ArgumentParser(description="WordPress API Local Module")
 
     args_parser.add_argument(
         "--cached",
         action="store_true",
+        default=False,
         help="""Select this flag if you already have a cached copy of your JSON file.
-                      In case you need to recreate your config files, database or JSON files use do not set this flag.
+                      In case you need to recreate your config files, database or JSON files do not set this flag.
                       Using this flag will allow you to recreate the config and database with cached data.""",
     )
 
     args_parser.add_argument(
         "--parent",
         action="store_true",
+        default=False,
         help="Place the output of these functions in the relative parent directory.",
     )
 
@@ -1032,14 +1029,23 @@ if __name__ == "__main__":
     )
 
     args_parser.add_argument(
+        "--posts",
+        action="store_true",
+        default=False,
+        help="Update the wp_posts local cache or associated files (db/config).",
+    )
+
+    args_parser.add_argument(
         "--yoast",
         action="store_true",
+        default=False,
         help="Enable Yoast SEO mode in compatible functions.",
     )
 
     args_parser.add_argument(
         "--excel",
         action="store_true",
+        default=False,
         help="Create an MS Excel report with the tag and slug information of the site.",
     )
 
@@ -1050,13 +1056,12 @@ if __name__ == "__main__":
         create_tag_report_excel(
             imported_json, f"tag-report-excel-{datetime.date.today()}"
         )
-    else:
+    elif args.posts or args.photos:
         upgrade_wp_local_cache(
             photos=args.photos, cached=args.cached, parent=args.parent, yoast=args.yoast
         )
-
-    # categories = get_all_categories(hstname, rest_params)
-    # export_request_json('wp_categories', categories, parent=True)
+    else:
+        raise NoSuitableArgument(__package__, __file__)
 
     # ==== WP Posts json data structure ====
     # title: imported_json[0]['title']['rendered']

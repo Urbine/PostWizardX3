@@ -24,6 +24,7 @@ __author_email__ = "yohamg@programmer.net"
 from dataclasses import dataclass
 
 from core.helpers import parse_client_config
+from core.custom_exceptions import InvalidConfiguration
 
 
 @dataclass(frozen=True)
@@ -209,6 +210,18 @@ class BotAuth:
         return "BotAuth()"
 
 
+@dataclass(frozen=True)
+class UpdateMCash:
+    """
+    Immutable class with behavioral tweaks for
+    """
+
+    logging_dirname: str
+
+    def __repr__(self):
+        return "UpdateMCash()"
+
+
 # client_info.ini
 client_info = parse_client_config("client_info", "core.config")
 
@@ -293,31 +306,36 @@ def content_select_conf() -> ContentSelectConf:
 
     :return: ``ContentSelectConf``
     """
-    return ContentSelectConf(
-        wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
-        wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
-        pic_format=workflows_config["general_config"]["pic_format"],
-        pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
-        imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-        quality=int(workflows_config["general_config"]["conversion_quality"]),
-        sql_query=workflows_config["content_select"]["sql_query"],
-        content_hint=workflows_config["content_select"]["db_content_hint"],
-        assets_conf=workflows_config["content_select"]["assets_conf"],
-        partners=workflows_config["content_select"]["partners"],
-        site_name=workflows_config["general_config"]["website_name"],
-        domain_tld=workflows_config["general_config"]["domain_tld"],
-        logging_dirname=workflows_config["general_config"]["logging_dirname"],
-        x_posting_auto=workflows_config.getboolean("content_select", "x_posting_auto"),
-        x_posting_enabled=workflows_config.getboolean(
-            "content_select", "x_posting_enabled"
-        ),
-        telegram_posting_auto=workflows_config.getboolean(
-            "content_select", "telegram_posting_auto"
-        ),
-        telegram_posting_enabled=workflows_config.getboolean(
-            "content_select", "telegram_posting_enabled"
-        ),
-    )
+    try:
+        return ContentSelectConf(
+            wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
+            wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
+            pic_format=workflows_config["general_config"]["pic_format"],
+            pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
+            imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
+            quality=int(workflows_config["general_config"]["conversion_quality"]),
+            sql_query=workflows_config["content_select"]["sql_query"],
+            content_hint=workflows_config["content_select"]["db_content_hint"],
+            assets_conf=workflows_config["content_select"]["assets_conf"],
+            partners=workflows_config["content_select"]["partners"],
+            site_name=workflows_config["general_config"]["website_name"],
+            domain_tld=workflows_config["general_config"]["domain_tld"],
+            logging_dirname=workflows_config["general_config"]["logging_dirname"],
+            x_posting_auto=workflows_config.getboolean(
+                "content_select", "x_posting_auto"
+            ),
+            x_posting_enabled=workflows_config.getboolean(
+                "content_select", "x_posting_enabled"
+            ),
+            telegram_posting_auto=workflows_config.getboolean(
+                "content_select", "telegram_posting_auto"
+            ),
+            telegram_posting_enabled=workflows_config.getboolean(
+                "content_select", "telegram_posting_enabled"
+            ),
+        )
+    except ValueError:
+        raise InvalidConfiguration
 
 
 def gallery_select_conf() -> GallerySelectConf:
@@ -325,31 +343,36 @@ def gallery_select_conf() -> GallerySelectConf:
 
     :return: ``EmbedAssistConf``
     """
-    return GallerySelectConf(
-        pic_format=workflows_config["general_config"]["pic_format"],
-        pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
-        imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-        quality=int(workflows_config["general_config"]["conversion_quality"]),
-        wp_json_photos=workflows_config["gallery_select"]["wp_json_photos"],
-        wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
-        wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
-        content_hint=workflows_config["gallery_select"]["db_content_hint"],
-        sql_query=workflows_config["gallery_select"]["sql_query"],
-        partners=workflows_config["gallery_select"]["partners"],
-        site_name=workflows_config["general_config"]["website_name"],
-        domain_tld=workflows_config["general_config"]["domain_tld"],
-        logging_dirname=workflows_config["general_config"]["logging_dirname"],
-        x_posting_auto=workflows_config.getboolean("gallery_select", "x_posting_auto"),
-        x_posting_enabled=workflows_config.getboolean(
-            "gallery_select", "x_posting_enabled"
-        ),
-        telegram_posting_auto=workflows_config.getboolean(
-            "gallery_select", "telegram_posting_auto"
-        ),
-        telegram_posting_enabled=workflows_config.getboolean(
-            "gallery_select", "telegram_posting_enabled"
-        ),
-    )
+    try:
+        return GallerySelectConf(
+            pic_format=workflows_config["general_config"]["pic_format"],
+            pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
+            imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
+            quality=int(workflows_config["general_config"]["conversion_quality"]),
+            wp_json_photos=workflows_config["gallery_select"]["wp_json_photos"],
+            wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
+            wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
+            content_hint=workflows_config["gallery_select"]["db_content_hint"],
+            sql_query=workflows_config["gallery_select"]["sql_query"],
+            partners=workflows_config["gallery_select"]["partners"],
+            site_name=workflows_config["general_config"]["website_name"],
+            domain_tld=workflows_config["general_config"]["domain_tld"],
+            logging_dirname=workflows_config["general_config"]["logging_dirname"],
+            x_posting_auto=workflows_config.getboolean(
+                "gallery_select", "x_posting_auto"
+            ),
+            x_posting_enabled=workflows_config.getboolean(
+                "gallery_select", "x_posting_enabled"
+            ),
+            telegram_posting_auto=workflows_config.getboolean(
+                "gallery_select", "telegram_posting_auto"
+            ),
+            telegram_posting_enabled=workflows_config.getboolean(
+                "gallery_select", "telegram_posting_enabled"
+            ),
+        )
+    except ValueError:
+        raise InvalidConfiguration
 
 
 def embed_assist_conf() -> EmbedAssistConf:
@@ -357,29 +380,44 @@ def embed_assist_conf() -> EmbedAssistConf:
 
     :return: ``EmbedAssistConf``
     """
-    return EmbedAssistConf(
-        wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
-        wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
-        pic_format=workflows_config["general_config"]["pic_format"],
-        pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
-        imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-        quality=int(workflows_config["general_config"]["conversion_quality"]),
-        sql_query=workflows_config["embed_assist"]["sql_query"],
-        content_hint=workflows_config["embed_assist"]["db_content_hint"],
-        partners=workflows_config["embed_assist"]["partners"],
-        site_name=workflows_config["general_config"]["website_name"],
-        domain_tld=workflows_config["general_config"]["domain_tld"],
-        logging_dirname=workflows_config["general_config"]["logging_dirname"],
-        x_posting_auto=workflows_config.getboolean("embed_assist", "x_posting_auto"),
-        x_posting_enabled=workflows_config.getboolean(
-            "embed_assist", "x_posting_enabled"
-        ),
-        telegram_posting_auto=workflows_config.getboolean(
-            "embed_assist", "telegram_posting_auto"
-        ),
-        telegram_posting_enabled=workflows_config.getboolean(
-            "embed_assist", "telegram_posting_enabled"
-        ),
+    try:
+        return EmbedAssistConf(
+            wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
+            wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
+            pic_format=workflows_config["general_config"]["pic_format"],
+            pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
+            imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
+            quality=int(workflows_config["general_config"]["conversion_quality"]),
+            sql_query=workflows_config["embed_assist"]["sql_query"],
+            content_hint=workflows_config["embed_assist"]["db_content_hint"],
+            partners=workflows_config["embed_assist"]["partners"],
+            site_name=workflows_config["general_config"]["website_name"],
+            domain_tld=workflows_config["general_config"]["domain_tld"],
+            logging_dirname=workflows_config["general_config"]["logging_dirname"],
+            x_posting_auto=workflows_config.getboolean(
+                "embed_assist", "x_posting_auto"
+            ),
+            x_posting_enabled=workflows_config.getboolean(
+                "embed_assist", "x_posting_enabled"
+            ),
+            telegram_posting_auto=workflows_config.getboolean(
+                "embed_assist", "telegram_posting_auto"
+            ),
+            telegram_posting_enabled=workflows_config.getboolean(
+                "embed_assist", "telegram_posting_enabled"
+            ),
+        )
+    except ValueError:
+        raise InvalidConfiguration
+
+
+def update_mcash_conf() -> UpdateMCash:
+    """Factory function for dataclass ``UpdateMCash``
+
+    :return: ``UpdateMCash``
+    """
+    return UpdateMCash(
+        logging_dirname=workflows_config["update_mcash_chain"]["logging_dirname"]
     )
 
 

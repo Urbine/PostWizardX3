@@ -13,7 +13,6 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Standard Library
 import datetime
 import os
 import tempfile
@@ -50,10 +49,12 @@ def get_vid_dump_flow(
     mcash_info: MongerCashAuth = monger_cash_auth(),
     task_conf: TasksConf = tasks_conf(),
     partner_hint: str | None = None,
-) -> tuple[TemporaryDirectory[str], str]:
+    temp_dir_p: str = "",
+) -> tuple[TemporaryDirectory[str], str] | str:
     """Get the text file and match the options with the hint provided to get a video dump file
     specific to a partner offer.
 
+    :param temp_dir_p: ``str`` - path of your temporary directory
     :param mcash_info: ``MongerCashAuth`` object with necessary credentials for authentication. (Default)
     :param task_conf: ``TasksConf`` object with configuration information like `download_folder`
     :param webdrv: ``webdriver`` Chrome/Gecko webdriver that interfaces with Selenium.
@@ -65,7 +66,7 @@ def get_vid_dump_flow(
     source_html = None
     with webdrv as driver:
         # Go to URL
-        print(f"Getting Dump file from MongerCash")
+        print(f"Getting Dump File from MongerCash")
         print("Please wait...\n")
         driver.get(task_conf.mcash_dump_url)
 
@@ -86,7 +87,7 @@ def get_vid_dump_flow(
         time.sleep(1)
 
         # Partner select
-        website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
+        website_partner = driver.find_element(By.ID, "link_site")
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
         if partner_hint:
@@ -172,8 +173,10 @@ def get_vid_dump_flow(
         # Create a name for out dump file.
         dump_name = f"{partner_name}vids-{datetime.date.today()}"
 
-        temp_dir = tempfile.TemporaryDirectory(dir=".")
-
-        core.write_to_file(dump_name, temp_dir.name, "txt", dump_content)
-
-    return temp_dir, dump_name
+        if temp_dir_p == "":
+            temp_dir = tempfile.TemporaryDirectory(dir=".")
+            core.write_to_file(dump_name, temp_dir.name, "txt", dump_content)
+            return temp_dir, dump_name
+        else:
+            core.write_to_file(dump_name, temp_dir_p, "txt", dump_content)
+            return dump_name

@@ -113,6 +113,9 @@ telegram_posting_auto = False
 telegram_posting_enabled = False
 # Comma separated partners
 partners= <partners>
+
+[update_mcash_chain]
+logging_dirname = logs
 """
 
 if __name__ == "__main__":

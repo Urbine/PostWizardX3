@@ -17,7 +17,6 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Standard library
 import datetime
 import time
 
@@ -26,6 +25,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 # Local module implementations
 from core import helpers, monger_cash_auth, tasks_conf
@@ -180,7 +180,7 @@ def get_set_source_flow(
     source_html = None
     with webdrv as driver:
         # Go to URL
-        print(f"Getting options from {task_conf.mcash_set_url}")
+        print(f"Getting all available Photosets from MongerCash")
         print("Please wait...\n")
         driver.get(task_conf.mcash_set_url)
 
@@ -205,8 +205,11 @@ def get_set_source_flow(
         # required, which impacts performance.
         driver.execute_script("window.stop();")
 
+        # Re-emphasizes the last action just in case the browser does not want to execute actions in dev console.
+        webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
         # Partner select
-        website_partner = driver.find_element(By.XPATH, '//*[@id="link_site"]')
+        website_partner = driver.find_element(By.ID, "link_site")
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
 

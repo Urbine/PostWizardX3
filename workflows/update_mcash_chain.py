@@ -1,5 +1,5 @@
 """
-Job controller module (update_mcash_chain) controls the order of execution
+Bot module (update_mcash_chain) controls the order of execution
 of the specialized modules implemented in the ``tasks`` package, which consists of:\n
 1. A video dump file capture and web automation scraper\n
 2. A photo set source code capture with web automation scraping\n
@@ -7,7 +7,7 @@ of the specialized modules implemented in the ``tasks`` package, which consists 
 4. An HTML source parser and SQLite database generator.\n
 
 This job control module also includes certain validation steps that make it less
-likely to fail in each of the jobs.\m
+likely to fail in each of the jobs.\n
 
 *** Steps to update the databases from MongerCash ***
 (if I were to do it without a centralised job controller)\n
@@ -31,19 +31,25 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import argparse
+import logging
 import sqlite3
+import time
 import warnings
 import tempfile
+from tempfile import TemporaryDirectory
 
 # Local implementations
 from core import (
     is_parent_dir_required,
     get_webdriver,
+    get_duration,
     load_from_file,
     clean_filename,
     remove_if_exists,
+    update_mcash_conf,
 )
 
+from workflows.content_select import logging_setup
 from tasks.mcash_dump_create import get_vid_dump_flow
 from tasks.mcash_scrape import get_set_source_flow
 from tasks.parse_txt_dump import parse_txt_dump_chain
@@ -51,6 +57,10 @@ from tasks.sets_source_parse import db_generate
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+    path_this = __file__
+    logging_setup(update_mcash_conf(), path_this)
+
     print("Welcome to the MongerCash local update wizard")
 
     arg_parser = argparse.ArgumentParser(
@@ -82,51 +92,114 @@ if __name__ == "__main__":
     )
 
     args = arg_parser.parse_args()
+    logging.info(f"Passed in {args.__dict__}")
 
     if args.silent:
         warnings.filterwarnings("ignore")
     else:
         pass
 
-    webdriver = get_webdriver("", headless=args.headless, gecko=args.gecko)
+    temp_dir = tempfile.TemporaryDirectory(dir=".")
+
+    # All webdriver instances have been optimised by the paramenter ``no_img``
+    # in their ``core.get_webdriver()`` configuration, which means that browser instances
+    # won't load images in the web scraping process. In testing, this has shown to
+    # generate a performance gain of approximately 50%.
+    # Headless mode tends to be slower and this performance gain does not seem evident,
+    # even some seconds slower than NO_IMG_RENDERING = False.
+    NO_IMG_RENDERING = True
+
+    webdriver_1 = get_webdriver(
+        temp_dir.name,
+        headless=args.headless,
+        gecko=args.gecko,
+        no_imgs=NO_IMG_RENDERING,
+    )
 
     # Fetching
-    temp_dir, dump_file_name = get_vid_dump_flow(
-        webdriver,
-        partner_hint=args.hint,
-    )
+    def fetching_dump_f(wdrv):
+        dump_file_name = get_vid_dump_flow(
+            wdrv, partner_hint=args.hint, temp_dir_p=temp_dir.name
+        )
+        return dump_file_name
+
+    dump_f = fetching_dump_f(webdriver_1)
+
+    logging.info(f"Loading dump txt {dump_f} from {temp_dir.name}")
+
+    def load_dump_f(t_dir: TemporaryDirectory, d_file: str):
+        return load_from_file(d_file, "txt", dirname=temp_dir.name, parent=None)
 
     # Test if the file contains characters and it is not empty.
     # If the file is empty, it means that something went wrong with the
     # webdriver.
-    load_dump_file = load_from_file(
-        dump_file_name, "txt", dirname=temp_dir.name, parent=None
-    )
-    while len(load_dump_file) == 0:
-        warnings.warn("The content of the dump file is empty, retrying...", UserWarning)
-        temp_dir, dump_file_name = get_vid_dump_flow(
-            webdriver,
-            partner_hint=args.hint,
+    load_d_file = load_dump_f(temp_dir, dump_f)
+    retry_offset = 3
+    retries = 0
+    while len(load_d_file) == 0:
+        logging.info(empty_file := "The content of the dump file is empty, retrying...")
+        warnings.warn(empty_file, UserWarning)
+
+        # Adding addition time to retry since this may result in connection aborted errors
+
+        # Retry offset grows in two seconds in order to avoid connection refused/aborted errors.
+        time.sleep(retry_offset)
+        logging.info(
+            f"Dump fetch - Retry number {retries} | Current offset: {retry_offset}"
         )
-        load_dump_file = load_from_file(
-            dump_file_name, "txt", dirname=temp_dir.name, parent=None
+        retry_offset += 2
+        retries += 1
+
+        # Assign a new webdriver instance to avoid connection refused errors.
+        webdriver_2 = get_webdriver(
+            temp_dir.name,
+            headless=args.headless,
+            gecko=args.gecko,
+            no_imgs=NO_IMG_RENDERING,
         )
+
+        dump_f = fetching_dump_f(webdriver_2)
+        load_d_file = load_dump_f(temp_dir, dump_f)
         continue
 
-    # webdriver gets a second assignment to avoid connection pool issues.
-    webdriver = get_webdriver(temp_dir.name, headless=args.headless, gecko=args.gecko)
-    photoset_source = get_set_source_flow(webdriver, partner_hint=args.hint)
+    # webdriver gets another assignment to avoid connection pool issues as it was mentioned above.
+    webdriver_3 = get_webdriver(
+        temp_dir.name,
+        headless=args.headless,
+        gecko=args.gecko,
+        no_imgs=NO_IMG_RENDERING,
+    )
+
+    photoset_source = get_set_source_flow(webdriver_3, partner_hint=args.hint)
 
     # Just like the text dump, the source code could be empty and I need to
     # test it.
     while len(photoset_source[0]) == 0:
-        warnings.warn("The source file is empty, retrying...", UserWarning)
-        photoset_source = get_set_source_flow(webdriver, partner_hint=args.hint)
+        logging.info(photo_fail := "The source file is empty, retrying...")
+        warnings.warn(photo_fail, UserWarning)
+
+        # Retry offset grows in two seconds in order to avoid connection refused/aborted errors.
+        time.sleep(retry_offset)
+        retry_offset += 2
+        logging.info(
+            f"Photo set fetch - Retry number {retries} | Current offset: {retry_offset}"
+        )
+        retries += 1
+
+        webdriver_4 = get_webdriver(
+            temp_dir.name,
+            headless=args.headless,
+            gecko=args.gecko,
+            no_imgs=NO_IMG_RENDERING,
+        )
+
+        dump_f = fetching_dump_f(webdriver_4)
+        load_d_file = load_dump_f(temp_dir, dump_f)
         continue
 
     # Parsing video txt dump:
 
-    db_name = clean_filename(dump_file_name, "db")
+    db_name = clean_filename(dump_f, "db")
     remove_if_exists(db_name)
     db_conn = sqlite3.connect(f"{is_parent_dir_required(parent=args.parent)}{db_name}")
     cursor = db_conn.cursor()
@@ -149,24 +222,34 @@ if __name__ == "__main__":
     )
 
     parsing = parse_txt_dump_chain(
-        dump_file_name,
+        dump_f,
         db_name,
         db_conn,
         cursor,
         dirname=temp_dir.name,
         parent=args.parent,
     )
-    print(
-        f"{parsing[1]} video entries have been processed from {dump_file_name} and inserted into\n{parsing[0]}\n"
+
+    logging.info(
+        vid_result
+        := f"{parsing[1]} video entries have been processed from {dump_f} and inserted into\n{parsing[0]}\n"
     )
+    print(vid_result)
 
     parsing_photos = db_generate(
         photoset_source[0], photoset_source[1], parent=args.parent
     )
-    print(
-        f"{parsing_photos[1]} photo set entries have been processed and inserted into\n{parsing_photos[0]}\n"
+
+    logging.info(
+        photo_result
+        := f"{parsing_photos[1]} photo set entries have been processed and inserted into\n{parsing_photos[0]}\n"
     )
+    print(photo_result)
 
     # Tidy up
-    print(f"Cleaning temporary directory {temp_dir.name}")
+    logging.info(tidy_up := f"Cleaning temporary directory {temp_dir.name}")
+    print(tidy_up)
     temp_dir.cleanup()
+    end_time = time.time()
+    hours, mins, secs = get_duration(end_time - start_time)
+    logging.info(f"Process took: Hours: {hours} Mins: {mins} Secs: {secs}")
