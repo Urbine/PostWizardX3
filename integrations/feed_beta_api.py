@@ -60,7 +60,6 @@ def construct_feed_beta_dump_url(
     sep_param = f"&csv_separator={sep}&"
     days = f"days={days}&" if days != "" else days
 
-    # Column Fields (These can be extended or removed)
     column_lst = [
         columns.ID_,
         columns.title,
@@ -134,10 +133,6 @@ def feed_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
                 embed_code = line_split[7]
                 website_link = line_split[8]
 
-                # Custom db fields
-
-                # As mentioned in other modules, slugs have to contain the
-                # content type
                 wp_slug = (
                     f"{website_link.split('/')[-2:][0]}-{partner}-video"
                     if partner != ""
@@ -190,35 +185,28 @@ if __name__ == "__main__":
 
     cli_args = arg_parser.parse_args()
 
-    # Build the PartnerEight dump URL
     main_url = construct_feed_beta_dump_url(
         PartnerOne_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
     )
 
-    # Create temporary directory
     temp_dir = tempfile.TemporaryDirectory(dir=".")
 
-    # Get the PartnerEight dump file and write it into a .csv file
     core.write_to_file("feed_beta-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
 
-    # Parse the temporary CSV dump file
     result = feed_dump_parse("feed_beta-dump", temp_dir.name, "partner_test", "|")
 
     print(result)
 
-    # Build the PartnerNine dump URL
     main_url = construct_feed_beta_dump_url(
         FEED_BETA_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
     )
 
-    # Get the PartnerNine dump file and write it into a .csv file
     core.write_to_file(
         "feed-b-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
     )
 
     result = feed_dump_parse("feed-b-dump", temp_dir.name, "", "|")
 
-    # Clean temporary folder
     temp_dir.cleanup()
     print(result)
     print("Cleaned temporary folder...")
