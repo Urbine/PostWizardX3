@@ -60,7 +60,6 @@ def clean_descriptions(desc_lst: list[str]):
 def clean_titles(titles: list[str]):
     clean_title = []
     for t in titles:
-        # Descriptions has a <title> - <description> format.
         dash_out = t.split("-")
         if len(dash_out) >= 2:
             # Sometimes, I could hit a <title-something> - <description>
@@ -180,7 +179,6 @@ if __name__ == "__main__":
 
     print("Training Machine Learning Classifier Models. Please wait...")
 
-    # Preparing the word lists for training...
     word_list_titles = [
         (
             {
@@ -243,8 +241,6 @@ if __name__ == "__main__":
     sk_class_descriptions = sklearn_classifier.train(word_list_descriptions)
     sk_class_tags = sklearn_classifier.train(word_list_tags)
 
-    # Saving the models for later.
-
     # NLTK NaiveBayes Classifier Model
     nbc_titles = helpers.load_file_path(
         "ml_engine.ml_models", "NaiveBayesTitles.joblib.pkl"
@@ -300,7 +296,6 @@ if __name__ == "__main__":
     )
     save_multi_tags = joblib.dump(sk_class_tags, multinb_tags, compress=9)
 
-    # Execution time - End
     end_time = time.time()
     hours, minutes, seconds = helpers.get_duration(end_time - start_time)
     print(
