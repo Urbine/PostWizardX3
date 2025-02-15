@@ -107,22 +107,3 @@ def db_generate(
     db_path = f"{helpers.cwd_or_parent_path(parent=parent)}/{d_name}"
 
     return db_path, total_photosets
-
-
-if __name__ == "__main__":
-    html_filename = helpers.filename_select("html", parent=True)
-    source = helpers.load_from_file(html_filename, "html", parent=True)
-
-    soup = BeautifulSoup(source, "html.parser")
-
-    # TODO: Refactor this so that partners come from config
-    db_name_suggest = [
-        f"asian-sex-diary-photo-{datetime.date.today()}.db",
-        f"trike-patrol-photo-{datetime.date.today()}.db",
-        f"tuktuk-patrol-photo-{datetime.date.today()}.db",
-    ]
-
-    result = db_generate(soup, db_name_suggest)
-    print(
-        f"\n{result[1]} photo set entries have been processed and inserted into\n{result[0]}"
-    )

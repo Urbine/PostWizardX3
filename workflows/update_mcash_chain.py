@@ -32,11 +32,15 @@ __author_email__ = "yohamg@programmer.net"
 
 import argparse
 import logging
+import os
 import sqlite3
 import time
 import warnings
 import tempfile
 from tempfile import TemporaryDirectory
+
+# Third-party modules
+from rich.console import Console
 
 # Local implementations
 from core import (
@@ -58,10 +62,21 @@ from tasks.sets_source_parse import db_generate
 
 if __name__ == "__main__":
     start_time = time.time()
-    path_this = __file__
-    logging_setup(update_mcash_conf(), path_this)
+    logging_setup(update_mcash_conf(), __file__)
+    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}\n")
 
-    print("Welcome to the MongerCash local update wizard")
+    console = Console()
+    console.print(
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style="bold yellow",
+        justify="left",
+    )
+
+    console.print(
+        "Welcome to the MongerCash local update wizard\n",
+        style="bold green",
+        justify="center",
+    )
 
     arg_parser = argparse.ArgumentParser(
         description="mcash local update wizard arguments"
@@ -104,7 +119,7 @@ if __name__ == "__main__":
     # All webdriver instances have been optimised by the paramenter ``no_img``
     # in their ``core.get_webdriver()`` configuration, which means that browser instances
     # won't load images in the web scraping process. In testing, this has shown to
-    # generate a performance gain of approximately 50%.
+    # generate a performance gain of approximately 50% to 60%.
     # Headless mode tends to be slower and this performance gain does not seem evident,
     # even some seconds slower than NO_IMG_RENDERING = False.
     NO_IMG_RENDERING = True
@@ -123,26 +138,26 @@ if __name__ == "__main__":
         )
         return dump_file_name
 
-    dump_f = fetching_dump_f(webdriver_1)
+    with console.status(
+        "Getting Dump File from MongerCash. Please wait...", spinner="bouncingBall"
+    ):
+        dump_f = fetching_dump_f(webdriver_1)
 
     logging.info(f"Loading dump txt {dump_f} from {temp_dir.name}")
 
     def load_dump_f(t_dir: TemporaryDirectory, d_file: str):
         return load_from_file(d_file, "txt", dirname=temp_dir.name, parent=None)
 
-    # Test if the file contains characters and it is not empty.
-    # If the file is empty, it means that something went wrong with the
-    # webdriver.
     load_d_file = load_dump_f(temp_dir, dump_f)
     retry_offset = 3
     retries = 0
     while len(load_d_file) == 0:
-        logging.info(empty_file := "The content of the dump file is empty, retrying...")
-        warnings.warn(empty_file, UserWarning)
+        # If the file is empty, it means that something went wrong with the
+        # webdriver.
+        logging.warning(
+            empty_file := "The content of the dump file is empty, retrying..."
+        )
 
-        # Adding addition time to retry since this may result in connection aborted errors
-
-        # Retry offset grows in two seconds in order to avoid connection refused/aborted errors.
         time.sleep(retry_offset)
         logging.info(
             f"Dump fetch - Retry number {retries} | Current offset: {retry_offset}"
@@ -150,7 +165,6 @@ if __name__ == "__main__":
         retry_offset += 2
         retries += 1
 
-        # Assign a new webdriver instance to avoid connection refused errors.
         webdriver_2 = get_webdriver(
             temp_dir.name,
             headless=args.headless,
@@ -162,7 +176,6 @@ if __name__ == "__main__":
         load_d_file = load_dump_f(temp_dir, dump_f)
         continue
 
-    # webdriver gets another assignment to avoid connection pool issues as it was mentioned above.
     webdriver_3 = get_webdriver(
         temp_dir.name,
         headless=args.headless,
@@ -170,15 +183,16 @@ if __name__ == "__main__":
         no_imgs=NO_IMG_RENDERING,
     )
 
-    photoset_source = get_set_source_flow(webdriver_3, partner_hint=args.hint)
+    with console.status(
+        "Getting all available Photo Sets from MongerCash. Please wait...",
+        spinner="bouncingBall",
+    ):
+        photoset_source = get_set_source_flow(webdriver_3, partner_hint=args.hint)
 
-    # Just like the text dump, the source code could be empty and I need to
-    # test it.
     while len(photoset_source[0]) == 0:
         logging.info(photo_fail := "The source file is empty, retrying...")
         warnings.warn(photo_fail, UserWarning)
 
-        # Retry offset grows in two seconds in order to avoid connection refused/aborted errors.
         time.sleep(retry_offset)
         retry_offset += 2
         logging.info(
@@ -196,8 +210,6 @@ if __name__ == "__main__":
         dump_f = fetching_dump_f(webdriver_4)
         load_d_file = load_dump_f(temp_dir, dump_f)
         continue
-
-    # Parsing video txt dump:
 
     db_name = clean_filename(dump_f, "db")
     remove_if_exists(db_name)
@@ -234,7 +246,7 @@ if __name__ == "__main__":
         vid_result
         := f"{parsing[1]} video entries have been processed from {dump_f} and inserted into\n{parsing[0]}\n"
     )
-    print(vid_result)
+    console.print(vid_result, style="bold yellow", justify="left")
 
     parsing_photos = db_generate(
         photoset_source[0], photoset_source[1], parent=args.parent
@@ -244,12 +256,12 @@ if __name__ == "__main__":
         photo_result
         := f"{parsing_photos[1]} photo set entries have been processed and inserted into\n{parsing_photos[0]}\n"
     )
-    print(photo_result)
+    console.print(photo_result, style="bold yellow", justify="left")
 
-    # Tidy up
     logging.info(tidy_up := f"Cleaning temporary directory {temp_dir.name}")
-    print(tidy_up)
+    console.print(tidy_up, style="bold yellow", justify="left")
     temp_dir.cleanup()
+
     end_time = time.time()
     hours, mins, secs = get_duration(end_time - start_time)
     logging.info(f"Process took: Hours: {hours} Mins: {mins} Secs: {secs}")

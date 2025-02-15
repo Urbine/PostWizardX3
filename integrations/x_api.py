@@ -36,8 +36,6 @@ import core
 from core import (
     get_webdriver,
     generate_random_str,
-    str_encode_b64,
-    sha256_hash_generate,
     RefreshTokenError,
     x_auth,
     AccessTokenRetrivalError,
@@ -163,7 +161,7 @@ def refresh_token_x(
     refresh_token: str, xauth: XAuth, x_endpoints: XEndpoints
 ) -> Response:
     """Executes the cURL flow to refresh the bearer token by providing a refresh token that
-    the authorisation flow provided for the ``offline.access`` scope.
+    the authorization flow provided for the ``offline.access`` scope.
 
     ``POST 'https://api.x.com/2/oauth2/token' --header 'Content-Type: application/x-www-form-urlencoded'``
     ``--header 'Authorization: Basic $CLIENT_ID:$CLIENT_SECRET' (base64-encoded)``
@@ -366,7 +364,6 @@ def main(*args, **kwargs) -> None:
         print(f"The client_info.ini file has been updated with the new tokens.")
     except KeyError:
         raise AccessTokenRetrivalError(new_tokens)
-
 
 
 if __name__ == "__main__":

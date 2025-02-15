@@ -1,6 +1,16 @@
-# Configuration file for the Sphinx documentation builder.
-#
-# For the full list of built-in configuration values, see the documentation:
+"""
+Configuration file for the Sphinx documentation builder.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
+
+# Full list of built-in configuration values
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Project information -----------------------------------------------------

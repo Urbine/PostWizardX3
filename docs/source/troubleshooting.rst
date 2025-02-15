@@ -146,12 +146,12 @@ the ``UnavailableLoggingDirectory`` exception.
    It is vital to clarify that users hold complete autonomy with respect to whom they
    share logs with, which is different from, say, a telemetry system...
 
-   ``webmaster_seo_tools`` does not collect this information for purposes of transmitting them in any manner or
+   ``webmaster_seo_tools`` does not collect logs for purposes of transmitting them in any manner or
    method that compromises users' privacy or autonomy.
    If you need help with an incidence, you can share the logs with anyone you trust.
 
 .. tip::
-   Logs can be used to coach your team and measure your productivity with the tool.
+   Logs can be used to coach your team and measure your productivity with the tools.
    Debugging output can aid troubleshooting as well as performance data can provide insights into
    what needs optimisations or reimplementation.
 
@@ -250,5 +250,102 @@ exceptions that will crash the applications here, one being ``AccessTokenRetriva
 
       $ python3 -m integrations.x_api --headless
 
-Performance & Optimisation
-__________________________
+Performance Topics
+__________________
+
+Striking a balance between ease of use and how to get the job done with minimal user intervention,
+sooner or later, will pose performance challenges. After extensive testing of task and workflows
+developed in ``webmaster-seo-tools``, several optimisations were performed within the tools; however,
+I want to discuss some caveats.
+
+Should you go headless?
+#######################
+
+By now, I hope that you know about the headless ``--headless`` argument that modules with
+webdriver automation take in. In simple words, ``headless`` mode is a configuration option for
+both the Firefox and Google Chrome browser drivers that allow them to run automation scripts
+in the background, that is, without you visually looking at the browser window while
+executing.
+
+.. note::
+   Based on testing data and general information about ``Selenium``, ``headless`` mode tends to be slower
+   than non-headless mode. For ``workflows.update_mcash_chain``, I applied a configuration option to disable
+   image load for a performance gain. As a result, testing showed a performance increase of 60% without
+   ``headless`` mode; in contrast, execution with the ``headless`` mode enabled did not have a boost in web
+   automation tasks.
+
+.. tip::
+   In short, if you are concerned about speed, you may want to consider leaving ``--headless``
+   out in compatible modules. If you plan to do other stuff while updating content databases, testing reveals
+   that each task takes from 2 minutes and 30 seconds to 4 minutes and 30 seconds in headless mode.
+
+   It takes a maximum of 1 minute and a minumum of 35 seconds per task if you want to leave that option out.
+   *It's up to you!*
+
+.. seealso::
+   Go ahead and review the statement about the use of ``--headless`` with the ``workflows.gallery_select`` bot on
+   `Getting to Know the Bots <home.html#get-to-know-the-bots>`_
+
+Webdriver Issues
+################
+
+Running webdriver instances comes at a cost that reflects in the performance of the overall project.
+
+.. attention::
+   * **What exactly could go wrong with web automation scripts?**
+
+   Loading a webdriver instance has some overhead associated to it, from locating the browser binaries
+   to setting up configuration options and dedicated profiles for each object. It is possible that a browser
+   instance can delay its starting point for flow execution, which does not have to do with the way scripts
+   are developed as the delay occurs before any steps are executed.
+
+   * **Is it possible that my application gets stuck while waiting for a routine to start?**
+
+   Yes. As a rule of thumb, I recommend you change the webdriver by adding the ``--gecko``
+   argument to enable the Firefox driver or leaving it out so that it defaults to Google Chrome.
+
+   * **What should I do if neither of those seem to be working?**
+
+   As a last resort, reboot your system and try to run the application once again.
+   Continuous execution or calls to browser instances result in an accumulation of temporary data that
+   ``Selenium`` uses for prefetching and caching, thus, rebooting your system can help you solve these issues,
+   specially if you use GNU/Linux, since the ``/tmp`` and temporary file storage gets cleared after each reboot.
+
+.. seealso::
+   If you want to take a look at the custom webdriver configuration for both Firefox and Google Chrome,
+   review the `core.helpers.get_webdriver <core.html#core.helpers.get_webdriver>`_ documentation and click on
+   ``[source]``.
+
+
+Site Size Matters
+#################
+
+A large site will have hundreds, if not thousands of posts; dealing with that amount of information can be
+resource intensive. Nevertheless, sites of all sizes can benefit from the data caching and integrity validation
+algorithms developed specially for ``webmaster-seo-tools``.
+
+If you ever need to rebuild your WordPress posts and cache files, you need to account for the time it would
+take to retrieve all pages of content you have online. That said, for small sites the process may take as
+little as 1 minute, whereas a large site may take several minutes to complete.
+
+.. tip::
+   As a matter of simplification, testing and development experience in this venture suggests the
+   following rule as far as cache rebuild goes:
+
+   **Site size correlates with cache/post fetching times. Patience is key, specially if you have a huge WordPress site.**
+
+   Now, there is something positive about this:
+
+   *Rebuilding your files is a one-time process unless you have issues with HotFileSync, which is a rare occurrence.*
+
+
+.. seealso::
+   Look at how `HotFileSync <troubleshooting.html#hotfilesync>`_ and the implementation of
+   ``integrations.wordpress_api`` help your site scale.
+
+
+
+
+
+
+

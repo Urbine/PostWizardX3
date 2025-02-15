@@ -32,8 +32,6 @@ from ml_engine.model_train import (
     stop_words_english,
 )
 
-# Load the trained models
-
 # NLTK NaiveBayesClassifier
 NaiveBayes_titles = joblib.load(
     load_file_path("ml_engine.ml_models", "NaiveBayesTitles.joblib.pkl")

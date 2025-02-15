@@ -33,7 +33,6 @@ import requests
 from requests.exceptions import SSLError, ConnectionError
 from rich.console import Console
 
-
 # Local implementations
 from core import (
     InvalidInput,
@@ -82,7 +81,11 @@ def logging_setup(
     :return: ``None``
     """
     get_filename = lambda f: os.path.basename(f).split(".")[0]
-    uniq_log_id = generate_random_str(5).lower()
+    random_int_id = "".join(random.choices([str(num) for num in range(1, 10)], k=5))
+    uniq_log_id = f"{random_int_id}{generate_random_str(5)}"
+
+    # This will help users identify their corresponding log per session.
+    os.environ["SESSION_ID"] = uniq_log_id
     log_name = (
         f"{get_filename(path_to_this)}-log-{uniq_log_id}-{datetime.date.today()}.log"
     )
@@ -116,7 +119,6 @@ def clean_partner_tag(partner_tag: str) -> str:
     :param partner_tag: ``str`` the conflicting text
     :return: ``str`` cleaned partner tag without the apostrophe.
     """
-    # This expression means "not a word and underscore"
     try:
         no_word: list[str] = re.findall(r"[\W_]+", partner_tag, flags=re.IGNORECASE)
         if no_word[0] == " " and len(no_word) == 1:
@@ -139,17 +141,18 @@ def asset_parser(bot_config: ContentSelectConf, partner: str):
     :param partner: ``str`` partner name
     :return: ``list[str]`` asset images or banners.
     """
-    # Load assets conf
     assets = parse_client_config(bot_config.assets_conf, "core.config")
     sections = assets.sections()
-    # Split the partner tag to know what part of the partners name is part of a section.
+
     spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
     wrd_list = clean_partner_tag(partner).split(spl_char(partner))
+
     find_me = (
         lambda word, section: matches[0]
         if (matches := re.findall(word, section, flags=re.IGNORECASE))
         else matches
     )
+
     assets_list = []
     for wrd in wrd_list:
         # The main lambda has re.findall with IGNORECASE flag, however
@@ -246,7 +249,6 @@ def filter_published(
     :param wp_posts_f: ``list[dict]`` WordPress Post Information case file (previously loaded and ready to process)
     :return: ``list[tuple]`` with the new filtered values.
     """
-    # This loop gets the items I am interested in.
     not_published: list[tuple] = []
     for elem in all_videos:
         (title, *fields) = elem
@@ -302,25 +304,20 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list
         wp_posts_f, preset[0], preset[1]
     )
 
-    # Clean the tags so that the program can match them well
-    # This functionality could be a separate function, however, it does not make sense to make it so since
-    # the procedures are not used anywhere else in the program.
     spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
     clean_tag = lambda tag: " ".join(tag.split(spl_char(tag)))
     tag_join = lambda tag: "".join(map(clean_tag, tag))
     # Result must be: colourful-skies/great -> colourful skies great
     cl_tags = list(map(tag_join, tag_lst))
 
-    # Once cleaned (no special chars), I will match them with Regex to get the IDs.
-    # the wordpress_api.map_wp_class_id function will handle the tags as they are stored on WordPress
-    # thus, it is crucial that tags don't have any special characters before processing them with it.
+    # It is crucial that tags don't have any special characters
+    # before processing them with ``tag_tracking``.
     matched_keys: list[str] = [
         wptag
         for wptag in tag_tracking.keys()
         for tag in cl_tags
         if re.fullmatch(tag, wptag, flags=re.IGNORECASE)
     ]
-    # The function will return a reversed list of matches.
     return list({tag_tracking[tag] for tag in matched_keys})
 
 
@@ -373,11 +370,9 @@ def identify_missing(
     :param ignore_case: ``bool`` True, enforce case policy. Default False.
     :return: ``None`` or ``list[str]``
     """
-    # Assumes we have x items and x ids
     if len(data_lst) == len(data_ids):
         return None
     else:
-        # If we have less or more items on either side, we've got a problem.
         not_found: list[str] = []
         for item in data_lst:
             if ignore_case:
@@ -419,7 +414,6 @@ def fetch_thumbnail(
     with open(f"{thumbnail_dir}/{img_name}", "wb") as img:
         img.write(remote_data.content)
 
-    # Image conversion to a target format if available
     if cs_conf.imagick:
         helpers.imagick(
             f"{thumbnail_dir}/{slug}{name}.{cs_conf.pic_fallback}",
@@ -468,7 +462,6 @@ def make_payload(
     :param wpauth: ``WPAuth`` Object with the author information.
     :return: ``dict[str, str | int]``
     """
-    # Added an author field to the client_info config file.
     author: int = int(wpauth.author_admin)
     payload_post: dict = {
         "slug": f"{vid_slug}",
@@ -484,8 +477,6 @@ def make_payload(
         "pornstars": model_int_lst,
     }
 
-    # if the job control passes categories then a new key-value pair will be
-    # added with them.
     if categs:
         payload_post["categories"] = categs
     else:
@@ -516,7 +507,6 @@ def make_payload_simple(
     :param wp_auth: ``WPAuth`` object with site configuration information.
     :return: ``dict[str, str | int]``
     """
-    # Added an author field to the client_info file.
     author: int = int(wp_auth.author_admin)
     payload_post: dict = {
         "slug": f"{vid_slug}",
@@ -554,7 +544,7 @@ def make_img_payload(
     :return: ``dict[str, str]``
     """
     # In case that the description is the same as the title, the program will send
-    # a different payload to avoid over-optimization
+    # a different payload to avoid keyword over-optimization.
     if vid_title == vid_description:
         img_payload: dict[str, str] = {
             "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
@@ -612,9 +602,6 @@ def make_slug(
         )
 
         content: str = f"-{content}" if content != "" or None else ""
-        # Note: the ``reverse`` flag acts primarily on the partner tag, so it does not make sense to implement
-        # further logic for the ``partner_out`` flag. In case you're wondering why the ``elif`` block does not
-        # check for ``reverse`` too.
         if reverse:
             return f"{title_sl}-{partner_sl}-{model_sl}{content}"
         elif partner_out:
@@ -666,7 +653,7 @@ def hot_file_sync(
     if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
         helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
         logging.info(
-            f"Exporting new WordPress caching config: {bot_config.wp_cache_config}"
+            f"Exporting new WordPress cache config: {bot_config.wp_cache_config}"
         )
         logging.info("HotFileSync Successful")
         return True
@@ -770,7 +757,9 @@ def content_select_db_match(
     :param parent: ``True`` to search in parent dir, default set to ``False``.
     :return: ``tuple[Connection, Cursor, str, int]`` (database connection, database cursor, database name, common index int)
     """
+
     console = Console()
+
     available_files: list[str] = helpers.search_files_by_ext(
         "db", folder=folder, parent=parent
     )
@@ -982,8 +971,6 @@ def wp_publish_checker(
             )
             return True
 
-        # Retry offset grows in one second per retry to optimise pooling
-        # Also avoid Connection Aborted tracebacks.
         time.sleep(retry_offset)
         retry_offset += 2
         retries += 1
@@ -1007,12 +994,11 @@ def video_upload_pilot(
     :param parent: ``True`` if you want to locate relevant files in the parent directory. Default False
     :return: ``None``
     """
-    # Time start
     time_start = time.time()
 
-    # Configuration steps
-    path_this = __file__
-    logging_setup(cs_config, path_this)
+    logging_setup(cs_config, __file__)
+    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
+
     console = Console()
     os.system("clear")
     with console.status(
@@ -1024,39 +1010,56 @@ def video_upload_pilot(
 
     partners: list[str] = cs_config.partners.split(",")
     logging.info(f"Loading partners variable: {partners}")
+
     wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
     logging.info(f"Reading WordPress Post cache: {cs_config.wp_json_posts}")
+
     wp_base_url: str = wp_auth.api_base_url
     logging.info(f"Using {wp_base_url} as WordPress API base url")
+
     db_conn, cur_dump, partner_db_name, partner_indx = content_select_db_match(
         partners, cs_config.content_hint, parent=parent
     )
     logging.info(
         f"Matched {partner_db_name} for {partners[partner_indx]} index {partner_indx}"
     )
+
     all_vals: list[tuple[str, ...]] = helpers.fetch_data_sql(
         cs_config.sql_query, cur_dump
     )
     logging.info(f"{len(all_vals)} elements found in database {partner_db_name}")
+
     # Prints out at the end of the uploading session.
     videos_uploaded: int = 0
     partner = partners[partner_indx]
     banners = asset_parser(cs_config, partner)
+
     select_guard(partner_db_name, partner)
     logging.info("Select guard cleared...")
+
     not_published_yet: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
+
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
-    logging.info(f"Detected {total_elems} to be published")
+    logging.info(f"Detected {total_elems} to be published for {partner}")
+
     os.system("clear")
+    # Environment variable set in logging_setup()
     console.print(
-        f"\nThere are {total_elems} videos to be published...",
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style="bold yellow",
+        justify="left",
+    )
+    console.print(
+        f"\nThere are {total_elems} {partner} videos to be published...",
         style="bold red",
         justify="center",
     )
-    # Create a temporary directory for thumbnails.
+    time.sleep(2)
+
     thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
     logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
+
     for num, vid in enumerate(not_published_yet):
         (title, *fields) = vid
         logging.info(f"Displaying on iteration {num} data: {vid}")
@@ -1069,6 +1072,12 @@ def video_upload_pilot(
         thumbnail_url = fields[6]
         tracking_url = fields[7]
         partner_name = partner
+        os.system("clear")
+        console.print(
+            f"Session ID: {os.environ.get('SESSION_ID')}",
+            style="bold yellow",
+            justify="left",
+        )
         console.print(
             f"\n{' Review this post ':*^30}\n", style="bold yellow", justify="center"
         )
@@ -1196,7 +1205,6 @@ def video_upload_pilot(
                 # All tags have been found and mapped to their IDs.
                 pass
             else:
-                # You've hit a snag.
                 for tag in tag_check:
                     console.print(
                         f"ATTENTION --> Tag: {tag} not on WordPress.", style="bold red"
@@ -1213,7 +1221,6 @@ def video_upload_pilot(
                     pyclip.detect_clipboard()
                     pyclip.copy(tag)
 
-            # Removing trailing spaces in tags and models
             model_prep = (
                 [model.strip() for model in models.split(",")]
                 if models is not None
@@ -1230,11 +1237,9 @@ def video_upload_pilot(
             )
 
             if new_models is None or model_prep[0] == "model-not-found":
-                # All model have been found and located
-                # or the post does not include a model.
+                # Maybe the post does not include a model.
                 pass
             else:
-                # There's a new girl in town.
                 for girl in new_models:
                     console.print(
                         f"ATTENTION! --> Model: {girl} not on WordPress.",
@@ -1342,8 +1347,6 @@ def video_upload_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    # Each successful upload will prompt the program to
-                    # clean the thumbnail selectively.
                     os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
                     logging.info(f"Uploaded and removed: {removed_img}")
                 else:
@@ -1359,7 +1362,7 @@ def video_upload_pilot(
                 console.print(
                     f"--> WordPress status code: {push_post}", style="bold green"
                 )
-                # Copy important information to the clipboard.
+
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
                 pyclip.copy(source_url)
@@ -1517,8 +1520,6 @@ def video_upload_pilot(
                     pyclip.clear()
                     continue
             else:
-                # Since we ran out of elements the script will end after adding it to WP
-                # So that it doesn't clear the clipboard automatically.
                 logging.info(
                     f"List exhausted. State: num={num} total_elems={total_elems}"
                 )

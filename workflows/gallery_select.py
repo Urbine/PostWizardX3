@@ -97,19 +97,16 @@ def fetch_zip(
         print("--> Getting files from MongerCash")
         print("--> Authenticating...")
         driver.get(remote_res)
+        driver.implicitly_wait(30)
 
-        # Find element by its ID
         username_box: WebElement = driver.find_element(By.ID, "user")
         pass_box: WebElement = driver.find_element(By.ID, "password")
 
-        # Authenticate / Send keys
         username_box.send_keys(username)
         pass_box.send_keys(password)
 
-        # Get Button Class
         button_login: WebElement = driver.find_element(By.ID, "head-login")
 
-        # Click on the login Button
         button_login.click()
         print("--> Downloading...")
 
@@ -156,11 +153,10 @@ def extract_zip(zip_path: str, extr_dir: str):
             # I don't want them.
             shutil.rmtree(junk_folder := f"{extr_dir}/__MACOSX")
             logging.info(f"Junk folder {junk_folder} detected and cleaned.")
-        except FileNotFoundError:
-            # Sometimes, this can blow up if that directory is not there.
+        except (FileNotFoundError, NotImplementedError) as e:
+            logging.warning(f"Caught {str(e)} - Handled")
             pass
         finally:
-            # We always have to clean up.
             logging.info(f"Cleaning remaining archive in {zip_path}")
             core.clean_file_cache(os.path.relpath(zip_path), ".zip")
     except (IndexError, zipfile.BadZipfile) as e:
@@ -211,7 +207,6 @@ def get_from_db(cur: sqlite3, field: str, table: str) -> list[tuple[...]] | None
     try:
         return cur.execute(qry).fetchall()
     except OperationalError:
-        # This happens when the table or field does not exist.
         return None
 
 
@@ -286,7 +281,6 @@ def make_photos_payload(
     # Setting Env variable since the slug is needed outside this function.
     os.environ["SET_SLUG"] = final_slug
 
-    # Added an author field to the client_info config file.
     author: int = int(wpauth.author_admin)
 
     payload_post: dict[str, str | int] = {
@@ -313,7 +307,6 @@ def upload_image_set(
     :param wp_params: ``WPAuth`` object with the base URL of the WP site.
     :return: ``None``
     """
-    # Making sure folder is accessible.
     thumbnails: list[str] = helpers.search_files_by_ext(
         ext, folder=os.path.relpath(folder)
     )
@@ -354,7 +347,7 @@ def upload_image_set(
             f"{new_img}",
             img_attrs,
         )
-        # If upload is successful, the thumbnail is no longer useful.
+
         if status_code == (200 or 201):
             logging.info(f"Removing --> {new_img}")
             os.remove(new_img)
@@ -368,16 +361,20 @@ def upload_image_set(
     try:
         # Check if I have paths instead of filenames
         if len(thumbnails[0].split("/")) > 1:
-            # Get rid of the folder.
-            shutil.rmtree(
-                remove_dir := f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}"
-            )
-            logging.info(f"Removed dir -> {remove_dir}")
+            try:
+                shutil.rmtree(
+                    remove_dir
+                    := f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}"
+                )
+                logging.info(f"Removed dir -> {remove_dir}")
+            except NotImplementedError:
+                logging.info(
+                    "Incompatible platform - Directory cleaning relies on tempdir logic for now"
+                )
+                pass
         else:
             pass
     except (IndexError, AttributeError):
-        # If slicing/splitting fails with IndexError or AttributeError, it does
-        # not crash the program.
         pass
     finally:
         return None
@@ -400,8 +397,6 @@ def filter_relevant(
     :param wp_photos_f:  ``list[dict[str, ...]]`` WordPress Photos data structure
     :return: ``list[tuple[str, ...]]`` Image sets related to models present in the WP site.
     """
-    # Relevancy algorithm.
-    # Lists unique models whose videos where already published on the site.
     models_set: set[str] = set(
         wordpress_api.map_wp_class_id(wp_posts_f, "pornstars", "pornstars").keys()
     )
@@ -459,12 +454,9 @@ def gallery_upload_pilot(
     :param gallery_sel_conf: ``GallerySelectConf`` object with configuration options for this module.
     :return: ``None``
     """
-    # Time start
     time_start = time.time()
-
-    # Configuration steps
-    path_this = __file__
-    logging_setup(gallery_sel_conf, path_this)
+    logging_setup(gallery_sel_conf, __file__)
+    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
 
     console = Console()
     os.system("clear")
@@ -477,10 +469,13 @@ def gallery_upload_pilot(
 
     wp_photos_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_photos)
     logging.info(f"Reading WordPress Posts cache: {gallery_sel_conf.wp_json_posts}")
+
     wp_posts_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_posts)
     logging.info(f"Reading WordPress Photos cache: {gallery_sel_conf.wp_json_posts}")
+
     partners: list[str] = gallery_sel_conf.partners.split(",")
     logging.info(f"Loading partners variable: {partners}")
+
     db_conn, cur_partner, db_name_partner, partner_indx = content_select_db_match(
         partners, gallery_sel_conf.content_hint, parent=parent
     )
@@ -493,32 +488,43 @@ def gallery_upload_pilot(
     logging.info(f"{len(all_galleries)} elements found in database {db_name_partner}")
     # Prints out at the end of the uploading session.
     galleries_uploaded: int = 0
+
     partner_: str = partners[partner_indx]
     # Gatekeeper function
     select_guard(db_name_partner, partner_)
     logging.info("Select guard cleared...")
+
     if relevancy_on:
         logging.info("Relevancy algorithm on...")
         not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
     else:
-        # In theory, this will work sometimes since I modify some of the
+        # In theory, this will work "sometimes" since I modify some of the
         # gallery names to reflect the queries we rank for on Google.
+        # I don't use it as it is still experimental.
         logging.info("Relevancy algorithm off...")
         not_published_yet = filter_published(all_galleries, wp_photos_f)
+
     # You can keep on getting sets until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
     os.system("clear")
+    # Environment variable set in logging_setup() - content_select.py
+    console.print(
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style="bold yellow",
+        justify="left",
+    )
     console.print(
         f"There are {total_elems} sets to be published...",
         style="bold red",
         justify="center",
     )
-    # Create temporary directories
+    time.sleep(2)
     temp_dir = tempfile.TemporaryDirectory(dir=".")
     logging.info(f"Created {temp_dir.name} for temporary file download & extraction")
     thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
     logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
+
     for num, photo in enumerate(not_published_yet):
         (title, *fields) = photo
         logging.info(f"Displaying on iteration {num} data: {photo}")
@@ -526,11 +532,16 @@ def gallery_upload_pilot(
         date: str = fields[0]
         download_url: str = fields[1]
         partner_name: str = partner_
+        os.system("clear")
+        console.print(
+            f"Session ID: {os.environ.get('SESSION_ID')}",
+            style="bold yellow",
+            justify="left",
+        )
         console.print(f"\n{'Review this photo set ':*^30}\n", style="green")
         console.print(title, style="green")
         console.print(f"Date: {date}", style="green")
         console.print(f"Download URL: \n{download_url}", style="green")
-        # Centralized control flow
         add_post: str | bool = console.input(
             "[bold yellow]\nAdd set to WP? -> Y/N/ENTER to review next set: [/bold yellow]\n"
         ).lower()
@@ -623,7 +634,6 @@ def gallery_upload_pilot(
                 logging.info(wp_push_msg := f"WordPress post push status: {push_post}")
                 console.print(wp_push_msg, style="bold green")
 
-                # Copy important information to the clipboard.
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
                 # This is the main tag for galleries
@@ -760,8 +770,6 @@ def gallery_upload_pilot(
                     "[bold yellow]\nNext set? -> N/ENTER to review next set: [/bold yellow]\n"
                 ).lower()
                 if next_post == ("n" or "no"):
-                    # The terminating parts add this function to avoid
-                    # tracebacks from pyclip
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     console.print(
@@ -791,8 +799,6 @@ def gallery_upload_pilot(
                 logging.info(
                     f"List exhausted. State: num={num} total_elems={total_elems}"
                 )
-                # Since we ran out of elements the script will end after adding it to WP
-                # So that it doesn't clear the clipboard automatically.
                 console.print(
                     "\nWe have reviewed all sets for this query.", style="bold red"
                 )

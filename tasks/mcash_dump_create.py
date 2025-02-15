@@ -14,7 +14,6 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import datetime
-import os
 import tempfile
 import time
 from tempfile import TemporaryDirectory
@@ -22,6 +21,7 @@ from tempfile import TemporaryDirectory
 # Third-party Libraries
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.select import Select
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 
 
@@ -62,31 +62,22 @@ def get_vid_dump_flow(
     :param partner_hint: ``str`` pattern to match the partner with available options.
     :return: ``str`` new dump filename
     """
-    # Captures the source outside the context manager.
     source_html = None
     with webdrv as driver:
         # Go to URL
-        print(f"Getting Dump File from MongerCash")
-        print("Please wait...\n")
+        driver.minimize_window()
         driver.get(task_conf.mcash_dump_url)
+        driver.implicitly_wait(30)
 
-        # Find element by its ID
         username_box = driver.find_element(By.ID, "user")
         pass_box = driver.find_element(By.ID, "password")
 
-        # Authenticate / Send keys
         username_box.send_keys(mcash_info.username)
         pass_box.send_keys(mcash_info.password)
-        time.sleep(1)
 
-        # Get Button Class
         button_login = driver.find_element(By.ID, "head-login")
-
-        # Click on the login Button
         button_login.click()
-        time.sleep(1)
 
-        # Partner select
         website_partner = driver.find_element(By.ID, "link_site")
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
@@ -103,13 +94,11 @@ def get_vid_dump_flow(
         website_partner_select.select_by_index(int(selection))
         partner_name = parse_partner_name(partner_options, int(selection))
 
-        time.sleep(1)
         apply_changes_xpath = (
             "/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input"
         )
         apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
         apply_changes_button.click()
-        time.sleep(1)
 
         # Refresh the page to avoid loading status crashes in Chrome
         driver.refresh()
@@ -164,10 +153,10 @@ def get_vid_dump_flow(
         # Update Dump textarea
         dump_update = driver.find_element(By.ID, "dumpUpdate")
         dump_update.click()
-        time.sleep(3)
 
         # Extract textarea text
         dump_txtarea = driver.find_element(By.CLASS_NAME, "display-dump-textarea")
+        time.sleep(1)
         dump_content = dump_txtarea.text
 
         # Create a name for out dump file.

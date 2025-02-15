@@ -33,7 +33,7 @@ from typing import Generator
 import xlsxwriter
 
 # Local implementations
-from core import ExcelReportImportError, NoSuitableArgument, helpers
+from core import NoSuitableArgument, helpers
 from core.config_mgr import WPAuth, wp_auth
 
 
@@ -85,10 +85,7 @@ def create_wp_local_cache(
     from integrations.url_builder import WPEndpoints
 
     endpoints: WPEndpoints = WPEndpoints()
-    # Accumulation of dict elements for concatenation.
     result_dict: list[dict] = []
-    # List of parameters that I intend to concatenate to the base URL.
-    # /posts/page=1
     page_num: int = 1
     x_wp_total = 0
     x_wp_totalpages = 0
@@ -297,8 +294,6 @@ def map_posts_by_id(
     """
     u_pack = zip([idd["id"] for idd in wp_posts_f], [url["slug"] for url in wp_posts_f])
     if host_name is not None:
-        # if the user specifies a hostname with another TLD, .com will not be used!
-        # clean_filename has a "trust" mode.
         return {idd: f"{host_name}/" + url for idd, url in u_pack}
     else:
         return {idd: url for idd, url in u_pack}
@@ -680,20 +675,16 @@ def create_tag_report_excel(
     workbook_fname = helpers.clean_filename(workbook_name, ".xlsx")
     dir_prefix = helpers.is_parent_dir_required(parent)
 
-    # Tag IDs and Tag Count
     tags_match_key = ("tag", "tags")
     tags_dict = map_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
     tags_count = count_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
 
-    # Model Partner hints
-
-    # Model video count
     model_wp_class_count = count_track_wp_class_id(
         wp_posts_f, "pornstars", "tag", hints
     )
 
     workbook = xlsxwriter.Workbook(f"{dir_prefix}{workbook_fname}")
-    # Tag & Tag ID Fields, Videos Tagged, Video IDs.
+
     tag_plus_tid = workbook.add_worksheet(name="Tag Fields & Videos Tagged")
 
     tag_plus_tid.set_column("A:C", 20)
@@ -706,7 +697,6 @@ def create_tag_report_excel(
         "D2", unpack_tpl_excel(map_tags_posts(wp_posts_f, idd=True).values())
     )
 
-    # Post ID & Post Slug on WordPress
     post_id_slug = workbook.add_worksheet(name="Post id & Post Slug")
     post_id_slug.set_column("A:A", 20)
     post_id_slug.set_column("B:B", 80)
@@ -721,7 +711,6 @@ def create_tag_report_excel(
         "C2", unpack_tpl_excel(map_postsid_category(wp_posts_f).values())
     )
 
-    # Model video count
     model_count = workbook.add_worksheet(name="Video count by Model")
     model_count.set_column("A:A", 20)
     model_count.set_column("B:B", 15)
@@ -777,7 +766,6 @@ def update_published_titles_db(
         else f"wp-posts-{datetime.date.today()}.db"
     )
     db_full_name = f"{helpers.is_parent_dir_required(parent)}{db_name}"
-    # SQLite3 can't overwrite an existing db with the same table.
     helpers.remove_if_exists(db_full_name)
     db = sqlite3.connect(db_full_name)
     cur = db.cursor()
@@ -850,7 +838,7 @@ def upload_thumbnail(
         return requests.post(
             wp_self + "/" + str(image_json["id"]), json=payload, auth=auth_wp
         ).status_code
-    except KeyError or requests.exceptions.JSONDecodeError:
+    except (KeyError, requests.exceptions.JSONDecodeError):
         return request.status_code
 
 
@@ -918,8 +906,7 @@ def update_json_cache(
 
     wp_endpoints: WPEndpoints = WPEndpoints()
     config = helpers.load_json_ctx(wpauth.wp_cache_file)
-    # List of parameters that I intend to concatenate to the base URL.
-    # /posts/page=1
+
     params_posts: list[str] = [wp_endpoints.photos] if photos else [wp_endpoints.posts]
     x_wp_total = 0
     x_wp_totalpages = 0
@@ -1062,16 +1049,3 @@ if __name__ == "__main__":
         )
     else:
         raise NoSuitableArgument(__package__, __file__)
-
-    # ==== WP Posts json data structure ====
-    # title: imported_json[0]['title']['rendered']
-    # description: imported_json[0]['content']['rendered']
-    # tags text, category, and models: imported_json[0]['class_list'] (prefixed with "tag-" and "category-")
-    # slug: imported_json[0]['slug']
-    # tag numbers: imported_json[0]['tags'] OK
-    # link: imported_json[0]['link']
-    # id: imported_json[0]['id']
-    # yoast json: imported_json[0]['yoast_head_json'] (can get info without overhead)
-    # yoast tags without prefix: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['keywords'] OK
-    # yoast category: imported_json[0]['yoast_head_json']['schema']['@graph'][0]['articleSection']
-    # =============================

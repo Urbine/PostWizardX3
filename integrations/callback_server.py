@@ -1,9 +1,21 @@
+"""
+Functions in this module are able to launch a basic web server
+in case integrations use a callback URI that does not redirect to a browser instance.
+
+Alternatively, this module can be utilised for fetching GET/POST requests coming from
+integrations. Implemeted experimentally, only left if needed.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import http.server
-import socket
 import socketserver
 import subprocess
 import re
-import time
 
 
 def callback_server_sub(addr_: str, port_: int, pattern: str) -> None:

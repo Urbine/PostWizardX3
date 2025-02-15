@@ -60,7 +60,6 @@ def construct_tube_dump_url(
     sep_param = f"&csv_separator={sep}&"
     days = f"days={days}&" if days != "" else days
 
-    # Column Fields (These can be extended or removed)
     column_lst = [
         columns.ID_,
         columns.title,
@@ -134,10 +133,6 @@ def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
                 embed_code = line_split[7]
                 website_link = line_split[8]
 
-                # Custom db fields
-
-                # As mentioned in other modules, slugs have to contain the
-                # content type
                 wp_slug = (
                     f"{website_link.split('/')[-2:][0]}-{partner}-video"
                     if partner != ""
@@ -190,35 +185,28 @@ if __name__ == "__main__":
 
     cli_args = arg_parser.parse_args()
 
-    # Build the VJAV dump URL
     main_url = construct_tube_dump_url(
         VJAV_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
     )
 
-    # Create temporary directory
     temp_dir = tempfile.TemporaryDirectory(dir=".")
 
-    # Get the VJAV dump file and write it into a .csv file
     core.write_to_file("vjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
 
-    # Parse the temporary CSV dump file
     result = tube_dump_parse("vjav-dump", temp_dir.name, "jav", "|")
 
     print(result)
 
-    # Build the Desi Tube dump URL
     main_url = construct_tube_dump_url(
         DESI_T_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
     )
 
-    # Get the Desi Tube dump file and write it into a .csv file
     core.write_to_file(
         "desi-tube-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
     )
 
     result = tube_dump_parse("desi-tube-dump", temp_dir.name, "", "|")
 
-    # Clean temporary folder
     temp_dir.cleanup()
     print(result)
     print("Cleaned temporary folder...")

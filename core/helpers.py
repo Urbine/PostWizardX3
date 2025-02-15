@@ -480,9 +480,15 @@ def get_webdriver(
 
     else:
         # Configure Chrome's Path and arguments
+        # Binary paths should be detected automatically, however, I want to make
+        # sure it uses google-chrome stable in posix and not nightly or dev releases.
         chrome_options = webdriver.ChromeOptions()
-        chrome_options.binary_location = "/opt/google/chrome/google-chrome"
-        chrome_options.add_argument("--no-sandbox")
+        if os.name == "posix":
+            chrome_options.binary_location = "/opt/google/chrome/google-chrome"
+        else:
+            pass
+
+        # Does not let Chrome limit my resource usage
         chrome_options.add_argument("--disable-dev-shm-usage")
 
         prefs = {
@@ -494,6 +500,7 @@ def get_webdriver(
             "safebrowsing.enabled": True,  # Ignore security warnings
         }
 
+        # ``prefs`` above are experimental options
         chrome_options.add_experimental_option("prefs", prefs)
 
         if headless:
@@ -526,7 +533,6 @@ def match_list_single(hint: str, items: list, ignore_case: bool = False) -> int 
             inter = item.text
 
         if re.findall(hint, inter, flags=ignore_case):
-            # I get an index regardless of type
             return items.index(item)
         else:
             continue
@@ -757,15 +763,11 @@ def parse_date_to_iso(
 
     year = str(full_date.split(",")[1].strip())
 
-    # Add one since the lambda obtains "truthy" values and there is an empty
-    # string in the list as an offset.
     month_num = str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     # The date ISO format requires that single numbers are preceded by a 0.
 
     if int(month_num) <= 9:
-        # month_num contains 13 elements, so I need to subtract 1 from the
-        # resulting index
         month_num = "0" + str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     day_nth = str(full_date.split(",")[0].split(" ")[1])
@@ -793,8 +795,6 @@ def search_files_by_ext(
     :param folder: ``str`` folder name
     :return: ``list[str]``
     """
-    # uses the clean_filename function to receive extension with or without
-    # dot.
     search_files = clean_filename("*", extension)
     if recursive:
         return glob.glob(

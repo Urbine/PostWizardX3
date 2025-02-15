@@ -65,7 +65,6 @@ def filter_published_embeds(
     :param wp_posts_f: ``list[dict[str, ...]]`` WordPress Post Information case file (previously loaded and ready to process)
     :return: ``list[tuple[str, ...]]`` with the new filtered values.
     """
-    # This loop gets the items I am interested in.
     post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
 
     not_published: list[tuple] = []
@@ -92,12 +91,11 @@ def embedding_pilot(
     :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
     :return: ``None``
     """
-    # Time start
     time_start = time.time()
 
-    # Configuration steps
-    path_this = __file__
-    cs.logging_setup(embed_ast_conf, path_this)
+    cs.logging_setup(embed_ast_conf, __file__)
+    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
+
     console = Console()
     os.system("clear")
     with console.status(
@@ -106,22 +104,27 @@ def embedding_pilot(
     ):
         cs.hot_file_sync(bot_config=embed_ast_conf)
         x_api.refresh_flow(x_auth(), XEndpoints())
+
     wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
     logging.info(f"Reading WordPress Post cache: {embed_ast_conf.wp_json_posts}")
+
     partner_list = embed_ast_conf.partners.split(",")
     os.system("clear")
     logging.info(f"Loading partners variable: {partner_list}")
+
     db_conn, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
         partner_list, embed_ast_conf.content_hint
     )
 
     wp_base_url = wpauths.api_base_url
     logging.info(f"Using {wp_base_url} as WordPress API base url")
+
     videos_uploaded: int = 0
     partner = partner_list[partner_indx]
     logging.info(f"Matched {db_dump_name} for {partner} index {partner_indx}")
     cs.select_guard(db_dump_name, partner)
     logging.info("Select guard cleared...")
+
     all_vals: list[tuple[str]] = helpers.fetch_data_sql(
         embed_ast_conf.sql_query, cur_dump
     )
@@ -130,12 +133,18 @@ def embedding_pilot(
     total_elems = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
     os.system("clear")
+    # Environment variable set in logging_setup() - content_select.py
+    console.print(
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style="bold yellow",
+        justify="left",
+    )
     console.print(
         f"\nThere are {total_elems} videos to be published...",
         style="bold red",
         justify="center",
     )
-    # Create a temporary directory for thumbnails
+    time.sleep(2)
     thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
     logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
     for num, vid in enumerate(not_published_yet):
@@ -150,6 +159,12 @@ def embedding_pilot(
         embed_code = vid[7]
         web_link = vid[8]
         wp_slug = vid[9]
+        os.system("clear")
+        console.print(
+            f"Session ID: {os.environ.get('SESSION_ID')}",
+            style="bold yellow",
+            justify="left",
+        )
         console.print(
             f"\n{'Review the following video':*^30}\n",
             style="bold yellow",
@@ -276,7 +291,6 @@ def embedding_pilot(
                 # All tags have been found and mapped to their IDs.
                 pass
             else:
-                # You've hit a snag.
                 for tag in tag_check:
                     if tag != "" or tag is None:
                         console.print(
@@ -297,7 +311,7 @@ def embedding_pilot(
                     else:
                         pass
 
-            # Video category NaiveBayes Classifiers
+            # Video category NaiveBayes/MaxEnt Classifiers
             class_title = classify_title(title)
             class_tags = classify_description(categories)
             class_title.union(class_tags)
@@ -324,8 +338,10 @@ def embedding_pilot(
 
             categ_ids = cs.get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
             if not sel_categ:
+                # In this site:
                 # 38 is Japanese Amateur Porn
                 # 40 is Indian Amateur Porn
+                # Category numbers are not equal in all sites.
                 match partner:
                     case "abjav":
                         category = [38]
@@ -400,8 +416,6 @@ def embedding_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    # Each successful upload will prompt the program to
-                    # clean the thumbnail selectively.
                     os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
                     logging.info(f"Uploaded and removed: {removed_img}")
                 else:
@@ -417,7 +431,6 @@ def embedding_pilot(
                 console.print(
                     f"--> WordPress status code: {push_post}", style="bold green"
                 )
-                # Copy important information to the clipboard.
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
                 pyclip.copy(embed_code)
@@ -550,8 +563,7 @@ def embedding_pilot(
                 ).lower()
                 if next_post == ("n" or "no"):
                     logging.info("User declined further activity with the bot")
-                    # The terminating parts add this function to avoid tracebacks
-                    # from pyclip
+                    # The terminating parts add this function to avoid tracebacks from pyclip
                     pyclip.detect_clipboard()
                     pyclip.clear()
                     console.print(
@@ -577,8 +589,6 @@ def embedding_pilot(
                     pyclip.clear()
                     continue
             else:
-                # Since we ran out of elements the script will end after adding it to WP
-                # So that it doesn't clear the clipboard automatically.
                 logging.info(
                     f"List exhausted. State: num={num} total_elems={total_elems}"
                 )

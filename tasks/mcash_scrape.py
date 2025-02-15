@@ -18,7 +18,6 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import datetime
-import time
 
 # Third-party modules
 from bs4 import BeautifulSoup
@@ -176,39 +175,22 @@ def get_set_source_flow(
     :param partner_hint: ``str`` pattern to match the correct partner offer
     :return: ``tuple[BeautifulSoup, str]`` (source_code, filename)
     """
-    # Captures the source outside the context manager.
     source_html = None
     with webdrv as driver:
         # Go to URL
-        print(f"Getting all available Photosets from MongerCash")
-        print("Please wait...\n")
         driver.get(task_conf.mcash_set_url)
 
-        # Find element by its ID
+        driver.implicitly_wait(30)
+
         username_box = driver.find_element(By.ID, "user")
         pass_box = driver.find_element(By.ID, "password")
 
-        # Authenticate / Send keys
         username_box.send_keys(mcash_auth.username)
         pass_box.send_keys(mcash_auth.password)
-        time.sleep(1)
 
-        # Get Button Class
         button_login = driver.find_element(By.ID, "head-login")
-
-        # Click on the login Button
         button_login.click()
-        time.sleep(3)
 
-        # This assumes that 3 seconds is more than enough to get the options.
-        # In testing, this webpage seems to extend the loading time
-        # required, which impacts performance.
-        driver.execute_script("window.stop();")
-
-        # Re-emphasizes the last action just in case the browser does not want to execute actions in dev console.
-        webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
-
-        # Partner select
         website_partner = driver.find_element(By.ID, "link_site")
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
@@ -225,13 +207,12 @@ def get_set_source_flow(
 
         website_partner_select.select_by_index(int(selection))
         partner_name = parse_partner_name(partner_options, int(selection))
-        time.sleep(1)
+
         apply_changes_xpath = (
             "/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[6]/div/div/input"
         )
         apply_changes_button = driver.find_element(By.XPATH, apply_changes_xpath)
         apply_changes_button.click()
-        time.sleep(1)
 
         # Refresh the page to avoid loading status crashes in Chrome
         driver.refresh()
@@ -244,10 +225,8 @@ def get_set_source_flow(
         # Selecting `Show All` by default in index 5
         vid_select.select_by_index(5)
 
-        # Locate update button to submit selected option
         update_submit_button = driver.find_element(By.ID, "pageination-submit")
         update_submit_button.click()
-        time.sleep(5)
 
         source_html = BeautifulSoup(driver.page_source, "html.parser")
 

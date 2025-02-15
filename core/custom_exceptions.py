@@ -75,7 +75,9 @@ class InvalidConfiguration(Exception):
     """
 
     def __init__(self):
-        self.message = f"Double check your True/False (boolean) values in configuration options."
+        self.message = (
+            f"Double check your True/False (boolean) values in configuration options."
+        )
         super().__init__(self.message)
 
 
