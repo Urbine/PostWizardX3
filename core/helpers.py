@@ -480,9 +480,15 @@ def get_webdriver(
 
     else:
         # Configure Chrome's Path and arguments
+        # Binary paths should be detected automatically, however, I want to make
+        # sure it uses google-chrome stable in posix and not nightly or dev releases.
         chrome_options = webdriver.ChromeOptions()
-        chrome_options.binary_location = "/opt/google/chrome/google-chrome"
-        chrome_options.add_argument("--no-sandbox")
+        if os.name == "posix":
+            chrome_options.binary_location = "/opt/google/chrome/google-chrome"
+        else:
+            pass
+
+        # Does not let Chrome limit my resource usage
         chrome_options.add_argument("--disable-dev-shm-usage")
 
         prefs = {
@@ -494,6 +500,7 @@ def get_webdriver(
             "safebrowsing.enabled": True,  # Ignore security warnings
         }
 
+        # ``prefs`` above are experimental options
         chrome_options.add_experimental_option("prefs", prefs)
 
         if headless:
