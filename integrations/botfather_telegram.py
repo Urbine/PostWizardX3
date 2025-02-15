@@ -1,10 +1,21 @@
+"""
+Telegram BotFather integration for ``webmaster-seo-tools``
+In the present application, only ``getMe`` and ``SendMessage`` are needed.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import argparse
 import os
 import requests
 from requests import Response  # Imported for typing purposes.
 
 # Local imports
-from core import bot_father, content_select_conf
+from core import bot_father
 from core.config_mgr import BotAuth  # Imported for typing purposes.
 from integrations.url_builder import BotFatherCommands, BotFatherEndpoints
 
@@ -45,9 +56,7 @@ def send_message(
     token = b_father.token
     chat_id = f"{b_endpoints.chat_id}{b_father.telegram_chat_id}"
     text = f"{b_endpoints.text}{msg_txt}"
-    # Letting the application know the chat_id so that other modules can use it or display it to the user.
     os.environ["T_CHAT_ID"] = b_father.telegram_chat_id
-    link_preview = ""
     req = requests.get(
         f"{url}{token}{b_commands.send_message}{chat_id}{text}"
         + '&disable_notification=true&link_preview_options={"is_disabled":false,"prefer_large_media":true}'

@@ -99,6 +99,7 @@ def feed_alpha_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
+
     c_filename = core.clean_filename(filename, "csv")
     path = f"{os.path.abspath(dirname)}/{c_filename}"
     db_name = f"{os.getcwd()}/{filename}-{datetime.date.today()}.db"
@@ -138,8 +139,6 @@ def feed_alpha_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
                 main_thumbnail = line_split[6]
                 embed_code = line_split[7]
                 website_link = line_split[8]
-
-                # Custom db fields
 
                 # As mentioned in other modules, slugs have to contain the
                 # content type
@@ -191,7 +190,6 @@ if __name__ == "__main__":
 
     cli_args = arg_parser.parse_args()
 
-    # Build the URL
     main_url = construct_api_dump_url(
         FeedAlpha_BASE_URL,
         FeedAlpha_CAMPAIGN_ID,
@@ -200,18 +198,14 @@ if __name__ == "__main__":
         url_limit=cli_args.limit,
     )
 
-    # Create temporary directory
     temp_dir = tempfile.TemporaryDirectory(dir=".")
 
-    # Use it to fetch the stream for the `write_to_file` functions.
     core.write_to_file(
         "feed_alpha-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
     )
 
-    # Parse the temporary csv and generate the database with the data.
     result = feed_alpha_dump_parse("feed_alpha-dump", temp_dir.name, "partner_test", "|")
 
-    # Clean the temporary folder
     temp_dir.cleanup()
     print(result)
     print("Cleaned temporary folder...")

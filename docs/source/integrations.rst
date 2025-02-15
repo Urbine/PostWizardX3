@@ -44,7 +44,7 @@ Integrations in this module include:
 
 .. seealso::
    You can find code examples for modules in this package here:
-   `Quick Start <home.html#get-to-know-the-bots>`_
+   `Quick Start <home.html#quick-start>`_
 
 
 Submodules
