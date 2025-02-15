@@ -82,7 +82,11 @@ def logging_setup(
     :return: ``None``
     """
     get_filename = lambda f: os.path.basename(f).split(".")[0]
-    uniq_log_id = generate_random_str(5).lower()
+    random_int_id = "".join(random.choices([str(num) for num in range(1, 10)], k=5))
+    uniq_log_id = f"{random_int_id}{generate_random_str(5)}"
+
+    # This will help users identify their corresponding log per session.
+    os.environ["SESSION_ID"] = uniq_log_id
     log_name = (
         f"{get_filename(path_to_this)}-log-{uniq_log_id}-{datetime.date.today()}.log"
     )
@@ -1011,8 +1015,8 @@ def video_upload_pilot(
     time_start = time.time()
 
     # Configuration steps
-    path_this = __file__
-    logging_setup(cs_config, path_this)
+    logging_setup(cs_config, __file__)
+    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
     console = Console()
     os.system("clear")
     with console.status(
@@ -1047,10 +1051,17 @@ def video_upload_pilot(
     not_published_yet: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
-    logging.info(f"Detected {total_elems} to be published")
+    logging.info(f"Detected {total_elems} to be published for {partner}")
+
     os.system("clear")
+    # Environment variable set in logging_setup()
     console.print(
-        f"\nThere are {total_elems} videos to be published...",
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style="bold yellow",
+        justify="left",
+    )
+    console.print(
+        f"\nThere are {total_elems} {partner} videos to be published...",
         style="bold red",
         justify="center",
     )
@@ -1069,6 +1080,12 @@ def video_upload_pilot(
         thumbnail_url = fields[6]
         tracking_url = fields[7]
         partner_name = partner
+        os.system("clear")
+        console.print(
+            f"Session ID: {os.environ.get('SESSION_ID')}",
+            style="bold yellow",
+            justify="left",
+        )
         console.print(
             f"\n{' Review this post ':*^30}\n", style="bold yellow", justify="center"
         )

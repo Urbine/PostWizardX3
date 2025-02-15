@@ -96,8 +96,8 @@ def embedding_pilot(
     time_start = time.time()
 
     # Configuration steps
-    path_this = __file__
-    cs.logging_setup(embed_ast_conf, path_this)
+    cs.logging_setup(embed_ast_conf, __file__)
+    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
     console = Console()
     os.system("clear")
     with console.status(
@@ -130,6 +130,12 @@ def embedding_pilot(
     total_elems = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
     os.system("clear")
+    # Environment variable set in logging_setup() - content_select.py
+    console.print(
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style="bold yellow",
+        justify="left",
+    )
     console.print(
         f"\nThere are {total_elems} videos to be published...",
         style="bold red",
@@ -150,6 +156,12 @@ def embedding_pilot(
         embed_code = vid[7]
         web_link = vid[8]
         wp_slug = vid[9]
+        os.system("clear")
+        console.print(
+            f"Session ID: {os.environ.get('SESSION_ID')}",
+            style="bold yellow",
+            justify="left",
+        )
         console.print(
             f"\n{'Review the following video':*^30}\n",
             style="bold yellow",

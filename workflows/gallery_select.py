@@ -463,8 +463,8 @@ def gallery_upload_pilot(
     time_start = time.time()
 
     # Configuration steps
-    path_this = __file__
-    logging_setup(gallery_sel_conf, path_this)
+    logging_setup(gallery_sel_conf, __file__)
+    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
 
     console = Console()
     os.system("clear")
@@ -509,6 +509,12 @@ def gallery_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
     os.system("clear")
+    # Environment variable set in logging_setup() - content_select.py
+    console.print(
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style="bold yellow",
+        justify="left",
+    )
     console.print(
         f"There are {total_elems} sets to be published...",
         style="bold red",
@@ -526,6 +532,12 @@ def gallery_upload_pilot(
         date: str = fields[0]
         download_url: str = fields[1]
         partner_name: str = partner_
+        os.system("clear")
+        console.print(
+            f"Session ID: {os.environ.get('SESSION_ID')}",
+            style="bold yellow",
+            justify="left",
+        )
         console.print(f"\n{'Review this photo set ':*^30}\n", style="green")
         console.print(title, style="green")
         console.print(f"Date: {date}", style="green")
