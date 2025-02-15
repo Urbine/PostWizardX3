@@ -69,9 +69,6 @@ def parse_txt_dump_chain(
                 if tags == "":
                     tags = None
 
-                # Break down the date and convert it to ISO format to get a date object.
-                # dump_line[5] is initially 'Aug 20th, 2024' but I want a
-                # datetime.date object.
                 date = str(helpers.parse_date_to_iso(dump_line[5], m_abbr=True))
 
                 # The duration comes at the end of source urls.
@@ -100,7 +97,6 @@ def parse_txt_dump_chain(
                 else:
                     post_slug = pre_slug
 
-                # This url slug must be ready for WordPress.
                 wp_slug = "-".join(site_name.split(" ")).lower() + "-" + post_slug
 
                 all_values = (
@@ -130,5 +126,4 @@ def parse_txt_dump_chain(
                 d_conn.close()
                 break
 
-        # absolute file path and number of entries inserted into the database
         return f"{os.path.abspath(d_name)}", total_entries
