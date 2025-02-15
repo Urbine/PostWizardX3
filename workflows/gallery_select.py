@@ -97,6 +97,7 @@ def fetch_zip(
         print("--> Getting files from MediaSource")
         print("--> Authenticating...")
         driver.get(remote_res)
+        driver.implicitly_wait(30)
 
         # Find element by its ID
         username_box: WebElement = driver.find_element(By.ID, "user")
@@ -156,8 +157,8 @@ def extract_zip(zip_path: str, extr_dir: str):
             # I don't want them.
             shutil.rmtree(junk_folder := f"{extr_dir}/__MACOSX")
             logging.info(f"Junk folder {junk_folder} detected and cleaned.")
-        except FileNotFoundError:
-            # Sometimes, this can blow up if that directory is not there.
+        except (FileNotFoundError, NotImplementedError) as e:
+            logging.warning(f"Caught {str(e)} - Handled")
             pass
         finally:
             # We always have to clean up.
@@ -368,11 +369,17 @@ def upload_image_set(
     try:
         # Check if I have paths instead of filenames
         if len(thumbnails[0].split("/")) > 1:
-            # Get rid of the folder.
-            shutil.rmtree(
-                remove_dir := f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}"
-            )
-            logging.info(f"Removed dir -> {remove_dir}")
+            try:
+                shutil.rmtree(
+                    remove_dir
+                    := f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}"
+                )
+                logging.info(f"Removed dir -> {remove_dir}")
+            except NotImplementedError:
+                logging.info(
+                    "Incompatible platform - Directory cleaning relies on tempdir logic for now"
+                )
+                pass
         else:
             pass
     except (IndexError, AttributeError):
