@@ -1,3 +1,4 @@
+===============
 Troubleshooting
 ===============
 
@@ -6,7 +7,7 @@ In this section, I will take you through a tour to the depths of known issues, o
 what to do if the modules are not working as expected.
 
 About Exceptions
-________________
+================
 
 During development, I have identified several issues that programs in this project encounter
 or may run into while processing data loads associated with them. As a result, most of my custom
@@ -17,7 +18,7 @@ exceptions have help messages that can guide you in times of trouble.
    `core.custom_exceptions <core.html#module-core.custom_exceptions>`_
 
 Configuration Issues
-____________________
+====================
 
 Configuration Management in this project is one of those areas that, I believe, will be easier as
 newer solutions are introduced to make it slightly so. Nonetheless, reusable solutions must not rely on
@@ -31,7 +32,7 @@ takes a modular approach to help as many users as possible with the least pain o
 
 
 Configuration File does not exist
-#################################
+_________________________________
 
 Begin by creating your configuration files either via the setup script provided or copying and pasting
 the templates provided in `Configuration Management <config_mgr.html#configuration-management>`_ into ``.ini`` files.
@@ -54,7 +55,7 @@ Configuration files must be located at the ``config`` folder in the ``core`` pac
 
 
 Assets not found
-################
+________________
 
 As it was discussed in `Configuration Management <config_mgr.html#configuration-management>`_,
 file ``assets.ini`` is specific to the ``workflows.content_select`` bot and, while other workflows use
@@ -73,7 +74,7 @@ programs and bots in ``webmaster-seo-tools`` and not having one does not crash p
    `Configuration Management <config_mgr.html#configuration-management>`_
 
 Invalid Configuration
-#####################
+_____________________
 
 Getting your values right is the most challenging part of manual configuration management.
 In particular, True/False values, also called in the computing world ``boolean`` values.
@@ -92,9 +93,9 @@ In particular, True/False values, also called in the computing world ``boolean``
    options, you will get an undeniable ``InvalidConfiguration`` exception.
 
 Let's talk about logs
-#####################
+_____________________
 
-Where to store logs and produce them is a problem that I take seriously.
+Where to store logs and produce them accurately is a problem that I take seriously.
 Application logs gather information about your usage and the way variables and services interact with solutions here.
 
 Logs are here simply because there is a possible configuration issue associated with them:
@@ -117,7 +118,7 @@ the ``UnavailableLoggingDirectory`` exception.
 
    4. Integration error messages or their associated payloads
 
-   5. Warnings about missing identifiers tied to a service (e.g. WordPress taxonomies)
+   5. Warnings about missing identifiers tied to a service (e.g., WordPress taxonomies)
 
    6. Elapsed execution time
 
@@ -156,13 +157,13 @@ the ``UnavailableLoggingDirectory`` exception.
    what needs optimisations or reimplementation.
 
 Data/Caching Integrity Issues
-_____________________________
+=============================
 
 Data validation accounts for an enormous portion of the repeating load and network resource usage of this project and
 its solutions.
 
 HotFileSync
-###########
+___________
 
 HotFileSync is a solution that was developed with operational efficiency and scalability in mind. At the beginning,
 the ``workflows.content_select`` bot had to work in conjunction with a primitive function in ``integrations.wordpress_api``
@@ -216,21 +217,21 @@ current ``wp_posts.json`` remains untouched.
 
    2. A power outage may interrupt the runtime of the program.
 
-   3. An intentional stop can happen while running the update (e.g. ``KeyboardInterrupt``)
+   3. An intentional stop can happen while running the update (e.g., ``KeyboardInterrupt``)
 
-   4. A critical stop of your Operating System (e.g. Kernel Panic)
+   4. A critical stop of your Operating System (e.g., Kernel Panic)
 
 Integration Issues
-__________________
+==================
 
 Bots in ``webmaster-seo-tools`` can communicate with services seamlessly, however, there are a couple of
-exceptions that will crash the applications here, one being ``AccessTokenRetrivalError`` and the other
+exceptions that will crash the applications here, one being ``AccessTokenRetrievalError`` and the other
 ``RefreshTokenError``.
 
 .. note::
    * **What does each exception mean?**
 
-   Interestingly enough, ``AccessTokenRetrivalError`` is a configuration issue just like the ones
+   Interestingly enough, ``AccessTokenRetrievalError`` is a configuration issue just like the ones
    I discussed at the beginning of this documentation page. It means that the integration authorisation flow
    is ready but it could not find the configuration fields to update them with the new tokens.
    As it was outlined in `Configuration Management <config_mgr.html#configuration-management>`_, those fields are
@@ -251,7 +252,7 @@ exceptions that will crash the applications here, one being ``AccessTokenRetriva
       $ python3 -m integrations.x_api --headless
 
 Performance Topics
-__________________
+==================
 
 Striking a balance between ease of use and how to get the job done with minimal user intervention,
 sooner or later, will pose performance challenges. After extensive testing of task and workflows
@@ -259,7 +260,7 @@ developed in ``webmaster-seo-tools``, several optimisations were performed withi
 I want to discuss some caveats.
 
 Should you go headless?
-#######################
+_______________________
 
 By now, I hope that you know about the headless ``--headless`` argument that modules with
 webdriver automation take in. In simple words, ``headless`` mode is a configuration option for
@@ -279,7 +280,7 @@ executing.
    out in compatible modules. If you plan to do other stuff while updating content databases, testing reveals
    that each task takes from 2 minutes and 30 seconds to 4 minutes and 30 seconds in headless mode.
 
-   It takes a maximum of 1 minute and a minumum of 35 seconds per task if you want to leave that option out.
+   It takes a maximum of 1 minute and a minimum of 35 seconds per task if you want to leave that option out.
    *It's up to you!*
 
 .. seealso::
@@ -287,7 +288,7 @@ executing.
    `Getting to Know the Bots <home.html#get-to-know-the-bots>`_
 
 Webdriver Issues
-################
+________________
 
 Running webdriver instances comes at a cost that reflects in the performance of the overall project.
 
@@ -297,7 +298,7 @@ Running webdriver instances comes at a cost that reflects in the performance of 
    Loading a webdriver instance has some overhead associated to it, from locating the browser binaries
    to setting up configuration options and dedicated profiles for each object. It is possible that a browser
    instance can delay its starting point for flow execution, which does not have to do with the way scripts
-   are developed as the delay occurs before any steps are executed.
+   are developed as delays occur before any steps are executed.
 
    * **Is it possible that my application gets stuck while waiting for a routine to start?**
 
@@ -318,7 +319,7 @@ Running webdriver instances comes at a cost that reflects in the performance of 
 
 
 Site Size Matters
-#################
+_________________
 
 A large site will have hundreds, if not thousands of posts; dealing with that amount of information can be
 resource intensive. Nevertheless, sites of all sizes can benefit from the data caching and integrity validation
