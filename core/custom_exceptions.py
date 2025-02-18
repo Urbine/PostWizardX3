@@ -94,7 +94,7 @@ class RefreshTokenError(Exception):
         super().__init__(f"{self.message} \n{self.help}")
 
 
-class AccessTokenRetrivalError(Exception):
+class AccessTokenRetrievalError(Exception):
     """
     Notifies the user when the authorization flow is unsuccessful.
     """
