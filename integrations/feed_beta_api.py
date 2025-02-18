@@ -18,11 +18,8 @@ import tempfile
 
 # Local implementations
 import core
-from .url_builder import CSVColumns, URLEncode
-from core.helpers import remove_if_exists
-
-PartnerOne_BASE_URL = "https://example-feed-a.com/admin/feeds/embed/?source=576422190"
-FEED_BETA_BASE_URL = "https://example-feed-b.com/admin/feeds/embed/?source=576422190"
+from .url_builder import CSVColumns, URLEncode, FeedBetaUrl
+from core.helpers import remove_if_exists, parse_client_config
 
 
 def construct_feed_beta_dump_url(
@@ -163,6 +160,35 @@ def feed_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 
 
+def main(*args, **kwargs):
+    task_conf = parse_client_config("tasks_config", "core.config")
+    source_id = task_conf["feed_betas"]["source_id"]
+    feed_beta_url = f"{FeedBetaUrl.feed_beta_base_url}{source_id}"
+    feed_b_url = f"{FeedBetaUrl.feed_b_url}{source_id}"
+
+    main_url = construct_feed_beta_dump_url(feed_beta_url, *args, **kwargs)
+
+    temp_dir = tempfile.TemporaryDirectory(dir=".")
+
+    core.write_to_file("feed_beta-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
+
+    result = feed_dump_parse("feed_beta-dump", temp_dir.name, "partner_test", "|")
+
+    print(result)
+
+    main_url = construct_feed_beta_dump_url(feed_b_url, *args, **kwargs)
+
+    core.write_to_file(
+        "feed-b-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
+    )
+
+    result = feed_dump_parse("feed-b-dump", temp_dir.name, "", "|")
+
+    temp_dir.cleanup()
+    print(result)
+    print("Cleaned temporary folder...")
+
+
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
         description="Feed Beta feeds integration - CLI Interface"
@@ -185,28 +211,4 @@ if __name__ == "__main__":
 
     cli_args = arg_parser.parse_args()
 
-    main_url = construct_feed_beta_dump_url(
-        PartnerOne_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
-    )
-
-    temp_dir = tempfile.TemporaryDirectory(dir=".")
-
-    core.write_to_file("feed_beta-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
-
-    result = feed_dump_parse("feed_beta-dump", temp_dir.name, "partner_test", "|")
-
-    print(result)
-
-    main_url = construct_feed_beta_dump_url(
-        FEED_BETA_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
-    )
-
-    core.write_to_file(
-        "feed-b-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
-    )
-
-    result = feed_dump_parse("feed-b-dump", temp_dir.name, "", "|")
-
-    temp_dir.cleanup()
-    print(result)
-    print("Cleaned temporary folder...")
+    main(cli_args.sort, cli_args.days, url_limit=cli_args.limit)

@@ -17,13 +17,8 @@ import tempfile
 
 # Local implementations
 import core
-from core.helpers import remove_if_exists
-from .url_builder import CSVColumns, URLEncode
-
-# Constants
-
-FeedAlpha_BASE_URL = "https://partner-three.example.com"
-FeedAlpha_CAMPAIGN_ID = 1291575419
+from core.helpers import remove_if_exists, parse_client_config
+from .url_builder import CSVColumns, URLEncode, FeedAlphaUrl
 
 
 def construct_api_dump_url(
@@ -168,6 +163,28 @@ def feed_alpha_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 
 
+def main(*args, **kwargs):
+    task_conf = parse_client_config("tasks_config", "core.config")
+    campaign_id = task_conf["feed_alpha"]["feed_alpha_campaign_id"]
+    main_url = construct_api_dump_url(
+        FeedAlphaUrl.feed_alpha_base_url,
+        campaign_id,
+        *args,
+        **kwargs,
+    )
+    temp_dir = tempfile.TemporaryDirectory(dir=".")
+
+    core.write_to_file(
+        "feed_alpha-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
+    )
+
+    result = feed_alpha_dump_parse("feed_alpha-dump", temp_dir.name, "partner_test", "|")
+
+    temp_dir.cleanup()
+    print(result)
+    print("Cleaned temporary folder...")
+
+
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
         description="FeedAlpha integration - CLI Interface"
@@ -190,22 +207,4 @@ if __name__ == "__main__":
 
     cli_args = arg_parser.parse_args()
 
-    main_url = construct_api_dump_url(
-        FeedAlpha_BASE_URL,
-        FeedAlpha_CAMPAIGN_ID,
-        cli_args.sort,
-        days=cli_args.days,
-        url_limit=cli_args.limit,
-    )
-
-    temp_dir = tempfile.TemporaryDirectory(dir=".")
-
-    core.write_to_file(
-        "feed_alpha-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
-    )
-
-    result = feed_alpha_dump_parse("feed_alpha-dump", temp_dir.name, "partner_test", "|")
-
-    temp_dir.cleanup()
-    print(result)
-    print("Cleaned temporary folder...")
+    main(cli_args.sort, days=cli_args.days, url_limit=cli_args.limit)

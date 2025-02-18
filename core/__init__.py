@@ -30,7 +30,7 @@ from core.custom_exceptions import (
     RefreshTokenError,
     HotFileSyncIntegrityError,
     AssetsNotFoundError,
-    AccessTokenRetrivalError,
+    AccessTokenRetrievalError,
     UnavailableLoggingDirectory,
 )
 
@@ -75,7 +75,7 @@ __all__ = [
     "RefreshTokenError",
     "HotFileSyncIntegrityError",
     "AssetsNotFoundError",
-    "AccessTokenRetrivalError",
+    "AccessTokenRetrievalError",
     "UnavailableLoggingDirectory",
     "access_url",
     "access_url_bs4",

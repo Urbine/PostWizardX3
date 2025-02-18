@@ -265,3 +265,4 @@ if __name__ == "__main__":
     end_time = time.time()
     hours, mins, secs = get_duration(end_time - start_time)
     logging.info(f"Process took: Hours: {hours} Mins: {mins} Secs: {secs}")
+    logging.shutdown()
