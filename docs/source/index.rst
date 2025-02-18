@@ -11,6 +11,7 @@ Table of Contents
    home
    config_mgr
    troubleshooting
+   tricks_additional
 
 .. toctree::
    :maxdepth: 2
