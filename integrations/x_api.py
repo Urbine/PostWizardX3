@@ -38,7 +38,7 @@ from core import (
     generate_random_str,
     RefreshTokenError,
     x_auth,
-    AccessTokenRetrivalError,
+    AccessTokenRetrievalError,
 )
 
 from core.config_mgr import XAuth  # Imported for type annotations.
@@ -363,7 +363,7 @@ def main(*args, **kwargs) -> None:
         )
         print(f"The client_info.ini file has been updated with the new tokens.")
     except KeyError:
-        raise AccessTokenRetrivalError(new_tokens)
+        raise AccessTokenRetrievalError(new_tokens)
 
 
 if __name__ == "__main__":

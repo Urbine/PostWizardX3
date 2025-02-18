@@ -18,11 +18,8 @@ import tempfile
 
 # Local implementations
 import core
-from .url_builder import CSVColumns, URLEncode
-from core.helpers import remove_if_exists
-
-VJAV_BASE_URL = "https://vjav.com/admin/feeds/embed/?source=576422190"
-DESI_T_BASE_URL = "https://desiporn.tube/admin/feeds/embed/?source=576422190"
+from .url_builder import CSVColumns, URLEncode, TubeCorpUrl
+from core.helpers import remove_if_exists, parse_client_config
 
 
 def construct_tube_dump_url(
@@ -163,6 +160,35 @@ def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 
 
+def main(*args, **kwargs):
+    task_conf = parse_client_config("tasks_config", "core.config")
+    source_id = task_conf["tubecorp_feeds"]["source_id"]
+    vjav_url = f"{TubeCorpUrl.vjav_base_url}{source_id}"
+    desi_url = f"{TubeCorpUrl.desi_t_url}{source_id}"
+
+    main_url = construct_tube_dump_url(vjav_url, *args, **kwargs)
+
+    temp_dir = tempfile.TemporaryDirectory(dir=".")
+
+    core.write_to_file("vjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
+
+    result = tube_dump_parse("vjav-dump", temp_dir.name, "jav", "|")
+
+    print(result)
+
+    main_url = construct_tube_dump_url(desi_url, *args, **kwargs)
+
+    core.write_to_file(
+        "desi-tube-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
+    )
+
+    result = tube_dump_parse("desi-tube-dump", temp_dir.name, "", "|")
+
+    temp_dir.cleanup()
+    print(result)
+    print("Cleaned temporary folder...")
+
+
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
         description="Tube Corporate feeds integration - CLI Interface"
@@ -185,28 +211,4 @@ if __name__ == "__main__":
 
     cli_args = arg_parser.parse_args()
 
-    main_url = construct_tube_dump_url(
-        VJAV_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
-    )
-
-    temp_dir = tempfile.TemporaryDirectory(dir=".")
-
-    core.write_to_file("vjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
-
-    result = tube_dump_parse("vjav-dump", temp_dir.name, "jav", "|")
-
-    print(result)
-
-    main_url = construct_tube_dump_url(
-        DESI_T_BASE_URL, cli_args.sort, cli_args.days, url_limit=cli_args.limit
-    )
-
-    core.write_to_file(
-        "desi-tube-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
-    )
-
-    result = tube_dump_parse("desi-tube-dump", temp_dir.name, "", "|")
-
-    temp_dir.cleanup()
-    print(result)
-    print("Cleaned temporary folder...")
+    main(cli_args.sort, cli_args.days, url_limit=cli_args.limit)

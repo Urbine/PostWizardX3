@@ -54,6 +54,27 @@ class URLEncode:
 
 
 @dataclass(frozen=True)
+class AdultNextUrl:
+    """
+    Builder class for the AdultNext API integration
+    """
+
+    abjav_base_url: str = "https://direct.abjav.com"
+
+
+dataclass(frozen=True)
+
+
+class TubeCorpUrl:
+    """
+    Builder class for the TubeCorporate Feed intergration.
+    """
+
+    vjav_base_url: str = "https://vjav.com/admin/feeds/embed/?source="
+    desi_t_url: str = "https://desiporn.tube/admin/feeds/embed/?source="
+
+
+@dataclass(frozen=True)
 class WPEndpoints:
     """
     Builder dataclass for the WordPress API Endpoints.

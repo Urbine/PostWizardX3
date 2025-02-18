@@ -1,12 +1,13 @@
+*********************************
 webmaster-seo-tools documentation
-=================================
+*********************************
 
 Welcome to the ``webmaster-seo-tools`` for WM project documentation.
 
 Here we will explore this project and understand where you should start.
 
 Introduction
-____________
+============
 
 ``webmaster-seo-tools`` is a content management assistant that aims at standardising processes related to
 Search Engine Optimization (SEO), media retrieval from internet sources, data classification, process automation and
@@ -20,7 +21,7 @@ As an word of caution, the spirit of this project, and I am pretty sure of other
 I am convinced about the fact that creative ideation and "imagineering" is what make projects so enriching and stimulating.
 
 Overview
-________
+========
 
 ``webmaster-seo-tools`` has five main packages and a sixth one still under development.
 In order of development:
@@ -47,7 +48,7 @@ In order of development:
 6. ``setup`` is still under development and aims at preparing the project for an eventual and not-yet-defined distribution release.
 
 Quick Start
-___________
+===========
 
 In order that you can start using this project, you need to keep an up-to-date copy of your posts.
 That said, it is important to start by updating your credentials to access your WordPress sites.
@@ -147,7 +148,7 @@ That said, it is important to start by updating your credentials to access your 
 
 
 Get to Know the Bots
-____________________
+====================
 
 1. ``content_select`` is in charge of reading the databases produced by tasks associated with the
    MongerCash Affiliate Program and uploading video information to WordPress.
@@ -177,6 +178,12 @@ ____________________
       downloaded and the former could then be closed either automatically or explicitly.
       For this reason, refrain from using ``--headless`` mode with ``workflows.gallery_select``.
 
+      For more information about the ``--headless`` mode and its performance considerations,
+      jump to `Should you go headless? <troubleshooting.html#should-you-go-headless>`_
+
+      If you are experiencing issues with either mode, check out
+      `Webdriver Issues <troubleshooting.html#webdriver-issues>`_
+
 3. ``embed_assist`` interacts with other content APIs that rely on embed codes to display content
    on WordPress. It reads, processes, and uploads the information from the AdultNext and TubeCorporate feeds
    to your site. Just like ``content_select``, ``embed_assist`` is the perfect assistant for curating content and
@@ -199,7 +206,7 @@ ____________________
       is optional as in other programs.
 
 What's next?
-____________
+============
 
 You have just gone through an overview of ``webmaster-seo-tools`` and its tools.
 Head over to any of the package pages if you feel curious about this project.

@@ -17,13 +17,8 @@ import tempfile
 
 # Local implementations
 import core
-from core.helpers import remove_if_exists
-from .url_builder import CSVColumns, URLEncode
-
-# Constants
-
-ABJAV_BASE_URL = "https://direct.abjav.com"
-ABJAV_CAMPAIGN_ID = 1291575419
+from core.helpers import remove_if_exists, parse_client_config
+from .url_builder import CSVColumns, URLEncode, AdultNextUrl
 
 
 def construct_api_dump_url(
@@ -168,6 +163,28 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 
 
+def main(*args, **kwargs):
+    task_conf = parse_client_config("tasks_config", "core.config")
+    campaign_id = task_conf["adult_next"]["abjav_campaign_id"]
+    main_url = construct_api_dump_url(
+        AdultNextUrl.abjav_base_url,
+        campaign_id,
+        *args,
+        **kwargs,
+    )
+    temp_dir = tempfile.TemporaryDirectory(dir=".")
+
+    core.write_to_file(
+        "abjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
+    )
+
+    result = adult_next_dump_parse("abjav-dump", temp_dir.name, "jav", "|")
+
+    temp_dir.cleanup()
+    print(result)
+    print("Cleaned temporary folder...")
+
+
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
         description="AdultNext integration - CLI Interface"
@@ -190,22 +207,4 @@ if __name__ == "__main__":
 
     cli_args = arg_parser.parse_args()
 
-    main_url = construct_api_dump_url(
-        ABJAV_BASE_URL,
-        ABJAV_CAMPAIGN_ID,
-        cli_args.sort,
-        days=cli_args.days,
-        url_limit=cli_args.limit,
-    )
-
-    temp_dir = tempfile.TemporaryDirectory(dir=".")
-
-    core.write_to_file(
-        "abjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
-    )
-
-    result = adult_next_dump_parse("abjav-dump", temp_dir.name, "jav", "|")
-
-    temp_dir.cleanup()
-    print(result)
-    print("Cleaned temporary folder...")
+    main(cli_args.sort, days=cli_args.days, url_limit=cli_args.limit)

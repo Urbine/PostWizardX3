@@ -21,6 +21,9 @@ Advantages to this approach are the ability to modify values without messing wit
 personalize the experience while using the tools. Data gets validated within the application to ensure
 that behaviour is not unexpected and exceptions containing helpful messages contribute to effective troubleshooting.
 
+.. tip::
+   If you are having issues related to configuration, go straight to
+   `Configuration Management <config_mgr.html#configuration-management>`_
 
 Submodules
 ----------

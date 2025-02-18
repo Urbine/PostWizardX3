@@ -1,3 +1,4 @@
+========================
 Configuration Management
 ========================
 
@@ -11,7 +12,7 @@ If you have been using software packages for a long time now, it may be the case
 If you haven't, don't worry. Let's go over the most important files that compose the core of ``webmaster-seo-tools``:
 
 1. client_info.ini
-__________________
+==================
 
 Secrets are stored locally in this configuration file to avoid sensitive data leaks.
 I do not include a copy of my ``client_info.ini`` for obvious reasons.
@@ -65,13 +66,27 @@ Just fill in the configuration options once you have the information required.
   behaviour tied to those options has been disabled in the ``workflows_config.ini`` file.
 
 2. tasks_config.ini
-___________________
+===================
 
 Tasks have a couple of constants that are already included in the package distribution and repository.
 You can find the file in ``core.config``.
 
+It looks similar to this template:
+
+.. code-block:: ini
+
+   [dump_create_config]
+   mcash_dump_url = https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump
+   mcash_set_url = https://mongercash.com/internal.php?page=adtools&category=3&typeid=4
+
+   [adult_next]
+   abjav_campaig_id =
+
+   [tubecorp_feeds]
+   source_id =
+
 3. assets.ini
-_____________
+=============
 
 ``assets.ini`` exists because some partners offer banners or images that are supposed to help
 webmasters promote their products, subscriptions or perks by sharing a banner with a tracking link.
@@ -118,7 +133,7 @@ parsing algorithm that will match your common assets (like banners or images) to
    If you do not plan to use ``workflows.content_select``, ignore this warning.
 
 4. workflows_config.ini
-_______________________
+=======================
 
 ``workflows_config.ini`` is the key to understanding the power of all workflow bots:
 
@@ -136,14 +151,9 @@ Here is a template of this file to aid your understanding:
 .. code:: ini
 
     [general_config]
-    # Consider whether or not ImageMagick is enabled before using next-gen image formats.
     pic_format = .webp
-    # Make sure to capitalise "True" and "False" to avoid IncorrectConfiguration exceptions.
     imagick_enabled = False
     conversion_quality = 80
-    # Fallback image format if ImageMagick is not enabled or not found.
-    # This is usually the source format of the thumbnails or
-    # images you download and plan to utilise on WP.
     fallback_pic_format = .jpg
     website_name = <YOUR_SITE_DISPLAY_NAME>
     domain_tld = <TLD>
@@ -217,3 +227,7 @@ Here is a template of this file to aid your understanding:
    As mentioned above, with the exception of ``assets.ini`` that is only required by ``workflows.content_select``,
    other all other files are required by the tools in the ``workflows``, ``tasks`` and ``core`` packages.
    Ignoring them will inevitably result in undesirable behaviour or tracebacks (crashes).
+
+.. seealso::
+   If you want to understand more about the ``general_config`` section and how it relates
+   to image formats, head over to `Image Conversion <tricks_additional.html#image-conversion>`_

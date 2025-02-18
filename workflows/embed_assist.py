@@ -647,6 +647,7 @@ def main():
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()
         pyclip.clear()
+        logging.shutdown()
         # When quit is called, temp dirs will be automatically cleaned.
         quit()
 
