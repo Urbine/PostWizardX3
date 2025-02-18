@@ -56,6 +56,12 @@ bot_token =
 TASKS_CONF_INI = """[dump_create_config]
 feed_dump_url = https://media_source.com/internal.php?page=adtools&category=3&typeid=23&view=dump
 feed_set_url = https://media_source.com/internal.php?page=adtools&category=3&typeid=4
+
+[feed_alpha]
+feed_alpha_campaig_id =
+
+[feed_betas]
+source_id = 
 """
 
 WORKFLOWS_CONF_INI = """[general_config]

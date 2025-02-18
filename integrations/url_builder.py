@@ -54,6 +54,27 @@ class URLEncode:
 
 
 @dataclass(frozen=True)
+class FeedAlphaUrl:
+    """
+    Builder class for the FeedAlpha API integration
+    """
+
+    feed_alpha_base_url: str = "https://partner-three.example.com"
+
+
+dataclass(frozen=True)
+
+
+class FeedBetaUrl:
+    """
+    Builder class for the FeedBeta Feed intergration.
+    """
+
+    feed_beta_base_url: str = "https://example-feed-a.com/admin/feeds/embed/?source="
+    feed_b_url: str = "https://example-feed-b.com/admin/feeds/embed/?source="
+
+
+@dataclass(frozen=True)
 class WPEndpoints:
     """
     Builder dataclass for the WordPress API Endpoints.
