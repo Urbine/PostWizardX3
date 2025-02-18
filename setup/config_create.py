@@ -65,13 +65,9 @@ source_id =
 """
 
 WORKFLOWS_CONF_INI = """[general_config]
-# Consider whether or not ImageMagick is enabled before using next-gen image formats.
 pic_format = .webp
-# Make sure to capitalise "True" and "False" to avoid IncorrectConfiguration exceptions.
 imagick_enabled = False
 conversion_quality = 80
-# Fallback image format if ImageMagick is not enabled or not found.
-# This is usually the source format of the thumbnails or images you download and plan to utilise on WP.
 fallback_pic_format = .jpg
 website_name = <YOUR_SITE_DISPLAY_NAME>
 domain_tld = <TLD>
