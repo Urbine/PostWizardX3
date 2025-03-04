@@ -62,6 +62,10 @@ feed_alpha_campaig_id =
 
 [feed_betas]
 source_id = 
+
+[feed_delta_api]
+# Found in the dump data like "utm_campaign=xx.xxx"
+feed_delta_camp_utm = 
 """
 
 WORKFLOWS_CONF_INI = """[general_config]
