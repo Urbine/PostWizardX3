@@ -85,6 +85,10 @@ It looks similar to this template:
    [feed_betas]
    source_id =
 
+   [feed_delta_api]
+   # Found in the dump data like "utm_campaign=xx.xxx"
+   feed_delta_camp_utm =
+
 3. assets.ini
 =============
 
