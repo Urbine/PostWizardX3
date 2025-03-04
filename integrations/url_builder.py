@@ -2,6 +2,9 @@
 Help in the construction of API URLs that other modules need to gather information from a remote source.
 Contribute to better organization of the code by providing common elements that some APIs need in this package.
 
+The classes in this document are not documented in detail as their integration implementation contains further
+clarification on their values and how they are used in context.
+
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
 
@@ -11,7 +14,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 from dataclasses import dataclass
-from enum import Enum
+from core import parse_client_config
 
 
 @dataclass(frozen=True)
@@ -129,7 +132,7 @@ class BotFatherCommands:
 
     api_url: str = "https://api.telegram.org/bot"
     get_me: str = "/getMe"
-    send_message = "/sendMessage"
+    send_message: str = "/sendMessage"
 
 
 @dataclass(frozen=True)
@@ -142,4 +145,90 @@ class BotFatherEndpoints:
     text: str = "&text="
     parse_mode = "&parse_mode="
     parse_mode_mdv2: str = "MarkdownV2"
-    prefer_large_media = "prefer_large_media="
+    prefer_large_media: str = "prefer_large_media="
+
+
+class FHouseBaseUrl:
+    """
+    Builder class for the FapHouse API Base URL with campaign name.
+    """
+
+    def __init__(self, campaign: str = "") -> None:
+        task_conf = parse_client_config("tasks_config", "core.config")
+        campaign_utm = "=".join(task_conf["fhouse_api"]["fhouse_camp_utm"].split("."))
+        if campaign:
+            self.__campaign = campaign
+            self.__fhouse_base_url = (
+                f"https://fap.cash/content/dump?camp={self.__campaign}&{campaign_utm}"
+            )
+        else:
+            self.__fhouse_base_url = "https://fap.cash/content/dump?ai=FmY"
+
+    def __str__(self) -> str:
+        return self.__fhouse_base_url
+
+
+@dataclass(frozen=True)
+class FhouseOptions:
+    """
+    Builder dataclass for the FapHouse URL options.
+    """
+
+    orientation: str = "&forient="
+    vid_res: str = "&fres="
+    period: str = "&fperiod="
+    url_num: str = "&furls="
+    thumbs_size: str = "&fthumbs="
+    thumb_amount: str = "&ftcnt="
+    order_by: str = "&ford="
+    likes_more_than: str = "&flikes="
+    embed_type: str = "&fembed="
+    delimit: str = "&fdelim="
+    dmp_format: str = "&fformat="
+    owner_source: str = "&fowner="
+    trailer_size: str = "&ftsize="
+
+
+@dataclass(frozen=True)
+class FHouseFields:
+    """
+    Builder dataclass for the FapHouse Dump Fields
+    """
+
+    embed = "&emb=on"
+    vid_id = "&vid=on"
+    vid_url = "&url=on"
+    thumbnail = "&thumb=on"
+    title = "&title=on"
+    description = "&desc=on"
+    categs = "&cats=on"
+    models = "&pstarts=on"
+    studio = "&sname=on"
+    orient = "&orient=on"
+    duration = "&dur=on"
+    embed_dur = "&embdur=on"
+    date_publish = "&dt=on"
+    likes = "&likes=on"
+    trailer = "&trailer=on"
+    max_res = "&res=on"
+
+    @property
+    def __dict__(self) -> dict[str, str]:
+        return {
+            "embed": self.embed,
+            "vid_id": self.vid_id,
+            "vid_url": self.vid_url,
+            "thumbnail": self.thumbnail,
+            "title": self.title,
+            "description": self.description,
+            "categs": self.categs,
+            "models": self.models,
+            "studio": self.studio,
+            "orient": self.orient,
+            "duration": self.duration,
+            "embed_dur": self.embed_dur,
+            "date_publish": self.date_publish,
+            "likes": self.likes,
+            "trailer": self.trailer,
+            "max_res": self.max_res,
+        }

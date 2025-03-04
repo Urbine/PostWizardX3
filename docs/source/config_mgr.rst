@@ -85,6 +85,10 @@ It looks similar to this template:
    [tubecorp_feeds]
    source_id =
 
+   [fhouse_api]
+   # Found in the dump data like "utm_campaign=xx.xxx"
+   fhouse_camp_utm =
+
 3. assets.ini
 =============
 

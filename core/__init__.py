@@ -32,6 +32,7 @@ from core.custom_exceptions import (
     AssetsNotFoundError,
     AccessTokenRetrievalError,
     UnavailableLoggingDirectory,
+    NoFieldsError,
 )
 
 
@@ -77,6 +78,7 @@ __all__ = [
     "AssetsNotFoundError",
     "AccessTokenRetrievalError",
     "UnavailableLoggingDirectory",
+    "NoFieldsError",
     "access_url",
     "access_url_bs4",
     "clean_filename",

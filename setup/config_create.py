@@ -62,6 +62,10 @@ abjav_campaig_id =
 
 [tubecorp_feeds]
 source_id = 
+
+[fhouse_api]
+# Found in the dump data like "utm_campaign=xx.xxx"
+fhouse_camp_utm = 
 """
 
 WORKFLOWS_CONF_INI = """[general_config]

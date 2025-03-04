@@ -146,3 +146,17 @@ class UnavailableLoggingDirectory(Exception):
             "Just in case, only add the directory name. The application will detect it."
         )
         super().__init__(self.message + self.help)
+
+
+class NoFieldsError(Exception):
+    """
+    Notifies the user when no fields have been provided or all fields were excluded
+    via cli flags.
+    """
+
+    def __init__(self):
+        self.message = (
+            "Unable to generate schema and/or request URL due to insufficient options."
+        )
+        self.help = "Try to run the module with the --help flag to know more. This module requires at least one field."
+        super().__init__(f"{self.message}\n{self.help}")
