@@ -219,7 +219,7 @@ def main(*args, **kwargs):
     temp_store = tempfile.TemporaryDirectory(prefix="dump", dir=".")
     file_extension = f_house_url.get_dump_format()
     write_to_file(
-        (fname := f"feed_delta-dump"),
+        (fname := f"partner-ten-dump"),
         temp_store.name,
         file_extension,
         access_url_bs4(f_house_full_addr),
