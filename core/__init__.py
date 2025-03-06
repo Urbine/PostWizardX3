@@ -107,6 +107,7 @@ __all__ = [
     "parse_client_config",
     "remove_if_exists",
     "search_files_by_ext",
+    "update_media_source_conf",
     "write_to_file",
     "write_config_file",
     "wp_auth",
