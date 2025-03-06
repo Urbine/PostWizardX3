@@ -546,6 +546,7 @@ def embedding_pilot(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
                     )
+                    cur_dump.close()
                     thumbnails_dir.cleanup()
                     time_end = time.time()
                     h, mins, secs = helpers.get_duration(time_end - time_start)
@@ -570,6 +571,7 @@ def embedding_pilot(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
                     )
+                    cur_dump.close()
                     thumbnails_dir.cleanup()
                     time_end = time.time()
                     h, mins, secs = helpers.get_duration(time_end - time_start)
@@ -602,6 +604,7 @@ def embedding_pilot(
                     f"You have created {videos_uploaded} posts in this session!",
                     style="bold yellow",
                 )
+                cur_dump.close()
                 thumbnails_dir.cleanup()
                 time_end = time.time()
                 h, mins, secs = helpers.get_duration(time_end - time_start)
@@ -627,6 +630,7 @@ def embedding_pilot(
                 f"You have created {videos_uploaded} posts in this session!",
                 style="bold yellow",
             )
+            cur_dump.close()
             thumbnails_dir.cleanup()
             time_end = time.time()
             h, mins, secs = helpers.get_duration(time_end - time_start)

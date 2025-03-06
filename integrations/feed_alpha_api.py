@@ -185,6 +185,7 @@ def feed_alpha_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
                 db_conn.commit()
                 total_entries += 1
 
+    db_cur.close()
     db_conn.close()
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 

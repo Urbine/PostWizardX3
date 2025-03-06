@@ -202,6 +202,7 @@ def feed_delta_parse(
                 db_conn.commit()
                 total_entries += 1
 
+    db_cur.close()
     db_conn.close()
 
     if log_res:
