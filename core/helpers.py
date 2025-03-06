@@ -26,19 +26,22 @@ import shutil
 import sqlite3
 import string
 import subprocess
-from typing import AnyStr, Any
 import urllib
 import urllib.request
 import urllib.error
-from pathlib import Path
-from datetime import date
 
-from bs4 import BeautifulSoup
 from calendar import month_abbr, month_name
 from configparser import ConfigParser
+from datetime import date
+from pathlib import Path
+from re import Pattern
+from sqlite3 import OperationalError, Connection, Cursor
+from typing import AnyStr, Any
+
+# Third-party modules
+from bs4 import BeautifulSoup
 from requests_oauthlib import OAuth2Session
 from selenium import webdriver
-from sqlite3 import OperationalError, Connection, Cursor
 
 # Local implmentations
 from core.custom_exceptions import ConfigFileNotFound
@@ -513,7 +516,9 @@ def get_webdriver(
         return webdriver.Chrome(options=chrome_options)
 
 
-def match_list_single(hint: str, items: list, ignore_case: bool = False) -> int | None:
+def match_list_single(
+    hint: str | Pattern[str], items: list, ignore_case: bool = False
+) -> int | None:
     """Matches a single occurrence of a ``hint`` and returns its ``index`` position.
 
     :param hint: ``str`` pattern or word
@@ -523,7 +528,7 @@ def match_list_single(hint: str, items: list, ignore_case: bool = False) -> int 
     """
     ignore_case = re.IGNORECASE if ignore_case else 0
     for item in items[:]:
-        if isinstance(item, str):
+        if isinstance(item, str) or isinstance(item, Pattern):
             # Item must be kept intact in case I want to look for it in the list.
             # In this case it doesn't matter, however, re.match looks for
             # matches in `inter`

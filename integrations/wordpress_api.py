@@ -787,6 +787,7 @@ def update_published_titles_db(
         for title, models, slug in zip(vid_titles, vid_models, vid_slugs):
             cur.execute("INSERT INTO videos VALUES (?, ?, ?)", (title, models, slug))
             db.commit()
+    cur.close()
     db.close()
 
 
