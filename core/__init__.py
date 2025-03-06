@@ -33,6 +33,7 @@ from core.custom_exceptions import (
     AccessTokenRetrievalError,
     UnavailableLoggingDirectory,
     NoFieldsError,
+    InvalidDB,
 )
 
 
@@ -79,6 +80,7 @@ __all__ = [
     "AccessTokenRetrievalError",
     "UnavailableLoggingDirectory",
     "NoFieldsError",
+    "InvalidDB",
     "access_url",
     "access_url_bs4",
     "clean_filename",
