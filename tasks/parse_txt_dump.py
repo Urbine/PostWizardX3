@@ -123,6 +123,7 @@ def parse_txt_dump_chain(
                 # This is a pattern.
                 # When it reaches the end and there is no more data, Python
                 # throws an IndexError in this function.
+                d_cur.close()
                 d_conn.close()
                 break
 

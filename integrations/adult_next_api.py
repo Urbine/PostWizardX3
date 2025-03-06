@@ -21,9 +21,46 @@ from core.helpers import remove_if_exists, parse_client_config
 from .url_builder import CSVColumns, URLEncode, AdultNextUrl
 
 
+class ANAbjavDumpURL:
+    """
+    Builder class for Adult Next Abjav URLs.
+    """
+
+    def __init__(
+        self,
+        campaign_id: str | int,
+        sort_crit: str,
+        days: str | int = "",
+        url_limit: str | int = 999999999,
+        sep: URLEncode = URLEncode.PIPE,
+    ) -> None:
+        self.base_url = AdultNextUrl.abjav_base_url
+        self.params = "/feeds/?link_args="
+        self.campaign = f"campaign_id:{campaign_id}"
+        self.format = "&feed_format=csv&"
+        self.sort_crit = (
+            f"sorting={sort_crit}&"  # rating, popularity, duration, post_date, ID
+        )
+        self.period = f"days={days}&" if days != "" else days
+        self.limit = f"limit={url_limit}"
+        self.sep = f"&csv_separator={sep}"
+        self.__an_url = (
+            self.base_url
+            + self.params
+            + self.campaign
+            + self.format
+            + self.sort_crit
+            + self.period
+            + self.limit
+            + self.sep
+        )
+
+    def __str__(self):
+        return self.__an_url
+
+
 def construct_api_dump_url(
-    base_url: str,
-    campgn_id: str | int,
+    campaign_id: str | int,
     sort_crit: str,
     days: str | int = "",
     url_limit: str | int = 999999999,
@@ -35,8 +72,7 @@ def construct_api_dump_url(
     once accessed.
 
     :param columns:
-    :param base_url: API Base URL (provided in this module as a constant)
-    :param campgn_id: Campaign ID (provided in this module as a constant)
+    :param campaign_id: Campaign ID (provided in this module as a constant)
     :param sort_crit: Sorting criteria from possible values:
 
                       1. ``'popularity'``
@@ -51,16 +87,6 @@ def construct_api_dump_url(
     :param columns: ``CSVColumns`` object that contains common csv columns.
     :return: ``f-str`` (Formatted str) Video Dump URL
     """
-    params = "/feeds/?link_args="
-    campaign_id = f"campaign_id:{campgn_id}"
-    format = "&feed_format=csv&"
-    # rating, popularity, duration, post_date, ID
-    sorting = f"sorting={sort_crit}&"
-    limit = f"limit={url_limit}"
-    sep_param = f"&csv_separator={sep}&"
-    days = f"days={days}&" if days != "" else days
-
-    # Column Fields
     column_lst = [
         columns.ID_,
         columns.title,
@@ -73,9 +99,9 @@ def construct_api_dump_url(
         columns.link,
     ]
 
-    csv_columns = f"csv_columns={str(sep).join(column_lst)}"
+    csv_columns = f"&csv_columns={str(sep).join(column_lst)}"
 
-    return f"{base_url}{params}{campaign_id}{format}{sorting}{days}{limit}{sep_param}{csv_columns}"
+    return f"{str(ANAbjavDumpURL(campaign_id, sort_crit, days, url_limit, sep))}{csv_columns}"
 
 
 def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
@@ -159,6 +185,7 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
                 db_conn.commit()
                 total_entries += 1
 
+    db_cur.close()
     db_conn.close()
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 
@@ -167,7 +194,6 @@ def main(*args, **kwargs):
     task_conf = parse_client_config("tasks_config", "core.config")
     campaign_id = task_conf["adult_next"]["abjav_campaign_id"]
     main_url = construct_api_dump_url(
-        AdultNextUrl.abjav_base_url,
         campaign_id,
         *args,
         **kwargs,

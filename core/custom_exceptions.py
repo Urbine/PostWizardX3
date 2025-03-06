@@ -160,3 +160,17 @@ class NoFieldsError(Exception):
         )
         self.help = "Try to run the module with the --help flag to know more. This module requires at least one field."
         super().__init__(f"{self.message}\n{self.help}")
+
+
+class InvalidDB(Exception):
+    """
+    Catches SQLite3's OperationalError in order to give a useful error message to
+    the user.
+    """
+
+    def __init__(self):
+        self.message = "Invalid or absent database."
+        self.help = (
+            "Make sure you have the database required by the module you're running."
+        )
+        super().__init__(f"{self.message} {self.help}")

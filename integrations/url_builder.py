@@ -47,7 +47,7 @@ class CSVColumns:
 @dataclass(frozen=True)
 class URLEncode:
     """
-    Builder dataclass for encoded separators for URL params.
+    Builder dataclass for encoded (hex - ASCII 124) separators for URL params.
     """
 
     PIPE: str = "%7C"
@@ -162,7 +162,7 @@ class FHouseBaseUrl:
                 f"https://fap.cash/content/dump?camp={self.__campaign}&{campaign_utm}"
             )
         else:
-            self.__fhouse_base_url = "https://fap.cash/content/dump?ai=FmY"
+            self.__fhouse_base_url = f"https://fap.cash/content/dump?{campaign_utm}"
 
     def __str__(self) -> str:
         return self.__fhouse_base_url

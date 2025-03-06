@@ -33,6 +33,7 @@ from core.custom_exceptions import (
     AccessTokenRetrievalError,
     UnavailableLoggingDirectory,
     NoFieldsError,
+    InvalidDB,
 )
 
 
@@ -79,6 +80,7 @@ __all__ = [
     "AccessTokenRetrievalError",
     "UnavailableLoggingDirectory",
     "NoFieldsError",
+    "InvalidDB",
     "access_url",
     "access_url_bs4",
     "clean_filename",
@@ -105,6 +107,7 @@ __all__ = [
     "parse_client_config",
     "remove_if_exists",
     "search_files_by_ext",
+    "update_mcash_conf",
     "write_to_file",
     "write_config_file",
     "wp_auth",

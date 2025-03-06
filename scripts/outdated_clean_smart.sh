@@ -10,4 +10,4 @@ else
 fi
 
 # Cleans outdated files with list of space-separated hints.
-python3 -m tasks.clean_outdated_files --folder '.' --ext '.db' --hints trike asian euro tuktuk abjav wp vjav desi
+python3 -m tasks.clean_outdated_files --folder '.' --ext '.db' --hints trike asian euro tuktuk abjav wp vjav desi fap

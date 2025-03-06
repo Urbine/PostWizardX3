@@ -1,5 +1,5 @@
 """
-F House API Integration for content management.
+FapHouse API Integration for content management.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -33,6 +33,10 @@ from integrations.url_builder import (
 
 
 class FHouseURL:
+    """
+    Builder class for the first part of FapHouse URL.
+    """
+
     def __init__(
         self,
         orient: str,
@@ -87,14 +91,26 @@ class FHouseURL:
     def __str__(self) -> str:
         return self.__f_house_url
 
-    def get_delim(self):
+    def get_delim(self) -> str:
+        """
+        Getter method for the encoded separator in the URL.
+        :return: ``str``
+        """
         return self.delim_str
 
-    def get_dump_format(self):
+    def get_dump_format(self) -> str:
+        """
+        Getter method for the dump format str in the URL.
+        :return: ``str``
+        """
         return self.format_str
 
 
 class FHouseFieldStr:
+    """
+    Builder class for csv/dump columns of the FapHouse URL (second part).
+    """
+
     def __init__(
         self,
         embed: bool = False,
@@ -123,18 +139,35 @@ class FHouseFieldStr:
             raise NoFieldsError
 
     def __str__(self) -> str:
+        """
+        Getter method - Dump fields str
+        :return: ``str``
+        """
         return self.__field_str
 
     def get_fields(self) -> dict[str, str]:
+        """
+        Getter method - User/API provided active fields
+        :return: ``str``
+        """
         return self.provided
 
 
 def fhouse_parse(
-    filename: str,
-    extension: str,
-    dirname: str,
-    sep: str,
-) -> str:
+    filename: str, extension: str, dirname: str, sep: str, log_res: bool = False
+) -> None:
+    """
+    Content dump parser for FapHouse API. It takes, ideally, a ``CSV`` file to
+    convert it into a SQLite3 database.
+
+
+    :param filename: ``str`` - Self-explanatory
+    :param extension: ``str`` - File extension of the source file, typically ``CSV``
+    :param dirname: ``str`` - Directory name
+    :param sep: ``str`` - Encoded delimiter, typically accessible via a method in the builder class
+    :param log_res: ``bool`` Log the results of the computation - Default ``False``
+    :return: ``None``
+    """
     c_filename = clean_filename(filename, extension)
     path = f"{os.path.abspath(dirname)}/{c_filename}"
     db_name = f"{os.getcwd()}/{filename}-{datetime.date.today()}.db"
@@ -146,11 +179,12 @@ def fhouse_parse(
     total_entries = 0
     with open(path, "r", encoding="utf-8") as dump_file:
         for line in dump_file.readlines():
+            line_spl = lambda ln: ln.split(urllib.parse.unquote(sep))
             if total_entries == 0:
                 pre_schema = ",".join(
                     map(
                         lambda item: item.strip("#"),
-                        line.split(urllib.parse.unquote(sep)),
+                        line_spl(line),
                     )
                 )
                 db_create_table = "CREATE TABLE embeds({})".format(pre_schema)
@@ -158,7 +192,7 @@ def fhouse_parse(
                 total_entries += 1
                 continue
             else:
-                line_split = tuple(line.split(urllib.parse.unquote(sep)))
+                line_split = tuple(line_spl(line))
                 value_calc = f"{'?,' * len(line_split)}".strip(",")
 
                 db_cur.execute(
@@ -168,8 +202,14 @@ def fhouse_parse(
                 db_conn.commit()
                 total_entries += 1
 
+    db_cur.close()
     db_conn.close()
-    return f"Inserted a total of {total_entries} video entries into {db_name}"
+
+    if log_res:
+        print(f"Inserted a total of {total_entries} video entries into {db_name}")
+    else:
+        pass
+    return None
 
 
 def main(*args, **kwargs):
@@ -179,18 +219,16 @@ def main(*args, **kwargs):
     temp_store = tempfile.TemporaryDirectory(prefix="dump", dir=".")
     file_extension = f_house_url.get_dump_format()
     write_to_file(
-        (fname := f"fhouse-dump"),
+        (fname := f"fap-house-dump"),
         temp_store.name,
         file_extension,
         access_url_bs4(f_house_full_addr),
     )
-    result = fhouse_parse(
-        fname, file_extension, temp_store.name, f_house_url.get_delim()
+    fhouse_parse(
+        fname, file_extension, temp_store.name, f_house_url.get_delim(), log_res=True
     )
     temp_store.cleanup()
-    print(result)
     print("Cleaned temporary folder...")
-
 
 
 if __name__ == "__main__":
@@ -220,7 +258,7 @@ if __name__ == "__main__":
         "--period",
         type=str,
         default="week",
-        help="Select period from options: day (last day), week (last 7 days-default), month (last 30 days), all (all time)",
+        help="Select period from options: day (last day), week (last 7 days) (default), month (last 30 days), all (all time)",
     )
 
     args_cli.add_argument(

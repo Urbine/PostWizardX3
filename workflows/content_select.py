@@ -81,8 +81,11 @@ def logging_setup(
     :return: ``None``
     """
     get_filename = lambda f: os.path.basename(f).split(".")[0]
-    random_int_id = "".join(random.choices([str(num) for num in range(1, 10)], k=5))
-    uniq_log_id = f"{random_int_id}{generate_random_str(5)}"
+    sample_size = 5
+    random_int_id = "".join(
+        random.choices([str(num) for num in range(1, 10)], k=sample_size)
+    )
+    uniq_log_id = f"{random_int_id}{generate_random_str(sample_size)}"
 
     # This will help users identify their corresponding log per session.
     os.environ["SESSION_ID"] = uniq_log_id
@@ -134,7 +137,7 @@ def clean_partner_tag(partner_tag: str) -> str:
 
 
 def asset_parser(bot_config: ContentSelectConf, partner: str):
-    """Parse asset images for post payload building from the specified file in the
+    """Parse asset images for post payload from the specified file in the
     ``workflows_config.ini`` file.
 
     :param bot_config: ``ContentSelectConf`` bot config factory function.
@@ -148,9 +151,9 @@ def asset_parser(bot_config: ContentSelectConf, partner: str):
     wrd_list = clean_partner_tag(partner).split(spl_char(partner))
 
     find_me = (
-        lambda word, section: matches[0]
-        if (matches := re.findall(word, section, flags=re.IGNORECASE))
-        else matches
+        lambda word, section: matchs[0]
+        if (matchs := re.findall(word, section, flags=re.IGNORECASE))
+        else matchs
     )
 
     assets_list = []
@@ -160,7 +163,7 @@ def asset_parser(bot_config: ContentSelectConf, partner: str):
         wrd_to_lc = wrd.lower()
 
         # To ensure uniqueness in the hints provided, the count of matches must be 1.
-        # If the same word is found more than once, then the match is not unique.
+        # If the same word is found more than once, then the match is clearly not unique.
         matches = (
             temp_lst := [find_me(wrd_to_lc, section) for section in sections]
         ).count(wrd_to_lc)
@@ -977,6 +980,51 @@ def wp_publish_checker(
         hot_sync = hot_file_sync(cs_conf)
 
 
+def model_checker(
+    wp_posts_f: list[dict[str, ...]], model_prep: list[str]
+) -> list[int] | None:
+    """
+    Share missing model checking behaviour accross modules.
+    Console logging is expected with this function.
+
+    :param wp_posts_f: ``list[dict[str, ...]]`` - WP Posts file, typically provided by the pilot function.
+    :param model_prep: ``list[str]`` - Model tag list without delimiters
+    :return: ``list[int]`` - List of model integer ids in the WordPress site.
+    """
+    console = Console()
+    # The would-be `models_ints`
+    calling_models: list[int] = get_model_ids(wp_posts_f, model_prep)
+    all_models_wp: dict[str, int] = wordpress_api.map_wp_class_id(
+        wp_posts_f, "pornstars", "pornstars"
+    )
+    new_models: list[str] | None = identify_missing(
+        all_models_wp, model_prep, calling_models
+    )
+
+    if new_models is None or model_prep[0] == "model-not-found":
+        # Maybe the post does not include a model.
+        return None
+    else:
+        for girl in new_models:
+            console.print(
+                f"ATTENTION! --> Model: {girl} not on WordPress.",
+                style="bold red",
+            )
+            console.print(
+                "--> Copying missing model name to your system clipboard.",
+                style="bold yellow",
+            )
+            console.print(
+                "Paste it into the Pornstars field as soon as possible...\n",
+                style="bold yellow",
+            )
+            logging.warning(f"Missing model: {girl}")
+            pyclip.detect_clipboard()
+            pyclip.copy(girl)
+
+    return calling_models
+
+
 def video_upload_pilot(
     wp_auth: WPAuth = wp_auth(),
     wp_endpoints: WPEndpoints = WPEndpoints,
@@ -1008,7 +1056,7 @@ def video_upload_pilot(
         hot_file_sync(bot_config=cs_config)
         x_api.refresh_flow(x_auth(), XEndpoints())
 
-    partners: list[str] = cs_config.partners.split(",")
+    partners: list[str] = list(map(lambda p: p.strip(), cs_config.partners.split(",")))
     logging.info(f"Loading partners variable: {partners}")
 
     wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
@@ -1227,35 +1275,8 @@ def video_upload_pilot(
                 else ["model-not-found"]
             )
 
-            # The would-be `models_ints`
-            calling_models: list[int] = get_model_ids(wp_posts_f, model_prep)
-            all_models_wp: dict[str, int] = wordpress_api.map_wp_class_id(
-                wp_posts_f, "pornstars", "pornstars"
-            )
-            new_models: list[str] | None = identify_missing(
-                all_models_wp, model_prep, calling_models
-            )
-
-            if new_models is None or model_prep[0] == "model-not-found":
-                # Maybe the post does not include a model.
-                pass
-            else:
-                for girl in new_models:
-                    console.print(
-                        f"ATTENTION! --> Model: {girl} not on WordPress.",
-                        style="bold red",
-                    )
-                    console.print(
-                        "--> Copying missing model name to your system clipboard.",
-                        style="bold yellow",
-                    )
-                    console.print(
-                        "Paste it into the Pornstars field as soon as possible...\n",
-                        style="bold yellow",
-                    )
-                    logging.warning(f"Missing model: {girl}")
-                    pyclip.detect_clipboard()
-                    pyclip.copy(girl)
+            # # The would-be `models_ints`
+            calling_models: list[int] = model_checker(wp_posts_f, model_prep)
 
             # NaiveBayes/MaxEnt classification for titles, descriptions, and tags
             class_title = classify_title(title)
@@ -1330,9 +1351,9 @@ def video_upload_pilot(
                 )
                 logging.info(f"Image Attrs: {img_attrs}")
 
-                # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
-                # upload_thumbnail will report a 500 status code when this is
-                # the case. More information in integrations.wordpress_api.upload_thumbnail docs
+                # Sometimes, the function fetch_thumbnail fetches an element that is not a thumbnail.
+                # upload_thumbnail will report a 500 status code when this is the case.
+                # More information in integrations.wordpress_api.upload_thumbnail docs
 
                 if upload_img == 500:
                     logging.warning(

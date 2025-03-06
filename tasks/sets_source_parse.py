@@ -103,6 +103,7 @@ def db_generate(
         db_conn.commit()
         total_photosets += 1
 
+    cursor.close()
     db_conn.close()
     db_path = f"{helpers.cwd_or_parent_path(parent=parent)}/{d_name}"
 

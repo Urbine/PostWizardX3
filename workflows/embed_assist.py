@@ -13,36 +13,242 @@ __author_email__ = "yohamg@programmer.net"
 
 import logging
 import os
-import pyclip
+import re
 import readline  # Imported to enable Standard Input manipulation. Don't remove!
+import sqlite3
 import tempfile
 import time
 
+from re import Pattern
+from dataclasses import dataclass, fields
+from sqlite3 import OperationalError
+
 # Third-party modules
+import pyclip
 from requests.exceptions import SSLError, ConnectionError
 from rich.console import Console
 
 # Local implementations
-from core import helpers, embed_assist_conf, wp_auth, x_auth, clean_filename
+from core import helpers, embed_assist_conf, wp_auth, x_auth, clean_filename, InvalidDB
 from integrations import wordpress_api, x_api, WPEndpoints, XEndpoints
 from ml_engine import classify_title, classify_description
 import workflows.content_select as cs
 
 
-def filter_tags(tgs: str, filter_lst: list[str]) -> list[str]:
+class EmbedsMultiSchema:
+    """
+    Complementary class dealing with dynamic SQL schema reading for content databases.
+
+    EmbedsMultiSchema provides an interface to the main control flow of the bot that allows
+    for direct index probing based on the present schema. This improvement will make it easier to
+    for the user to implement further functionality and behaviour based on specific fields.
+    """
+
+    @dataclass(frozen=True)
+    class SchemaRegEx:
+        """
+        Immutable dataclass containing compiled RegEx patterns for class methods.
+        """
+
+        pat_slug: Pattern[str] = re.compile(r"slug", re.IGNORECASE)
+        pat_embed: Pattern[str] = re.compile(r"embeds?", re.IGNORECASE)
+        pat_thumbnail: Pattern[str] = re.compile(r"thumb(nail)?", re.IGNORECASE)
+        pat_categories: Pattern[str] = re.compile(r"categor(ies)?", re.IGNORECASE)
+        pat_rating: Pattern[str] = re.compile(r"ratings?", re.IGNORECASE)
+        pat_title: Pattern[str] = re.compile(r"title", re.IGNORECASE)
+        pat_link: Pattern[str] = re.compile(r"links?", re.IGNORECASE)
+        pat_date: Pattern[str] = re.compile(r"date", re.IGNORECASE)
+        pat_id: Pattern[str] = re.compile(r"id", re.IGNORECASE)
+        pat_duration: Pattern[str] = re.compile(r"duration", re.IGNORECASE)
+        pat_prnstars: Pattern[str] = re.compile(r"pornstars?", re.IGNORECASE)
+        pat_models: Pattern[str] = re.compile(r"models?", re.IGNORECASE)
+        pat_resolution: Pattern[str] = re.compile("resolution", re.IGNORECASE)
+        pat_tags: Pattern[str] = re.compile(r"tags?", re.IGNORECASE)
+        pat_likes: Pattern[str] = re.compile(r"likes?", re.IGNORECASE)
+        pat_url: Pattern[str] = re.compile(r"urls?", re.IGNORECASE)
+        pat_description: Pattern[str] = re.compile(r"description", re.IGNORECASE)
+        pat_studio: Pattern[str] = re.compile(r"studios?", re.IGNORECASE)
+        pat_trailer: Pattern[str] = re.compile(r"trailers?", re.IGNORECASE)
+        pat_orientation: Pattern[str] = re.compile(r"orientation", re.IGNORECASE)
+
+        def __iter__(self):
+            for field in fields(self):
+                yield getattr(self, field.name)
+
+    @staticmethod
+    def get_schema(db_cur: sqlite3) -> tuple[str, list[tuple[int, str]]]:
+        """
+        Get a tuple with the table and its field names.
+
+        :param db_cur: ``sqlite3`` - Active database cursor
+        :return: tuple('tablename', [(indx, 'fieldname'), ...])
+        """
+        query = "SELECT sql FROM sqlite_master"
+        try:
+            schema = helpers.fetch_data_sql(query, db_cur)
+            fst_table, *others = schema
+
+            if others:
+                logging.warning(
+                    "Detected db with more than one table, fetching the first one by default."
+                )
+            else:
+                pass
+
+            table_name = fst_table[0].split(" ")[2].split("(")[0]
+            query = "PRAGMA table_info({})".format(table_name)
+            schema = helpers.fetch_data_sql(query, db_cur)
+            fields_ord = list(map(lambda lstpl: lstpl[0:2], schema))
+
+            return table_name, fields_ord
+
+        except OperationalError:
+            logging.critical(
+                "db file was not found. Raising InvalidDB exception and quitting..."
+            )
+            raise InvalidDB
+
+    def __init__(self, db_cur: sqlite3):
+        schema = self.get_schema(db_cur)
+        self.table_name: str = schema[0]
+        self.__fields_indx = schema[1]
+        self.__fields: list[str] = list(map(lambda tpl: tpl[1], self.__fields_indx))
+        self.field_count: int = len(self.__fields)
+
+    def get_fields(self, keep_indx: bool = False):
+        if keep_indx:
+            return self.__fields_indx
+        else:
+            return self.__fields
+
+    def get_slug(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_slug
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_embed(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_embed
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_thumbnail(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_thumbnail
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_categories(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_categories
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_rating(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_rating
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_title(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_title
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_link(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_link
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_date(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_date
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_id(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_id
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_duration(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_duration
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_pornstars(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_prnstars
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_models(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_models
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_resolution(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_resolution
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_tags(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_tags
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_likes(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_likes
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_url(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_url
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_description(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_description
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_studio(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_studio
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_trailer(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_trailer
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+    def get_orientation(self) -> int:
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_orientation
+        matches = helpers.match_list_single(re_pattern, self.__fields)
+        return matches
+
+
+def filter_tags(tgs: str, filter_lst: list[str] | None = None) -> list[str] | None:
     """Remove redundant words found in tags and return a clear list of unique filtered tags.
 
     :param tgs: ``list[str]`` tags to be filtered
     :param filter_lst: ``list[str]`` lookup list of words to be removed
     :return: ``list[str]``
     """
-    t_split = tgs.split(",")
+    if tgs is None:
+        return None
+
+    spl_char = (
+        lambda tag: chars[1]
+        if (chars := re.findall(r"[\W_]+", tag))
+        else chars[0]
+        if chars
+        else " "
+    )
+    t_split = tgs.split(spl_char(tgs))
     new_set = set({})
     for tg in t_split:
         temp_lst = []
         sublist = tg.split(" ")
         for word in sublist:
-            if word not in filter_lst:
+            if filter_lst is None:
+                temp_lst.append(word)
+                continue
+            elif word not in filter_lst:
                 temp_lst.append(word)
             else:
                 continue
@@ -51,7 +257,7 @@ def filter_tags(tgs: str, filter_lst: list[str]) -> list[str]:
 
 
 def filter_published_embeds(
-    wp_posts_f: list[dict[str, ...]], videos: list[tuple[str, ...]]
+    wp_posts_f: list[dict[str, ...]], videos: list[tuple[str, ...]], db_cur: sqlite3
 ) -> list[tuple[str, ...]]:
     """filter_published does its filtering work based on the published_json function.
     It is based on a similar version from module `content_select`, however, this one is adapted to embedded videos
@@ -63,13 +269,15 @@ def filter_published_embeds(
 
     :param videos: ``list[tuple[str, ...]]`` usually resulting from the SQL database query values.
     :param wp_posts_f: ``list[dict[str, ...]]`` WordPress Post Information case file (previously loaded and ready to process)
+    :param db_cur: ``sqlite3`` - Active database cursor
     :return: ``list[tuple[str, ...]]`` with the new filtered values.
     """
+    db_interface = EmbedsMultiSchema(db_cur)
     post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
 
     not_published: list[tuple] = []
     for elem in videos:
-        vid_id, vid_title, *fields = elem
+        vid_title = elem[db_interface.get_title()]
         if vid_title in post_titles:
             continue
         else:
@@ -108,13 +316,14 @@ def embedding_pilot(
     wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
     logging.info(f"Reading WordPress Post cache: {embed_ast_conf.wp_json_posts}")
 
-    partner_list = embed_ast_conf.partners.split(",")
+    partner_list = list(map(lambda p: p.strip(), embed_ast_conf.partners.split(",")))
     os.system("clear")
     logging.info(f"Loading partners variable: {partner_list}")
 
     db_conn, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
         partner_list, embed_ast_conf.content_hint
     )
+    db_interface = EmbedsMultiSchema(cur_dump)
 
     wp_base_url = wpauths.api_base_url
     logging.info(f"Using {wp_base_url} as WordPress API base url")
@@ -129,7 +338,7 @@ def embedding_pilot(
         embed_ast_conf.sql_query, cur_dump
     )
     logging.info(f"{len(all_vals)} elements found in database {db_dump_name}")
-    not_published_yet = filter_published_embeds(wp_posts_f, all_vals)
+    not_published_yet = filter_published_embeds(wp_posts_f, all_vals, cur_dump)
     total_elems = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
     os.system("clear")
@@ -149,16 +358,6 @@ def embedding_pilot(
     logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
     for num, vid in enumerate(not_published_yet):
         logging.info(f"Displaying on iteration {num} data: {vid}")
-        id_ = vid[0]
-        title = vid[1]
-        duration = vid[2]
-        date = vid[3]
-        categories = vid[4]
-        rating = vid[5]
-        main_thumbnail_name = vid[6]
-        embed_code = vid[7]
-        web_link = vid[8]
-        wp_slug = vid[9]
         os.system("clear")
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
@@ -170,18 +369,19 @@ def embedding_pilot(
             style="bold yellow",
             justify="center",
         )
-        console.print(f"ID: {id_}", style="green")
-        console.print(f"Title: {title}", style="green")
-        console.print(f"Web Link: {web_link}", style="green")
-        hs, mins, secs = helpers.get_duration(int(duration))
-        console.print(
-            f"Duration: \nHours: [bold red]{hs}[/bold red] \nMinutes: [bold red]{mins}[/bold red] \nSeconds: [bold red]{secs}[/bold red]",
-            style="bold green",
-        )  # From seconds to hours to minutes
-        console.print(f"Rating: {rating}", style="green")
-        console.print(f"Date: {date}", style="green")
-        console.print(f"Tags: {categories}", style="green")
-        console.print(f"WP Slug: {wp_slug}", style="green")
+
+        for field in db_interface.get_fields(keep_indx=True):
+            num, fld = field
+            if re.match(db_interface.SchemaRegEx.pat_duration, fld):
+                hs, mins, secs = helpers.get_duration(int(vid[num]))
+                console.print(
+                    f"{num + 1}. Duration: \n\tHours: [bold red]{hs}[/bold red] \n\tMinutes: [bold red]{mins}[/bold red] \n\tSeconds: [bold red]{secs}[/bold red]",
+                    style="bold green",
+                )  # From seconds to hours to minutes
+                continue
+            else:
+                console.print(f"{num + 1}. {fld.title()}: {vid[num]}", style="green")
+
         add_post = console.input(
             "[bold yellow]\nAdd post to WP? -> Y/N/ENTER to review next post: [/bold yellow]\n"
         ).lower()
@@ -242,38 +442,53 @@ def embedding_pilot(
                 break
         if add_post:
             slugs = [
-                f"{wp_slug}",
-                cs.make_slug(partner, None, title, "video"),
+                f"{slug}" if (slug := db_interface.get_slug()) else "",
+                cs.make_slug(
+                    partner, None, (title := vid[db_interface.get_title()]), "video"
+                ),
                 cs.make_slug(partner, None, title, "video", reverse=True),
             ]
             console.print("\n--> Available slugs:", style="bold yellow")
 
-            for n, slug in enumerate(slugs, start=1):
-                console.print(f"{n}. -> {slug}", style="bold green")
-            console.print("Select 4 to enter a custom slug.", style="bold yellow")
+            total_slugs = 1
+            for slug in slugs:
+                if slug:
+                    console.print(f"{total_slugs}. -> {slug}", style="bold green")
+                    total_slugs += 1
+                else:
+                    continue
 
-            match console.input(
+            real_slug_count = len(list(filter(lambda sl: sl != "", slugs)))
+            console.print(
+                f"Select {real_slug_count + 1} to enter a custom slug.",
+                style="bold yellow",
+            )
+
+            slug_sel = console.input(
                 "[bold yellow]\n--> Select your slug: [/bold yellow]\n"
-            ):
-                case "1":
+            )
+            try:
+                wp_slug = slugs[int(slug_sel)]
+            except (IndexError, ValueError):
+                slug_sel = total_slugs + 1
+                if int(slug_sel) == (total_slugs + 1):
+                    # Parsing slug by default.
                     wp_slug = slugs[0]
-                case "2":
-                    wp_slug = slugs[1]
-                case "3":
-                    wp_slug = slugs[2]
-                case "4":
                     pyclip.copy(slugs[0])
                     console.print("Enter your slug now: ", style="bold yellow")
                     wp_slug = input()
-                case _:
-                    # Parsing slug by default.
-                    wp_slug = slugs[0]
+                    while wp_slug == "" or wp_slug == " " or wp_slug is None:
+                        console.print("Enter your slug now: ", style="bold yellow")
+                        wp_slug = input()
 
             logging.info(f"WP Slug - Selected: {wp_slug}")
 
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make them more general.
-            tag_prep = filter_tags(categories, ["asian", "japanese"])
+            tag_prep = filter_tags(
+                (categories := vid[db_interface.get_categories()]),
+                ["asian", "japanese"],
+            )
             # Default tag per partner
             if partner == "abjav" or partner == "vjav":
                 tag_prep.append("japanese")
@@ -310,6 +525,24 @@ def embedding_pilot(
                         pyclip.copy(tag)
                     else:
                         pass
+
+            spl_char = (
+                lambda tag: chars[1] if (chars := re.findall(r"\W", tag)) else chars[0]
+            )
+            models_field = (
+                pornstars
+                if (pornstars := vid[db_interface.get_pornstars()])
+                else vid[db_interface.get_models()]
+            )
+            models_prep = filter_tags(models_field)
+
+            # model_prep = (
+            #     [model for model in models_spl]
+            #     if models_field is not None
+            #     else ["model-not-found"]
+            # )
+
+            model_ints: list[int] = cs.model_checker(wp_posts_f, models_prep)
 
             # Video category NaiveBayes/MaxEnt Classifiers
             class_title = classify_title(title)
@@ -361,6 +594,7 @@ def embedding_pilot(
                 title,
                 title,
                 tag_ints,
+                model_int_lst=model_ints,
                 categs=category,
             )
             logging.info(f"Generated payload: {payload}")
@@ -378,7 +612,7 @@ def embedding_pilot(
                 cs.fetch_thumbnail(
                     thumbnails_dir.name,
                     wp_slug,
-                    main_thumbnail_name,
+                    vid[db_interface.get_thumbnail()],
                 )
                 console.print(
                     f"--> Stored thumbnail {thumbnail} in cache folder {os.path.relpath(thumbnails_dir.name)}",
@@ -433,7 +667,7 @@ def embedding_pilot(
                 )
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
-                pyclip.copy(embed_code)
+                pyclip.copy(vid[db_interface.get_embed()])
                 pyclip.copy(title)
                 console.print(
                     "--> Check the post and paste all you need from your clipboard.",
@@ -546,6 +780,7 @@ def embedding_pilot(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
                     )
+                    cur_dump.close()
                     thumbnails_dir.cleanup()
                     time_end = time.time()
                     h, mins, secs = helpers.get_duration(time_end - time_start)
@@ -570,6 +805,7 @@ def embedding_pilot(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
                     )
+                    cur_dump.close()
                     thumbnails_dir.cleanup()
                     time_end = time.time()
                     h, mins, secs = helpers.get_duration(time_end - time_start)
@@ -602,6 +838,7 @@ def embedding_pilot(
                     f"You have created {videos_uploaded} posts in this session!",
                     style="bold yellow",
                 )
+                cur_dump.close()
                 thumbnails_dir.cleanup()
                 time_end = time.time()
                 h, mins, secs = helpers.get_duration(time_end - time_start)
@@ -627,6 +864,7 @@ def embedding_pilot(
                 f"You have created {videos_uploaded} posts in this session!",
                 style="bold yellow",
             )
+            cur_dump.close()
             thumbnails_dir.cleanup()
             time_end = time.time()
             h, mins, secs = helpers.get_duration(time_end - time_start)

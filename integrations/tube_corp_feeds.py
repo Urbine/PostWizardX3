@@ -22,6 +22,42 @@ from .url_builder import CSVColumns, URLEncode, TubeCorpUrl
 from core.helpers import remove_if_exists, parse_client_config
 
 
+class TubeDumpURL:
+    """
+    Builder class for the Tube Corporate URL object.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        sort_crit: str,
+        days: str | int = "",
+        url_limit: str | int = 999999999,
+        sep: URLEncode = URLEncode.PIPE,
+    ) -> None:
+        self.base_url = base_url
+        self.format = "&feed_format=csv&"
+        self.scrshot_f = "screenshot_format=source&"
+        self.sort_crit = (
+            f"sorting={sort_crit}&"  # rating, popularity, duration, post_date, ID
+        )
+        self.period = f"days={days}&" if days != "" else days
+        self.limit = f"limit={url_limit}"
+        self.sep = f"&csv_separator={sep}"
+        self.__an_url = (
+            self.base_url
+            + self.format
+            + self.scrshot_f
+            + self.sort_crit
+            + self.period
+            + self.limit
+            + self.sep
+        )
+
+    def __str__(self):
+        return self.__an_url
+
+
 def construct_tube_dump_url(
     base_url: str,
     sort_crit: str,
@@ -49,14 +85,6 @@ def construct_tube_dump_url(
     :param columns: ``CSVColumns`` object that contains common csv columns.
     :return: ``f-str`` (Formatted str) Video Dump URL
     """
-    format = "&feed_format=csv&"
-    screenshot_format = "screenshot_format=source&"
-    # rating, popularity, duration, post_date, ID
-    sorting = f"sorting={sort_crit}&"
-    limit = f"limit={url_limit}"
-    sep_param = f"&csv_separator={sep}&"
-    days = f"days={days}&" if days != "" else days
-
     column_lst = [
         columns.ID_,
         columns.title,
@@ -69,9 +97,9 @@ def construct_tube_dump_url(
         columns.link,
     ]
 
-    csv_columns = f"csv_columns={str(sep).join(column_lst)}"
+    csv_columns = f"&csv_columns={str(sep).join(column_lst)}"
 
-    return f"{base_url}{format}{screenshot_format}{sorting}{days}{limit}{sep_param}{csv_columns}"
+    return f"{str(TubeDumpURL(base_url, sort_crit, days, url_limit, sep))}{csv_columns}"
 
 
 def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
@@ -156,6 +184,7 @@ def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
                 db_conn.commit()
                 total_entries += 1
 
+    db_cur.close()
     db_conn.close()
     return f"Inserted a total of {total_entries} video entries into {db_name}"
 
