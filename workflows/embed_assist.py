@@ -450,26 +450,36 @@ def embedding_pilot(
             ]
             console.print("\n--> Available slugs:", style="bold yellow")
 
-            for n, slug in enumerate(slugs, start=1):
-                console.print(f"{n}. -> {slug}", style="bold green")
-            console.print("Select 4 to enter a custom slug.", style="bold yellow")
+            total_slugs = 1
+            for slug in slugs:
+                if slug:
+                    console.print(f"{total_slugs}. -> {slug}", style="bold green")
+                    total_slugs += 1
+                else:
+                    continue
 
-            match console.input(
+            real_slug_count = len(list(filter(lambda sl: sl != "", slugs)))
+            console.print(
+                f"Select {real_slug_count + 1} to enter a custom slug.",
+                style="bold yellow",
+            )
+
+            slug_sel = console.input(
                 "[bold yellow]\n--> Select your slug: [/bold yellow]\n"
-            ):
-                case "1":
+            )
+            try:
+                wp_slug = slugs[int(slug_sel)]
+            except (IndexError, ValueError):
+                slug_sel = total_slugs + 1
+                if int(slug_sel) == (total_slugs + 1):
+                    # Parsing slug by default.
                     wp_slug = slugs[0]
-                case "2":
-                    wp_slug = slugs[1]
-                case "3":
-                    wp_slug = slugs[2]
-                case "4":
                     pyclip.copy(slugs[0])
                     console.print("Enter your slug now: ", style="bold yellow")
                     wp_slug = input()
-                case _:
-                    # Parsing slug by default.
-                    wp_slug = slugs[0]
+                    while wp_slug == "" or wp_slug == " " or wp_slug is None:
+                        console.print("Enter your slug now: ", style="bold yellow")
+                        wp_slug = input()
 
             logging.info(f"WP Slug - Selected: {wp_slug}")
 
