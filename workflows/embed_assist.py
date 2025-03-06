@@ -516,6 +516,24 @@ def embedding_pilot(
                     else:
                         pass
 
+            spl_char = (
+                lambda tag: chars[1] if (chars := re.findall(r"\W", tag)) else chars[0]
+            )
+            models_field = (
+                authors
+                if (authors := vid[db_interface.get_authors()])
+                else vid[db_interface.get_models()]
+            )
+            models_prep = filter_tags(models_field)
+
+            # model_prep = (
+            #     [model for model in models_spl]
+            #     if models_field is not None
+            #     else ["model-not-found"]
+            # )
+
+            model_ints: list[int] = cs.model_checker(wp_posts_f, models_prep)
+
             # Video category NaiveBayes/MaxEnt Classifiers
             class_title = classify_title(title)
             class_tags = classify_description(categories)
@@ -566,6 +584,7 @@ def embedding_pilot(
                 title,
                 title,
                 tag_ints,
+                model_int_lst=model_ints,
                 categs=category,
             )
             logging.info(f"Generated payload: {payload}")
