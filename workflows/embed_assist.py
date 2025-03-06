@@ -316,7 +316,7 @@ def embedding_pilot(
     wp_posts_f = helpers.load_json_ctx(embed_ast_conf.wp_json_posts)
     logging.info(f"Reading WordPress Post cache: {embed_ast_conf.wp_json_posts}")
 
-    partner_list = embed_ast_conf.partners.split(",")
+    partner_list = list(map(lambda p: p.strip(), embed_ast_conf.partners.split(",")))
     os.system("clear")
     logging.info(f"Loading partners variable: {partner_list}")
 

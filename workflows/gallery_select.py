@@ -473,7 +473,9 @@ def gallery_upload_pilot(
     wp_posts_f = helpers.load_json_ctx(gallery_sel_conf.wp_json_posts)
     logging.info(f"Reading WordPress Photos cache: {gallery_sel_conf.wp_json_posts}")
 
-    partners: list[str] = gallery_sel_conf.partners.split(",")
+    partners: list[str] = list(
+        map(lambda p: p.strip(), gallery_sel_conf.partners.split(","))
+    )
     logging.info(f"Loading partners variable: {partners}")
 
     db_conn, cur_partner, db_name_partner, partner_indx = content_select_db_match(

@@ -1056,7 +1056,7 @@ def video_upload_pilot(
         hot_file_sync(bot_config=cs_config)
         x_api.refresh_flow(x_auth(), XEndpoints())
 
-    partners: list[str] = cs_config.partners.split(",")
+    partners: list[str] = list(map(lambda p: p.strip(), cs_config.partners.split(",")))
     logging.info(f"Loading partners variable: {partners}")
 
     wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
