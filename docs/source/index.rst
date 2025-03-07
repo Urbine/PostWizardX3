@@ -22,6 +22,7 @@ Table of Contents
    tasks
    workflows
    ml_engine
+   tests
 
 .. toctree::
    :maxdepth: 2

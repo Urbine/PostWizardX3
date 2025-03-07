@@ -45,7 +45,10 @@ In order of development:
    of video content so as to assign and/or suggest a suitable category.
    ``ml_engine`` trains nine models with algorithms like NaiveBayes, Maximum Entropy Modelling and Multinomial NaiveBayes.
 
-6. ``setup`` is still under development and aims at preparing the project for an eventual and not-yet-defined distribution release.
+6. ``test`` contains unit test classes for several functions that may undergo refactoring and improvement now or in the
+   future; also contains tests for critical functions that need to enforce certain functionality.
+
+7. ``setup`` is still under development and aims at preparing the project for an eventual and not-yet-defined distribution release.
 
 Quick Start
 ===========
