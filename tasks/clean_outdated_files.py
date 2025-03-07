@@ -41,7 +41,13 @@ def clean_outdated(
     for file in outdated:
         if not silent:
             print(f"Removing {os.path.abspath(file)}")
-        os.remove(file)
+        try:
+            os.remove(file)
+        except FileNotFoundError:
+            if not silent:
+                print(f"File {os.path.abspath(file)} not found")
+            else:
+                pass
 
     if not silent:
         if len(outdated) != 0:
