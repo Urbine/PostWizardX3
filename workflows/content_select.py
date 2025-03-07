@@ -26,6 +26,7 @@ import sqlite3
 import warnings
 
 from sqlite3 import Connection, Cursor
+from typing import Optional
 
 # Third-party modules
 import pyclip
@@ -453,7 +454,7 @@ def make_payload(
     tag_int_lst: list[int],
     model_int_lst: list[int],
     bot_conf: ContentSelectConf = content_select_conf(),
-    categs: list[int] | None = None,
+    categs: Optional[list[int]] = None,
     wpauth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Make WordPress ``JSON`` payload with the supplied values.
@@ -507,8 +508,8 @@ def make_payload_simple(
     vid_name: str,
     vid_description: str,
     tag_int_lst: list[int],
-    model_int_lst: list[int] | None = None,
-    categs: list[int] | None = None,
+    model_int_lst: Optional[list[int]] = None,
+    categs: Optional[list[int]] = None,
     wp_auth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Makes a simple WordPress JSON payload with the supplied values.
@@ -578,7 +579,7 @@ def make_img_payload(
 
 def make_slug(
     partner: str,
-    model: str | None,
+    model: Optional[str],
     title: str,
     content: str,
     studio: Optional[str] = "",
@@ -986,7 +987,7 @@ def telegram_send_message(
 
 def wp_publish_checker(
     post_slug: str, cs_conf: ContentSelectConf | EmbedAssistConf | GallerySelectConf
-) -> bool | None:
+) -> Optional[bool]:
     """Check for the publication a post in real time by using iteration of the Hot File Sync
     algorithm. It will detect that you have effectively hit the publish button, so that functionality
     that directly depends on the post being online can take it from there.
@@ -1028,7 +1029,7 @@ def wp_publish_checker(
 
 def model_checker(
     wp_posts_f: list[dict[str, ...]], model_prep: list[str]
-) -> list[int] | None:
+) -> Optional[list[int]]:
     """
     Share missing model checking behaviour accross modules.
     Console logging is expected with this function.
@@ -1043,7 +1044,7 @@ def model_checker(
     all_models_wp: dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, "authors", "authors"
     )
-    new_models: list[str] | None = identify_missing(
+    new_models: Optional[list[str]] = identify_missing(
         all_models_wp, model_prep, calling_models
     )
 
@@ -1292,7 +1293,7 @@ def video_upload_pilot(
             tag_prep.append(partner_tag)
             tag_ints: list[int] = get_tag_ids(wp_posts_f, tag_prep, "tags")
             all_tags_wp: dict[str, str] = wordpress_api.tag_id_merger_dict(wp_posts_f)
-            tag_check: list[str] | None = identify_missing(
+            tag_check: Optional[list[str]] = identify_missing(
                 all_tags_wp, tag_prep, tag_ints, ignore_case=True
             )
             if tag_check is None:
