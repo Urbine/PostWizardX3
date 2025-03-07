@@ -20,7 +20,7 @@ import logging
 import os
 import time
 
-from typing import Any
+from typing import Any, Optional
 
 # Third-party modules
 import pyclip
@@ -279,7 +279,7 @@ def authorise_app_x(
     return token_code
 
 
-def load_tokens_json(folder: str) -> tuple[str, str] | None:
+def load_tokens_json(folder: str) -> Optional[tuple[str, str]]:
     """Token handling with ``JSON`` objects as the application was being tested.
     As of now, the app does not use local ``JSON`` files to store secrets so this is
     no longer in use. Function ``write_tokens_cinfo()`` replaced this method and uses

@@ -17,6 +17,7 @@ import datetime
 import tempfile
 import time
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 # Third-party Libraries
 from selenium.webdriver.remote.webelement import WebElement
@@ -48,7 +49,7 @@ def get_vid_dump_flow(
     webdrv,
     mcash_info: MongerCashAuth = monger_cash_auth(),
     task_conf: TasksConf = tasks_conf(),
-    partner_hint: str | None = None,
+    partner_hint: Optional[str] = None,
     temp_dir_p: str = "",
 ) -> tuple[TemporaryDirectory[str], str] | str:
     """Get the text file and match the options with the hint provided to get a video dump file

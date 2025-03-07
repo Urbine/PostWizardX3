@@ -26,6 +26,7 @@ import sqlite3
 import warnings
 
 from sqlite3 import Connection, Cursor
+from typing import Optional
 
 # Third-party modules
 import pyclip
@@ -147,7 +148,14 @@ def asset_parser(bot_config: ContentSelectConf, partner: str):
     assets = parse_client_config(bot_config.assets_conf, "core.config")
     sections = assets.sections()
 
-    spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
+    spl_char = (
+        lambda tag: " "
+        if not (chars := re.findall(r"[\W_]+", tag))
+        else chars[0]
+        if len(chars) <= 1
+        else chars[1]
+    )
+
     wrd_list = clean_partner_tag(partner).split(spl_char(partner))
 
     find_me = (
@@ -307,7 +315,13 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list
         wp_posts_f, preset[0], preset[1]
     )
 
-    spl_char = lambda tag: chars[0] if (chars := re.findall(r"[\W_]+", tag)) else " "
+    spl_char = (
+        lambda tag: " "
+        if not (chars := re.findall(r"[\W_]+", tag))
+        else chars[0]
+        if len(chars) <= 1
+        else chars[1]
+    )
     clean_tag = lambda tag: " ".join(tag.split(spl_char(tag)))
     tag_join = lambda tag: "".join(map(clean_tag, tag))
     # Result must be: colourful-skies/great -> colourful skies great
@@ -440,7 +454,7 @@ def make_payload(
     tag_int_lst: list[int],
     model_int_lst: list[int],
     bot_conf: ContentSelectConf = content_select_conf(),
-    categs: list[int] | None = None,
+    categs: Optional[list[int]] = None,
     wpauth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Make WordPress ``JSON`` payload with the supplied values.
@@ -494,8 +508,8 @@ def make_payload_simple(
     vid_name: str,
     vid_description: str,
     tag_int_lst: list[int],
-    model_int_lst: list[int] | None = None,
-    categs: list[int] | None = None,
+    model_int_lst: Optional[list[int]] = None,
+    categs: Optional[list[int]] = None,
     wp_auth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
     """Makes a simple WordPress JSON payload with the supplied values.
@@ -565,9 +579,10 @@ def make_img_payload(
 
 def make_slug(
     partner: str,
-    model: str | None,
+    model: Optional[str],
     title: str,
     content: str,
+    studio: Optional[str] = "",
     reverse: bool = False,
     partner_out: bool = False,
 ) -> str:
@@ -579,46 +594,78 @@ def make_slug(
     :param model:  ``str`` video model
     :param title: ``str`` Video title
     :param content: ``str`` type of content, in this file it is simply `video` but it could be `pics` this parameter tells Google about the main content of the page.
+    :param studio: ``str`` - Optional component in slugs for compatible schemas.
     :param reverse: ``bool``  ``True`` if you want to place the video title in front of the permalink. Default ``False``
     :param partner_out: ``bool`` ``True`` if you want to build slugs without the partner name. Default ``False``.
     :return: ``str`` formatted string of a WordPress-ready URL slug.
     """
-    filter_words: set[str] = {"at", "&", "and", "!", ",", "-", ""}
+    spl_char = (
+        lambda stg: " "
+        if not (chars := re.findall(r"\W+", stg))
+        else chars[0]
+        if len(chars) <= 1
+        else chars[1]
+    )
+
+    model_spl = spl_char(model) if model is not None else " "
+    join_wrds = lambda wrd: "-".join(map(lambda w: w.lower(), re.findall(r"\w+", wrd)))
+    build_slug = lambda lst: "-".join(filter(lambda e_str: e_str != "", lst))
+
+    # Punctuation marks are filtered in ``title_cleaned``.
+    filter_words: list[str] = [
+        "at",
+        "&",
+        "and",
+        "but",
+        "it",
+        "so",
+        "very",
+        "amp;",
+        "",
+        "&amp",
+    ]
+
+    title_cleaned: list[str] = [
+        "".join(wrd).lower()
+        for word in title.lower().split()
+        if (wrd := re.findall(r"\w+", word, flags=re.IGNORECASE))
+    ]
+
     title_sl: str = "-".join(
-        [
-            word.lower()
-            for word in title.lower().split()
-            if (
-                re.match(r"[\w]+", word, flags=re.IGNORECASE)
-                and word.lower() not in filter_words
-            )
-        ]
+        list(filter(lambda w: w not in filter_words, title_cleaned))
     )
 
     partner_sl: str = "-".join(clean_partner_tag(partner.lower()).split())
+    content: str = join_wrds(content)
+    studio: str = join_wrds(studio) if studio is not None else ""
+
     try:
         model_sl: str = "-".join(
             [
-                "-".join(name.split(" "))
-                for name in list(map(lambda m: m.lower().strip(), model.split(",")))
+                "-".join(map(join_wrds, name.split(" ")))
+                for name in list(
+                    map(lambda m: m.lower().strip(), model.split(model_spl))
+                )
             ]
         )
+        rev_lst = lambda lst: lst.reverse()
 
-        content: str = f"-{content}" if content != "" or None else ""
         if reverse:
-            return f"{title_sl}-{partner_sl}-{model_sl}{content}"
+            return build_slug([title_sl, partner_sl, model_sl, studio, content])
         elif partner_out:
-            return f"{title_sl}-{model_sl}{content}"
+            return build_slug([title_sl, model_sl, content])
+        elif studio:
+            return build_slug([partner_sl, model_sl, title_sl, studio, content])
         else:
-            return f"{partner_sl}-{model_sl}-{title_sl}{content}"
+            return build_slug([partner_sl, model_sl, title_sl, content])
     except AttributeError:
         # Model can be NoneType and crash the program if this is not handled.
         if reverse:
-            return f"{title_sl}-{partner_sl}-{content}"
+            return build_slug([title_sl, partner_sl, content])
         elif partner_out:
-            return f"{title_sl}-{content}"
+            return build_slug([studio, title_sl, content])
         else:
-            return f"{partner_sl}-{title_sl}-{content}"
+            return build_slug([partner_sl, title_sl, content])
 
 
 def hot_file_sync(
@@ -940,7 +987,7 @@ def telegram_send_message(
 
 def wp_publish_checker(
     post_slug: str, cs_conf: ContentSelectConf | EmbedAssistConf | GallerySelectConf
-) -> bool | None:
+) -> Optional[bool]:
     """Check for the publication a post in real time by using iteration of the Hot File Sync
     algorithm. It will detect that you have effectively hit the publish button, so that functionality
     that directly depends on the post being online can take it from there.
@@ -982,7 +1029,7 @@ def wp_publish_checker(
 
 def model_checker(
     wp_posts_f: list[dict[str, ...]], model_prep: list[str]
-) -> list[int] | None:
+) -> Optional[list[int]]:
     """
     Share missing model checking behaviour accross modules.
     Console logging is expected with this function.
@@ -997,7 +1044,7 @@ def model_checker(
     all_models_wp: dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, "pornstars", "pornstars"
     )
-    new_models: list[str] | None = identify_missing(
+    new_models: Optional[list[str]] = identify_missing(
         all_models_wp, model_prep, calling_models
     )
 
@@ -1246,7 +1293,7 @@ def video_upload_pilot(
             tag_prep.append(partner_tag)
             tag_ints: list[int] = get_tag_ids(wp_posts_f, tag_prep, "tags")
             all_tags_wp: dict[str, str] = wordpress_api.tag_id_merger_dict(wp_posts_f)
-            tag_check: list[str] | None = identify_missing(
+            tag_check: Optional[list[str]] = identify_missing(
                 all_tags_wp, tag_prep, tag_ints, ignore_case=True
             )
             if tag_check is None:

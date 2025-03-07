@@ -22,6 +22,7 @@ import time
 from re import Pattern
 from dataclasses import dataclass, fields
 from sqlite3 import OperationalError
+from typing import TypeVar, Any, Generic, Optional
 
 # Third-party modules
 import pyclip
@@ -34,13 +35,15 @@ from integrations import wordpress_api, x_api, WPEndpoints, XEndpoints
 from ml_engine import classify_title, classify_description
 import workflows.content_select as cs
 
+T = TypeVar("T")
 
-class EmbedsMultiSchema:
+
+class EmbedsMultiSchema(Generic[T]):
     """
     Complementary class dealing with dynamic SQL schema reading for content databases.
 
     EmbedsMultiSchema provides an interface to the main control flow of the bot that allows
-    for direct index probing based on the present schema. This improvement will make it easier to
+    for direct index probing based on the present schema. This improvement will make it easier
     for the user to implement further functionality and behaviour based on specific fields.
     """
 
@@ -85,7 +88,7 @@ class EmbedsMultiSchema:
         """
         query = "SELECT sql FROM sqlite_master"
         try:
-            schema = helpers.fetch_data_sql(query, db_cur)
+            schema: list[tuple[int | str, ...]] = helpers.fetch_data_sql(query, db_cur)
             fst_table, *others = schema
 
             if others:
@@ -95,8 +98,8 @@ class EmbedsMultiSchema:
             else:
                 pass
 
-            table_name = fst_table[0].split(" ")[2].split("(")[0]
-            query = "PRAGMA table_info({})".format(table_name)
+            table_name: str = fst_table[0].split(" ")[2].split("(")[0]
+            query: str = "PRAGMA table_info({})".format(table_name)
             schema = helpers.fetch_data_sql(query, db_cur)
             fields_ord = list(map(lambda lstpl: lstpl[0:2], schema))
 
@@ -109,120 +112,247 @@ class EmbedsMultiSchema:
             raise InvalidDB
 
     def __init__(self, db_cur: sqlite3):
+        """Initialisation logic for ``EmbedsMultiSchema`` instances.
+            Supports data field handling that can carry out error handling without
+            explicit logic in the main control flow or functionality using this class.
+        :param db_cur: Active database cursor
+        """
         schema = self.get_schema(db_cur)
         self.table_name: str = schema[0]
         self.__fields_indx = schema[1]
-        self.__fields: list[str] = list(map(lambda tpl: tpl[1], self.__fields_indx))
+        self.__fields: list[Any] = list(map(lambda tpl: tpl[1], self.__fields_indx))
         self.field_count: int = len(self.__fields)
+        self.__data: Optional[T] = None
 
-    def get_fields(self, keep_indx: bool = False):
+    def load_data_instance(self, data_instance: T) -> None:
+        """
+        Setter for the private field ``data_instance``.
+        :param data_instance: ``T`` - Generic type that ideally can handle __getitem__
+        :return: ``None``
+        """
+        self.__data = data_instance
+        return None
+
+    def get_data_instance(self) -> Optional[T]:
+        """Retrieve a copy of the data stored in the private field ``self.__data``
+
+        :return: ``T`` | None - Generic Type
+        """
+        return self.__data
+
+    def get_fields(self, keep_indx: bool = False) -> list[tuple[int, str]] | list[str]:
+        """Get the actual database field names or a data structure (tuple) including
+            its indexes.
+
+        :param keep_indx: ``bool`` - Flag that, activated, retrieves indexes and column names in a tuple.
+        :return:
+        """
         if keep_indx:
             return self.__fields_indx
         else:
             return self.__fields
 
-    def get_slug(self) -> int:
+    def __safe_retrieve(self, re_pattern: Pattern[str]) -> Optional[T]:
+        """Getter for the private fields ``self.__fields`` and ``self.__data``.
+            Typically used in iterations where data access could result in exceptions that could
+            cause undesired crashes.
+
+        :param re_pattern: ``Pattern[str]`` - Regular Expression pattern (from local dataclass ``SchemaRegEx``)
+        :return: ``T`` | None - Generic type object
+        """
+        match = helpers.match_list_single(re_pattern, self.__fields)
+        if self.__data:
+            try:
+                return self.__data[match]
+            except (IndexError, TypeError):
+                return None
+        else:
+            return match
+
+    def get_slug(self) -> Optional[str | int]:
+        """Slug getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``slug`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_slug
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_embed(self) -> int:
+    def get_embed(self) -> Optional[str | int]:
+        """Embed getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``embed`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_embed
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_thumbnail(self) -> int:
+    def get_thumbnail(self) -> Optional[str | int]:
+        """Thumbnail getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``thumbnail`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_thumbnail
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_categories(self) -> int:
+    def get_categories(self) -> Optional[str | int]:
+        """Categories getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``categories`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_categories
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_rating(self) -> int:
+    def get_rating(self) -> Optional[str | int]:
+        """Rating getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``rating`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_rating
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_title(self) -> int:
+    def get_title(self) -> Optional[str | int]:
+        """Title getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``title`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_title
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_link(self) -> int:
+    def get_link(self) -> Optional[str | int]:
+        """Link getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``link`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_link
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_date(self) -> int:
+    def get_date(self) -> Optional[str | int]:
+        """Date getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``date`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_date
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_id(self) -> int:
+    def get_id(self) -> Optional[str | int]:
+        """ID getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``id`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_id
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_duration(self) -> int:
+    def get_duration(self) -> Optional[str | int]:
+        """Duration getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``Duration`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_duration
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_pornstars(self) -> int:
+    def get_pornstars(self) -> Optional[str | int]:
+        """Pornstars getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``pornstars`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_prnstars
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_models(self) -> int:
+    def get_models(self) -> Optional[str | int]:
+        """Models getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``models`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_models
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_resolution(self) -> int:
+    def get_resolution(self) -> Optional[str | int]:
+        """Resolution getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``resolution`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_resolution
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_tags(self) -> int:
+    def get_tags(self) -> Optional[str | int]:
+        """Tags getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``tags`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_tags
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_likes(self) -> int:
+    def get_likes(self) -> Optional[str | int]:
+        """Likes getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``likes`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_likes
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_url(self) -> int:
+    def get_url(self) -> Optional[str | int]:
+        """URL getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``url`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_url
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_description(self) -> int:
+    def get_description(self) -> Optional[str | int]:
+        """Description getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``description`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_description
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_studio(self) -> int:
+    def get_studio(self) -> Optional[str | int]:
+        """Studio getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``studio`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_studio
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_trailer(self) -> int:
+    def get_trailer(self) -> Optional[str | int]:
+        """Trailer getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``trailer`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_trailer
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
-    def get_orientation(self) -> int:
+    def get_orientation(self) -> Optional[str | int]:
+        """Orientation getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``orientation`` index.
+        """
         re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_orientation
-        matches = helpers.match_list_single(re_pattern, self.__fields)
-        return matches
+        return self.__safe_retrieve(re_pattern)
 
 
-def filter_tags(tgs: str, filter_lst: list[str] | None = None) -> list[str] | None:
+def filter_tags(
+    tgs: str, filter_lst: Optional[list[str]] = None
+) -> Optional[list[str]]:
     """Remove redundant words found in tags and return a clear list of unique filtered tags.
 
     :param tgs: ``list[str]`` tags to be filtered
@@ -233,12 +363,13 @@ def filter_tags(tgs: str, filter_lst: list[str] | None = None) -> list[str] | No
         return None
 
     spl_char = (
-        lambda tag: chars[1]
-        if (chars := re.findall(r"[\W_]+", tag))
+        lambda tag: " "
+        if not (chars := re.findall(r"[\W_]+", tag))
         else chars[0]
-        if chars
-        else " "
+        if len(chars) <= 1
+        else chars[1]
     )
+
     t_split = tgs.split(spl_char(tgs))
     new_set = set({})
     for tg in t_split:
@@ -324,7 +455,6 @@ def embedding_pilot(
         partner_list, embed_ast_conf.content_hint
     )
     db_interface = EmbedsMultiSchema(cur_dump)
-
     wp_base_url = wpauths.api_base_url
     logging.info(f"Using {wp_base_url} as WordPress API base url")
 
@@ -334,7 +464,7 @@ def embedding_pilot(
     cs.select_guard(db_dump_name, partner)
     logging.info("Select guard cleared...")
 
-    all_vals: list[tuple[str]] = helpers.fetch_data_sql(
+    all_vals: list[tuple[str | int, ...]] = helpers.fetch_data_sql(
         embed_ast_conf.sql_query, cur_dump
     )
     logging.info(f"{len(all_vals)} elements found in database {db_dump_name}")
@@ -357,6 +487,7 @@ def embedding_pilot(
     thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
     logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
     for num, vid in enumerate(not_published_yet):
+        db_interface.load_data_instance(vid)
         logging.info(f"Displaying on iteration {num} data: {vid}")
         os.system("clear")
         console.print(
@@ -373,7 +504,7 @@ def embedding_pilot(
         for field in db_interface.get_fields(keep_indx=True):
             num, fld = field
             if re.match(db_interface.SchemaRegEx.pat_duration, fld):
-                hs, mins, secs = helpers.get_duration(int(vid[num]))
+                hs, mins, secs = helpers.get_duration(int(db_interface.get_duration()))
                 console.print(
                     f"{num + 1}. Duration: \n\tHours: [bold red]{hs}[/bold red] \n\tMinutes: [bold red]{mins}[/bold red] \n\tSeconds: [bold red]{secs}[/bold red]",
                     style="bold green",
@@ -441,12 +572,29 @@ def embedding_pilot(
                 logging.shutdown()
                 break
         if add_post:
+            models = (
+                girl
+                if (girl := db_interface.get_models())
+                else db_interface.get_pornstars()
+            )
+
             slugs = [
                 f"{slug}" if (slug := db_interface.get_slug()) else "",
                 cs.make_slug(
-                    partner, None, (title := vid[db_interface.get_title()]), "video"
+                    partner, models, (title := db_interface.get_title()), "video"
                 ),
-                cs.make_slug(partner, None, title, "video", reverse=True),
+                cs.make_slug(partner, models, title, "video", reverse=True),
+                cs.make_slug(
+                    partner, models, title, "video", studio=db_interface.get_studio()
+                ),
+                cs.make_slug(
+                    partner,
+                    models,
+                    title,
+                    "video",
+                    studio=db_interface.get_studio(),
+                    partner_out=True,
+                ),
             ]
             console.print("\n--> Available slugs:", style="bold yellow")
 
@@ -469,11 +617,16 @@ def embedding_pilot(
             )
             try:
                 wp_slug = slugs[int(slug_sel)]
-            except (IndexError, ValueError):
-                slug_sel = total_slugs + 1
+            except (IndexError, ValueError) as e:
+                if e == IndexError:
+                    pass
+                else:
+                    slug_sel = total_slugs + 1
+
                 if int(slug_sel) == (total_slugs + 1):
                     # Parsing slug by default.
                     wp_slug = slugs[0]
+                else:
                     pyclip.copy(slugs[0])
                     console.print("Enter your slug now: ", style="bold yellow")
                     wp_slug = input()
@@ -486,7 +639,7 @@ def embedding_pilot(
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make them more general.
             tag_prep = filter_tags(
-                (categories := vid[db_interface.get_categories()]),
+                (categories := db_interface.get_categories()),
                 ["asian", "japanese"],
             )
             # Default tag per partner
@@ -527,20 +680,16 @@ def embedding_pilot(
                         pass
 
             spl_char = (
-                lambda tag: chars[1] if (chars := re.findall(r"\W", tag)) else chars[0]
+                lambda tag: chars[1]
+                if len((chars := re.findall(r"\W", tag))) > 1
+                else chars[0]
             )
             models_field = (
                 pornstars
-                if (pornstars := vid[db_interface.get_pornstars()])
-                else vid[db_interface.get_models()]
+                if (pornstars := db_interface.get_pornstars())
+                else db_interface.get_models()
             )
             models_prep = filter_tags(models_field)
-
-            # model_prep = (
-            #     [model for model in models_spl]
-            #     if models_field is not None
-            #     else ["model-not-found"]
-            # )
 
             model_ints: list[int] = cs.model_checker(wp_posts_f, models_prep)
 
@@ -612,7 +761,7 @@ def embedding_pilot(
                 cs.fetch_thumbnail(
                     thumbnails_dir.name,
                     wp_slug,
-                    vid[db_interface.get_thumbnail()],
+                    db_interface.get_thumbnail(),
                 )
                 console.print(
                     f"--> Stored thumbnail {thumbnail} in cache folder {os.path.relpath(thumbnails_dir.name)}",
@@ -667,7 +816,7 @@ def embedding_pilot(
                 )
                 # Some tag strings end with ';'
                 pyclip.detect_clipboard()
-                pyclip.copy(vid[db_interface.get_embed()])
+                pyclip.copy(db_interface.get_embed())
                 pyclip.copy(title)
                 console.print(
                     "--> Check the post and paste all you need from your clipboard.",

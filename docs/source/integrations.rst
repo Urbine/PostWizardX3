@@ -17,6 +17,8 @@ Integrations in this module include:
 
 5. Telegram BotFather API
 
+6. FapHouse API
+
 .. tip::
    All integrations implemented in this module have Command Line Interface (CLI) that makes it
    easier to use them as standalone programs.
