@@ -149,6 +149,28 @@ That said, it is important to start by updating your credentials to access your 
 
             $ python3 -m integrations.botfather_telegram --getme
 
+   d. PartnerTen API
+
+      Obtain a fresh content database with dynamic SQL schema configuration.
+      For an optimal experience, you can try this out:
+
+      .. code:: console
+
+         $ python3 -m integrations.feed_delta_api --no-embed-dur
+
+      This command will exclude the ``embed_dur`` column which is not
+      relevant for processing, however, you can still include it if you so want it by
+      removing the flag.
+
+      .. tip::
+         For more information about options supported by each integration,
+         run the module with the ``--help`` flag:
+
+         .. code:: console
+
+            $ python3 -m integrations.feed_delta_api --help
+
+
 
 Get to Know the Bots
 ====================
