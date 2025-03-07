@@ -28,3 +28,6 @@ python3 -m unittest ./tests/test_parse_date_to_iso.py
 
 echo "--> Testing function clean_partner_tag from the workflows package:"
 python3 -m unittest ./tests/test_clean_partner_tag.py
+
+echo "--> Testing function make_slug from the workflows package:"
+python3 -m unittest ./tests/test_make_slug.py

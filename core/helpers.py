@@ -36,7 +36,7 @@ from datetime import date
 from pathlib import Path
 from re import Pattern
 from sqlite3 import OperationalError, Connection, Cursor
-from typing import AnyStr, Any
+from typing import AnyStr, Any, Optional
 
 # Third-party modules
 from bs4 import BeautifulSoup
@@ -65,7 +65,7 @@ def access_url_bs4(url_to_bs4: str) -> BeautifulSoup:
     return BeautifulSoup(page, "html.parser")
 
 
-def access_url(url_raw: str):
+def access_url(url_raw: str) -> Any:
     """Accesses a URL and returns a http.client.HTTPResponse object
 
     :param url_raw: ``str`` URL
@@ -193,7 +193,7 @@ def cwd_or_parent_path(parent: bool = False) -> str:
         return os.getcwd()
 
 
-def export_client_info() -> dict[str, dict[str, str]]:
+def export_client_info() -> Optional[dict[str, dict[str, str]]]:
     """Help dataclasses set a ``default_factory`` field for the client info function.
     **Note: No longer used due to core.config_mgr implementation.**
 
@@ -203,7 +203,7 @@ def export_client_info() -> dict[str, dict[str, str]]:
     return info
 
 
-def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple]:
+def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple[str | int, ...]]:
     """Fetch videos takes a SQL query in string format and returns the data
     in a list of tuples. In case there is no data, the function returns None.
 
@@ -362,7 +362,7 @@ def is_parent_dir_required(parent: bool) -> str:
 
 def get_client_info(
     filename: str, logg_err: bool = False
-) -> dict[str, [str, str]] | None:
+) -> Optional[dict[str, [str, str]]]:
     """This function handles API secrets in a way that completely eliminates the need
     to use them inside the code. It can be any ``JSON`` file that you create for that purpose and,
     most importantly, placed in **``.gitignore``** to avoid pushing sensitive info to *GitHub* or *GitLab*.
@@ -398,7 +398,7 @@ def get_duration(seconds: int | float) -> tuple[int | float, int | float, int | 
     return hours, minutes, seconds
 
 
-def get_dict_key(source_dic: dict, value: int) -> str | int | None:
+def get_dict_key(source_dic: dict, value: int) -> Optional[str | int]:
     """This function retrieves the key from a dictionary if the value is associated with one.
 
     :param source_dic: key lookup ``dict``
@@ -411,7 +411,9 @@ def get_dict_key(source_dic: dict, value: int) -> str | int | None:
     return None
 
 
-def get_from_db(cur: sqlite3, field: str, table: str) -> list[tuple] | None:
+def get_from_db(
+    cur: sqlite3, field: str, table: str
+) -> Optional[list[tuple[str, ...]]]:
     """This function gets a field from a table in a ``SQLite3`` database.
 
     :param cur: database cursor
@@ -518,7 +520,7 @@ def get_webdriver(
 
 def match_list_single(
     hint: str | Pattern[str], items: list, ignore_case: bool = False
-) -> int | None:
+) -> Optional[int]:
     """Matches a single occurrence of a ``hint`` and returns its ``index`` position.
 
     :param hint: ``str`` pattern or word
@@ -653,7 +655,7 @@ def match_list_elem_date(
         return up_to_date
 
 
-def load_file_path(package: str, filename: str) -> Path | None:
+def load_file_path(package: str, filename: str) -> Optional[Path]:
     """Load resources stored within folders in packages.
     Usually, not all systems can locate the required resources due to the package structure of the project.
 

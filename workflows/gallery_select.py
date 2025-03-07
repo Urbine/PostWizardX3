@@ -19,6 +19,7 @@ import time
 import zipfile
 
 from sqlite3 import OperationalError
+from typing import Optional
 
 # Third-party modules
 import pyclip
@@ -182,7 +183,7 @@ def make_gallery_payload(gal_title: str, iternum: int):
 
 def search_db_like(
     cur: sqlite3, table: str, field: str, query: str
-) -> list[tuple[...]] | None:
+) -> Optional[list[tuple[...]]]:
     """Perform a ``SQL`` database search with the ``like``  parameter in a SQLite3 database.
 
     :param cur: ``sqlite3`` db cursor object
@@ -195,7 +196,7 @@ def search_db_like(
     return cur.execute(qry).fetchall()
 
 
-def get_from_db(cur: sqlite3, field: str, table: str) -> list[tuple[...]] | None:
+def get_from_db(cur: sqlite3, field: str, table: str) -> Optional[list[tuple[...]]]:
     """Get a specific field or all ( ``*`` ) from a SQLite3 database.
 
     :param cur: ``sqlite3`` database cursor
