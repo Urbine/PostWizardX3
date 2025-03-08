@@ -32,7 +32,7 @@ from rich.console import Console
 # Local implementations
 from core import helpers, embed_assist_conf, wp_auth, x_auth, clean_filename, InvalidDB
 from integrations import wordpress_api, x_api, WPEndpoints, XEndpoints
-from ml_engine import classify_title, classify_description
+from ml_engine import classify_title, classify_description, classify_tags
 import workflows.content_select as cs
 
 T = TypeVar("T")
@@ -404,7 +404,8 @@ def filter_published_embeds(
 
     not_published: list[tuple] = []
     for elem in videos:
-        vid_title = elem[db_interface.get_title()]
+        db_interface.load_data_instance(elem)
+        vid_title = db_interface.get_title()
         if vid_title in post_titles:
             continue
         else:
@@ -635,7 +636,9 @@ def embedding_pilot(
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make them more general.
             tag_prep = filter_tags(
-                (categories := db_interface.get_categories()),
+                categories
+                if (categories := db_interface.get_categories())
+                else db_interface.get_tags(),
                 ["asian", "japanese"],
             )
             # Default tag per partner
@@ -680,14 +683,25 @@ def embedding_pilot(
                 if (authors := db_interface.get_authors())
                 else db_interface.get_models()
             )
-            models_prep = filter_tags(models_field)
 
-            model_ints: list[int] = cs.model_checker(wp_posts_f, models_prep)
+            if models_field:
+                models_prep = filter_tags(models_field)
+                model_ints: Optional[list[int]] = cs.model_checker(
+                    wp_posts_f, models_prep
+                )
+            else:
+                model_ints = None
 
             # Video category NaiveBayes/MaxEnt Classifiers
             class_title = classify_title(title)
-            class_tags = classify_description(categories)
+            class_tags = classify_tags(categories)
             class_title.union(class_tags)
+            if description := db_interface.get_description():
+                class_desc = classify_description(description)
+                class_title.union(class_desc)
+            else:
+                pass
+
             consolidate_categs = list(class_title)
             logging.info(f"Suggested categories ML: {consolidate_categs}")
 
@@ -732,7 +746,7 @@ def embedding_pilot(
                 wp_slug,
                 wpauths.default_status,
                 title,
-                title,
+                description if description else title,
                 tag_ints,
                 model_int_lst=model_ints,
                 categs=category,
@@ -774,8 +788,7 @@ def embedding_pilot(
                 )
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
-                # upload_thumbnail will report a 500 status code when this is the
-                # case.
+                # upload_thumbnail will report a 500 status code when this is the case.
                 # More information in integrations.wordpress_api.upload_thumbnail docs
                 if upload_img == 500:
                     logging.warning(
