@@ -90,7 +90,7 @@ class RefreshTokenError(Exception):
         self.status = res.status_code
         self.reason = res.reason
         self.help = "Regenerate the tokens and try again: python3 -m integrations.x_api --headless"
-        self.message = f"Status code: {self.status} \nReason: {self.reason}"
+        self.message = f"Status code: {self.status!r} \nReason: {self.reason!r}"
         super().__init__(f"{self.message} \n{self.help}")
 
 

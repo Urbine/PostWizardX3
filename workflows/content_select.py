@@ -50,6 +50,7 @@ from core import (
     clean_filename,
     x_auth,
     bot_father,
+    split_char,
 )
 
 from integrations import wordpress_api, x_api, botfather_telegram
@@ -124,15 +125,14 @@ def clean_partner_tag(partner_tag: str) -> str:
     :return: ``str`` cleaned partner tag without the apostrophe.
     """
     try:
-        no_word: list[str] = re.findall(r"[\W_]+", partner_tag, flags=re.IGNORECASE)
-        if no_word[0] == " " and len(no_word) == 1:
+        spl_word: str = split_char(partner_tag)
+        if spl_word == " ":
             return partner_tag
-        elif "'" not in no_word:
+        elif "'" not in split_char(partner_tag, char_lst=True):
             return partner_tag
         else:
             # Second special character is the apostrophe, the first one is typically a whitespace
-            split_char: str = no_word[1] if len(no_word) > 1 else no_word[0]
-            return "".join(partner_tag.split(split_char))
+            return "".join(partner_tag.split(spl_word))
     except IndexError:
         return partner_tag
 
@@ -148,15 +148,7 @@ def asset_parser(bot_config: ContentSelectConf, partner: str):
     assets = parse_client_config(bot_config.assets_conf, "core.config")
     sections = assets.sections()
 
-    spl_char = (
-        lambda tag: " "
-        if not (chars := re.findall(r"[\W_]+", tag))
-        else chars[0]
-        if len(chars) <= 1
-        else chars[1]
-    )
-
-    wrd_list = clean_partner_tag(partner).split(spl_char(partner))
+    wrd_list = clean_partner_tag(partner).split(split_char(partner, placeholder=" "))
 
     find_me = (
         lambda word, section: matchs[0]
@@ -315,14 +307,7 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list
         wp_posts_f, preset[0], preset[1]
     )
 
-    spl_char = (
-        lambda tag: " "
-        if not (chars := re.findall(r"[\W_]+", tag))
-        else chars[0]
-        if len(chars) <= 1
-        else chars[1]
-    )
-    clean_tag = lambda tag: " ".join(tag.split(spl_char(tag)))
+    clean_tag = lambda tag: " ".join(tag.split(split_char(tag)))
     tag_join = lambda tag: "".join(map(clean_tag, tag))
     # Result must be: colourful-skies/great -> colourful skies great
     cl_tags = list(map(tag_join, tag_lst))
@@ -599,15 +584,7 @@ def make_slug(
     :param partner_out: ``bool`` ``True`` if you want to build slugs without the partner name. Default ``False``.
     :return: ``str`` formatted string of a WordPress-ready URL slug.
     """
-    spl_char = (
-        lambda stg: " "
-        if not (chars := re.findall(r"\W+", stg))
-        else chars[0]
-        if len(chars) <= 1
-        else chars[1]
-    )
-
-    model_spl = spl_char(model) if model is not None else " "
+    model_spl = split_char(model, placeholder=" ")
     join_wrds = lambda wrd: "-".join(map(lambda w: w.lower(), re.findall(r"\w+", wrd)))
     build_slug = lambda lst: "-".join(filter(lambda e_str: e_str != "", lst))
 
@@ -644,11 +621,13 @@ def make_slug(
             [
                 "-".join(map(join_wrds, name.split(" ")))
                 for name in list(
-                    map(lambda m: m.lower().strip(), model.split(model_spl))
+                    map(
+                        lambda m: m.lower().strip(),
+                        model.split(model_spl if model_spl != " " else "."),
+                    )
                 )
             ]
         )
-        rev_lst = lambda lst: lst.reverse()
 
         if reverse:
             return build_slug([title_sl, partner_sl, model_sl, studio, content])
@@ -1001,7 +980,7 @@ def wp_publish_checker(
     :return: ``None`` | ``True``
     """
     retries = 0
-    retry_offset = 1
+    retry_offset = 10
     start_check = time.time()
     hot_sync = hot_file_sync(cs_conf)
     while hot_sync:
@@ -1022,7 +1001,12 @@ def wp_publish_checker(
             return True
 
         time.sleep(retry_offset)
-        retry_offset += 2
+
+        if retry_offset != 0:
+            retry_offset -= 1
+        else:
+            retry_offset = 5
+
         retries += 1
         hot_sync = hot_file_sync(cs_conf)
 
@@ -1431,7 +1415,6 @@ def video_upload_pilot(
                     f"--> WordPress status code: {push_post}", style="bold green"
                 )
 
-                # Some tag strings end with ';'
                 pyclip.detect_clipboard()
                 pyclip.copy(source_url)
                 pyclip.copy(title)
@@ -1526,7 +1509,7 @@ def video_upload_pilot(
                     pass
                 videos_uploaded += 1
             except (SSLError, ConnectionError) as e:
-                logging.warning(f"Caught exception {str(e)} - Prompting user")
+                logging.warning(f"Caught exception {e!r} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -1536,10 +1519,10 @@ def video_upload_pilot(
                 if console.input(
                     "\n[bold green] Do you want to continue? Y/ENTER to exit: [bold green]"
                 ) == ("y" or "yes"):
-                    logging.info(f"User accepted to continue after catching {str(e)}")
+                    logging.info(f"User accepted to continue after catching {e!r}")
                     continue
                 else:
-                    logging.info(f"User declined after catching {str(e)}")
+                    logging.info(f"User declined after catching {e!r}")
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
