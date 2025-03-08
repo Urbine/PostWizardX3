@@ -593,19 +593,15 @@ def embedding_pilot(
                     partner_out=True,
                 ),
             ]
+
+            clean_slugs = list(filter(lambda sl: sl != "", slugs))
             console.print("\n--> Available slugs:", style="bold yellow")
 
-            total_slugs = 1
-            for slug in slugs:
-                if slug:
-                    console.print(f"{total_slugs}. -> {slug}", style="bold green")
-                    total_slugs += 1
-                else:
-                    continue
+            for num, slug in enumerate(clean_slugs, start=1):
+                console.print(f"{num}. -> {slug}", style="bold green")
 
-            real_slug_count = len(list(filter(lambda sl: sl != "", slugs)))
             console.print(
-                f"Select {real_slug_count + 1} to enter a custom slug.",
+                f"Select {len(clean_slugs) + 1} to enter a custom slug.",
                 style="bold yellow",
             )
 
@@ -613,23 +609,14 @@ def embedding_pilot(
                 "[bold yellow]\n--> Select your slug: [/bold yellow]\n"
             )
             try:
-                wp_slug = slugs[int(slug_sel)]
-            except (IndexError, ValueError) as e:
-                if e == IndexError:
-                    pass
-                else:
-                    slug_sel = total_slugs + 1
-
-                if int(slug_sel) == (total_slugs + 1):
-                    # Parsing slug by default.
-                    wp_slug = slugs[0]
-                else:
-                    pyclip.copy(slugs[0])
+                wp_slug = clean_slugs[int(slug_sel) - 1]
+            except (IndexError, ValueError):
+                pyclip.copy(clean_slugs[0])
+                console.print("Enter your slug now: ", style="bold yellow")
+                wp_slug = input()
+                while wp_slug == "" or wp_slug == " " or wp_slug is None:
                     console.print("Enter your slug now: ", style="bold yellow")
                     wp_slug = input()
-                    while wp_slug == "" or wp_slug == " " or wp_slug is None:
-                        console.print("Enter your slug now: ", style="bold yellow")
-                        wp_slug = input()
 
             logging.info(f"WP Slug - Selected: {wp_slug}")
 
