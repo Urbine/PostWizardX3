@@ -66,6 +66,7 @@ from core.helpers import (
     parse_client_config,
     remove_if_exists,
     search_files_by_ext,
+    split_char,
     write_to_file,
     write_config_file,
 )
@@ -107,6 +108,7 @@ __all__ = [
     "parse_client_config",
     "remove_if_exists",
     "search_files_by_ext",
+    "split_char",
     "update_mcash_conf",
     "write_to_file",
     "write_config_file",

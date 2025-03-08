@@ -32,7 +32,7 @@ from rich.console import Console
 # Local implementations
 from core import helpers, embed_assist_conf, wp_auth, x_auth, clean_filename, InvalidDB
 from integrations import wordpress_api, x_api, WPEndpoints, XEndpoints
-from ml_engine import classify_title, classify_description
+from ml_engine import classify_title, classify_description, classify_tags
 import workflows.content_select as cs
 
 T = TypeVar("T")
@@ -362,26 +362,22 @@ def filter_tags(
     if tgs is None:
         return None
 
-    spl_char = (
-        lambda tag: " "
-        if not (chars := re.findall(r"[\W_]+", tag))
-        else chars[0]
-        if len(chars) <= 1
-        else chars[1]
-    )
+    no_sp_chars = lambda w: "".join(re.findall(r"\w+", w))
 
-    t_split = tgs.split(spl_char(tgs))
+    # Split with a whitespace separator is not necessary at this point:
+    t_split = tgs.split(spl if (spl := helpers.split_char(tgs)) != " " else "-1")
+
     new_set = set({})
     for tg in t_split:
         temp_lst = []
         sublist = tg.split(" ")
         for word in sublist:
             if filter_lst is None:
-                temp_lst.append(word)
+                temp_lst.append(no_sp_chars(word))
                 continue
             elif word not in filter_lst:
-                temp_lst.append(word)
-            else:
+                temp_lst.append(no_sp_chars(word))
+            elif temp_lst:
                 continue
         new_set.add(" ".join(temp_lst))
     return list(new_set)
@@ -408,7 +404,8 @@ def filter_published_embeds(
 
     not_published: list[tuple] = []
     for elem in videos:
-        vid_title = elem[db_interface.get_title()]
+        db_interface.load_data_instance(elem)
+        vid_title = db_interface.get_title()
         if vid_title in post_titles:
             continue
         else:
@@ -596,19 +593,15 @@ def embedding_pilot(
                     partner_out=True,
                 ),
             ]
+
+            clean_slugs = list(filter(lambda sl: sl != "", slugs))
             console.print("\n--> Available slugs:", style="bold yellow")
 
-            total_slugs = 1
-            for slug in slugs:
-                if slug:
-                    console.print(f"{total_slugs}. -> {slug}", style="bold green")
-                    total_slugs += 1
-                else:
-                    continue
+            for num, slug in enumerate(clean_slugs, start=1):
+                console.print(f"{num}. -> {slug}", style="bold green")
 
-            real_slug_count = len(list(filter(lambda sl: sl != "", slugs)))
             console.print(
-                f"Select {real_slug_count + 1} to enter a custom slug.",
+                f"Select {len(clean_slugs) + 1} to enter a custom slug.",
                 style="bold yellow",
             )
 
@@ -616,30 +609,23 @@ def embedding_pilot(
                 "[bold yellow]\n--> Select your slug: [/bold yellow]\n"
             )
             try:
-                wp_slug = slugs[int(slug_sel)]
-            except (IndexError, ValueError) as e:
-                if e == IndexError:
-                    pass
-                else:
-                    slug_sel = total_slugs + 1
-
-                if int(slug_sel) == (total_slugs + 1):
-                    # Parsing slug by default.
-                    wp_slug = slugs[0]
-                else:
-                    pyclip.copy(slugs[0])
+                wp_slug = clean_slugs[int(slug_sel) - 1]
+            except (IndexError, ValueError):
+                pyclip.copy(clean_slugs[0])
+                console.print("Enter your slug now: ", style="bold yellow")
+                wp_slug = input()
+                while wp_slug == "" or wp_slug == " " or wp_slug is None:
                     console.print("Enter your slug now: ", style="bold yellow")
                     wp_slug = input()
-                    while wp_slug == "" or wp_slug == " " or wp_slug is None:
-                        console.print("Enter your slug now: ", style="bold yellow")
-                        wp_slug = input()
 
             logging.info(f"WP Slug - Selected: {wp_slug}")
 
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make them more general.
             tag_prep = filter_tags(
-                (categories := db_interface.get_categories()),
+                categories
+                if (categories := db_interface.get_categories())
+                else db_interface.get_tags(),
                 ["asian", "japanese"],
             )
             # Default tag per partner
@@ -679,24 +665,30 @@ def embedding_pilot(
                     else:
                         pass
 
-            spl_char = (
-                lambda tag: chars[1]
-                if len((chars := re.findall(r"\W", tag))) > 1
-                else chars[0]
-            )
             models_field = (
                 pornstars
                 if (pornstars := db_interface.get_pornstars())
                 else db_interface.get_models()
             )
-            models_prep = filter_tags(models_field)
 
-            model_ints: list[int] = cs.model_checker(wp_posts_f, models_prep)
+            if models_field:
+                models_prep = filter_tags(models_field)
+                model_ints: Optional[list[int]] = cs.model_checker(
+                    wp_posts_f, models_prep
+                )
+            else:
+                model_ints = None
 
             # Video category NaiveBayes/MaxEnt Classifiers
             class_title = classify_title(title)
-            class_tags = classify_description(categories)
+            class_tags = classify_tags(categories)
             class_title.union(class_tags)
+            if description := db_interface.get_description():
+                class_desc = classify_description(description)
+                class_title.union(class_desc)
+            else:
+                pass
+
             consolidate_categs = list(class_title)
             logging.info(f"Suggested categories ML: {consolidate_categs}")
 
@@ -741,7 +733,7 @@ def embedding_pilot(
                 wp_slug,
                 wpauths.default_status,
                 title,
-                title,
+                description if description else title,
                 tag_ints,
                 model_int_lst=model_ints,
                 categs=category,
@@ -783,8 +775,7 @@ def embedding_pilot(
                 )
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
-                # upload_thumbnail will report a 500 status code when this is the
-                # case.
+                # upload_thumbnail will report a 500 status code when this is the case.
                 # More information in integrations.wordpress_api.upload_thumbnail docs
                 if upload_img == 500:
                     logging.warning(
@@ -814,7 +805,7 @@ def embedding_pilot(
                 console.print(
                     f"--> WordPress status code: {push_post}", style="bold green"
                 )
-                # Some tag strings end with ';'
+
                 pyclip.detect_clipboard()
                 pyclip.copy(db_interface.get_embed())
                 pyclip.copy(title)
@@ -911,7 +902,7 @@ def embedding_pilot(
                     pass
                 videos_uploaded += 1
             except (SSLError, ConnectionError) as e:
-                logging.warning(f"Caught exception {str(e)} - Prompting user")
+                logging.warning(f"Caught exception {e!r} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -921,10 +912,10 @@ def embedding_pilot(
                 if console.input(
                     "\n[bold green] Do you want to continue? Y/ENTER to exit: [bold green]"
                 ) == ("y" or "yes"):
-                    logging.info(f"User accepted to continue after catching {str(e)}")
+                    logging.info(f"User accepted to continue after catching {e!r}")
                     continue
                 else:
-                    logging.info(f"User declined after catching {str(e)}")
+                    logging.info(f"User declined after catching {e!r}")
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",

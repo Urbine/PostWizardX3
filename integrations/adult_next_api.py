@@ -101,7 +101,9 @@ def construct_api_dump_url(
 
     csv_columns = f"&csv_columns={str(sep).join(column_lst)}"
 
-    return f"{str(ANAbjavDumpURL(campaign_id, sort_crit, days, url_limit, sep))}{csv_columns}"
+    return (
+        f"{ANAbjavDumpURL(campaign_id, sort_crit, days, url_limit, sep)!s}{csv_columns}"
+    )
 
 
 def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:

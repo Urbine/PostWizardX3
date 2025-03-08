@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     temp_dir = tempfile.TemporaryDirectory(dir=".")
 
-    # All webdriver instances have been optimised by the paramenter ``no_img``
+    # All webdriver instances have been optimised by the parameter ``no_img``
     # in their ``core.get_webdriver()`` configuration, which means that browser instances
     # won't load images in the web scraping process. In testing, this has shown to
     # generate a performance gain of approximately 50% to 60%.

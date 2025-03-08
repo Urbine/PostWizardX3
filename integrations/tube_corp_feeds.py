@@ -99,7 +99,7 @@ def construct_tube_dump_url(
 
     csv_columns = f"&csv_columns={str(sep).join(column_lst)}"
 
-    return f"{str(TubeDumpURL(base_url, sort_crit, days, url_limit, sep))}{csv_columns}"
+    return f"{TubeDumpURL(base_url, sort_crit, days, url_limit, sep)!s}{csv_columns}"
 
 
 def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
