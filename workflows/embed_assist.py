@@ -911,7 +911,7 @@ def embedding_pilot(
                     pass
                 videos_uploaded += 1
             except (SSLError, ConnectionError) as e:
-                logging.warning(f"Caught exception {str(e)} - Prompting user")
+                logging.warning(f"Caught exception {e!r} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -921,10 +921,10 @@ def embedding_pilot(
                 if console.input(
                     "\n[bold green] Do you want to continue? Y/ENTER to exit: [bold green]"
                 ) == ("y" or "yes"):
-                    logging.info(f"User accepted to continue after catching {str(e)}")
+                    logging.info(f"User accepted to continue after catching {e!r}")
                     continue
                 else:
-                    logging.info(f"User declined after catching {str(e)}")
+                    logging.info(f"User declined after catching {e!r}")
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",

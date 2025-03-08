@@ -155,13 +155,13 @@ def extract_zip(zip_path: str, extr_dir: str):
             shutil.rmtree(junk_folder := f"{extr_dir}/__MACOSX")
             logging.info(f"Junk folder {junk_folder} detected and cleaned.")
         except (FileNotFoundError, NotImplementedError) as e:
-            logging.warning(f"Caught {str(e)} - Handled")
+            logging.warning(f"Caught {e!r} - Handled")
             pass
         finally:
             logging.info(f"Cleaning remaining archive in {zip_path}")
             core.clean_file_cache(os.path.relpath(zip_path), ".zip")
     except (IndexError, zipfile.BadZipfile) as e:
-        logging.error(f"Something went wrong with the archive extraction -> {str(e)}")
+        logging.error(f"Something went wrong with the archive extraction -> {e!r}")
         return None
 
 
@@ -637,7 +637,6 @@ def gallery_upload_pilot(
                 logging.info(wp_push_msg := f"WordPress post push status: {push_post}")
                 console.print(wp_push_msg, style="bold green")
 
-                # Some tag strings end with ';'
                 pyclip.detect_clipboard()
                 # This is the main tag for galleries
                 pyclip.copy(partner_.lower())
@@ -738,7 +737,7 @@ def gallery_upload_pilot(
                     pass
                 galleries_uploaded += 1
             except (SSLError, ConnectionError) as e:
-                logging.warning(f"Caught exception {str(e)} - Prompting user")
+                logging.warning(f"Caught exception {e!r} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
@@ -748,10 +747,10 @@ def gallery_upload_pilot(
                 if console.input(
                     "[bold yellow]\nDo you want to continue? Y/ENTER to exit: [/bold yellow]"
                 ) == ("y" or "yes"):
-                    logging.info(f"User accepted to continue after catching {str(e)}")
+                    logging.info(f"User accepted to continue after catching {e!r}")
                     continue
                 else:
-                    logging.info(f"User declined after catching {str(e)}")
+                    logging.info(f"User declined after catching {e!r}")
                     console.print(
                         f"You have created {galleries_uploaded} set in this session!",
                         style="bold yellow",
