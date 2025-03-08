@@ -980,7 +980,7 @@ def wp_publish_checker(
     :return: ``None`` | ``True``
     """
     retries = 0
-    retry_offset = 1
+    retry_offset = 10
     start_check = time.time()
     hot_sync = hot_file_sync(cs_conf)
     while hot_sync:
@@ -1001,7 +1001,12 @@ def wp_publish_checker(
             return True
 
         time.sleep(retry_offset)
-        retry_offset += 2
+
+        if retry_offset != 0:
+            retry_offset -= 1
+        else:
+            retry_offset = 5
+
         retries += 1
         hot_sync = hot_file_sync(cs_conf)
 
