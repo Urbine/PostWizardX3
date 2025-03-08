@@ -872,7 +872,7 @@ def load_file_package_scope(package: str, filename: str) -> AnyStr:
             return f.read()
 
 
-def imagick(img_path: Path | str, quality: int, target: str):
+def imagick(img_path: Path | str, quality: int, target: str) -> None:
     """Convert images to a target file format via the ImageMagick library
     installed in the system.
 
@@ -928,3 +928,49 @@ def generate_random_str(k: int) -> str:
     letters = string.ascii_letters
     random_string = "".join(random.choices(letters, k=k))
     return random_string
+
+
+def split_char(
+    raw_str: Optional[str], placeholder: str = "-1", char_lst: bool = False
+) -> str | list[str]:
+    """
+    Identify the split character dynamically in order that str.split() knows what
+    the correct separator is. In this project, the most relevant separators are ``,`` and
+    ``;`` as whitespaces are not as important. However, if the only non-alphanumeric character of
+    the string is a whitespace, the function has to return it. Additional parameters
+    help with complementary logic and graceful error handling.
+
+    By design, this implementation assumes that, if there are more separators, the first one
+    in the match list may not be relevant for the purpose; therefore, it discards all
+    whitespaces and focuses on other special characters. This is so because it is common to
+    separate words with a whitespace at first and then use another separator, one that is really
+    meant to be a separator; for example, in the case ``colorful skies; great landscape;...`` whitespace
+    is not the real separator.
+
+    :param raw_str: ``str`` with or without separators
+    :param placeholder: ``str`` - Return this character if there is no separator. Default: ``"-1"``
+    :param char_lst: ``bool`` - Return a list of unique separators instead of a single one.
+    :return: ``str`` | ``list[str]``
+    """
+    try:
+        chars = re.findall(r"[\W_]+", raw_str)
+    except TypeError:
+        return placeholder
+
+    if chars:
+        if len(chars) == 1:
+            return chars[0]
+        else:
+            ch_lst = list(set(chars))
+            if char_lst:
+                return ch_lst
+            else:
+                try:
+                    filtered = list(filter(lambda ch: ch != " ", ch_lst))
+                    return filtered[0]
+                except IndexError:
+                    return placeholder
+    elif char_lst:
+        return list(raw_str)
+    else:
+        return placeholder
