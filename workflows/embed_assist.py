@@ -362,26 +362,22 @@ def filter_tags(
     if tgs is None:
         return None
 
-    spl_char = (
-        lambda tag: " "
-        if not (chars := re.findall(r"[\W_]+", tag))
-        else chars[0]
-        if len(chars) <= 1
-        else chars[1]
-    )
+    no_sp_chars = lambda w: "".join(re.findall(r"\w+", w))
 
-    t_split = tgs.split(spl_char(tgs))
+    # Split with a whitespace separator is not necessary at this point:
+    t_split = tgs.split(spl if (spl := helpers.split_char(tgs)) != " " else "-1")
+
     new_set = set({})
     for tg in t_split:
         temp_lst = []
         sublist = tg.split(" ")
         for word in sublist:
             if filter_lst is None:
-                temp_lst.append(word)
+                temp_lst.append(no_sp_chars(word))
                 continue
             elif word not in filter_lst:
-                temp_lst.append(word)
-            else:
+                temp_lst.append(no_sp_chars(word))
+            elif temp_lst:
                 continue
         new_set.add(" ".join(temp_lst))
     return list(new_set)
@@ -679,11 +675,6 @@ def embedding_pilot(
                     else:
                         pass
 
-            spl_char = (
-                lambda tag: chars[1]
-                if len((chars := re.findall(r"\W", tag))) > 1
-                else chars[0]
-            )
             models_field = (
                 authors
                 if (authors := db_interface.get_authors())
@@ -814,7 +805,7 @@ def embedding_pilot(
                 console.print(
                     f"--> WordPress status code: {push_post}", style="bold green"
                 )
-                # Some tag strings end with ';'
+
                 pyclip.detect_clipboard()
                 pyclip.copy(db_interface.get_embed())
                 pyclip.copy(title)
