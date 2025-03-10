@@ -15,10 +15,9 @@ __author_email__ = "yohamg@programmer.net"
 import os
 import re
 import sqlite3
-import datetime
 
 # Local implementations
-from core import helpers, load_file_path
+from core import helpers
 
 
 # Make sure that you get a dump file with all these fields:
@@ -42,10 +41,13 @@ def parse_txt_dump_chain(
     :param parent: ``bool`` look for the file in the parent directory
     :return: ``tuple[str, int]`` (abs_path_db, total_entries_in_db)
     """
+    cl_fname = helpers.clean_filename(filename, "txt")
     if dirname:
-        path = f"{dirname}/{helpers.clean_filename(filename, 'txt')}"
+        path = os.path.join(dirname, cl_fname)
     else:
-        path = f"{helpers.is_parent_dir_required(parent=parent)}{helpers.clean_filename(filename, 'txt')}"
+        path = os.path.join(
+            helpers.is_parent_dir_required(parent, relpath=True), cl_fname
+        )
 
     total_entries = 0
     with open(path, "r", encoding="utf-8") as dump_file:
