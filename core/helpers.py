@@ -81,51 +81,66 @@ def access_url(url_raw: str) -> Any:
     return page
 
 
-def clean_filename(filename: str, extension: str = None) -> str:
+# def clean_filename(filename: str, extension: str = None) -> str:
+#     if filename == "":
+#         return filename
+#     elif not isinstance(filename, str):
+#         raise TypeError("Filename must be a string.")
+#     elif not isinstance(extension, str):
+#         raise TypeError("Extension must be a string.")
+#     else:
+#         pass
+#
+#     if re.findall("[.+]", extension):
+#         if re.findall(extension.split(".")[0], filename):
+#             return filename.split(".")[0] + extension
+#         else:
+#             return filename + extension
+#     elif extension is None:
+#         # This is a kind of "trust" mode.
+#         return filename
+#     elif filename == extension:
+#         # If filename and extension are the same, I simply give it back:
+#         return filename + "." + extension
+#     elif re.findall(extension, filename):
+#         if re.findall("[.+]", filename):
+#             return filename.split(".")[0] + "." + extension
+#         else:
+#             return filename + "." + extension
+#     else:
+#         return filename + "." + extension
+
+
+def clean_filename(filename: str, extension: str = "") -> str:
     """This function handles filenames with and without extension
-    and avoids breaking functions that work with filenames and paths.
-    Here you can pass filenames with or without extension and enforce a file type
+    and avoids breaking functions that work with filenames and paths
     without expecting a user to pass in a correct ``filename.extension`` every time.
 
     In case that you don't pass an extension, the function will return the filename without
-    any modifications. I call that a 'trust' mode.
+    any modifications, like a "trust" mode.
 
     :param filename: ``str`` -> self-explanatory
-    :param extension: ``str`` -> self-explanatory
+    :param extension: ``str`` -> self-explanatory. Default ``""`` (Empty str)
     :return: ``str`` (New filename)
     """
-    # This has some applications to avoid additional logic or error handling
-    # in other functions.
-    # TODO: Fix clean_filename('com.example', 'com') and
-    # clean_filename('plares.co', '.uk')
-
-    if filename == "":
+    if extension == "":
         return filename
     elif not isinstance(filename, str):
-        raise TypeError("Filename must be a string.")
+        raise TypeError(f"Filename must be a string, not {type(filename)}!")
     elif not isinstance(extension, str):
-        raise TypeError("Extension must be a string.")
-    else:
-        pass
+        raise TypeError(f"Extension must be a string, not {type(filename)}!")
 
-    if re.findall("[.+]", extension):
-        if re.findall(extension.split(".")[0], filename):
-            return filename.split(".")[0] + extension
-        else:
-            return filename + extension
-    elif extension is None:
-        # This is a kind of "trust" mode.
-        return filename
-    elif filename == extension:
-        # If filename and extension are the same, I simply give it back:
-        return filename + "." + extension
-    elif re.findall(extension, filename):
-        if re.findall("[.+]", filename):
-            return filename.split(".")[0] + "." + extension
-        else:
-            return filename + "." + extension
+    no_dot = lambda fname: re.findall(r"\w+", fname)[0]
+
+    if "." in (chars := split_char(filename, char_lst=True)):
+        return (
+            ".".join(
+                filter(lambda lst: no_dot(extension) not in lst, filename.split("."))
+            )
+            + f".{no_dot(extension)}"
+        )
     else:
-        return filename + "." + extension
+        return f"{filename}.{no_dot(extension)}"
 
 
 def clean_file_cache(cache_folder: str | Path, file_ext: str) -> None:
