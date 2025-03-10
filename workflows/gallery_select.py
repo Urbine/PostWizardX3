@@ -140,9 +140,7 @@ def extract_zip(zip_path: str, extr_dir: str):
         "zip", folder=os.path.relpath(zip_path)
     )
     try:
-        with zipfile.ZipFile(
-            zip_path := f"{os.path.abspath(zip_path)}/{get_zip[0]}", "r"
-        ) as zipf:
+        with zipfile.ZipFile(zip_path := f"{get_zip[0]}", "r") as zipf:
             zipf.extractall(path=os.path.abspath(extr_dir))
         print(
             f"--> Extracted files from {get_zip[0]} in folder {os.path.relpath(extr_dir)}"
@@ -152,7 +150,7 @@ def extract_zip(zip_path: str, extr_dir: str):
         try:
             # Some archives have a separate set of redundant files in that folder.
             # I don't want them.
-            shutil.rmtree(junk_folder := f"{extr_dir}/__MACOSX")
+            shutil.rmtree(junk_folder := os.path.join(extr_dir, "__MACOSX"))
             logging.info(f"Junk folder {junk_folder} detected and cleaned.")
         except (FileNotFoundError, NotImplementedError) as e:
             logging.warning(f"Caught {e!r} - Handled")
@@ -372,11 +370,11 @@ def upload_image_set(
         print(img_seq)
     try:
         # Check if I have paths instead of filenames
-        if len(thumbnails[0].split("/")) > 1:
+        if len(thumbnails[0].split(os.sep)) > 1:
             try:
                 shutil.rmtree(
                     remove_dir
-                    := f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}"
+                    := f"{os.path.join(os.path.abspath(folder), thumbnails[0].split(os.sep)[0])}"
                 )
                 logging.info(f"Removed dir -> {remove_dir}")
             except NotImplementedError:

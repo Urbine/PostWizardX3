@@ -799,7 +799,7 @@ def embedding_pilot(
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
-                    f"{thumbnails_dir.name}/{thumbnail}",
+                    f"{os.path.join(thumbnails_dir.name, thumbnail)}",
                     img_attrs,
                 )
 
@@ -819,7 +819,9 @@ def embedding_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
+                    os.remove(
+                        removed_img := f"{os.path.join(thumbnails_dir.name, thumbnail)}"
+                    )
                     logging.info(f"Uploaded and removed: {removed_img}")
                 else:
                     pass
