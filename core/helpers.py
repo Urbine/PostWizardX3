@@ -158,42 +158,6 @@ def clean_file_cache(cache_folder: str | Path, file_ext: str) -> None:
     return None
 
 
-def clean_path(folder: str, prefix: bool = False) -> str:
-    """Prefix or suffix a slash to construct a path.
-    It can be useful when it is not possible to use a formatted string.
-    The majority of path joins do not require this function and other built-in functions
-    can do this as well (e.g. ``os.path.join``).
-
-    :param folder: folder string
-    :param prefix: ``True`` if you need to prefix the folder with a ``'/'``. Default ``False``.
-    :return: concatenated string
-    """
-    if folder == "":
-        return folder
-    elif not isinstance(folder, str):
-        raise TypeError("Filename must be a string.")
-    else:
-        pass
-
-    if prefix:
-        return "/" + folder + "/"
-    else:
-        return folder + "/"
-
-
-def cwd_or_parent_path(parent: bool = False) -> str:
-    """This function gets an absolute path that works with other functions to point out
-    where files are being stored (parent or current working directory).
-
-    :param parent: ``bool`` that will be gathered by parent functions.
-    :return: ``str`` absolute path string, not a path object.
-    """
-    if parent:
-        return os.path.dirname(os.getcwd())
-    else:
-        return os.getcwd()
-
-
 def export_client_info() -> Optional[dict[str, dict[str, str]]]:
     """Help dataclasses set a ``default_factory`` field for the client info function.
     **Note: No longer used due to core.config_mgr implementation.**
