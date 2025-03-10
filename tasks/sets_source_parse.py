@@ -12,9 +12,11 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 # Standard Library
+import datetime
+import os
 import re
 import sqlite3
-import datetime
+
 
 # Third-party library
 from bs4 import BeautifulSoup
@@ -91,7 +93,7 @@ def db_generate(
 
     remove_if_exists(d_name)
     db_conn = sqlite3.connect(
-        f"{helpers.is_parent_dir_required(parent=parent)}{d_name}"
+        os.path.join(helpers.is_parent_dir_required(parent), d_name)
     )
     cursor = db_conn.cursor()
     cursor.execute("CREATE TABLE sets(title, date, link)")
@@ -105,6 +107,6 @@ def db_generate(
 
     cursor.close()
     db_conn.close()
-    db_path = f"{helpers.cwd_or_parent_path(parent=parent)}/{d_name}"
+    db_path = os.path.join(helpers.is_parent_dir_required(parent), d_name)
 
     return db_path, total_photosets

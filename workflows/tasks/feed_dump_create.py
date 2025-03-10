@@ -22,7 +22,6 @@ from typing import Optional
 # Third-party Libraries
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.select import Select
-from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 
 

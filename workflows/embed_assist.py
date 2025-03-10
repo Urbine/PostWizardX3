@@ -14,7 +14,6 @@ __author_email__ = "yohamg@programmer.net"
 import logging
 import os
 import re
-import readline  # Imported to enable Standard Input manipulation. Don't remove!
 import sqlite3
 import tempfile
 import time
@@ -117,7 +116,7 @@ class EmbedsMultiSchema(Generic[T]):
             explicit logic in the main control flow or functionality using this class.
         :param db_cur: Active database cursor
         """
-        schema = self.get_schema(db_cur)
+        schema = EmbedsMultiSchema.get_schema(db_cur)
         self.table_name: str = schema[0]
         self.__fields_indx = schema[1]
         self.__fields: list[Any] = list(map(lambda tpl: tpl[1], self.__fields_indx))
@@ -433,7 +432,12 @@ def embedding_pilot(
     logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
 
     console = Console()
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
         spinner="aesthetic",
@@ -445,7 +449,12 @@ def embedding_pilot(
     logging.info(f"Reading WordPress Post cache: {embed_ast_conf.wp_json_posts}")
 
     partner_list = list(map(lambda p: p.strip(), embed_ast_conf.partners.split(",")))
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     logging.info(f"Loading partners variable: {partner_list}")
 
     db_conn, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
@@ -468,7 +477,12 @@ def embedding_pilot(
     not_published_yet = filter_published_embeds(wp_posts_f, all_vals, cur_dump)
     total_elems = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     # Environment variable set in logging_setup() - content_select.py
     console.print(
         f"Session ID: {os.environ.get('SESSION_ID')}",
@@ -486,7 +500,12 @@ def embedding_pilot(
     for num, vid in enumerate(not_published_yet):
         db_interface.load_data_instance(vid)
         logging.info(f"Displaying on iteration {num} data: {vid}")
-        os.system("clear")
+
+        if os.name == "posix":
+            os.system("clear")
+        else:
+            os.system("cls")
+
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
             style="bold yellow",
@@ -587,6 +606,14 @@ def embedding_pilot(
                 cs.make_slug(
                     partner,
                     models,
+                    title,
+                    "video",
+                    studio=db_interface.get_studio(),
+                    partner_out=True,
+                ),
+                cs.make_slug(
+                    partner,
+                    None,
                     title,
                     "video",
                     studio=db_interface.get_studio(),
@@ -765,12 +792,14 @@ def embedding_pilot(
                 console.print(
                     "--> Adding image attributes on WordPress...", style="bold green"
                 )
-                img_attrs = cs.make_img_payload(title, title)
+                img_attrs = cs.make_img_payload(
+                    title, title if not description else description
+                )
                 logging.info(f"Image Attrs: {img_attrs}")
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
-                    f"{thumbnails_dir.name}/{thumbnail}",
+                    f"{os.path.join(thumbnails_dir.name, thumbnail)}",
                     img_attrs,
                 )
 
@@ -790,7 +819,9 @@ def embedding_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
+                    os.remove(
+                        removed_img := f"{os.path.join(thumbnails_dir.name, thumbnail)}"
+                    )
                     logging.info(f"Uploaded and removed: {removed_img}")
                 else:
                     pass
@@ -1018,6 +1049,9 @@ def embedding_pilot(
 
 def main():
     try:
+        if os.name == "posix":
+            import readline
+
         embedding_pilot()
     except KeyboardInterrupt:
         logging.critical(f"KeyboardInterrupt exception detected")

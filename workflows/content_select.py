@@ -19,7 +19,6 @@ import logging
 import os
 import random
 import re
-import readline  # Imported to enable Standard Input manipulation. Don't remove!
 import tempfile
 import time
 import sqlite3
@@ -98,7 +97,9 @@ def logging_setup(
 
     if os.path.exists(log_dirname_cfg):
         log_dir_path = os.path.abspath(log_dirname_cfg)
-    elif os.path.exists(log_dir_parent := f"../{log_dirname_cfg}"):
+    elif os.path.exists(
+        log_dir_parent := os.path.join(os.path.dirname(os.getcwd()), log_dirname_cfg)
+    ):
         log_dir_path = log_dir_parent
     else:
         try:
@@ -108,7 +109,7 @@ def logging_setup(
             raise UnavailableLoggingDirectory(log_dirname_cfg)
 
     logging.basicConfig(
-        filename=f"{log_dir_path}/{log_name}",
+        filename=os.path.join(log_dir_path, log_name),
         filemode="w+",
         level=logging.INFO,
         encoding="utf8",
@@ -413,12 +414,12 @@ def fetch_thumbnail(
     else:
         name: str = thumbnail_name
     img_name = clean_filename(f"{slug}{name}", cs_conf.pic_fallback)
-    with open(f"{thumbnail_dir}/{img_name}", "wb") as img:
+    with open(os.path.join(thumbnail_dir, img_name), "wb") as img:
         img.write(remote_data.content)
 
     if cs_conf.imagick:
         helpers.imagick(
-            f"{thumbnail_dir}/{slug}{name}.{cs_conf.pic_fallback}",
+            os.path.join(thumbnail_dir, img_name),
             cs_conf.quality,
             cs_conf.pic_format,
         )
@@ -642,7 +643,7 @@ def make_slug(
         if reverse:
             return build_slug([title_sl, partner_sl, content])
         elif partner_out:
-            return build_slug([studio, title_sl, content])
+            return build_slug([title_sl, studio, content])
         else:
             return build_slug([partner_sl, title_sl, content])
 
@@ -840,7 +841,7 @@ def content_select_db_match(
         is_parent: str = (
             helpers.is_parent_dir_required(parent) if folder == "" else f"{folder}/"
         )
-        db_path: str = f"{is_parent}{relevant_content[select_file]}"
+        db_path: str = os.path.join(is_parent, relevant_content[select_file])
 
         db_new_conn: sqlite3 = sqlite3.connect(db_path)
         db_new_cur: sqlite3 = db_new_conn.cursor()
@@ -1008,7 +1009,12 @@ def wp_publish_checker(
             retry_offset = 5
 
         retries += 1
-        hot_sync = hot_file_sync(cs_conf)
+        # Safeguard mechanism
+        try:
+            hot_sync = hot_file_sync(cs_conf)
+        except KeyboardInterrupt:
+            if hot_sync is True:
+                raise KeyboardInterrupt
 
 
 def model_checker(
@@ -1079,7 +1085,12 @@ def video_upload_pilot(
     logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
 
     console = Console()
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
         spinner="aesthetic",
@@ -1122,7 +1133,11 @@ def video_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published for {partner}")
 
-    os.system("clear")
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     # Environment variable set in logging_setup()
     console.print(
         f"Session ID: {os.environ.get('SESSION_ID')}",
@@ -1151,7 +1166,12 @@ def video_upload_pilot(
         thumbnail_url = fields[6]
         tracking_url = fields[7]
         partner_name = partner
-        os.system("clear")
+
+        if os.name == "posix":
+            os.system("clear")
+        else:
+            os.system("cls")
+
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
             style="bold yellow",
@@ -1377,7 +1397,7 @@ def video_upload_pilot(
                 upload_img: int = wordpress_api.upload_thumbnail(
                     wp_base_url,
                     [wp_endpoints.media],
-                    f"{thumbnails_dir.name}/{thumbnail}",
+                    os.path.join(thumbnails_dir.name, thumbnail),
                     img_attrs,
                 )
                 logging.info(f"Image Attrs: {img_attrs}")
@@ -1399,7 +1419,9 @@ def video_upload_pilot(
                     )
                     continue
                 elif upload_img == (200 or 201):
-                    os.remove(removed_img := f"{thumbnails_dir.name}/{thumbnail}")
+                    os.remove(
+                        removed_img := os.path.join(thumbnails_dir.name, thumbnail)
+                    )
                     logging.info(f"Uploaded and removed: {removed_img}")
                 else:
                     pass
@@ -1622,6 +1644,9 @@ def video_upload_pilot(
 
 def main(**kwargs):
     try:
+        if os.name == "posix":
+            import readline
+
         video_upload_pilot(**kwargs)
     except KeyboardInterrupt:
         logging.critical(f"KeyboardInterrupt exception detected")
