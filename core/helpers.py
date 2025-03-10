@@ -931,7 +931,10 @@ def generate_random_str(k: int) -> str:
 
 
 def split_char(
-    raw_str: Optional[str], placeholder: str = "-1", char_lst: bool = False
+    spl_str: Optional[str],
+    placeholder: str = "-1",
+    char_lst: bool = False,
+    char_lst_raw: bool = False,
 ) -> str | list[str]:
     """
     Identify the split character dynamically in order that str.split() knows what
@@ -947,30 +950,35 @@ def split_char(
     meant to be a separator; for example, in the case ``colorful skies; great landscape;...`` whitespace
     is not the real separator.
 
-    :param raw_str: ``str`` with or without separators
+    :param spl_str: ``str`` with or without separators
     :param placeholder: ``str`` - Return this character if there is no separator. Default: ``"-1"``
-    :param char_lst: ``bool`` - Return a list of unique separators instead of a single one.
+    :param char_lst: ``bool`` - Return a list of unique separators instead of a single one or ``raw_str`` in a ``list[str]``.
+    :param char_lst_raw: ``bool`` - If active, the function will return the char_lst without any modifications for debugging.
     :return: ``str`` | ``list[str]``
     """
     try:
-        chars = re.findall(r"[\W_]+", raw_str)
+        chars = re.findall(r"[\W_+]", spl_str)
     except TypeError:
         return placeholder
+
+    lst_strip = lambda chls: list(map(lambda s: s.strip(), chls))
 
     if chars:
         if len(chars) == 1:
             return chars[0]
         else:
-            ch_lst = list(set(chars))
+            ch_lst = lst_strip(chars)
             if char_lst:
                 return ch_lst
+            elif char_lst_raw:
+                return chars
             else:
                 try:
                     filtered = list(filter(lambda ch: ch != " ", ch_lst))
-                    return filtered[0]
+                    return max(filtered, key=filtered.count)
                 except IndexError:
                     return placeholder
     elif char_lst:
-        return list(raw_str)
+        return list(spl_str)
     else:
         return placeholder
