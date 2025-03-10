@@ -19,7 +19,6 @@ import logging
 import os
 import random
 import re
-import readline  # Imported to enable Standard Input manipulation. Don't remove!
 import tempfile
 import time
 import sqlite3
@@ -1079,7 +1078,12 @@ def video_upload_pilot(
     logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
 
     console = Console()
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
         spinner="aesthetic",
@@ -1122,7 +1126,11 @@ def video_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published for {partner}")
 
-    os.system("clear")
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     # Environment variable set in logging_setup()
     console.print(
         f"Session ID: {os.environ.get('SESSION_ID')}",
@@ -1151,7 +1159,12 @@ def video_upload_pilot(
         thumbnail_url = fields[6]
         tracking_url = fields[7]
         partner_name = partner
-        os.system("clear")
+
+        if os.name == "posix":
+            os.system("clear")
+        else:
+            os.system("cls")
+
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
             style="bold yellow",
@@ -1622,6 +1635,9 @@ def video_upload_pilot(
 
 def main(**kwargs):
     try:
+        if os.name == "posix":
+            import readline
+
         video_upload_pilot(**kwargs)
     except KeyboardInterrupt:
         logging.critical(f"KeyboardInterrupt exception detected")

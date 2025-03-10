@@ -460,7 +460,12 @@ def gallery_upload_pilot(
     logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
 
     console = Console()
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
         spinner="aesthetic",
@@ -510,7 +515,12 @@ def gallery_upload_pilot(
     # You can keep on getting sets until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     # Environment variable set in logging_setup() - content_select.py
     console.print(
         f"Session ID: {os.environ.get('SESSION_ID')}",
@@ -535,7 +545,12 @@ def gallery_upload_pilot(
         date: str = fields[0]
         download_url: str = fields[1]
         partner_name: str = partner_
-        os.system("clear")
+
+        if os.name == "posix":
+            os.system("clear")
+        else:
+            os.system("cls")
+
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
             style="bold yellow",
