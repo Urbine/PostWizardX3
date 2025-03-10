@@ -48,7 +48,6 @@ Integrations in this module include:
    You can find code examples for modules in this package here:
    `Quick Start <home.html#quick-start>`_
 
-
 Submodules
 ----------
 
@@ -76,6 +75,14 @@ integrations.callback\_server module
    :undoc-members:
    :show-inheritance:
 
+integrations.fhouse\_api module
+-------------------------------
+
+.. automodule:: integrations.fhouse_api
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 integrations.tube\_corp\_feeds module
 -------------------------------------
 
@@ -94,10 +101,6 @@ integrations.url\_builder module
 
 integrations.wordpress\_api module
 ----------------------------------
-.. tip::
-   Once you have your own ``wp_posts.json`` as it was described in `Quick Start <home.html#quick-start>`_,
-   you will benefit from opening it and looking for the keys herein mentioned. I hope that, in following
-   along with an actual file, you find most functions and its algorithms approachable.
 
 .. automodule:: integrations.wordpress_api
    :members:

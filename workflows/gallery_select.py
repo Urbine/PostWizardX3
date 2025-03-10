@@ -140,9 +140,7 @@ def extract_zip(zip_path: str, extr_dir: str):
         "zip", folder=os.path.relpath(zip_path)
     )
     try:
-        with zipfile.ZipFile(
-            zip_path := f"{os.path.abspath(zip_path)}/{get_zip[0]}", "r"
-        ) as zipf:
+        with zipfile.ZipFile(zip_path := f"{get_zip[0]}", "r") as zipf:
             zipf.extractall(path=os.path.abspath(extr_dir))
         print(
             f"--> Extracted files from {get_zip[0]} in folder {os.path.relpath(extr_dir)}"
@@ -152,7 +150,7 @@ def extract_zip(zip_path: str, extr_dir: str):
         try:
             # Some archives have a separate set of redundant files in that folder.
             # I don't want them.
-            shutil.rmtree(junk_folder := f"{extr_dir}/__MACOSX")
+            shutil.rmtree(junk_folder := os.path.join(extr_dir, "__MACOSX"))
             logging.info(f"Junk folder {junk_folder} detected and cleaned.")
         except (FileNotFoundError, NotImplementedError) as e:
             logging.warning(f"Caught {e!r} - Handled")
@@ -298,7 +296,11 @@ def make_photos_payload(
 
 
 def upload_image_set(
-    ext: str, folder: str, title: str, wp_params: WPAuth = wp_auth()
+    ext: str,
+    folder: str,
+    title: str,
+    wp_params: WPAuth = wp_auth(),
+    wp_endpoints: WPEndpoints = WPEndpoints(),
 ) -> None:
     """Upload a set of images to the WordPress Media endpoint.
 
@@ -308,9 +310,7 @@ def upload_image_set(
     :param wp_params: ``WPAuth`` object with the base URL of the WP site.
     :return: ``None``
     """
-    thumbnails: list[str] = helpers.search_files_by_ext(
-        ext, folder=os.path.relpath(folder)
-    )
+    thumbnails: list[str] = helpers.search_files_by_ext(ext, folder=folder)
     if len(thumbnails) == 0:
         # Assumes the thumbnails are contained in a directory
         # This could be caused by the archive extraction
@@ -318,7 +318,12 @@ def upload_image_set(
         files: list[str] = helpers.search_files_by_ext(
             "jpg", recursive=True, folder=os.path.relpath(folder)
         )
-        thumbnails: list[str] = ["/".join(path.split("/")[-2:]) for path in files]
+
+        get_parent_dir = lambda dr: os.path.split(os.path.split(dr)[-2:][0])[1]
+
+        thumbnails: list[str] = [
+            os.path.join(get_parent_dir(path), os.path.basename(path)) for path in files
+        ]
 
     if len(thumbnails) != 0:
         logging.info(
@@ -333,39 +338,43 @@ def upload_image_set(
 
     # Prepare the image new name so that separators are replaced by hyphens.
     # E.g. this_is_a_cool_pic.jpg => this-is-a-cool-pic.jpg
-    split_char = (
-        lambda name: chars[0] if (chars := re.findall(r"[\W_]+", name)) else " "
+    new_name_img = lambda name: "-".join(
+        f"{os.path.basename(name)!s}".split(helpers.split_char(name))
     )
-    new_name_img = lambda name: "-".join(name.split(split_char(name)))
 
     for number, image in enumerate(thumbnails, start=1):
         img_attrs: dict[str, str] = make_gallery_payload(title, number)
-        new_img = os.path.abspath(f"{folder}/{new_name_img(image)}")
-        os.renames(os.path.abspath(f"{folder}/{image}"), new_img)
+        img_file = "-".join(
+            new_name_img(image).split(helpers.split_char(image, placeholder=" "))
+        )
+        os.renames(
+            os.path.join(folder, os.path.basename(image)),
+            img_new := os.path.join(folder, os.path.basename(img_file)),
+        )
         status_code: int = wordpress_api.upload_thumbnail(
             wp_params.api_base_url,
-            ["/media"],
-            f"{new_img}",
+            [wp_endpoints.media],
+            img_new,
             img_attrs,
         )
 
+        img_now = os.path.basename(img_new)
         if status_code == (200 or 201):
-            logging.info(f"Removing --> {new_img}")
-            os.remove(new_img)
+            logging.info(f"Removing --> {img_now}")
+            os.remove(img_new)
         else:
             pass
         logging.info(
-            img_seq
-            := f"* Image {number} | {new_name_img(image)} --> Status code: {status_code}"
+            img_seq := f"* Image {number} | {img_now} --> Status code: {status_code}"
         )
         print(img_seq)
     try:
         # Check if I have paths instead of filenames
-        if len(thumbnails[0].split("/")) > 1:
+        if len(thumbnails[0].split(os.sep)) > 1:
             try:
                 shutil.rmtree(
                     remove_dir
-                    := f"{os.path.abspath(folder)}/{thumbnails[0].split('/')[0]}"
+                    := f"{os.path.join(os.path.abspath(folder), thumbnails[0].split(os.sep)[0])}"
                 )
                 logging.info(f"Removed dir -> {remove_dir}")
             except NotImplementedError:
@@ -460,7 +469,12 @@ def gallery_upload_pilot(
     logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
 
     console = Console()
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
         spinner="aesthetic",
@@ -510,7 +524,12 @@ def gallery_upload_pilot(
     # You can keep on getting sets until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
-    os.system("clear")
+
+    if os.name == "posix":
+        os.system("clear")
+    else:
+        os.system("cls")
+
     # Environment variable set in logging_setup() - content_select.py
     console.print(
         f"Session ID: {os.environ.get('SESSION_ID')}",
@@ -535,7 +554,12 @@ def gallery_upload_pilot(
         date: str = fields[0]
         download_url: str = fields[1]
         partner_name: str = partner_
-        os.system("clear")
+
+        if os.name == "posix":
+            os.system("clear")
+        else:
+            os.system("cls")
+
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
             style="bold yellow",

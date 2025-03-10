@@ -131,9 +131,15 @@ if __name__ == "__main__":
         "Review the changes and modify the fields as needed once the files are generated.\n"
     )
 
-    if os.path.exists(f"{os.getcwd()}/core/config"):
-        os.makedirs(f"{os.getcwd()}/core/config", exist_ok=True)
+    if os.path.exists(cfg_path := os.path.join(os.getcwd(), "core", "config")):
+        os.makedirs(cfg_path, exist_ok=True)
 
-    core.write_to_file("client_info", "core/config", "ini", CLIENT_INFO_INI)
-    core.write_to_file("tasks_config", "core/config", "ini", TASKS_CONF_INI)
-    core.write_to_file("workflows_config", "core/config", "ini", WORKFLOWS_CONF_INI)
+    core.write_to_file(
+        "client_info", os.path.join("core", "config"), "ini", CLIENT_INFO_INI
+    )
+    core.write_to_file(
+        "tasks_config", os.path.join("core", "config"), "ini", TASKS_CONF_INI
+    )
+    core.write_to_file(
+        "workflows_config", os.path.join("core", "config"), "ini", WORKFLOWS_CONF_INI
+    )

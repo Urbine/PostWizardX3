@@ -14,6 +14,7 @@ import datetime
 import os.path
 import sqlite3
 import tempfile
+import urllib.parse
 
 # Local implementations
 import core
@@ -124,8 +125,8 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
     # thumbnail|Thumbnails|Preview URL
 
     c_filename = core.clean_filename(filename, "csv")
-    path = f"{os.path.abspath(dirname)}/{c_filename}"
-    db_name = f"{os.getcwd()}/{filename}-{datetime.date.today()}.db"
+    path = os.path.join(os.path.abspath(dirname), c_filename)
+    db_name = os.path.join(os.getcwd(), f"{filename}-{datetime.date.today()}.db")
     remove_if_exists(db_name)
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
@@ -152,7 +153,7 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
                 total_entries += 1
                 continue
             else:
-                line_split = line.split(sep)
+                line_split = line.split(urllib.parse.unquote(sep))
                 id_ = line_split[0]
                 title = line_split[1]
                 duration = line_split[2]
@@ -206,7 +207,7 @@ def main(*args, **kwargs):
         "abjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
     )
 
-    result = adult_next_dump_parse("abjav-dump", temp_dir.name, "jav", "|")
+    result = adult_next_dump_parse("abjav-dump", temp_dir.name, "jav", URLEncode.PIPE)
 
     temp_dir.cleanup()
     print(result)

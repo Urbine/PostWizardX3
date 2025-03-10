@@ -15,6 +15,7 @@ import datetime
 import os
 import sqlite3
 import tempfile
+import urllib.parse
 
 # Local implementations
 import core
@@ -119,8 +120,8 @@ def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
     c_filename = core.clean_filename(filename, "csv")
-    path = f"{os.path.abspath(dirname)}/{c_filename}"
-    db_name = f"{os.getcwd()}/{filename}-{datetime.date.today()}.db"
+    path = os.path.join(os.path.abspath(dirname), c_filename)
+    db_name = os.path.join(os.getcwd(), f"{filename}-{datetime.date.today()}.db")
     remove_if_exists(db_name)
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
@@ -147,7 +148,7 @@ def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
                 total_entries += 1
                 continue
             else:
-                line_split = line.split(sep)
+                line_split = line.split(urllib.parse.unquote(sep))
                 id_ = line_split[0]
                 title = line_split[1]
                 duration = line_split[2]
@@ -201,7 +202,7 @@ def main(*args, **kwargs):
 
     core.write_to_file("vjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
 
-    result = tube_dump_parse("vjav-dump", temp_dir.name, "jav", "|")
+    result = tube_dump_parse("vjav-dump", temp_dir.name, "jav", URLEncode.PIPE)
 
     print(result)
 
@@ -211,7 +212,7 @@ def main(*args, **kwargs):
         "desi-tube-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
     )
 
-    result = tube_dump_parse("desi-tube-dump", temp_dir.name, "", "|")
+    result = tube_dump_parse("desi-tube-dump", temp_dir.name, "", URLEncode.PIPE)
 
     temp_dir.cleanup()
     print(result)

@@ -33,7 +33,7 @@ from typing import Generator
 import xlsxwriter
 
 # Local implementations
-from core import NoSuitableArgument, helpers
+from core import NoSuitableArgument, helpers, is_parent_dir_required
 from core.config_mgr import WPAuth, wp_auth
 
 
@@ -858,7 +858,13 @@ def local_cache_config(
     """
     wp_cache_filename = wpauth.wp_cache_file
     wp_filen = helpers.clean_filename(wp_filen, ".json")
-    parent = False if os.path.exists(f"./{wp_cache_filename}") else True
+    parent = (
+        False
+        if os.path.exists(
+            f"{os.path.join(is_parent_dir_required(False, relpath=True), wp_cache_filename)}"
+        )
+        else True
+    )
     locate_conf = helpers.search_files_by_ext(".json", "", parent=parent)
     create_new = [
         {
@@ -915,9 +921,8 @@ def update_json_cache(
         wpauth.wp_photos_file if photos else wpauth.wp_posts_file, ".json"
     )
     # The loop will add 1 to page num when the first request is successful.
-    page_num = [
-        dic[clean_fname]["cached_pages"] for dic in config if clean_fname in dic.keys()
-    ][0] - 2
+    cached = lambda cfg: cfg[clean_fname]["cached_pages"]
+    page_num = [cached(dic) for dic in config if clean_fname in dic.keys()][0] - 2
     result_dict = helpers.load_json_ctx(clean_fname)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []

@@ -295,7 +295,7 @@ Running webdriver instances comes at a cost that reflects in the performance of 
 .. attention::
    * **What exactly could go wrong with web automation scripts?**
 
-   Loading a webdriver instance has some overhead associated to it, from locating the browser binaries
+   Loading a webdriver instance has some overhead associated with it, from locating the browser binaries
    to setting up configuration options and dedicated profiles for each object. It is possible that a browser
    instance can delay its starting point for flow execution, which does not have to do with the way scripts
    are developed as delays occur before any steps are executed.

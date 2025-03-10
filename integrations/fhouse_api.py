@@ -169,8 +169,8 @@ def fhouse_parse(
     :return: ``None``
     """
     c_filename = clean_filename(filename, extension)
-    path = f"{os.path.abspath(dirname)}/{c_filename}"
-    db_name = f"{os.getcwd()}/{filename}-{datetime.date.today()}.db"
+    path = os.path.join(os.path.abspath(dirname), c_filename)
+    db_name = os.path.join(os.getcwd(), f"{filename}-{datetime.date.today()}.db")
     remove_if_exists(db_name)
 
     db_conn = sqlite3.connect(db_name)

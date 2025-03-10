@@ -27,8 +27,9 @@ import sqlite3
 import string
 import subprocess
 import urllib
-import urllib.request
 import urllib.error
+import urllib.request
+
 
 from calendar import month_abbr, month_name
 from configparser import ConfigParser
@@ -43,7 +44,7 @@ from bs4 import BeautifulSoup
 from requests_oauthlib import OAuth2Session
 from selenium import webdriver
 
-# Local implmentations
+# Local implementations
 from core.custom_exceptions import ConfigFileNotFound
 
 # This way OAuthlib won't enforce HTTPS connections.
@@ -80,54 +81,69 @@ def access_url(url_raw: str) -> Any:
     return page
 
 
-def clean_filename(filename: str, extension: str = None) -> str:
+# def clean_filename(filename: str, extension: str = None) -> str:
+#     if filename == "":
+#         return filename
+#     elif not isinstance(filename, str):
+#         raise TypeError("Filename must be a string.")
+#     elif not isinstance(extension, str):
+#         raise TypeError("Extension must be a string.")
+#     else:
+#         pass
+#
+#     if re.findall("[.+]", extension):
+#         if re.findall(extension.split(".")[0], filename):
+#             return filename.split(".")[0] + extension
+#         else:
+#             return filename + extension
+#     elif extension is None:
+#         # This is a kind of "trust" mode.
+#         return filename
+#     elif filename == extension:
+#         # If filename and extension are the same, I simply give it back:
+#         return filename + "." + extension
+#     elif re.findall(extension, filename):
+#         if re.findall("[.+]", filename):
+#             return filename.split(".")[0] + "." + extension
+#         else:
+#             return filename + "." + extension
+#     else:
+#         return filename + "." + extension
+
+
+def clean_filename(filename: str, extension: str = "") -> str:
     """This function handles filenames with and without extension
-    and avoids breaking functions that work with filenames and paths.
-    Here you can pass filenames with or without extension and enforce a file type
+    and avoids breaking functions that work with filenames and paths
     without expecting a user to pass in a correct ``filename.extension`` every time.
 
     In case that you don't pass an extension, the function will return the filename without
-    any modifications. I call that a 'trust' mode.
+    any modifications, like a "trust" mode.
 
     :param filename: ``str`` -> self-explanatory
-    :param extension: ``str`` -> self-explanatory
+    :param extension: ``str`` -> self-explanatory. Default ``""`` (Empty str)
     :return: ``str`` (New filename)
     """
-    # This has some applications to avoid additional logic or error handling
-    # in other functions.
-    # TODO: Fix clean_filename('com.example', 'com') and
-    # clean_filename('plares.co', '.uk')
-
-    if filename == "":
+    if extension == "":
         return filename
     elif not isinstance(filename, str):
-        raise TypeError("Filename must be a string.")
+        raise TypeError(f"Filename must be a string, not {type(filename)}!")
     elif not isinstance(extension, str):
-        raise TypeError("Extension must be a string.")
+        raise TypeError(f"Extension must be a string, not {type(filename)}!")
+
+    no_dot = lambda fname: re.findall(r"\w+", fname)[0]
+
+    if "." in (chars := split_char(filename, char_lst=True)):
+        return (
+            ".".join(
+                filter(lambda lst: no_dot(extension) not in lst, filename.split("."))
+            )
+            + f".{no_dot(extension)}"
+        )
     else:
-        pass
-
-    if re.findall("[.+]", extension):
-        if re.findall(extension.split(".")[0], filename):
-            return filename.split(".")[0] + extension
-        else:
-            return filename + extension
-    elif extension is None:
-        # This is a kind of "trust" mode.
-        return filename
-    elif filename == extension:
-        # If filename and extension are the same, I simply give it back:
-        return filename + "." + extension
-    elif re.findall(extension, filename):
-        if re.findall("[.+]", filename):
-            return filename.split(".")[0] + "." + extension
-        else:
-            return filename + "." + extension
-    else:
-        return filename + "." + extension
+        return f"{filename}.{no_dot(extension)}"
 
 
-def clean_file_cache(cache_folder: str, file_ext: str) -> None:
+def clean_file_cache(cache_folder: str | Path, file_ext: str) -> None:
     """The purpose of this function is simple: cleaning remaining temporary files once the job control
     has used them; this is specially useful when dealing with thumbnails.
 
@@ -135,13 +151,13 @@ def clean_file_cache(cache_folder: str, file_ext: str) -> None:
     :param file_ext: ``str`` file extension of cached files to be removed
     :return: ``None``
     """
-    parent: bool = not os.path.exists(f"./{cache_folder}")
+    parent: bool = not os.path.exists(os.path.join(os.getcwd(), cache_folder))
     cache_files: list[str] = search_files_by_ext(
         file_ext, parent=parent, folder=cache_folder
     )
 
-    go_to_folder: str = is_parent_dir_required(parent) + cache_folder
-    folders: list[str] = glob.glob(f"{go_to_folder}/*")
+    go_to_folder: str = os.path.join(is_parent_dir_required(parent), cache_folder)
+    folders: list[str] = glob.glob(f"{go_to_folder}{os.sep}*")
     if cache_files:
         os.chdir(go_to_folder)
         for file in cache_files:
@@ -155,42 +171,6 @@ def clean_file_cache(cache_folder: str, file_ext: str) -> None:
             finally:
                 continue
     return None
-
-
-def clean_path(folder: str, prefix: bool = False) -> str:
-    """Prefix or suffix a slash to construct a path.
-    It can be useful when it is not possible to use a formatted string.
-    The majority of path joins do not require this function and other built-in functions
-    can do this as well (e.g. ``os.path.join``).
-
-    :param folder: folder string
-    :param prefix: ``True`` if you need to prefix the folder with a ``'/'``. Default ``False``.
-    :return: concatenated string
-    """
-    if folder == "":
-        return folder
-    elif not isinstance(folder, str):
-        raise TypeError("Filename must be a string.")
-    else:
-        pass
-
-    if prefix:
-        return "/" + folder + "/"
-    else:
-        return folder + "/"
-
-
-def cwd_or_parent_path(parent: bool = False) -> str:
-    """This function gets an absolute path that works with other functions to point out
-    where files are being stored (parent or current working directory).
-
-    :param parent: ``bool`` that will be gathered by parent functions.
-    :return: ``str`` absolute path string, not a path object.
-    """
-    if parent:
-        return os.path.dirname(os.getcwd())
-    else:
-        return os.getcwd()
 
 
 def export_client_info() -> Optional[dict[str, dict[str, str]]]:
@@ -276,14 +256,14 @@ def export_request_json(
     :param parent: (bool) Place file in parent directory if True. Default False.
     :return: (None) print statement for console logging.
     """
-    is_parent: str = is_parent_dir_required(parent)
+    is_parent: str = is_parent_dir_required(parent, relpath=True)
     f_name: str = clean_filename(filename, ".json")
-    dest_dir = is_parent + f"/{folder}" if folder != "" else is_parent
+    dest_dir = os.path.join(is_parent, folder) if folder != "" else is_parent
 
-    cwd_or_par = cwd_or_parent_path(parent)
-    f_path = cwd_or_par + f"/{folder}" if folder != "" else cwd_or_par
+    cwd_or_par = is_parent_dir_required(parent)
+    f_path = os.path.join(cwd_or_par, folder) if folder != "" else cwd_or_par
 
-    with open(f"{dest_dir}{f_name}", "w", encoding="utf-8") as t:
+    with open(os.path.join(dest_dir, f_name), "w", encoding="utf-8") as t:
         json.dump(stream, t, ensure_ascii=False, indent=indent)
     return f_path
 
@@ -343,21 +323,27 @@ def get_token_oauth(
     return token
 
 
-def is_parent_dir_required(parent: bool) -> str:
+def is_parent_dir_required(parent: bool, relpath: bool = False) -> str:
     """
     This function returns a string to be used as a relative path that works
     with other functions to modify the where files are being stored
     or located (either parent or current working directory).
 
     :param parent: ``bool`` that will be gathered by parent functions.
+    :param relpath: ``bool`` - Return parent or cwd as a relative path.
     :return: ``str`` Empty string in case the parent variable is not provided.
     """
     if parent:
-        return "../"
+        return_dir = os.path.dirname(os.getcwd())
     elif parent is None:
         return ""
     else:
-        return "./"
+        return_dir = os.getcwd()
+
+    if relpath:
+        return os.path.relpath(return_dir)
+    else:
+        return return_dir
 
 
 def get_client_info(
@@ -372,11 +358,13 @@ def get_client_info(
     :return: ``dict[str, [str,str]]`` loaded dictionary from filename ``json.load`` or ``None`` if the file is not found.
     """
     f_name = clean_filename(filename, "json")
-    parent = not os.path.exists(f"./{f_name}")
-    in_parent = is_parent_dir_required(parent)
+    parent = not os.path.exists(
+        os.path.join(is_parent_dir_required(False, relpath=True), f_name)
+    )
+    in_parent = is_parent_dir_required(parent, relpath=True)
 
     try:
-        with open(f"{in_parent}{f_name}", "r", encoding="utf-8") as secrets:
+        with open(os.path.join(in_parent, f_name), "r", encoding="utf-8") as secrets:
             client_info = json.load(secrets)
         return dict(client_info)
     except FileNotFoundError as Errno:
@@ -437,12 +425,12 @@ def get_project_db(
     :param folder: specific folder to look for databases.
     :return: ``SQLite3`` db connection, db cursor, and db name in Tuple.
     """
-    is_parent = is_parent_dir_required(parent=parent)
+    is_parent = is_parent_dir_required(parent=parent, relpath=True)
     db_filename = filename_select("db", parent=parent, folder=folder)
     db_path = (
-        f"{is_parent}{folder}/{db_filename}"
+        os.path.join(is_parent, folder, db_filename)
         if folder != ""
-        else f"{is_parent}{db_filename}"
+        else os.path.join(is_parent, db_filename)
     )
     db_new_conn = sqlite3.connect(db_path)
     db_new_cur = db_new_conn.cursor()
@@ -468,7 +456,9 @@ def get_webdriver(
         gecko_options = webdriver.FirefoxOptions()
         gecko_options.set_preference("browser.download.folderList", 2)
         gecko_options.set_preference("browser.download.manager.showWhenStarting", False)
-        gecko_options.set_preference("browser.download.dir", download_folder)
+        gecko_options.set_preference(
+            "browser.download.dir", f"{os.path.abspath(download_folder)}"
+        )
         gecko_options.set_preference(
             "browser.helperApps.neverAsk.saveToDisk", "application/octet-stream"
         )
@@ -489,7 +479,9 @@ def get_webdriver(
         # sure it uses google-chrome stable in posix and not nightly or dev releases.
         chrome_options = webdriver.ChromeOptions()
         if os.name == "posix":
-            chrome_options.binary_location = "/opt/google/chrome/google-chrome"
+            chrome_options.binary_location = (
+                f"{os.path.join('opt', 'google', 'chrome', 'google-chrome')}"
+            )
         else:
             pass
 
@@ -498,7 +490,7 @@ def get_webdriver(
 
         prefs = {
             # Replace with your folder path
-            "download.default_directory": f"{download_folder}",
+            "download.default_directory": f"{os.path.abspath(download_folder)}",
             # Automatically download without the prompt
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,  # Overwrite if the file exists
@@ -678,19 +670,23 @@ def load_json_ctx(filename: str, log_err: bool = False):
     :return: ``JSON`` object
     """
     json_file = clean_filename(filename, "json")
-    parent = not os.path.exists(f"./{json_file}")
-    parent_or_cwd = is_parent_dir_required(parent)
+    parent = not os.path.exists(
+        os.path.join(is_parent_dir_required(False, relpath=True), json_file)
+    )
+    parent_or_cwd = is_parent_dir_required(parent, relpath=True)
     try:
         with open(
-            json_file := f"{parent_or_cwd}{json_file}", "r", encoding="utf-8"
+            json_file := os.path.join(parent_or_cwd, json_file), "r", encoding="utf-8"
         ) as f:
             imp_json = json.load(f)
         return imp_json
     except FileNotFoundError:
-        logging.critical(f"Raised FileNotFoundError: {json_file} not found!")
+        logging.critical(
+            f"Raised FileNotFoundError: {os.path.abspath(json_file)} not found!"
+        )
         if log_err:
             print(
-                f"File {parent_or_cwd}{json_file} not found! Double-check the filename."
+                f"File {os.path.join(parent_or_cwd, json_file)} not found! Double-check the filename."
             )
         return None
 
@@ -705,12 +701,12 @@ def load_from_file(filename: str, extension: str, dirname: str = "", parent=Fals
     :param parent: Looks for the file in the parent directory if ``True``, default ``False``.
     :return: ``str``
     """
-    parent_or_cwd = is_parent_dir_required(parent)
+    parent_or_cwd = is_parent_dir_required(parent, relpath=True)
     file = clean_filename(filename, extension)
     if dirname:
-        path = f"{dirname}/{file}"
+        path = os.path.join(dirname, file)
     else:
-        path = f"{parent_or_cwd}{file}"
+        path = os.path.join(parent_or_cwd, file)
 
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -743,7 +739,7 @@ def parse_client_config(ini_file: str, package_name: str) -> ConfigParser:
     config = ConfigParser(interpolation=None)
     try:
         with importlib.resources.path(package_name, f_ini) as f_path:
-            os.environ["CLIENT_INFO_PATH"] = str(f_path)
+            os.environ["CLIENT_INFO_PATH"] = os.path.abspath(f_path)
             config.read(f_path)
     except ModuleNotFoundError:
         raise ConfigFileNotFound(f_ini, package_name)
@@ -802,17 +798,20 @@ def search_files_by_ext(
     :param folder: ``str`` folder name
     :return: ``list[str]``
     """
+    parent_dir = os.path.dirname(os.getcwd()) if parent else os.getcwd()
     search_files = clean_filename("*", extension)
     if recursive:
         return glob.glob(
-            is_parent_dir_required(parent) + f"{folder}/*/{search_files}",
+            os.path.join(
+                os.path.relpath(parent_dir), os.path.join(folder, "*", search_files)
+            ),
             recursive=recursive,
         )
     else:
         return [
-            route.split("/")[-1:][0]
+            os.path.basename(route)
             for route in glob.glob(
-                is_parent_dir_required(parent) + f"{folder}/{search_files}"
+                os.path.join(parent_dir, os.path.join(folder, search_files))
             )
         ]
 
@@ -832,7 +831,7 @@ def write_to_file(filename: str, folder: str, extension: str, stream: Any) -> No
     """
     f_name = clean_filename(filename, extension)
     with open(
-        f"{os.path.abspath(folder)}/{f_name}",
+        f"{os.path.join(os.path.abspath(folder), f_name)}",
         "w",
         encoding="utf-8",
     ) as file:
@@ -892,7 +891,8 @@ def imagick(img_path: Path | str, quality: int, target: str) -> None:
         img = os.path.split(img_path)
         get_file = lambda dirpath: clean_filename(dirpath[1], target)
         subprocess.Popen(
-            f"magick {img} -quality {quality} {img[0]}/{get_file(img)}", shell=True
+            f"magick {img} -quality {quality} {os.path.join(img[0], get_file(img))}",
+            shell=True,
         ).wait()
     else:
         raise FileNotFoundError(f"File {img_path} was not found!")
@@ -931,7 +931,10 @@ def generate_random_str(k: int) -> str:
 
 
 def split_char(
-    raw_str: Optional[str], placeholder: str = "-1", char_lst: bool = False
+    spl_str: Optional[str],
+    placeholder: str = "-1",
+    char_lst: bool = False,
+    char_lst_raw: bool = False,
 ) -> str | list[str]:
     """
     Identify the split character dynamically in order that str.split() knows what
@@ -947,30 +950,35 @@ def split_char(
     meant to be a separator; for example, in the case ``colorful skies; great landscape;...`` whitespace
     is not the real separator.
 
-    :param raw_str: ``str`` with or without separators
+    :param spl_str: ``str`` with or without separators
     :param placeholder: ``str`` - Return this character if there is no separator. Default: ``"-1"``
-    :param char_lst: ``bool`` - Return a list of unique separators instead of a single one.
+    :param char_lst: ``bool`` - Return a list of unique separators instead of a single one or ``raw_str`` in a ``list[str]``.
+    :param char_lst_raw: ``bool`` - If active, the function will return the char_lst without any modifications for debugging.
     :return: ``str`` | ``list[str]``
     """
     try:
-        chars = re.findall(r"[\W_]+", raw_str)
+        chars = re.findall(r"[\W_+]", spl_str)
     except TypeError:
         return placeholder
+
+    lst_strip = lambda chls: list(map(lambda s: s.strip(), chls))
 
     if chars:
         if len(chars) == 1:
             return chars[0]
         else:
-            ch_lst = list(set(chars))
+            ch_lst = lst_strip(chars)
             if char_lst:
                 return ch_lst
+            elif char_lst_raw:
+                return chars
             else:
                 try:
                     filtered = list(filter(lambda ch: ch != " ", ch_lst))
-                    return filtered[0]
+                    return max(filtered, key=filtered.count)
                 except IndexError:
                     return placeholder
     elif char_lst:
-        return list(raw_str)
+        return list(spl_str)
     else:
         return placeholder
