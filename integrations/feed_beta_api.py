@@ -15,6 +15,7 @@ import datetime
 import os
 import sqlite3
 import tempfile
+import urllib.parse
 
 # Local implementations
 import core
@@ -147,7 +148,7 @@ def feed_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
                 total_entries += 1
                 continue
             else:
-                line_split = line.split(sep)
+                line_split = line.split(urllib.parse.unquote(sep))
                 id_ = line_split[0]
                 title = line_split[1]
                 duration = line_split[2]
@@ -201,7 +202,7 @@ def main(*args, **kwargs):
 
     core.write_to_file("feed_beta-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
 
-    result = feed_dump_parse("feed_beta-dump", temp_dir.name, "partner_test", "|")
+    result = feed_dump_parse("feed_beta-dump", temp_dir.name, "partner_test", URLEncode.PIPE)
 
     print(result)
 
@@ -211,7 +212,7 @@ def main(*args, **kwargs):
         "feed-b-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
     )
 
-    result = feed_dump_parse("feed-b-dump", temp_dir.name, "", "|")
+    result = feed_dump_parse("feed-b-dump", temp_dir.name, "", URLEncode.PIPE)
 
     temp_dir.cleanup()
     print(result)
