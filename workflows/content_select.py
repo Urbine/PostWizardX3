@@ -1007,7 +1007,12 @@ def wp_publish_checker(
             retry_offset = 5
 
         retries += 1
-        hot_sync = hot_file_sync(cs_conf)
+        # Safeguard mechanism
+        try:
+            hot_sync = hot_file_sync(cs_conf)
+        except KeyboardInterrupt:
+            if hot_sync is True:
+                raise KeyboardInterrupt
 
 
 def model_checker(
