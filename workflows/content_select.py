@@ -641,7 +641,7 @@ def make_slug(
         if reverse:
             return build_slug([title_sl, partner_sl, content])
         elif partner_out:
-            return build_slug([studio, title_sl, content])
+            return build_slug([title_sl, studio, content])
         else:
             return build_slug([partner_sl, title_sl, content])
 

@@ -611,6 +611,14 @@ def embedding_pilot(
                     studio=db_interface.get_studio(),
                     partner_out=True,
                 ),
+                cs.make_slug(
+                    partner,
+                    None,
+                    title,
+                    "video",
+                    studio=db_interface.get_studio(),
+                    partner_out=True,
+                ),
             ]
 
             clean_slugs = list(filter(lambda sl: sl != "", slugs))
@@ -784,7 +792,9 @@ def embedding_pilot(
                 console.print(
                     "--> Adding image attributes on WordPress...", style="bold green"
                 )
-                img_attrs = cs.make_img_payload(title, title)
+                img_attrs = cs.make_img_payload(
+                    title, title if not description else description
+                )
                 logging.info(f"Image Attrs: {img_attrs}")
                 upload_img = wordpress_api.upload_thumbnail(
                     wp_base_url,

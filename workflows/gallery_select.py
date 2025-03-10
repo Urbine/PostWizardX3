@@ -298,7 +298,11 @@ def make_photos_payload(
 
 
 def upload_image_set(
-    ext: str, folder: str, title: str, wp_params: WPAuth = wp_auth()
+    ext: str,
+    folder: str,
+    title: str,
+    wp_params: WPAuth = wp_auth(),
+    wp_endpoints: WPEndpoints = WPEndpoints(),
 ) -> None:
     """Upload a set of images to the WordPress Media endpoint.
 
@@ -308,9 +312,7 @@ def upload_image_set(
     :param wp_params: ``WPAuth`` object with the base URL of the WP site.
     :return: ``None``
     """
-    thumbnails: list[str] = helpers.search_files_by_ext(
-        ext, folder=os.path.relpath(folder)
-    )
+    thumbnails: list[str] = helpers.search_files_by_ext(ext, folder=folder)
     if len(thumbnails) == 0:
         # Assumes the thumbnails are contained in a directory
         # This could be caused by the archive extraction
@@ -318,7 +320,12 @@ def upload_image_set(
         files: list[str] = helpers.search_files_by_ext(
             "jpg", recursive=True, folder=os.path.relpath(folder)
         )
-        thumbnails: list[str] = ["/".join(path.split("/")[-2:]) for path in files]
+
+        get_parent_dir = lambda dr: os.path.split(os.path.split(dr)[-2:][0])[1]
+
+        thumbnails: list[str] = [
+            os.path.join(get_parent_dir(path), os.path.basename(path)) for path in files
+        ]
 
     if len(thumbnails) != 0:
         logging.info(
@@ -333,30 +340,34 @@ def upload_image_set(
 
     # Prepare the image new name so that separators are replaced by hyphens.
     # E.g. this_is_a_cool_pic.jpg => this-is-a-cool-pic.jpg
-    split_char = (
-        lambda name: chars[0] if (chars := re.findall(r"[\W_]+", name)) else " "
+    new_name_img = lambda name: "-".join(
+        f"{os.path.basename(name)!s}".split(helpers.split_char(name))
     )
-    new_name_img = lambda name: "-".join(name.split(split_char(name)))
 
     for number, image in enumerate(thumbnails, start=1):
         img_attrs: dict[str, str] = make_gallery_payload(title, number)
-        new_img = os.path.abspath(f"{folder}/{new_name_img(image)}")
-        os.renames(os.path.abspath(f"{folder}/{image}"), new_img)
+        img_file = "-".join(
+            new_name_img(image).split(helpers.split_char(image, placeholder=" "))
+        )
+        os.renames(
+            os.path.join(folder, os.path.basename(image)),
+            img_new := os.path.join(folder, os.path.basename(img_file)),
+        )
         status_code: int = wordpress_api.upload_thumbnail(
             wp_params.api_base_url,
-            ["/media"],
-            f"{new_img}",
+            [wp_endpoints.media],
+            img_new,
             img_attrs,
         )
 
+        img_now = os.path.basename(img_new)
         if status_code == (200 or 201):
-            logging.info(f"Removing --> {new_img}")
-            os.remove(new_img)
+            logging.info(f"Removing --> {img_now}")
+            os.remove(img_new)
         else:
             pass
         logging.info(
-            img_seq
-            := f"* Image {number} | {new_name_img(image)} --> Status code: {status_code}"
+            img_seq := f"* Image {number} | {img_now} --> Status code: {status_code}"
         )
         print(img_seq)
     try:
