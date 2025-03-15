@@ -35,10 +35,9 @@ class InvalidInput(Exception):
     """
 
     def __init__(self):
-        self.message = (
-            "The input you have provided is not valid. Double check it and re-run."
-        )
-        super().__init__(self.message)
+        self.message = "The input or database you have provided is not valid. Double check it and re-run."
+        self.help = "Did you check if all your partners in workflows_config.ini have a corresponding database?"
+        super().__init__(f"{self.message}\n{self.help}")
 
 
 class ConfigFileNotFound(Exception):
