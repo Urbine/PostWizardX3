@@ -20,6 +20,8 @@ echo "** Updating FeedAlpha database... **"
 # 30 days for the FeedAlpha API integration
 python3 -m integrations.feed_alpha_api -days 30 -sort popularity -limit 100
 echo -e "\n"
+echo "** Updating FeedDelta database... **"
+python3 -m integrations.feed_delta_api --no-embed-dur
 echo "** Cleaning old databases... **"
 
 if [ "$cd_init" = 1 ];then

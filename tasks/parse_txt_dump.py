@@ -45,9 +45,7 @@ def parse_txt_dump_chain(
     if dirname:
         path = os.path.join(dirname, cl_fname)
     else:
-        path = os.path.join(
-            helpers.is_parent_dir_required(parent, relpath=True), cl_fname
-        )
+        path = os.path.join(helpers.is_parent_dir_required(parent), cl_fname)
 
     total_entries = 0
     with open(path, "r", encoding="utf-8") as dump_file:
