@@ -140,12 +140,14 @@ def extract_zip(zip_path: str, extr_dir: str):
         "zip", folder=os.path.relpath(zip_path)
     )
     try:
-        with zipfile.ZipFile(zip_path := f"{get_zip[0]}", "r") as zipf:
+        with zipfile.ZipFile(
+            zip_loc := os.path.join(zip_path, get_zip[0]), "r"
+        ) as zipf:
             zipf.extractall(path=os.path.abspath(extr_dir))
         print(
-            f"--> Extracted files from {get_zip[0]} in folder {os.path.relpath(extr_dir)}"
+            f"--> Extracted files from {os.path.basename(zip_loc)} in folder {os.path.relpath(extr_dir)}"
         )
-        logging.info(f"Extracted {zip_path}")
+        logging.info(f"Extracted {zip_loc}")
         print(f"--> Tidying up...")
         try:
             # Some archives have a separate set of redundant files in that folder.
@@ -157,7 +159,7 @@ def extract_zip(zip_path: str, extr_dir: str):
             pass
         finally:
             logging.info(f"Cleaning remaining archive in {zip_path}")
-            core.clean_file_cache(os.path.relpath(zip_path), ".zip")
+            os.remove(zip_loc)
     except (IndexError, zipfile.BadZipfile) as e:
         logging.error(f"Something went wrong with the archive extraction -> {e!r}")
         return None
@@ -652,7 +654,10 @@ def gallery_upload_pilot(
                     headless=headless,
                 )
                 extract_zip(temp_dir.name, thumbnails_dir.name)
-                upload_image_set("*", thumbnails_dir.name, title)
+
+                upload_image_set(
+                    gallery_sel_conf.pic_fallback, thumbnails_dir.name, title
+                )
 
                 logging.info(f"WP Slug - Selected: {os.environ.get('SET_SLUG')}")
 

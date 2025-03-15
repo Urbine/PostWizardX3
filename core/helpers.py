@@ -939,19 +939,19 @@ def split_char(
     """
     Identify the split character dynamically in order that str.split() knows what
     the correct separator is. In this project, the most relevant separators are ``,`` and
-    ``;`` as whitespaces are not as important. However, if the only non-alphanumeric character of
+    ``;``, in contrast, whitespaces are not as important. That said, if the only non-alphanumeric character of
     the string is a whitespace, the function has to return it. Additional parameters
-    help with complementary logic and graceful error handling.
+    help with complementary logic and graceful error handling across modules.
 
-    By design, this implementation assumes that, if there are more separators, the first one
-    in the match list may not be relevant for the purpose; therefore, it discards all
-    whitespaces and focuses on other special characters. This is so because it is common to
-    separate words with a whitespace at first and then use another separator, one that is really
-    meant to be a separator; for example, in the case ``colorful skies; great landscape;...`` whitespace
-    is not the real separator.
+    By design, this implementation assumes that, if there are multiple separators or the first one
+    in the match list is a whitespace, the former may repeat itself or the latter may not be relevant for the purpose;
+    therefore, the logic discards all whitespaces and focuses on other special characters that occur the most if there
+    are more multiple matches. This is so because it is common to separate words with a whitespace at first and then
+    use another separator, one that is really meant to be a separator; for example, in the case
+    ``colorful skies; great landscape;...`` whitespace is not the real separator.
 
     :param spl_str: ``str`` with or without separators
-    :param placeholder: ``str`` - Return this character if there is no separator. Default: ``"-1"``
+    :param placeholder: ``str`` - Return this character if there is no separator as it can't be empty. Default: ``"-1"``
     :param char_lst: ``bool`` - Return a list of unique separators instead of a single one or ``raw_str`` in a ``list[str]``.
     :param char_lst_raw: ``bool`` - If active, the function will return the char_lst without any modifications for debugging.
     :return: ``str`` | ``list[str]``
@@ -974,9 +974,10 @@ def split_char(
                 return chars
             else:
                 try:
-                    filtered = list(filter(lambda ch: ch != " ", ch_lst))
+                    filtered = list(filter(lambda ch: ch != " " and ch != "", ch_lst))
+                    # It makes sense to identify which character occurs more frequently.
                     return max(filtered, key=filtered.count)
-                except IndexError:
+                except ValueError:
                     return placeholder
     elif char_lst:
         return list(spl_str)

@@ -823,25 +823,27 @@ def content_select_db_match(
         select_partner: str = console.input(
             f"[bold yellow]\nSelect your partner now: [bold yellow]\n",
         )
-        # I just need the first word to match the db.
-        try:
-            split_char = re.findall(r"[\W_]+", hint_lst[int(select_partner) - 1])[0]
+        spl_char = split_char(hint_lst[(int(select_partner) - 1)])
+        clean_hint: list[str] = hint_lst[(int(select_partner) - 1)].split(spl_char)
 
-            clean_hint: str = hint_lst[int(select_partner) - 1].split(split_char)[0]
-
-        except IndexError:
-            clean_hint: str = hint_lst[int(select_partner) - 1]
-
-        rel_content: int = helpers.match_list_single(
-            clean_hint, relevant_content, ignore_case=True
-        )
-
-        select_file: int = rel_content
+        select_file: int = 0
+        for hint in clean_hint:
+            rel_content: int = helpers.match_list_single(
+                hint, relevant_content, ignore_case=True
+            )
+            if hint:
+                if rel_content:
+                    select_file = rel_content
+                    break
+            else:
+                continue
 
         is_parent: str = (
-            helpers.is_parent_dir_required(parent) if folder == "" else f"{folder}/"
+            helpers.is_parent_dir_required(parent)
+            if folder == ""
+            else os.path.abspath(folder)
         )
-        db_path: str = os.path.join(is_parent, relevant_content[select_file])
+        db_path: str = os.path.join(is_parent, relevant_content[int(select_file)])
 
         db_new_conn: sqlite3 = sqlite3.connect(db_path)
         db_new_cur: sqlite3 = db_new_conn.cursor()
@@ -851,7 +853,8 @@ def content_select_db_match(
             relevant_content[int(select_file)],
             select_file,
         )
-    except (IndexError, ValueError):
+    except (IndexError, ValueError, TypeError) as e:
+        logging.critical(f"Encountered {e!r}. Debugging info: {relevant_content}")
         raise InvalidInput
 
 
@@ -981,7 +984,7 @@ def wp_publish_checker(
     :return: ``None`` | ``True``
     """
     retries = 0
-    retry_offset = 10
+    retry_offset = 5
     start_check = time.time()
     hot_sync = hot_file_sync(cs_conf)
     while hot_sync:
@@ -1013,8 +1016,9 @@ def wp_publish_checker(
         try:
             hot_sync = hot_file_sync(cs_conf)
         except KeyboardInterrupt:
-            if hot_sync is True:
-                raise KeyboardInterrupt
+            while not hot_sync:
+                continue
+            raise KeyboardInterrupt
 
 
 def model_checker(
@@ -1029,7 +1033,6 @@ def model_checker(
     :return: ``list[int]`` - List of model integer ids in the WordPress site.
     """
     console = Console()
-    # The would-be `models_ints`
     calling_models: list[int] = get_model_ids(wp_posts_f, model_prep)
     all_models_wp: dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, "pornstars", "pornstars"
@@ -1319,14 +1322,14 @@ def video_upload_pilot(
                     logging.warning(f"Missing tag detected: {tag}")
                     pyclip.detect_clipboard()
                     pyclip.copy(tag)
+            try:
+                model_delim = models.split(
+                    spl_ch if (spl_ch := split_char(models)) != " " else "-1"
+                )
+                model_prep = list(map(lambda model: model.strip(), model_delim))
+            except AttributeError:
+                model_prep = ["model-not-found"]
 
-            model_prep = (
-                [model.strip() for model in models.split(",")]
-                if models is not None
-                else ["model-not-found"]
-            )
-
-            # # The would-be `models_ints`
             calling_models: list[int] = model_checker(wp_posts_f, model_prep)
 
             # NaiveBayes/MaxEnt classification for titles, descriptions, and tags
@@ -1346,7 +1349,7 @@ def video_upload_pilot(
                 console.print(f"{num}. {categ}", style="green")
 
             match console.input(
-                "[bold yellow]\nEnter the category number or type in to look for another category in the site: [bold yellow]\n"
+                "[bold yellow]\nEnter the category number or type in to look for another category within the site: [bold yellow]\n"
             ):
                 case _ as option:
                     try:

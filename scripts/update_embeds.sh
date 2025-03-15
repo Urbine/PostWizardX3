@@ -20,6 +20,8 @@ echo "** Updating AdultNext's Abjav database... **"
 # 30 days for the AdultNext API integration
 python3 -m integrations.adult_next_api -days 30 -sort popularity -limit 100
 echo -e "\n"
+echo "** Updating FapHouse databse... **"
+python3 -m integrations.fhouse_api --no-embed-dur
 echo "** Cleaning old databases... **"
 
 if [ "$cd_init" = 1 ];then

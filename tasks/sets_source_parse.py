@@ -91,10 +91,9 @@ def db_generate(
     else:
         d_name = helpers.clean_filename(db_suggest, "db")
 
-    remove_if_exists(d_name)
-    db_conn = sqlite3.connect(
-        os.path.join(helpers.is_parent_dir_required(parent), d_name)
-    )
+    db_path = os.path.join(helpers.is_parent_dir_required(parent), d_name)
+    remove_if_exists(db_path)
+    db_conn = sqlite3.connect(db_path)
     cursor = db_conn.cursor()
     cursor.execute("CREATE TABLE sets(title, date, link)")
     # Sum of entered into the db.
