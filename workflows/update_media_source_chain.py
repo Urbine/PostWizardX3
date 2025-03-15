@@ -212,8 +212,9 @@ if __name__ == "__main__":
         continue
 
     db_name = clean_filename(dump_f, "db")
-    remove_if_exists(db_name)
-    db_conn = sqlite3.connect(f"{is_parent_dir_required(parent=args.parent)}{db_name}")
+    db_path = os.path.join(is_parent_dir_required(parent=args.parent), db_name)
+    remove_if_exists(db_path)
+    db_conn = sqlite3.connect(db_path)
     cursor = db_conn.cursor()
     cursor.execute(
         """
