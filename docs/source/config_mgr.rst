@@ -163,6 +163,11 @@ Here is a template of this file to aid your understanding:
     domain_tld = <TLD>
     wp_json_posts = wp_posts.json
     wp_cache_config = wp_cache_config.json
+    # Only the directory name in project root
+    logging_dirname = logs
+    # Tweak this option if you want to remove image attributes
+    # This is useful to de-optimise images for SEO
+    img_attrs = False
 
     [content_select]
     pic_format = .jpg
@@ -187,6 +192,7 @@ Here is a template of this file to aid your understanding:
     wp_json_photos = wp_photos.json
     db_content_hint = photos
     sql_query = SELECT * FROM sets
+    reverse_slug = True
     x_posting_auto = False
     x_posting_enabled = False
     telegram_posting_auto = False
@@ -203,9 +209,6 @@ Here is a template of this file to aid your understanding:
     telegram_posting_enabled = False
     # Comma separated partners
     partners= <partners>
-
-    [update_mcash_chain]
-    logging_dirname = logs
 
 .. note::
    If you need API secrets, keys or client credentials, go to the developers website available for the integration you intend to use.

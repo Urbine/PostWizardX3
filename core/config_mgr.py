@@ -34,16 +34,16 @@ class WPAuth:
     site information, configuration filenames, and behavioural constants.
     """
 
-    user: str
+    api_base_url: str
     app_password: str
     author_admin: str
-    hostname: str
-    api_base_url: str
     full_base_url: str
     default_status: str
+    hostname: str
+    user: str
     wp_cache_file: str
-    wp_posts_file: str
     wp_photos_file: str
+    wp_posts_file: str
 
     def __repr__(self):
         return "WPAuth()"
@@ -82,23 +82,24 @@ class ContentSelectConf:
     bot configuration variables and behavioural tweaks.
     """
 
-    wp_json_posts: str
-    wp_cache_config: str
-    pic_format: str
-    pic_fallback: str
-    imagick: bool
-    quality: int
-    sql_query: str
-    content_hint: str
-    partners: str
     assets_conf: str
-    site_name: str
+    content_hint: str
     domain_tld: str
+    imagick: bool
+    img_attrs: bool
     logging_dirname: str
-    x_posting_auto: bool
-    x_posting_enabled: bool
+    partners: str
+    pic_fallback: str
+    pic_format: str
+    quality: int
+    site_name: str
+    sql_query: str
     telegram_posting_auto: bool
     telegram_posting_enabled: bool
+    wp_json_posts: str
+    wp_cache_config: str
+    x_posting_auto: bool
+    x_posting_enabled: bool
 
     def __repr__(self):
         return "ContentSelectConf()"
@@ -111,23 +112,25 @@ class GallerySelectConf:
     bot configuration variables and behavioural tweaks.
     """
 
-    pic_format: str
-    pic_fallback: str
+    content_hint: str
+    domain_tld: str
     imagick: bool
+    img_attrs: bool
+    logging_dirname: str
+    partners: str
+    pic_fallback: str
+    pic_format: str
     quality: int
+    reverse_slug: bool
+    site_name: str
+    sql_query: str
+    telegram_posting_auto: bool
+    telegram_posting_enabled: bool
     wp_json_photos: str
     wp_json_posts: str
     wp_cache_config: str
-    sql_query: str
-    content_hint: str
-    partners: str
-    site_name: str
-    domain_tld: str
-    logging_dirname: str
     x_posting_auto: bool
     x_posting_enabled: bool
-    telegram_posting_auto: bool
-    telegram_posting_enabled: bool
 
     def __repr__(self):
         return "GallerySelectConf()"
@@ -140,22 +143,23 @@ class EmbedAssistConf:
     bot configuration variables and behavioural tweaks.
     """
 
-    wp_json_posts: str
-    wp_cache_config: str
-    pic_format: str
-    pic_fallback: str
-    imagick: bool
-    quality: int
-    sql_query: str
     content_hint: str
-    partners: str
-    site_name: str
     domain_tld: str
+    imagick: bool
+    img_attrs: bool
     logging_dirname: str
-    x_posting_auto: bool
-    x_posting_enabled: bool
+    partners: str
+    pic_fallback: str
+    pic_format: str
+    quality: int
+    site_name: str
+    sql_query: str
     telegram_posting_auto: bool
     telegram_posting_enabled: bool
+    wp_json_posts: str
+    wp_cache_config: str
+    x_posting_auto: bool
+    x_posting_enabled: bool
 
     def __repr__(self):
         return "EmbedAssistConf()"
@@ -181,16 +185,16 @@ class XAuth:
     and API configurable and non-constant parameters.
     """
 
+    access_token: str
+    api_key: str
+    api_secret: str
+    client_id: str
+    client_secret: str
+    refresh_token: str
     uri_callback: str
     x_username: str
     x_passw: str
     x_email: str
-    client_id: str
-    client_secret: str
-    api_key: str
-    api_secret: str
-    access_token: str
-    refresh_token: str
 
     def __repr__(self):
         return "XAuth(client_id, client_secret)"
@@ -313,7 +317,7 @@ def content_select_conf() -> ContentSelectConf:
             pic_format=workflows_config["general_config"]["pic_format"],
             pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
             imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-            quality=int(workflows_config["general_config"]["conversion_quality"]),
+            quality=workflows_config.getint("general_config", "conversion_quality"),
             sql_query=workflows_config["content_select"]["sql_query"],
             content_hint=workflows_config["content_select"]["db_content_hint"],
             assets_conf=workflows_config["content_select"]["assets_conf"],
@@ -321,6 +325,7 @@ def content_select_conf() -> ContentSelectConf:
             site_name=workflows_config["general_config"]["website_name"],
             domain_tld=workflows_config["general_config"]["domain_tld"],
             logging_dirname=workflows_config["general_config"]["logging_dirname"],
+            img_attrs=workflows_config.getboolean("general_config", "img_attrs"),
             x_posting_auto=workflows_config.getboolean(
                 "content_select", "x_posting_auto"
             ),
@@ -348,7 +353,7 @@ def gallery_select_conf() -> GallerySelectConf:
             pic_format=workflows_config["general_config"]["pic_format"],
             pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
             imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-            quality=int(workflows_config["general_config"]["conversion_quality"]),
+            quality=workflows_config.getint("general_config", "conversion_quality"),
             wp_json_photos=workflows_config["gallery_select"]["wp_json_photos"],
             wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
             wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
@@ -358,6 +363,8 @@ def gallery_select_conf() -> GallerySelectConf:
             site_name=workflows_config["general_config"]["website_name"],
             domain_tld=workflows_config["general_config"]["domain_tld"],
             logging_dirname=workflows_config["general_config"]["logging_dirname"],
+            img_attrs=workflows_config.getboolean("general_config", "img_attrs"),
+            reverse_slug=workflows_config.getboolean("gallery_select", "reverse_slug"),
             x_posting_auto=workflows_config.getboolean(
                 "gallery_select", "x_posting_auto"
             ),
@@ -387,13 +394,14 @@ def embed_assist_conf() -> EmbedAssistConf:
             pic_format=workflows_config["general_config"]["pic_format"],
             pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
             imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-            quality=int(workflows_config["general_config"]["conversion_quality"]),
+            quality=workflows_config.getint("general_config", "conversion_quality"),
             sql_query=workflows_config["embed_assist"]["sql_query"],
             content_hint=workflows_config["embed_assist"]["db_content_hint"],
             partners=workflows_config["embed_assist"]["partners"],
             site_name=workflows_config["general_config"]["website_name"],
             domain_tld=workflows_config["general_config"]["domain_tld"],
             logging_dirname=workflows_config["general_config"]["logging_dirname"],
+            img_attrs=workflows_config.getboolean("general_config", "img_attrs"),
             x_posting_auto=workflows_config.getboolean(
                 "embed_assist", "x_posting_auto"
             ),
@@ -417,7 +425,7 @@ def update_mcash_conf() -> UpdateMCash:
     :return: ``UpdateMCash``
     """
     return UpdateMCash(
-        logging_dirname=workflows_config["update_mcash_chain"]["logging_dirname"]
+        logging_dirname=workflows_config["general_config"]["logging_dirname"]
     )
 
 

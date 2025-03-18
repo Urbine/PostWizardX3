@@ -17,12 +17,12 @@ __email__ = "yohamg@programmer.net"
 
 import argparse
 import datetime
+import logging
 import os
 import re
 
 import requests
 import sqlite3
-import warnings
 
 from collections import namedtuple
 from pathlib import Path
@@ -30,20 +30,25 @@ from requests.auth import HTTPBasicAuth
 from typing import Generator
 
 # Third-party modules
+import urllib3
 import xlsxwriter
+from urllib3 import BaseHTTPResponse
 
 # Local implementations
 from core import NoSuitableArgument, helpers, is_parent_dir_required
 from core.config_mgr import WPAuth, wp_auth
 
 
-def curl_wp_self_concat(param_lst: list[str], secrets: WPAuth = wp_auth()) -> requests:
+def curl_wp_self_concat(
+    http: urllib3.PoolManager, param_lst: list[str], secrets: WPAuth = wp_auth()
+) -> BaseHTTPResponse:
     """Makes the ``GET`` request based on the curl mechanism as described on the docs.
 
     ``curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/users?context=edit``
 
     In other words: ``curl --user "USERNAME:PASSWORD" https://HOSTNAME/wp-json/wp/v2/REST_PARAMS``
 
+    :param http: ``urllib3.PoolManager`` - PoolManager for performance gain and efficient resource usage
     :param param_lst: ``list[str]`` list of URl params
     :param secrets: ``WPAuth`` Object that contains the secrets to access WordPress.
     :return: ``JSON`` object
@@ -51,11 +56,16 @@ def curl_wp_self_concat(param_lst: list[str], secrets: WPAuth = wp_auth()) -> re
     wp_self: str = secrets.api_base_url
     username_: str = secrets.user
     app_pass_: str = secrets.app_password
+    headers = urllib3.make_headers(
+        keep_alive=True,
+        accept_encoding=True,
+        basic_auth=f"{username_}:{app_pass_}",
+    )
     wp_self: str = wp_self + "".join(param_lst)
-    return requests.get(wp_self, headers={"user": f"{username_}:{app_pass_}"})
+    return http.request("GET", wp_self, headers=headers)
 
 
-def wp_post_create(endp_lst: list[str], payload, secrets: WPAuth = wp_auth()):
+def wp_post_create(endp_lst: list[str], payload, secrets: WPAuth = wp_auth()) -> int:
     """Makes the ``POST`` request based on the mechanism as described on the docs.
 
     :param payload: ``dict`` with the post information.
@@ -69,6 +79,13 @@ def wp_post_create(endp_lst: list[str], payload, secrets: WPAuth = wp_auth()):
     auth_wp = HTTPBasicAuth(username_, app_pass_)
     wp_self: str = wp_self + "".join(endp_lst)
     return requests.post(wp_self, json=payload, auth=auth_wp).status_code
+
+    # wp_self: str = secrets.api_base_url
+    # username_: str = secrets.user
+    # app_pass_: str = secrets.app_password
+    # auth_wp = urllib3.make_headers(basic_auth=f"{username_}:{app_pass_}")
+    # wp_self: str = wp_self + "".join(endp_lst)
+    # return http.request("POST", wp_self, json=payload, headers=auth_wp).status
 
 
 def create_wp_local_cache(
@@ -84,6 +101,11 @@ def create_wp_local_cache(
     """
     from integrations.url_builder import WPEndpoints
 
+    http = urllib3.PoolManager(
+        num_pools=10,
+        maxsize=10,
+        retries=urllib3.Retry(total=2, backoff_factor=0.5),
+    )
     endpoints: WPEndpoints = WPEndpoints()
     result_dict: list[dict] = []
     page_num: int = 1
@@ -96,8 +118,8 @@ def create_wp_local_cache(
     )
     print(f"\nCreating WordPress {wp_cache} cache file...\n")
     while True:
-        curl_json = curl_wp_self_concat(end_params_posts)
-        if curl_json.status_code == 400:
+        curl_json = curl_wp_self_concat(http, end_params_posts)
+        if curl_json.status == 400:
             # Assumes that no config file exists.
             local_cache_config(wp_cache, x_wp_totalpages, x_wp_total)
             print(f"\n{'DONE':=^30}\n")
@@ -736,7 +758,7 @@ def create_tag_report_excel(
     workbook.close()
 
     print(
-        f"\nFind the new file {workbook_fname} in \n{helpers.cwd_or_parent_path(parent=parent)}\n"
+        f"\nFind the new file {workbook_fname} in \n{helpers.is_parent_dir_required(parent=parent)}\n"
     )
     return None
 
@@ -899,7 +921,7 @@ def local_cache_config(
 
 def update_json_cache(
     photos: bool = False, wpauth: WPAuth = wp_auth()
-) -> list[dict[str, ...]]:
+) -> list[dict[...]]:
     """Updates the local wp cache files for processing.
     It does this by fetching the last page cached and calculating the
     difference between the total elements variable from the ``HTTP`` request and
@@ -911,6 +933,11 @@ def update_json_cache(
     """
     from integrations.url_builder import WPEndpoints
 
+    http = urllib3.PoolManager(
+        num_pools=10,
+        maxsize=10,
+        retries=urllib3.Retry(total=2, backoff_factor=0.5),
+    )
     wp_endpoints: WPEndpoints = WPEndpoints()
     config = helpers.load_json_ctx(wpauth.wp_cache_file)
 
@@ -923,13 +950,13 @@ def update_json_cache(
     # The loop will add 1 to page num when the first request is successful.
     cached = lambda cfg: cfg[clean_fname]["cached_pages"]
     page_num = [cached(dic) for dic in config if clean_fname in dic.keys()][0] - 2
-    result_dict = helpers.load_json_ctx(clean_fname)
+    result_dict: list[dict[...]] = helpers.load_json_ctx(clean_fname)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []
     page_num_param: bool = False
     while True:
-        curl_json = curl_wp_self_concat(params_posts)
-        if curl_json.status_code == 400:
+        curl_json = curl_wp_self_concat(http, params_posts)
+        if curl_json.status == 400:
             diff = x_wp_total - total_elems
             if diff == 0:
                 pass
@@ -987,7 +1014,7 @@ def upgrade_wp_local_cache(
         updated_local_cache = create_wp_local_cache(photos=photos)
 
     helpers.export_request_json(wp_cache, updated_local_cache, 1, parent=parent)
-    local_json: list[dict[str, str]] = helpers.load_json_ctx(wp_cache)
+    local_json: list[dict[...]] = helpers.load_json_ctx(wp_cache)
     update_published_titles_db(local_json, parent=parent, yoast=yoast, photosets=photos)
     return None
 

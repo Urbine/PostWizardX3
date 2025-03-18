@@ -79,6 +79,9 @@ wp_json_posts = wp_posts.json
 wp_cache_config = wp_cache_config.json
 # Only the directory name
 logging_dirname = logs
+# Tweak this option if you want to remove image attributes
+# This is useful to de-optimise images for SEO
+img_attrs = False
 
 [content_select]
 pic_format = .jpg
@@ -103,6 +106,7 @@ partners= <partners>
 wp_json_photos = wp_photos.json
 db_content_hint = photos
 sql_query = SELECT * FROM sets
+reverse_slug = True
 x_posting_auto = False
 x_posting_enabled = False
 telegram_posting_auto = False

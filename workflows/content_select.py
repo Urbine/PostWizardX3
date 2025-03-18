@@ -30,8 +30,10 @@ from typing import Optional
 # Third-party modules
 import pyclip
 import requests
+import urllib3
 from requests.exceptions import SSLError, ConnectionError
 from rich.console import Console
+
 
 # Local implementations
 from core import (
@@ -466,14 +468,17 @@ def make_payload(
     :return: ``dict[str, str | int]``
     """
     author: int = int(wpauth.author_admin)
+    img_attrs: bool = bot_conf.img_attrs
     payload_post: dict = {
         "slug": f"{vid_slug}",
         "status": f"{status_wp}",
         "type": "post",
         "link": f"{wpauth.full_base_url.strip('/')}/{vid_slug}/",
         "title": f"{vid_name}",
-        "content": f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt="{vid_name} | {partner_name} on {bot_conf.site_name}{bot_conf.domain_tld}"/></a></figure>',
         "excerpt": f"<p>{vid_description}</p>\n",
+        "content": f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt="{vid_name} | {partner_name} on {bot_conf.site_name}{bot_conf.domain_tld}"/></a></figure>'
+        if img_attrs
+        else f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt=""/></a></figure>',
         "author": author,
         "featured_media": 0,
         "tags": tag_int_lst,
@@ -482,8 +487,6 @@ def make_payload(
 
     if categs:
         payload_post["categories"] = categs
-    else:
-        pass
 
     return payload_post
 
@@ -554,12 +557,19 @@ def make_img_payload(
             "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
             "description": f"{vid_title} {bot_config.site_name}{bot_config.domain_tld}",
         }
+    elif not bot_config.img_attrs:
+        img_payload: dict[str, str] = {
+            "alt_text": "",
+            "caption": "",
+            "description": "",
+        }
     else:
         img_payload: dict[str, str] = {
             "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
             "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
             "description": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
         }
+
     return img_payload
 
 
@@ -662,7 +672,7 @@ def hot_file_sync(
     In other words, if it isn't right, the WP post file remains untouched.
 
     :param bot_config: ``ContentSelectConf`` or ``GallerySelectConf`` or ``EmbedAssistConf`` with configuration information.
-    :return: ``bool`` - ``True`` if everything went well or raise ``HotFileSyncIntegrityError`` if the validation failed)
+    :return: ``bool`` - ``True`` if everything went well or raise ``HotFileSyncIntegrityError`` if the validation failed
     """
     parent = (
         False
@@ -674,12 +684,12 @@ def hot_file_sync(
     else:
         wp_filename: str = helpers.clean_filename(bot_config.wp_json_posts, "json")
 
-    sync_changes: list[dict[str, ...]] = wordpress_api.update_json_cache(
+    sync_changes: list[dict[...]] = wordpress_api.update_json_cache(
         photos=True if isinstance(bot_config, GallerySelectConf) else False
     )
 
     # Reload config
-    config_json: dict[str, str] = helpers.load_json_ctx(bot_config.wp_cache_config)
+    config_json: list[dict[...]] = helpers.load_json_ctx(bot_config.wp_cache_config)
     if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
         helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
         logging.info(
@@ -740,13 +750,13 @@ def select_guard(db_name: str, partner: str) -> None:
     """
     # Find the split character as I just need to get the first word of the name
     # to match it with partner selected by the user
-    match_regex = re.findall(r"[\W_]+", db_name)[0]
-    spl_dbname = lambda db: db.strip().split(match_regex)
+    # match_regex = re.findall(r"[\W_]+", db_name)[0]
+    spl_dbname = lambda db: db.strip().split(split_char(db))
     try:
         assert re.match(spl_dbname(db_name)[0], partner, flags=re.IGNORECASE)
     except AssertionError:
         logging.critical(
-            f"Select guard detected issues for db_name: {db_name} partner: {partner} split: {match_regex}"
+            f"Select guard detected issues for db_name: {db_name} partner: {partner} split: {spl_dbname(db_name)}"
         )
         print("\nBe careful! Partner and database must match. Re-run...")
         print(f"The program selected {db_name} for partner {partner}.")
@@ -815,6 +825,11 @@ def content_select_db_match(
         print("\n")
     else:
         pass
+    console.print(
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style="bold yellow",
+        justify="left",
+    )
     print("\n")
     for num, file in enumerate(hint_lst, start=1):
         console.print(f"{num}. {file}", style="bold green")
@@ -998,9 +1013,9 @@ def wp_publish_checker(
         if post_slug in slugs:
             os.environ["LATEST_POST"] = wp_postf[0]["link"]
             end_check = time.time()
-            h, min, secs = get_duration(end_check - start_check)
+            h, mins, secs = get_duration(end_check - start_check)
             logging.info(
-                f"wp_publish_checker took -> hours: {h} mins: {min} secs: {secs} in {retries} retries"
+                f"wp_publish_checker took -> hours: {h} mins: {mins} secs: {secs} in {retries} retries"
             )
             return True
 
@@ -1022,7 +1037,7 @@ def wp_publish_checker(
 
 
 def model_checker(
-    wp_posts_f: list[dict[str, ...]], model_prep: list[str]
+    wp_posts_f: list[dict[...]], model_prep: list[str]
 ) -> Optional[list[int]]:
     """
     Share missing model checking behaviour accross modules.
@@ -1032,18 +1047,21 @@ def model_checker(
     :param model_prep: ``list[str]`` - Model tag list without delimiters
     :return: ``list[int]`` - List of model integer ids in the WordPress site.
     """
-    console = Console()
-    calling_models: list[int] = get_model_ids(wp_posts_f, model_prep)
-    all_models_wp: dict[str, int] = wordpress_api.map_wp_class_id(
-        wp_posts_f, "pornstars", "pornstars"
-    )
-    new_models: Optional[list[str]] = identify_missing(
-        all_models_wp, model_prep, calling_models
-    )
-
-    if new_models is None or model_prep[0] == "model-not-found":
+    if not model_prep:
         # Maybe the post does not include a model.
         return None
+    else:
+        console = Console()
+        calling_models: list[int] = get_model_ids(wp_posts_f, model_prep)
+        all_models_wp: dict[str, int] = wordpress_api.map_wp_class_id(
+            wp_posts_f, "pornstars", "pornstars"
+        )
+        new_models: Optional[list[str]] = identify_missing(
+            all_models_wp, model_prep, calling_models
+        )
+
+    if new_models is None:
+        return calling_models
     else:
         for girl in new_models:
             console.print(
@@ -1104,7 +1122,7 @@ def video_upload_pilot(
     partners: list[str] = list(map(lambda p: p.strip(), cs_config.partners.split(",")))
     logging.info(f"Loading partners variable: {partners}")
 
-    wp_posts_f: list[dict[str, ...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
+    wp_posts_f: list[dict[...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
     logging.info(f"Reading WordPress Post cache: {cs_config.wp_json_posts}")
 
     wp_base_url: str = wp_auth.api_base_url
@@ -1328,7 +1346,7 @@ def video_upload_pilot(
                 )
                 model_prep = list(map(lambda model: model.strip(), model_delim))
             except AttributeError:
-                model_prep = ["model-not-found"]
+                model_prep = []
 
             calling_models: list[int] = model_checker(wp_posts_f, model_prep)
 
@@ -1345,8 +1363,8 @@ def video_upload_pilot(
                 " \n** I think these categories are appropriate: **\n",
                 style="bold yellow",
             )
-            for num, categ in enumerate(consolidate_categs, start=1):
-                console.print(f"{num}. {categ}", style="green")
+            for numb, categ in enumerate(consolidate_categs, start=1):
+                console.print(f"{numb}. {categ}", style="green")
 
             match console.input(
                 "[bold yellow]\nEnter the category number or type in to look for another category within the site: [bold yellow]\n"
@@ -1434,7 +1452,10 @@ def video_upload_pilot(
                     style="bold green",
                 )
                 console.print("--> Creating post on WordPress", style="bold green")
-                push_post = wordpress_api.wp_post_create([wp_endpoints.posts], payload)
+
+                push_post: int = wordpress_api.wp_post_create(
+                    [wp_endpoints.posts], payload
+                )
                 logging.info(f"WordPress post push status: {push_post}")
                 console.print(
                     f"--> WordPress status code: {push_post}", style="bold green"

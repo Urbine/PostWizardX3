@@ -156,7 +156,10 @@ def get_vid_dump_flow(
 
         # Extract textarea text
         dump_txtarea = driver.find_element(By.CLASS_NAME, "display-dump-textarea")
-        time.sleep(2)
+
+        while not dump_txtarea.text:
+            continue
+
         dump_content = dump_txtarea.text
 
         # Create a name for out dump file.

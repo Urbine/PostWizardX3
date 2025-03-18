@@ -25,6 +25,7 @@ from typing import TypeVar, Any, Generic, Optional
 
 # Third-party modules
 import pyclip
+import urllib3
 from requests.exceptions import SSLError, ConnectionError
 from rich.console import Console
 
@@ -383,7 +384,7 @@ def filter_tags(
 
 
 def filter_published_embeds(
-    wp_posts_f: list[dict[str, ...]], videos: list[tuple[str, ...]], db_cur: sqlite3
+    wp_posts_f: list[dict[...]], videos: list[tuple[str, ...]], db_cur: sqlite3
 ) -> list[tuple[str, ...]]:
     """filter_published does its filtering work based on the published_json function.
     It is based on a similar version from module `content_select`, however, this one is adapted to embedded videos
@@ -624,8 +625,8 @@ def embedding_pilot(
             clean_slugs = list(filter(lambda sl: sl != "", slugs))
             console.print("\n--> Available slugs:", style="bold yellow")
 
-            for num, slug in enumerate(clean_slugs, start=1):
-                console.print(f"{num}. -> {slug}", style="bold green")
+            for numb, slug in enumerate(clean_slugs, start=1):
+                console.print(f"{numb}. -> {slug}", style="bold green")
 
             console.print(
                 f"Select {len(clean_slugs) + 1} to enter a custom slug.",
@@ -831,6 +832,7 @@ def embedding_pilot(
                     style="bold green",
                 )
                 console.print("--> Creating post on WordPress", style="bold green")
+                http = urllib3.PoolManager()
                 push_post = wordpress_api.wp_post_create([wp_endpoints.posts], payload)
                 logging.info(f"WordPress post push status: {push_post}")
                 console.print(

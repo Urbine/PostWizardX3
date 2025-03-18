@@ -1,6 +1,14 @@
 tests package
 =============
 
+Testing of critical code for this application is an essential part of
+optimization. Test coverage in this project is still a work in progress.
+
+Test cases are stored here so that refactoring rounds can look for the
+same base functionality and/or expand certain routines that were rudimentary
+at the beginning of development efforts.
+
+
 Submodules
 ----------
 

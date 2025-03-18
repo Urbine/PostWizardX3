@@ -23,6 +23,7 @@ from typing import Optional
 
 # Third-party modules
 import pyclip
+import urllib3
 from rich.console import Console
 from selenium import webdriver  # Imported for type annotations
 from selenium.webdriver.common.by import By
@@ -165,18 +166,24 @@ def extract_zip(zip_path: str, extr_dir: str):
         return None
 
 
-def make_gallery_payload(gal_title: str, iternum: int):
+def make_gallery_payload(
+    gal_title: str,
+    iternum: int,
+    gallery_sel_conf: GallerySelectConf = gallery_select_conf(),
+):
     """Make the image gallery payload that will be sent with the PUT/POST request
     to the WordPress media endpoint.
 
     :param gal_title: ``str`` Gallery title/name
     :param iternum: ``str`` short for "iteration number" and it allows for image numbering in the payload.
+    :param gallery_sel_conf: ``GallerySelectConf`` - Bot configuration object
     :return: ``dict[str, str]``
     """
+    img_attrs: bool = gallery_sel_conf.img_attrs
     img_payload: dict[str, str] = {
-        "alt_text": f"Photo {iternum} from {gal_title}",
-        "caption": f"Photo {iternum} from {gal_title}",
-        "description": f"Photo {iternum} from {gal_title}",
+        "alt_text": f"Photo {iternum} from {gal_title}" if img_attrs else "",
+        "caption": f"Photo {iternum} from {gal_title}" if img_attrs else "",
+        "description": f"Photo {iternum} from {gal_title}" if img_attrs else "",
     }
     return img_payload
 
@@ -231,7 +238,7 @@ def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
     }
 
 
-def make_photos_payload(
+def make_photos_post_payload(
     status_wp: str,
     set_name: str,
     partner_name: str,
@@ -394,8 +401,8 @@ def upload_image_set(
 
 def filter_relevant(
     all_galleries: list[tuple[str, ...]],
-    wp_posts_f: list[dict[str, ...]],
-    wp_photos_f: list[dict[str, ...]],
+    wp_posts_f: list[dict[...]],
+    wp_photos_f: list[dict[...]],
 ) -> list[tuple[str, ...]]:
     """Filter relevant galleries by using a simple algorithm to identify the models in
     each photo set and returning matches to the user. It is an experimental feature because it
@@ -405,8 +412,8 @@ def filter_relevant(
     I do not believe it is a critical feature.
 
     :param all_galleries: ``list[tuple[str, ...]`` typically returned by a database query response.
-    :param wp_posts_f: ``list[dict[str, ...]]`` WordPress Posts data structure
-    :param wp_photos_f:  ``list[dict[str, ...]]`` WordPress Photos data structure
+    :param wp_posts_f: ``list[dict[...]]`` WordPress Posts data structure
+    :param wp_photos_f:  ``list[dict[...]]`` WordPress Photos data structure
     :return: ``list[tuple[str, ...]]`` Image sets related to models present in the WP site.
     """
     models_set: set[str] = set(
@@ -635,12 +642,12 @@ def gallery_upload_pilot(
         if add_post:
             console.print("\n--> Making payload...", style="bold green")
             tag_list: list[int] = get_tag_ids(wp_photos_f, [partner_name], "photos")
-            payload: dict[str, str | int] = make_photos_payload(
+            payload: dict[str, str | int] = make_photos_post_payload(
                 wp_admin_auth.default_status,
                 title,
                 partner_name,
                 tag_list,
-                reverse_slug=True,
+                reverse_slug=gallery_sel_conf.reverse_slug,
             )
 
             logging.info(f"Generated payload: {payload}")
@@ -662,6 +669,7 @@ def gallery_upload_pilot(
                 logging.info(f"WP Slug - Selected: {os.environ.get('SET_SLUG')}")
 
                 console.print("--> Creating set on WordPress", style="bold green")
+
                 push_post = wordpress_api.wp_post_create([wp_endpoints.photos], payload)
                 logging.info(wp_push_msg := f"WordPress post push status: {push_post}")
                 console.print(wp_push_msg, style="bold green")
