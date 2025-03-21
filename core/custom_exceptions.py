@@ -173,3 +173,40 @@ class InvalidDB(Exception):
             "Make sure you have the database required by the module you're running."
         )
         super().__init__(f"{self.message} {self.help}")
+
+
+class BraveAPIValidationError(Exception):
+    """
+    Communicate with users about query parameter validation errors in the Brave API wrapper.
+    """
+
+    def __init__(self, json_response):
+        self.message = "Please verify the maximums, flags and defaults of the vertical you are working with."
+        self.help = json_response["error"]["msg"]
+        super().__init__(f"{self.message}\n{self.help}")
+
+
+class BraveAPIInvalidCountryCode(Exception):
+    """
+    Communicate with users about an invalid country code provided to the Brave API wrapper.
+    """
+
+    def __init__(self, code):
+        self.message = f'"{code}" is an invalid Country Code!'
+        self.help = "Refer to https://api-dashboard.search.brave.com/app/documentation/web-search/codes"
+        super().__init__(
+            f"{self.message}\n{self.help} for more information on accepted codes"
+        )
+
+
+class BraveAPIInvalidLanguageCode(Exception):
+    """
+    Communicate with users about an invalid language code provided to the the Brave API wrapper.
+    """
+
+    def __init__(self, code):
+        self.message = f'"{code}" is an invalid Language/Market Code!'
+        self.help = "Refer to https://api-dashboard.search.brave.com/app/documentation/web-search/codes"
+        super().__init__(
+            f"{self.message}\n{self.help} for more information on accepted codes"
+        )

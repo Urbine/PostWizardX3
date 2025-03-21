@@ -67,6 +67,14 @@ integrations.botfather\_telegram module
    :undoc-members:
    :show-inheritance:
 
+integrations.brave\_search\_api module
+--------------------------------------
+
+.. automodule:: integrations.brave_search_api
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 integrations.callback\_server module
 ------------------------------------
 

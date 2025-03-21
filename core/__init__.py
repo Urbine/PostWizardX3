@@ -19,6 +19,7 @@ from core.config_mgr import (
     x_auth,
     bot_father,
     update_mcash_conf,
+    brave_auth,
 )
 
 
@@ -34,6 +35,9 @@ from core.custom_exceptions import (
     UnavailableLoggingDirectory,
     NoFieldsError,
     InvalidDB,
+    BraveAPIValidationError,
+    BraveAPIInvalidCountryCode,
+    BraveAPIInvalidLanguageCode,
 )
 
 
@@ -57,6 +61,7 @@ from core.helpers import (
     load_file_path,
     load_from_file,
     load_json_ctx,
+    lst_dict_to_csv,
     match_list_elem_date,
     match_list_mult,
     match_list_single,
@@ -80,6 +85,9 @@ __all__ = [
     "UnavailableLoggingDirectory",
     "NoFieldsError",
     "InvalidDB",
+    "BraveAPIValidationError",
+    "BraveAPIInvalidCountryCode",
+    "BraveAPIInvalidLanguageCode",
     "access_url",
     "access_url_bs4",
     "clean_filename",
@@ -100,6 +108,7 @@ __all__ = [
     "load_file_path",
     "load_from_file",
     "load_json_ctx",
+    "lst_dict_to_csv",
     "parse_date_to_iso",
     "parse_client_config",
     "remove_if_exists",
@@ -116,4 +125,5 @@ __all__ = [
     "tasks_conf",
     "x_auth",
     "bot_father",
+    "brave_auth",
 ]

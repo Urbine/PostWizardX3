@@ -215,6 +215,18 @@ class BotAuth:
 
 
 @dataclass(frozen=True)
+class BraveAuth:
+    """
+    Immutable data class for the Brave Search API and its modes.
+    """
+
+    api_key_search: str
+
+    def __repr__(self):
+        return "BraveAuth()"
+
+
+@dataclass(frozen=True)
 class UpdateMCash:
     """
     Immutable class with behavioral tweaks for
@@ -299,6 +311,14 @@ def bot_father() -> BotAuth:
         telegram_chat_id=client_info["telegram_botfather"]["telegram_group_channel_id"],
         token=client_info["telegram_botfather"]["bot_token"],
     )
+
+
+def brave_auth() -> BraveAuth:
+    """Factory function for dataclass ``BraveAuth``.
+
+    :return: ``BraveAuth``
+    """
+    return BraveAuth(api_key_search=client_info["brave_search_api"]["api_key_search"])
 
 
 # workflows_config.ini

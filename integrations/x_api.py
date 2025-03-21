@@ -19,8 +19,9 @@ import argparse
 import logging
 import os
 import time
+from dataclasses import dataclass
 
-from typing import Any, Optional
+from typing import Optional
 
 # Third-party modules
 import pyclip
@@ -42,8 +43,31 @@ from core import (
 )
 
 from core.config_mgr import XAuth  # Imported for type annotations.
-from .url_builder import URLEncode, XScope, XEndpoints
 from workflows import clean_outdated
+
+
+@dataclass(frozen=True)
+class XEndpoints:
+    """
+    Builder dataclass for the X API Endpoints.
+    """
+
+    token_url: str = "https://api.x.com/2/oauth2/token"
+    authorise_url: str = "https://x.com/i/oauth2/authorize?"
+    tweets: str = "https://api.x.com/2/tweets"
+
+
+@dataclass(frozen=True)
+class XScope:
+    """
+    Builder dataclass for the X API scopes.
+    """
+
+    READ: str = "tweet.read"
+    WRITE: str = "tweet.write"
+    OFFLINE: str = "offline.access"
+    MEDIA: str = "media.write"
+    USREAD: str = "users.read"
 
 
 def curl_auth_x(xauth: XAuth, x_endpoints: XEndpoints) -> str:

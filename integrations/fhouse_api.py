@@ -15,6 +15,7 @@ import os
 import sqlite3
 import tempfile
 import urllib.parse
+from dataclasses import dataclass
 
 # Local implementations
 from core import (
@@ -23,13 +24,97 @@ from core import (
     write_to_file,
     remove_if_exists,
     clean_filename,
+    parse_client_config,
 )
 from integrations.url_builder import (
     URLEncode,
-    FHouseBaseUrl,
-    FhouseOptions,
-    FHouseFields,
 )
+
+
+class FHouseBaseUrl:
+    """
+    Builder class for the FapHouse API Base URL with campaign name.
+    """
+
+    def __init__(self, campaign: str = "") -> None:
+        task_conf = parse_client_config("tasks_config", "core.config")
+        campaign_utm = "=".join(task_conf["fhouse_api"]["fhouse_camp_utm"].split("."))
+        if campaign:
+            self.__campaign = campaign
+            self.__fhouse_base_url = (
+                f"https://fap.cash/content/dump?camp={self.__campaign}&{campaign_utm}"
+            )
+        else:
+            self.__fhouse_base_url = f"https://fap.cash/content/dump?{campaign_utm}"
+
+    def __str__(self) -> str:
+        return self.__fhouse_base_url
+
+
+@dataclass(frozen=True)
+class FhouseOptions:
+    """
+    Builder dataclass for the FapHouse URL options.
+    """
+
+    orientation: str = "&forient="
+    vid_res: str = "&fres="
+    period: str = "&fperiod="
+    url_num: str = "&furls="
+    thumbs_size: str = "&fthumbs="
+    thumb_amount: str = "&ftcnt="
+    order_by: str = "&ford="
+    likes_more_than: str = "&flikes="
+    embed_type: str = "&fembed="
+    delimit: str = "&fdelim="
+    dmp_format: str = "&fformat="
+    owner_source: str = "&fowner="
+    trailer_size: str = "&ftsize="
+
+
+@dataclass(frozen=True)
+class FHouseFields:
+    """
+    Builder dataclass for the FapHouse Dump Fields
+    """
+
+    embed = "&emb=on"
+    vid_id = "&vid=on"
+    vid_url = "&url=on"
+    thumbnail = "&thumb=on"
+    title = "&title=on"
+    description = "&desc=on"
+    categs = "&cats=on"
+    models = "&pstarts=on"
+    studio = "&sname=on"
+    orient = "&orient=on"
+    duration = "&dur=on"
+    embed_dur = "&embdur=on"
+    date_publish = "&dt=on"
+    likes = "&likes=on"
+    trailer = "&trailer=on"
+    max_res = "&res=on"
+
+    @property
+    def __dict__(self) -> dict[str, str]:
+        return {
+            "embed": self.embed,
+            "vid_id": self.vid_id,
+            "vid_url": self.vid_url,
+            "thumbnail": self.thumbnail,
+            "title": self.title,
+            "description": self.description,
+            "categs": self.categs,
+            "models": self.models,
+            "studio": self.studio,
+            "orient": self.orient,
+            "duration": self.duration,
+            "embed_dur": self.embed_dur,
+            "date_publish": self.date_publish,
+            "likes": self.likes,
+            "trailer": self.trailer,
+            "max_res": self.max_res,
+        }
 
 
 class FHouseURL:

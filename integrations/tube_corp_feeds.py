@@ -17,10 +17,22 @@ import sqlite3
 import tempfile
 import urllib.parse
 
+from dataclasses import dataclass
+
 # Local implementations
 import core
-from .url_builder import CSVColumns, URLEncode, TubeCorpUrl
+from .url_builder import CSVColumns, URLEncode
 from core.helpers import remove_if_exists, parse_client_config
+
+
+@dataclass(frozen=True)
+class TubeCorpUrl:
+    """
+    Builder class for the TubeCorporate Feed intergration.
+    """
+
+    vjav_base_url: str = "https://vjav.com/admin/feeds/embed/?source="
+    desi_t_url: str = "https://desiporn.tube/admin/feeds/embed/?source="
 
 
 class TubeDumpURL:

@@ -16,10 +16,21 @@ import sqlite3
 import tempfile
 import urllib.parse
 
+from dataclasses import dataclass
+
 # Local implementations
 import core
 from core.helpers import remove_if_exists, parse_client_config
-from .url_builder import CSVColumns, URLEncode, AdultNextUrl
+from .url_builder import CSVColumns, URLEncode
+
+
+@dataclass(frozen=True)
+class AdultNextUrl:
+    """
+    Builder class for the AdultNext API integration
+    """
+
+    abjav_base_url: str = "https://direct.abjav.com"
 
 
 class ANAbjavDumpURL:
