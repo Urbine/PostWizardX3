@@ -17,10 +17,22 @@ import sqlite3
 import tempfile
 import urllib.parse
 
+from dataclasses import dataclass
+
 # Local implementations
 import core
-from .url_builder import CSVColumns, URLEncode, FeedBetaUrl
+from .url_builder import CSVColumns, URLEncode
 from core.helpers import remove_if_exists, parse_client_config
+
+
+@dataclass(frozen=True)
+class FeedBetaUrl:
+    """
+    Builder class for the FeedBeta Feed intergration.
+    """
+
+    feed_beta_base_url: str = "https://example-feed-a.com/admin/feeds/embed/?source="
+    feed_b_url: str = "https://example-feed-b.com/admin/feeds/embed/?source="
 
 
 class FeedBetaDumpURL:

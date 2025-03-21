@@ -12,10 +12,11 @@ __version__ = "1.0.0"
 # program, and it is not meant to work as a module yet.
 
 # WordPress Endpoints for use in external integrations with it.
-from integrations.url_builder import WPEndpoints, XEndpoints
+from integrations.x_api import XEndpoints
+from integrations.wordpress_api import WPEndpoints
 
 # Callback Server `callback_server.py`
 from integrations.callback_server import run_callback_server, callback_server_sub
 
 
-__all__ = ["WPEndpoints", "XEndpoints", "run_callback_server", "callback_server_sub"]
+__all__ = ["XEndpoints", "WPEndpoints", "run_callback_server", "callback_server_sub"]

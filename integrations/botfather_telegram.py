@@ -11,13 +11,25 @@ __author_email__ = "yohamg@programmer.net"
 
 import argparse
 import os
+from dataclasses import dataclass
+
 import requests
 from requests import Response  # Imported for typing purposes.
 
 # Local imports
 from core import bot_father
 from core.config_mgr import BotAuth  # Imported for typing purposes.
-from integrations.url_builder import BotFatherCommands, BotFatherEndpoints
+
+
+@dataclass(frozen=True)
+class BotFatherCommands:
+    """
+    Builder dataclass for the BotFather REST API Commands.
+    """
+
+    api_url: str = "https://api.telegram.org/bot"
+    get_me: str = "/getMe"
+    send_message: str = "/sendMessage"
 
 
 def get_me(b_father: BotAuth, b_commands: BotFatherCommands) -> Response:
@@ -35,6 +47,19 @@ def get_me(b_father: BotAuth, b_commands: BotFatherCommands) -> Response:
     url = b_commands.api_url
     token = b_father.token
     return requests.get(f"{url}{token}{b_commands.get_me}", headers=headers)
+
+
+@dataclass(frozen=True)
+class BotFatherEndpoints:
+    """
+    Builder dataclass for the BotFather REST API Command Endpoints.
+    """
+
+    chat_id: str = "?chat_id="
+    text: str = "&text="
+    parse_mode = "&parse_mode="
+    parse_mode_mdv2: str = "MarkdownV2"
+    prefer_large_media: str = "prefer_large_media="
 
 
 def send_message(

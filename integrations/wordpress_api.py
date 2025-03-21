@@ -20,6 +20,7 @@ import datetime
 import logging
 import os
 import re
+from dataclasses import dataclass
 
 import requests
 import sqlite3
@@ -37,6 +38,29 @@ from urllib3 import BaseHTTPResponse
 # Local implementations
 from core import NoSuitableArgument, helpers, is_parent_dir_required
 from core.config_mgr import WPAuth, wp_auth
+
+
+@dataclass(frozen=True)
+class WPEndpoints:
+    """
+    Builder dataclass for the WordPress API Endpoints.
+    """
+
+    users: str = "/users?"
+    posts: str = "/posts"
+    photos: str = "/photos"
+    per_page: str = "?per_page="
+    page: str = "?page="
+    fields_base: str = "?_fields="
+    # fields are comma-separated in the URL after the
+    # fields_base value.
+    field_author: str = "author"
+    field_id: str = "id"
+    field_except: str = "excerpt"
+    field_title: str = "title"
+    field_link: str = "link"
+    categories: str = "/categories"
+    media: str = "/media"
 
 
 def curl_wp_self_concat(
@@ -99,7 +123,6 @@ def create_wp_local_cache(
     :param photos: ``bool`` ``True`` if you want to cache photo posts. Default ``False``
     :return: ``list[dict]``
     """
-    from integrations.url_builder import WPEndpoints
 
     http = urllib3.PoolManager(
         num_pools=10,
@@ -931,7 +954,6 @@ def update_json_cache(
     :param wpauth: ``WPAuth`` object with file configuration information.
     :return: ``list[dict]`` Updated ``JSON`` cache file.
     """
-    from integrations.url_builder import WPEndpoints
 
     http = urllib3.PoolManager(
         num_pools=10,
