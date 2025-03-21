@@ -16,10 +16,21 @@ import sqlite3
 import tempfile
 import urllib.parse
 
+from dataclasses import dataclass
+
 # Local implementations
 import core
 from core.helpers import remove_if_exists, parse_client_config
-from .url_builder import CSVColumns, URLEncode, FeedAlphaUrl
+from .url_builder import CSVColumns, URLEncode
+
+
+@dataclass(frozen=True)
+class FeedAlphaUrl:
+    """
+    Builder class for the FeedAlpha API integration
+    """
+
+    feed_alpha_base_url: str = "https://partner-three.example.com"
 
 
 class FeedAlphaDumpURL:

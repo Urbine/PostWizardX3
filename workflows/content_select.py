@@ -54,13 +54,14 @@ from core import (
     split_char,
 )
 
-from integrations import wordpress_api, x_api, botfather_telegram
-from integrations.url_builder import (
+from integrations import (
+    wordpress_api,
+    x_api,
+    botfather_telegram,
     WPEndpoints,
     XEndpoints,
-    BotFatherCommands,
-    BotFatherEndpoints,
 )
+from integrations.botfather_telegram import BotFatherCommands, BotFatherEndpoints
 from ml_engine import classify_title, classify_description, classify_tags
 
 # Imported for typing purposes

@@ -291,6 +291,27 @@ def export_to_csv_nt(nmedtpl_lst: list, filename: str, top_row_lst: list[str]) -
     return None
 
 
+def lst_dict_to_csv(lst_dic: list[dict[str, Any]], filename: str) -> None:
+    """Helper function to dump a dictionary into a ``CSV`` file in current working dir.
+
+    :param lst_dic: ``list[dict[str, Any]]``
+    :param filename: ``str`` **(with or without ``.csv`` extension)**
+    :return: ``None`` (file in project root)
+    """
+    clean_file = clean_filename(filename, "csv")
+    with open(
+        os.path.join(os.getcwd(), clean_file), "w", newline="", encoding="utf-8"
+    ) as csvfile:
+        writer = csv.writer(
+            csvfile,
+            dialect="excel",
+        )
+        writer.writerow(lst_dic[0].keys())
+        for dic in lst_dic:
+            writer.writerow(dic.values())
+    return None
+
+
 def get_token_oauth(
     client_id_: str,
     uri_callback_: str,
@@ -730,18 +751,22 @@ def remove_if_exists(fname: str):
         return None
 
 
-def parse_client_config(ini_file: str, package_name: str) -> ConfigParser:
-    """Parse a client configuration files that store secrets and other configurations.
+def parse_client_config(
+    ini_file: str, package_name: str, env_var: bool = False
+) -> ConfigParser:
+    """Parse client configuration files that store secrets and other configurations.
 
     :param ini_file: ``str`` ini filename with or without the extension
     :param package_name: ``str`` package name where the config file is located.
+    :param env_var: ``bool`` Save path in an environment path
     :return: ``ConfigParser``
     """
     f_ini = clean_filename(ini_file, "ini")
     config = ConfigParser(interpolation=None)
     try:
         with importlib.resources.path(package_name, f_ini) as f_path:
-            os.environ["CLIENT_INFO_PATH"] = os.path.abspath(f_path)
+            if env_var:
+                os.environ["INI_PATH"] = os.path.abspath(f_path)
             config.read(f_path)
     except ModuleNotFoundError:
         raise ConfigFileNotFound(f_ini, package_name)
@@ -854,9 +879,9 @@ def write_config_file(
     :param value: ``str`` config option value.
     :return: ``None`` (Writes .ini config file)
     """
-    config = parse_client_config(filename, package)
+    config = parse_client_config(filename, package, env_var=True)
     config.set(section, option, str(value))
-    with open(os.environ.get("CLIENT_INFO_PATH"), "w") as update:
+    with open(os.environ.get("INI_PATH"), "w") as update:
         config.write(update)
     return None
 
