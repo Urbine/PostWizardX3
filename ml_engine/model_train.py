@@ -39,21 +39,20 @@ import joblib
 from core import helpers, wp_auth
 from integrations import wordpress_api
 
+ML_ENGINE_PKG = "ml_engine.ml_models"
 
 def clean_descriptions(desc_lst: list[str]):
     descriptions = desc_lst
     clean_desc = []
     for description in descriptions:
         # Descriptions has a <title> - <description> format.
-        re_split_char = re.compile(r"[\W_+]")
+        re_split_char = re.compile(r"\W+")
         find_re = re.findall(re_split_char, description)
         try:
             clean = description.split(find_re[find_re.index("-")])[0].strip()
             clean_desc.append(clean)
         except ValueError:
             clean_desc.append(description)
-        finally:
-            continue
     return clean_desc
 
 
@@ -243,15 +242,15 @@ if __name__ == "__main__":
 
     # NLTK NaiveBayes Classifier Model
     nbc_titles = helpers.load_file_path(
-        "ml_engine.ml_models", "NaiveBayesTitles.joblib.pkl"
+        ML_ENGINE_PKG, "NaiveBayesTitles.joblib.pkl"
     )
 
     nbc_descriptions = helpers.load_file_path(
-        "ml_engine.ml_models", "NaiveBayesDescriptions.joblib.pkl"
+        ML_ENGINE_PKG, "NaiveBayesDescriptions.joblib.pkl"
     )
 
     nbc_tags = helpers.load_file_path(
-        "ml_engine.ml_models", "NaiveBayesTags.joblib.pkl"
+        ML_ENGINE_PKG, "NaiveBayesTags.joblib.pkl"
     )
     save_nbc_titles = joblib.dump(NaiveBClassifier_titles, nbc_titles, compress=9)
     save_nbc_descriptions = joblib.dump(
@@ -261,15 +260,15 @@ if __name__ == "__main__":
 
     # NLTK Maxent Classifier
     maxent_titles = helpers.load_file_path(
-        "ml_engine.ml_models", "MaxentClassifierTitles.joblib.pkl"
+        ML_ENGINE_PKG, "MaxentClassifierTitles.joblib.pkl"
     )
 
     maxent_descriptions = helpers.load_file_path(
-        "ml_engine.ml_models", "MaxentClassifierDescriptions.joblib.pkl"
+        ML_ENGINE_PKG, "MaxentClassifierDescriptions.joblib.pkl"
     )
 
     maxent_tags = helpers.load_file_path(
-        "ml_engine.ml_models", "MaxentClassifierTags.joblib.pkl"
+        ML_ENGINE_PKG, "MaxentClassifierTags.joblib.pkl"
     )
 
     save_maxent_titles = joblib.dump(maxent_cl_titles, maxent_titles, compress=9)
@@ -280,15 +279,15 @@ if __name__ == "__main__":
 
     # SciKit-Learn Classifier (Multinomial Naive Bayes)
     multinb_titles = helpers.load_file_path(
-        "ml_engine.ml_models", "MultiNBClassifierTitles.joblib.pkl"
+        ML_ENGINE_PKG, "MultiNBClassifierTitles.joblib.pkl"
     )
 
     multinb_descriptions = helpers.load_file_path(
-        "ml_engine.ml_models", "MultiNBClassifierDescriptions.joblib.pkl"
+        ML_ENGINE_PKG, "MultiNBClassifierDescriptions.joblib.pkl"
     )
 
     multinb_tags = helpers.load_file_path(
-        "ml_engine.ml_models", "MultiNBClassifierTags.joblib.pkl"
+        ML_ENGINE_PKG, "MultiNBClassifierTags.joblib.pkl"
     )
     save_multi_titles = joblib.dump(sk_class_titles, multinb_titles, compress=9)
     save_multi_descriptions = joblib.dump(
