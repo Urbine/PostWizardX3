@@ -33,11 +33,12 @@ from core.custom_exceptions import (
     AssetsNotFoundError,
     AccessTokenRetrievalError,
     UnavailableLoggingDirectory,
-    NoFieldsError,
+    NoFieldsException,
     InvalidDB,
     BraveAPIValidationError,
     BraveAPIInvalidCountryCode,
     BraveAPIInvalidLanguageCode,
+    MissingCacheError,
 )
 
 
@@ -45,6 +46,7 @@ from core.custom_exceptions import (
 from core.helpers import (
     access_url,
     access_url_bs4,
+    clean_console,
     clean_filename,
     clean_file_cache,
     export_request_json,
@@ -83,13 +85,15 @@ __all__ = [
     "AssetsNotFoundError",
     "AccessTokenRetrievalError",
     "UnavailableLoggingDirectory",
-    "NoFieldsError",
+    "NoFieldsException",
     "InvalidDB",
     "BraveAPIValidationError",
     "BraveAPIInvalidCountryCode",
     "BraveAPIInvalidLanguageCode",
+    "MissingCacheError",
     "access_url",
     "access_url_bs4",
+    "clean_console",
     "clean_filename",
     "clean_file_cache",
     "filename_creation_helper",

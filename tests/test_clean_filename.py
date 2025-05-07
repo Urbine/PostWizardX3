@@ -11,6 +11,17 @@ class TestCleanFilename(unittest.TestCase):
         self.assertEqual(clean_filename("sample", "json"), "sample.json")
         self.assertEqual(clean_filename("sample", ".json"), "sample.json")
         self.assertEqual(clean_filename("wp_posts.json", ".json"), "wp_posts.json")
+        self.assertEqual(
+            clean_filename("com.thispackage.anything", ""), "com.thispackage.anything"
+        )
+        self.assertEqual(
+            clean_filename("com.thispackage.anything", "java"),
+            "com.thispackage.anything.java",
+        )
+        self.assertEqual(
+            clean_filename("com.thispackage.anything", ".java"),
+            "com.thispackage.anything.java",
+        )
 
 
 if __name__ == "__main__":

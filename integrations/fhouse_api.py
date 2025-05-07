@@ -12,6 +12,7 @@ __author_email__ = "yohamg@programmer.net"
 import argparse
 import datetime
 import os
+import re
 import sqlite3
 import tempfile
 import urllib.parse
@@ -19,7 +20,7 @@ from dataclasses import dataclass
 
 # Local implementations
 from core import (
-    NoFieldsError,
+    NoFieldsException,
     access_url_bs4,
     write_to_file,
     remove_if_exists,
@@ -221,7 +222,7 @@ class FHouseFieldStr:
         if self.fields:
             self.__field_str = "".join(self.fields)
         else:
-            raise NoFieldsError
+            raise NoFieldsException
 
     def __str__(self) -> str:
         """
@@ -265,35 +266,45 @@ def fhouse_parse(
     with open(path, "r", encoding="utf-8") as dump_file:
         for line in dump_file.readlines():
             line_spl = lambda ln: ln.split(urllib.parse.unquote(sep))
+            integer_type_match = (
+                lambda column: f"{column.strip('#')} INTEGER"
+                if (
+                    re.match("ids?", column.strip("#"), flags=re.IGNORECASE)
+                    or re.match("likes?", column.strip("#"), flags=re.IGNORECASE)
+                    or re.match("duration", column.strip("#"), flags=re.IGNORECASE)
+                )
+                else column.strip('#')
+            )
             if total_entries == 0:
                 pre_schema = ",".join(
                     map(
-                        lambda item: item.strip("#"),
+                        integer_type_match,
                         line_spl(line),
                     )
                 )
                 db_create_table = "CREATE TABLE embeds({})".format(pre_schema)
                 db_cur.execute(db_create_table)
                 total_entries += 1
-                continue
             else:
-                line_split = tuple(line_spl(line))
+                line_split = tuple([elem.strip("\n") for elem in line_spl(line)])
                 value_calc = f"{'?,' * len(line_split)}".strip(",")
-
-                db_cur.execute(
-                    "INSERT INTO embeds values({})".format(value_calc),
-                    line_split,
-                )
-                db_conn.commit()
-                total_entries += 1
+                try:
+                    db_cur.execute(
+                        f"INSERT INTO embeds values({value_calc})",
+                        line_split,
+                    )
+                    db_conn.commit()
+                    total_entries += 1
+                except sqlite3.OperationalError:
+                    # Invalid entries are ignored.
+                    continue
 
     db_cur.close()
     db_conn.close()
 
     if log_res:
         print(f"Inserted a total of {total_entries} video entries into {db_name}")
-    else:
-        pass
+
     return None
 
 
@@ -304,7 +315,7 @@ def main(*args, **kwargs):
     temp_store = tempfile.TemporaryDirectory(prefix="dump", dir=".")
     file_extension = f_house_url.get_dump_format()
     write_to_file(
-        (fname := f"fap-house-dump"),
+        (fname := "fap-house-dump"),
         temp_store.name,
         file_extension,
         access_url_bs4(f_house_full_addr),

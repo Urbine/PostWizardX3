@@ -62,7 +62,6 @@ def get_vid_dump_flow(
     :param partner_hint: ``str`` pattern to match the partner with available options.
     :return: ``str`` new dump filename
     """
-    source_html = None
     with webdrv as driver:
         # Go to URL
         driver.minimize_window()

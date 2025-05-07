@@ -747,7 +747,10 @@ if __name__ == "__main__":
     )
 
     arg_parser.add_argument(
-        "--ui_lang", type=str, default=None, help="Provide a ui language/market code for search."
+        "--ui_lang",
+        type=str,
+        default=None,
+        help="Provide a ui language/market code for search.",
     )
 
     arg_parser.add_argument(
@@ -775,14 +778,14 @@ if __name__ == "__main__":
     main(
         args.query,
         args.raw_query,
-        web = args.web,
-        images = args.images,
-        videos = args.videos,
-        count = args.count,
-        offset = args.offset,
-        safesearch = args.safesearch,
-        country = args.country,
-        search_lang = args.language,
-        ui_lang = args.ui_lang,
-        spellcheck = args.spellcheck
+        web=args.web,
+        images=args.images,
+        videos=args.videos,
+        count=args.count,
+        offset=args.offset,
+        safesearch=args.safesearch,
+        country=args.country,
+        search_lang=args.language,
+        ui_lang=args.ui_lang,
+        spellcheck=args.spellcheck,
     )

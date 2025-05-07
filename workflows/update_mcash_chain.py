@@ -111,8 +111,6 @@ if __name__ == "__main__":
 
     if args.silent:
         warnings.filterwarnings("ignore")
-    else:
-        pass
 
     temp_dir = tempfile.TemporaryDirectory(dir=".")
 
@@ -146,7 +144,7 @@ if __name__ == "__main__":
     logging.info(f"Loading dump txt {dump_f} from {temp_dir.name}")
 
     def load_dump_f(t_dir: TemporaryDirectory, d_file: str):
-        return load_from_file(d_file, "txt", dirname=temp_dir.name, parent=None)
+        return load_from_file(d_file, "txt", dirname=t_dir.name, parent=None)
 
     load_d_file = load_dump_f(temp_dir, dump_f)
     retry_offset = 3
@@ -174,7 +172,6 @@ if __name__ == "__main__":
 
         dump_f = fetching_dump_f(webdriver_2)
         load_d_file = load_dump_f(temp_dir, dump_f)
-        continue
 
     webdriver_3 = get_webdriver(
         temp_dir.name,
@@ -209,7 +206,6 @@ if __name__ == "__main__":
 
         dump_f = fetching_dump_f(webdriver_4)
         load_d_file = load_dump_f(temp_dir, dump_f)
-        continue
 
     db_name = clean_filename(dump_f, "db")
     db_path = os.path.join(is_parent_dir_required(parent=args.parent), db_name)

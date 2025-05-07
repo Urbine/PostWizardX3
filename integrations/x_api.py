@@ -142,7 +142,7 @@ def x_oauth_pkce(xauth: XAuth, x_endpoints: XEndpoints) -> str:
         "client_id": f"{xauth.client_id}",
         "redirect_uri": f"{xauth.uri_callback}",
         "state": f"{generate_random_str(15)}",
-        "code_challenge": f"challenge",
+        "code_challenge": "challenge",
         "code_challenge_method": "plain",
         "scope": f"{XScope.WRITE} {XScope.READ} {XScope.USREAD} {XScope.OFFLINE}",
     }
@@ -171,7 +171,7 @@ def access_token(code: str, xauth: XAuth, x_endpoints: XEndpoints) -> Response:
         "grant_type": "authorization_code",
         "client_id": f"{xauth.client_id}",
         "redirect_uri": f"{xauth.uri_callback}",
-        "code_verifier": f"challenge",
+        "code_verifier": "challenge",
     }
     return requests.post(
         token_url,
@@ -385,7 +385,7 @@ def main(*args, **kwargs) -> None:
         write_tokens_cinfo(
             new_tokens.json()["access_token"], new_tokens.json()["refresh_token"]
         )
-        print(f"The client_info.ini file has been updated with the new tokens.")
+        print("The client_info.ini file has been updated with the new tokens.")
     except KeyError:
         raise AccessTokenRetrievalError(new_tokens)
 

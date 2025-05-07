@@ -95,8 +95,6 @@ class EmbedsMultiSchema(Generic[T]):
                 logging.warning(
                     "Detected db with more than one table, fetching the first one by default."
                 )
-            else:
-                pass
 
             table_name: str = fst_table[0].split(" ")[2].split("(")[0]
             query: str = "PRAGMA table_info({})".format(table_name)
@@ -374,7 +372,6 @@ def filter_tags(
         for word in sublist:
             if filter_lst is None:
                 temp_lst.append(no_sp_chars(word))
-                continue
             elif word not in filter_lst:
                 temp_lst.append(no_sp_chars(word))
             elif temp_lst:
@@ -434,10 +431,7 @@ def embedding_pilot(
 
     console = Console()
 
-    if os.name == "posix":
-        os.system("clear")
-    else:
-        os.system("cls")
+    helpers.clean_console()
 
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
@@ -451,14 +445,11 @@ def embedding_pilot(
 
     partner_list = list(map(lambda p: p.strip(), embed_ast_conf.partners.split(",")))
 
-    if os.name == "posix":
-        os.system("clear")
-    else:
-        os.system("cls")
+    helpers.clean_console()
 
     logging.info(f"Loading partners variable: {partner_list}")
 
-    db_conn, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
+    _, cur_dump, db_dump_name, partner_indx = cs.content_select_db_match(
         partner_list, embed_ast_conf.content_hint
     )
     db_interface = EmbedsMultiSchema(cur_dump)
@@ -479,10 +470,7 @@ def embedding_pilot(
     total_elems = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
 
-    if os.name == "posix":
-        os.system("clear")
-    else:
-        os.system("cls")
+    helpers.clean_console()
 
     # Environment variable set in logging_setup() - content_select.py
     console.print(
@@ -502,16 +490,20 @@ def embedding_pilot(
         db_interface.load_data_instance(vid)
         logging.info(f"Displaying on iteration {num} data: {vid}")
 
-        if os.name == "posix":
-            os.system("clear")
-        else:
-            os.system("cls")
+        helpers.clean_console()
 
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
             style="bold yellow",
             justify="left",
         )
+
+        console.print(
+            f"Counter: {videos_uploaded}",
+            style="bold yellow",
+            justify="left",
+        )
+
         console.print(
             f"\n{'Review the following video':*^30}\n",
             style="bold yellow",
@@ -526,7 +518,6 @@ def embedding_pilot(
                     f"{num + 1}. Duration: \n\tHours: [bold red]{hs}[/bold red] \n\tMinutes: [bold red]{mins}[/bold red] \n\tSeconds: [bold red]{secs}[/bold red]",
                     style="bold green",
                 )  # From seconds to hours to minutes
-                continue
             else:
                 console.print(f"{num + 1}. {fld.title()}: {vid[num]}", style="green")
 
@@ -661,8 +652,7 @@ def embedding_pilot(
                 tag_prep.append("japanese")
             elif partner == "Desi Tube":
                 tag_prep.append("indian")
-            else:
-                pass
+
             tag_ints = cs.get_tag_ids(wp_posts_f, tag_prep, "tags")
             all_tags_wp = wordpress_api.tag_id_merger_dict(wp_posts_f)
             tag_check = cs.identify_missing(
@@ -690,8 +680,6 @@ def embedding_pilot(
                         logging.warning(f"Missing tag detected: {tag}")
                         pyclip.detect_clipboard()
                         pyclip.copy(tag)
-                    else:
-                        pass
 
             models_field = (
                 pornstars
@@ -714,8 +702,6 @@ def embedding_pilot(
             if description := db_interface.get_description():
                 class_desc = classify_description(description)
                 class_title.union(class_desc)
-            else:
-                pass
 
             consolidate_categs = list(class_title)
             logging.info(f"Suggested categories ML: {consolidate_categs}")
@@ -809,7 +795,7 @@ def embedding_pilot(
                 # More information in integrations.wordpress_api.upload_thumbnail docs
                 if upload_img == 500:
                     logging.warning(
-                        f"Defective thumbnail - Bot abandoned current flow."
+                        "Defective thumbnail - Bot abandoned current flow."
                     )
                     console.print(
                         "It is possible that this thumbnail is defective. Check the Thumbnail manually.",
@@ -824,15 +810,13 @@ def embedding_pilot(
                         removed_img := f"{os.path.join(thumbnails_dir.name, thumbnail)}"
                     )
                     logging.info(f"Uploaded and removed: {removed_img}")
-                else:
-                    pass
 
                 console.print(
                     f"--> WordPress Media upload status code: {upload_img}",
                     style="bold green",
                 )
                 console.print("--> Creating post on WordPress", style="bold green")
-                http = urllib3.PoolManager()
+
                 push_post = wordpress_api.wp_post_create([wp_endpoints.posts], payload)
                 logging.info(f"WordPress post push status: {push_post}")
                 console.print(
@@ -931,24 +915,35 @@ def embedding_pilot(
                             logging.info(
                                 f"Telegram message status code: {telegram_msg}"
                             )
-                else:
-                    pass
+
                 videos_uploaded += 1
             except (SSLError, ConnectionError) as e:
                 logging.warning(f"Caught exception {e!r} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
-                    "* There was a connection error while processing this post... *",
+                    "* There was a connection error while processing this post. Check the logs for details. *",
+                    style="bold red",
+                )
+                console.print(
+                    f"Post {wp_slug} was {'' if is_published else 'NOT'} published!",
                     style="bold red",
                 )
                 if console.input(
                     "\n[bold green] Do you want to continue? Y/ENTER to exit: [bold green]"
                 ) == ("y" or "yes"):
                     logging.info(f"User accepted to continue after catching {e!r}")
+
+                    if is_published:
+                        videos_uploaded += 1
+
                     continue
                 else:
                     logging.info(f"User declined after catching {e!r}")
+
+                    if is_published:
+                        videos_uploaded += 1
+
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
@@ -996,7 +991,6 @@ def embedding_pilot(
                     )
                     pyclip.detect_clipboard()
                     pyclip.clear()
-                    continue
             else:
                 logging.info(
                     f"List exhausted. State: num={num} total_elems={total_elems}"
@@ -1056,7 +1050,7 @@ def main():
 
         embedding_pilot()
     except KeyboardInterrupt:
-        logging.critical(f"KeyboardInterrupt exception detected")
+        logging.critical("KeyboardInterrupt exception detected")
         logging.info("Cleaning clipboard and temporary directories. Quitting...")
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()

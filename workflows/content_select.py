@@ -184,7 +184,7 @@ def asset_parser(bot_config: ContentSelectConf, partner: str):
     if assets_list:
         return assets_list
     else:
-        logging.critical(f"Raised AssetsNotFoundError - Quitting...")
+        logging.critical("Raised AssetsNotFoundError - Quitting...")
         raise AssetsNotFoundError
 
 
@@ -426,8 +426,6 @@ def fetch_thumbnail(
             cs_conf.quality,
             cs_conf.pic_format,
         )
-    else:
-        pass
 
     return remote_data.status_code
 
@@ -531,8 +529,7 @@ def make_payload_simple(
         payload_post["categories"] = categs
     elif model_int_lst:
         payload_post["pornstars"] = model_int_lst
-    else:
-        pass
+
     return payload_post
 
 
@@ -706,7 +703,6 @@ def hot_file_sync(
 def partner_select(
     partner_lst: list[str],
     banner_lsts: list[list[str]],
-    db_name: str,
 ) -> tuple[str, list[str]]:
     """Selects partner and banner list based on their index order.
     As this function is based on index and order of elements, both lists should have the same number of elements.
@@ -714,7 +710,6 @@ def partner_select(
 
     :param partner_lst: ``list[str]`` - partner offers
     :param banner_lsts: ``list[list[str]]`` list of banners to select from.
-    :param db_name: ``str`` partner database name
     :return: ``tuple[str, list[str]]`` partner_name, banner_list
     """
     print("\n")
@@ -820,12 +815,11 @@ def content_select_db_match(
     )
 
     if prompt_db:
-        print(f"\nHere are the available database files:")
+        print("\nHere are the available database files:")
         for num, file in enumerate(relevant_content, start=1):
             print(f"{num}. {file}")
         print("\n")
-    else:
-        pass
+
     console.print(
         f"Session ID: {os.environ.get('SESSION_ID')}",
         style="bold yellow",
@@ -837,7 +831,7 @@ def content_select_db_match(
 
     try:
         select_partner: str = console.input(
-            f"[bold yellow]\nSelect your partner now: [bold yellow]\n",
+            "[bold yellow]\nSelect your partner now: [bold yellow]\n",
         )
         spl_char = split_char(hint_lst[(int(select_partner) - 1)])
         clean_hint: list[str] = hint_lst[(int(select_partner) - 1)].split(spl_char)
@@ -904,7 +898,7 @@ def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
         "I bet you haven't watched this one:"
         "Well, you asked for it:",
         "I can't believe this is free:",
-        f"Specially for you:",
+        "Specially for you:",
         f"Check out {site_name} today:",
         "Watch today for free:",
         "You're missing out on the action:",
@@ -956,7 +950,7 @@ def telegram_send_message(
         "I bet you haven't watched this one:"
         "Well, you asked for it:",
         "I can't believe this is free:",
-        f"Specially for you:",
+        "Specially for you:",
         f"Check out {site_name} today:",
         "Watch today for free:",
         "You're missing out on the action:",
@@ -969,8 +963,7 @@ def telegram_send_message(
     auto_mode = bot_config.telegram_posting_auto
     if auto_mode:
         msg_text = random.choice(calls_to_action)
-    else:
-        pass
+
     message = (
         f"{description} | {msg_text} {post_url}"
         if auto_mode
@@ -1035,6 +1028,7 @@ def wp_publish_checker(
             while not hot_sync:
                 continue
             raise KeyboardInterrupt
+    return None
 
 
 def model_checker(
@@ -1108,10 +1102,7 @@ def video_upload_pilot(
 
     console = Console()
 
-    if os.name == "posix":
-        os.system("clear")
-    else:
-        os.system("cls")
+    helpers.clean_console()
 
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
@@ -1129,7 +1120,7 @@ def video_upload_pilot(
     wp_base_url: str = wp_auth.api_base_url
     logging.info(f"Using {wp_base_url} as WordPress API base url")
 
-    db_conn, cur_dump, partner_db_name, partner_indx = content_select_db_match(
+    _, cur_dump, partner_db_name, partner_indx = content_select_db_match(
         partners, cs_config.content_hint, parent=parent
     )
     logging.info(
@@ -1155,10 +1146,7 @@ def video_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published for {partner}")
 
-    if os.name == "posix":
-        os.system("clear")
-    else:
-        os.system("cls")
+    helpers.clean_console()
 
     # Environment variable set in logging_setup()
     console.print(
@@ -1189,16 +1177,19 @@ def video_upload_pilot(
         tracking_url = fields[7]
         partner_name = partner
 
-        if os.name == "posix":
-            os.system("clear")
-        else:
-            os.system("cls")
+        helpers.clean_console()
 
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
             style="bold yellow",
             justify="left",
         )
+        console.print(
+            f"Count: {videos_uploaded}",
+            style="bold yellow",
+            justify="left",
+        )
+
         console.print(
             f"\n{' Review this post ':*^30}\n", style="bold yellow", justify="center"
         )
@@ -1273,9 +1264,7 @@ def video_upload_pilot(
 
         # In rare occasions, the ``tags`` is None and the real tags are placed in the ``models`` variable
         # this special handling prevents crashes
-        if tags:
-            pass
-        else:
+        if not tags:
             tags, models = models, tags
 
         if add_post:
@@ -1374,7 +1363,7 @@ def video_upload_pilot(
                     try:
                         sel_categ = consolidate_categs[int(option) - 1]
                         logging.info(f"User selected category: {sel_categ}")
-                    except ValueError or IndexError:
+                    except (ValueError, IndexError):
                         sel_categ = option
                         logging.info(f"User typed in category: {option}")
 
@@ -1430,7 +1419,7 @@ def video_upload_pilot(
 
                 if upload_img == 500:
                     logging.warning(
-                        f"Defective thumbnail - Bot abandoned current flow."
+                        "Defective thumbnail - Bot abandoned current flow."
                     )
                     console.print(
                         "It is possible that this thumbnail is defective. Check the Thumbnail manually.",
@@ -1445,8 +1434,6 @@ def video_upload_pilot(
                         removed_img := os.path.join(thumbnails_dir.name, thumbnail)
                     )
                     logging.info(f"Uploaded and removed: {removed_img}")
-                else:
-                    pass
 
                 console.print(
                     f"--> WordPress Media upload status code: {upload_img}",
@@ -1477,6 +1464,9 @@ def video_upload_pilot(
                     ):
                         is_published = wp_publish_checker(wp_slug, cs_config)
                     if is_published:
+                        logging.info(
+                            f"Post {wp_slug} has been published. Exceptions after this might be caused by social plugins."
+                        )
                         if cs_config.x_posting_enabled:
                             logging.info("X Posting - Enabled in workflows config")
                             if cs_config.x_posting_auto:
@@ -1552,24 +1542,35 @@ def video_upload_pilot(
                             logging.info(
                                 f"Telegram message status code: {telegram_msg}"
                             )
-                else:
-                    pass
+
                 videos_uploaded += 1
             except (SSLError, ConnectionError) as e:
                 logging.warning(f"Caught exception {e!r} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
-                    "* There was a connection error while processing this post... *",
+                    "* There was a connection error while processing this post. Check the logs for more details...*",
+                    style="bold red",
+                )
+                console.print(
+                    f"Post {wp_slug} was {'' if is_published else 'NOT'} published!",
                     style="bold red",
                 )
                 if console.input(
                     "\n[bold green] Do you want to continue? Y/ENTER to exit: [bold green]"
                 ) == ("y" or "yes"):
                     logging.info(f"User accepted to continue after catching {e!r}")
+
+                    if is_published:
+                        videos_uploaded += 1
+
                     continue
                 else:
                     logging.info(f"User declined after catching {e!r}")
+
+                    if is_published:
+                        videos_uploaded += 1
+
                     console.print(
                         f"You have created {videos_uploaded} posts in this session!",
                         style="bold yellow",
@@ -1616,7 +1617,6 @@ def video_upload_pilot(
                     )
                     pyclip.detect_clipboard()
                     pyclip.clear()
-                    continue
             else:
                 logging.info(
                     f"List exhausted. State: num={num} total_elems={total_elems}"
@@ -1674,7 +1674,7 @@ def main(**kwargs):
 
         video_upload_pilot(**kwargs)
     except KeyboardInterrupt:
-        logging.critical(f"KeyboardInterrupt exception detected")
+        logging.critical("KeyboardInterrupt exception detected")
         logging.info("Cleaning clipboard and temporary directories. Quitting...")
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()

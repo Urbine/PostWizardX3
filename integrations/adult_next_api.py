@@ -162,7 +162,6 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
             # I don't want to process or count the header of the csv file.
             if total_entries == 0:
                 total_entries += 1
-                continue
             else:
                 line_split = line.split(urllib.parse.unquote(sep))
                 id_ = line_split[0]

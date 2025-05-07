@@ -116,8 +116,6 @@ def fetch_zip(
             # Chrome exits after authenticating and before completing pending downloads.
             # On the other hand, Gecko does not need additional time.
             time.sleep(15)
-        else:
-            pass
 
     time.sleep(5)
     zip_set = helpers.search_files_by_ext(
@@ -128,7 +126,7 @@ def fetch_zip(
     return None
 
 
-def extract_zip(zip_path: str, extr_dir: str):
+def extract_zip(zip_path: str, extr_dir: str) -> None:
     """Locate and extract a .zip archive in different locations.
     For example, you can locate the .zip archive from a temporary location and extract it
     somewhere else.
@@ -149,7 +147,7 @@ def extract_zip(zip_path: str, extr_dir: str):
             f"--> Extracted files from {os.path.basename(zip_loc)} in folder {os.path.relpath(extr_dir)}"
         )
         logging.info(f"Extracted {zip_loc}")
-        print(f"--> Tidying up...")
+        print("--> Tidying up...")
         try:
             # Some archives have a separate set of redundant files in that folder.
             # I don't want them.
@@ -157,7 +155,6 @@ def extract_zip(zip_path: str, extr_dir: str):
             logging.info(f"Junk folder {junk_folder} detected and cleaned.")
         except (FileNotFoundError, NotImplementedError) as e:
             logging.warning(f"Caught {e!r} - Handled")
-            pass
         finally:
             logging.info(f"Cleaning remaining archive in {zip_path}")
             os.remove(zip_loc)
@@ -342,8 +339,6 @@ def upload_image_set(
         print(prnt_imgs)
         print("--> Adding image attributes on WordPress...")
         thumbnails.sort()
-    else:
-        pass
 
     # Prepare the image new name so that separators are replaced by hyphens.
     # E.g. this_is_a_cool_pic.jpg => this-is-a-cool-pic.jpg
@@ -371,8 +366,7 @@ def upload_image_set(
         if status_code == (200 or 201):
             logging.info(f"Removing --> {img_now}")
             os.remove(img_new)
-        else:
-            pass
+
         logging.info(
             img_seq := f"* Image {number} | {img_now} --> Status code: {status_code}"
         )
@@ -390,13 +384,8 @@ def upload_image_set(
                 logging.info(
                     "Incompatible platform - Directory cleaning relies on tempdir logic for now"
                 )
-                pass
-        else:
-            pass
     except (IndexError, AttributeError):
         pass
-    finally:
-        return None
 
 
 def filter_relevant(
@@ -479,10 +468,7 @@ def gallery_upload_pilot(
 
     console = Console()
 
-    if os.name == "posix":
-        os.system("clear")
-    else:
-        os.system("cls")
+    helpers.clean_console()
 
     with console.status(
         "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
@@ -502,7 +488,7 @@ def gallery_upload_pilot(
     )
     logging.info(f"Loading partners variable: {partners}")
 
-    db_conn, cur_partner, db_name_partner, partner_indx = content_select_db_match(
+    _, cur_partner, db_name_partner, partner_indx = content_select_db_match(
         partners, gallery_sel_conf.content_hint, parent=parent
     )
     logging.info(
@@ -534,10 +520,7 @@ def gallery_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
 
-    if os.name == "posix":
-        os.system("clear")
-    else:
-        os.system("cls")
+    helpers.clean_console()
 
     # Environment variable set in logging_setup() - content_select.py
     console.print(
@@ -559,15 +542,11 @@ def gallery_upload_pilot(
     for num, photo in enumerate(not_published_yet):
         (title, *fields) = photo
         logging.info(f"Displaying on iteration {num} data: {photo}")
-        title: str = title
         date: str = fields[0]
         download_url: str = fields[1]
         partner_name: str = partner_
 
-        if os.name == "posix":
-            os.system("clear")
-        else:
-            os.system("cls")
+        helpers.clean_console()
 
         console.print(
             f"Session ID: {os.environ.get('SESSION_ID')}",
@@ -770,24 +749,35 @@ def gallery_upload_pilot(
                             logging.info(
                                 f"Telegram message status code: {telegram_msg}"
                             )
-                else:
-                    pass
+
                 galleries_uploaded += 1
             except (SSLError, ConnectionError) as e:
                 logging.warning(f"Caught exception {e!r} - Prompting user")
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 console.print(
-                    "* There was a connection error while processing this set... *",
+                    "* There was a connection error while processing this set. Check the logs for details! *",
+                    style="bold red",
+                )
+                console.print(
+                    f"Set {os.environ.get('SET_SLUG')} was {'' if is_published else 'NOT'} published!",
                     style="bold red",
                 )
                 if console.input(
                     "[bold yellow]\nDo you want to continue? Y/ENTER to exit: [/bold yellow]"
                 ) == ("y" or "yes"):
                     logging.info(f"User accepted to continue after catching {e!r}")
+
+                    if is_published:
+                        galleries_uploaded += 1
+
                     continue
                 else:
                     logging.info(f"User declined after catching {e!r}")
+
+                    if is_published:
+                        galleries_uploaded += 1
+
                     console.print(
                         f"You have created {galleries_uploaded} set in this session!",
                         style="bold yellow",
@@ -833,7 +823,6 @@ def gallery_upload_pilot(
                     )
                     pyclip.detect_clipboard()
                     pyclip.clear()
-                    continue
             else:
                 logging.info(
                     f"List exhausted. State: num={num} total_elems={total_elems}"
@@ -890,7 +879,7 @@ def main(*args, **kwargs):
     try:
         gallery_upload_pilot(*args, **kwargs)
     except KeyboardInterrupt:
-        logging.critical(f"KeyboardInterrupt exception detected")
+        logging.critical("KeyboardInterrupt exception detected")
         logging.info("Cleaning clipboard and temporary directories. Quitting...")
         print("Goodbye! ಠ‿↼")
         pyclip.detect_clipboard()

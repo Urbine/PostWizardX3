@@ -92,7 +92,7 @@ def parse_txt_dump_chain(
                     post_slug = dump_line[6].split("/")[-1:][0]
                     # Sometimes, the last element contains a file extension
                     # and I don't want that in my url slugs.
-                    if re.findall("[.+]", post_slug) is not None:
+                    if re.findall(r"\.", post_slug):
                         post_slug = dump_line[6].split("/")[-1:][0].split(".")[0]
                 else:
                     post_slug = pre_slug

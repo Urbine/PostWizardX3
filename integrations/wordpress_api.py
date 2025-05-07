@@ -36,7 +36,7 @@ import xlsxwriter
 from urllib3 import BaseHTTPResponse
 
 # Local implementations
-from core import NoSuitableArgument, helpers, is_parent_dir_required
+from core import NoSuitableArgument, MissingCacheError, helpers, is_parent_dir_required
 from core.config_mgr import WPAuth, wp_auth
 
 
@@ -177,10 +177,8 @@ def get_tags_num_count(wp_posts_f: list[dict], photos: bool = False) -> dict[str
         for tag_num in dic[content]:
             if tag_num in tags_nums_count.keys():
                 tags_nums_count[tag_num] += 1
-                continue
             else:
                 tags_nums_count[tag_num] = 1
-                continue
     return tags_nums_count
 
 
@@ -279,7 +277,6 @@ def get_tag_id_pairs(wp_posts_f: list[dict]) -> dict[str, list[str]]:
         for kw in dic["yoast_head_json"]["schema"]["@graph"][0]["keywords"]:
             if kw in tags_c.keys():
                 tags_c[kw].append(dic["id"])
-                continue
     return tags_c
 
 
@@ -318,10 +315,8 @@ def get_tag_count(wp_posts_f: list[dict]) -> dict[str, int]:
         for kw in dic["yoast_head_json"]["schema"]["@graph"][0]["keywords"]:
             if kw in tags_count.keys():
                 tags_count[kw] = tags_count[kw] + 1
-                continue
             else:
                 tags_count[kw] = 1
-                continue
     return tags_count
 
 
@@ -361,12 +356,11 @@ def map_tags_post_urls(wp_posts_f: list[dict], host_name=None) -> dict[str, list
         for kw in dic["yoast_head_json"]["schema"]["@graph"][0]["keywords"]:
             if kw in tags_c.keys():
                 tags_c[kw].append(mapped_ids[dic["id"]])
-                continue
     return tags_c
 
 
 def map_tags_posts(
-    wp_posts_f: list[dict], host_name: str = None, idd: str = None
+    wp_posts_f: list[dict], host_name: str = None, idd: bool = None
 ) -> dict[str, list[str]]:
     """This function makes a ``{"Tag": ["post slug", ...]}`` or ``{"Tag": ["post id", ...]}`` dictionary.
 
@@ -383,10 +377,8 @@ def map_tags_posts(
             if kw in tags_c.keys():
                 if idd is True:
                     tags_c[kw].append(dic["id"])
-                    continue
                 else:
                     tags_c[kw].append(mapped_ids[dic["id"]])
-                    continue
     return tags_c
 
 
@@ -602,7 +594,7 @@ def map_wp_class_id_many(
 
 
 def count_wp_class_id(
-    wp_posts_f: list[dict], match_word: str, key_wp: str
+    wp_posts_f: list[dict], match_word: str
 ) -> dict[str, int]:
     """
     This function parses the wp_posts or wp_photos JSON files to locate and count tags or other
@@ -611,7 +603,6 @@ def count_wp_class_id(
 
     :param wp_posts_f: list[dict] (wp_posts or wp_photos) previously loaded in the program.
     :param match_word: ``str`` prefix of the keywords that you want to match.
-    :param key_wp: ``str`` key where the numeric values are located.
     :return: ``dict[str, int]`` {'keyword': associated numeric value}
     """
     result_dict = {}
@@ -715,14 +706,13 @@ def create_tag_report_excel(
         hints = content_select_conf().partners.split(",")
     except ModuleNotFoundError:
         hints = []
-        pass
 
     workbook_fname = helpers.clean_filename(workbook_name, ".xlsx")
     dir_prefix = helpers.is_parent_dir_required(parent)
 
     tags_match_key = ("tag", "tags")
     tags_dict = map_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
-    tags_count = count_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
+    tags_count = count_wp_class_id(wp_posts_f, tags_match_key[0])
 
     model_wp_class_count = count_track_wp_class_id(
         wp_posts_f, "pornstars", "tag", hints
@@ -810,7 +800,7 @@ def update_published_titles_db(
         if photosets
         else f"wp-posts-{datetime.date.today()}.db"
     )
-    db_full_name = f"{helpers.is_parent_dir_required(parent)}{db_name}"
+    db_full_name = os.path.join(is_parent_dir_required(parent), db_name)
     helpers.remove_if_exists(db_full_name)
     db = sqlite3.connect(db_full_name)
     cur = db.cursor()
@@ -903,14 +893,7 @@ def local_cache_config(
     """
     wp_cache_filename = wpauth.wp_cache_file
     wp_filen = helpers.clean_filename(wp_filen, ".json")
-    parent = (
-        False
-        if os.path.exists(
-            f"{os.path.join(is_parent_dir_required(False, relpath=True), wp_cache_filename)}"
-        )
-        else True
-    )
-    locate_conf = helpers.search_files_by_ext(".json", "", parent=parent)
+    path_exists = os.path.exists(os.path.join(os.getcwd(), wp_cache_filename))
     create_new = [
         {
             wp_filen: {
@@ -920,7 +903,7 @@ def local_cache_config(
             }
         }
     ]
-    if wp_cache_filename in locate_conf:
+    if path_exists:
         existing_file = helpers.load_json_ctx(wp_cache_filename)
         for item in existing_file:
             item.update(
@@ -934,11 +917,11 @@ def local_cache_config(
             )
 
         return helpers.export_request_json(
-            wp_cache_filename, existing_file, indent=2, parent=parent
+            wp_cache_filename, existing_file, indent=2, parent=False
         )
     else:
         return helpers.export_request_json(
-            wp_cache_filename, create_new, indent=2, parent=parent
+            wp_cache_filename, create_new, indent=2, parent=False
         )
 
 
@@ -961,7 +944,11 @@ def update_json_cache(
         retries=urllib3.Retry(total=2, backoff_factor=0.5),
     )
     wp_endpoints: WPEndpoints = WPEndpoints()
-    config = helpers.load_json_ctx(wpauth.wp_cache_file)
+
+    try:
+        config = helpers.load_json_ctx(wpauth.wp_cache_file)
+    except FileNotFoundError:
+        raise MissingCacheError(wpauth.wp_cache_file)
 
     params_posts: list[str] = [wp_endpoints.photos] if photos else [wp_endpoints.posts]
     x_wp_total = 0
@@ -980,9 +967,7 @@ def update_json_cache(
         curl_json = curl_wp_self_concat(http, params_posts)
         if curl_json.status == 400:
             diff = x_wp_total - total_elems
-            if diff == 0:
-                pass
-            else:
+            if diff != 0:
                 add_list = recent_posts[:diff]
                 add_list.reverse()
                 for recent in add_list:
@@ -994,7 +979,7 @@ def update_json_cache(
             if page_num_param is False:
                 headers = curl_json.headers
                 x_wp_total += int(headers["x-wp-total"])
-                x_wp_totalpages += int(headers["x-wp-totalpages"])
+                x_wp_totalpages = int(headers["x-wp-totalpages"])
                 params_posts.append(wp_endpoints.page)
                 params_posts.append(str(page_num))
                 page_num_param = True

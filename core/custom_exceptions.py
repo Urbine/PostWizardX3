@@ -75,7 +75,7 @@ class InvalidConfiguration(Exception):
 
     def __init__(self):
         self.message = (
-            f"Double check your True/False (boolean) values in configuration options."
+            "Double check your True/False (boolean) values in configuration options."
         )
         super().__init__(self.message)
 
@@ -147,7 +147,7 @@ class UnavailableLoggingDirectory(Exception):
         super().__init__(self.message + self.help)
 
 
-class NoFieldsError(Exception):
+class NoFieldsException(Exception):
     """
     Notifies the user when no fields have been provided or all fields were excluded
     via cli flags.
@@ -209,4 +209,17 @@ class BraveAPIInvalidLanguageCode(Exception):
         self.help = "Refer to https://api-dashboard.search.brave.com/app/documentation/web-search/codes"
         super().__init__(
             f"{self.message}\n{self.help} for more information on accepted codes"
+        )
+
+
+class MissingCacheError(Exception):
+    """
+    Alert users when the application is trying to update a cache file that does not exist.
+    """
+
+    def __init__(self, filename):
+        self.message = f'Cache "{filename}" does not exist!'
+        self.help = "Rebuild your WordPress cache."
+        super().__init__(
+            f"{self.message}\n{self.help} Run (in project root): python3 -m integrations.wordpress_api --posts --yoast"
         )

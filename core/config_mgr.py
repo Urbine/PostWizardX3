@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from core.helpers import parse_client_config
 from core.custom_exceptions import InvalidConfiguration
 
+CONFIG_PKG = "core.config"
 
 @dataclass(frozen=True)
 class WPAuth:
@@ -239,7 +240,7 @@ class UpdateMCash:
 
 
 # client_info.ini
-client_info = parse_client_config("client_info", "core.config")
+client_info = parse_client_config("client_info", CONFIG_PKG)
 
 
 def wp_auth() -> WPAuth:
@@ -322,7 +323,7 @@ def brave_auth() -> BraveAuth:
 
 
 # workflows_config.ini
-workflows_config = parse_client_config("workflows_config", "core.config")
+workflows_config = parse_client_config("workflows_config", CONFIG_PKG)
 
 
 def content_select_conf() -> ContentSelectConf:

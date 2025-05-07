@@ -81,36 +81,6 @@ def access_url(url_raw: str) -> Any:
     return page
 
 
-# def clean_filename(filename: str, extension: str = None) -> str:
-#     if filename == "":
-#         return filename
-#     elif not isinstance(filename, str):
-#         raise TypeError("Filename must be a string.")
-#     elif not isinstance(extension, str):
-#         raise TypeError("Extension must be a string.")
-#     else:
-#         pass
-#
-#     if re.findall("[.+]", extension):
-#         if re.findall(extension.split(".")[0], filename):
-#             return filename.split(".")[0] + extension
-#         else:
-#             return filename + extension
-#     elif extension is None:
-#         # This is a kind of "trust" mode.
-#         return filename
-#     elif filename == extension:
-#         # If filename and extension are the same, I simply give it back:
-#         return filename + "." + extension
-#     elif re.findall(extension, filename):
-#         if re.findall("[.+]", filename):
-#             return filename.split(".")[0] + "." + extension
-#         else:
-#             return filename + "." + extension
-#     else:
-#         return filename + "." + extension
-
-
 def clean_filename(filename: str, extension: str = "") -> str:
     """This function handles filenames with and without extension
     and avoids breaking functions that work with filenames and paths
@@ -132,7 +102,7 @@ def clean_filename(filename: str, extension: str = "") -> str:
 
     no_dot = lambda fname: re.findall(r"\w+", fname)[0]
 
-    if "." in (chars := split_char(filename, char_lst=True)):
+    if "." in split_char(filename, char_lst=True):
         return (
             ".".join(
                 filter(lambda lst: no_dot(extension) not in lst, filename.split("."))
@@ -168,8 +138,6 @@ def clean_file_cache(cache_folder: str | Path, file_ext: str) -> None:
                 shutil.rmtree(item)
             except NotADirectoryError:
                 os.remove(item)
-            finally:
-                continue
     return None
 
 
@@ -214,7 +182,7 @@ def filename_creation_helper(suggestions: list[str], extension: str = "") -> str
     )
     try:
         return name_suggest[int(name_select) - 1]
-    except ValueError or IndexError:
+    except (ValueError, IndexError):
         if len(name_select.split(".")) >= 2:
             return name_select
         elif name_select == "":
@@ -333,7 +301,7 @@ def get_token_oauth(
         client_id_,
         redirect_uri=uri_callback_,
     )
-    authorization_url, state = oauth_session.authorization_url(auth_url_)
+    authorization_url, _ = oauth_session.authorization_url(auth_url_)
     print(f"Please go to {authorization_url} and authorize access.")
     authorization_response = uri_callback_
     token = oauth_session.fetch_token(
@@ -391,8 +359,7 @@ def get_client_info(
     except FileNotFoundError as Errno:
         if logg_err:
             print(Errno)
-        else:
-            pass
+
         return None
 
 
@@ -489,8 +456,6 @@ def get_webdriver(
             gecko_options.add_argument("--headless")
         elif no_imgs:
             gecko_options.set_preference("permissions.default.image", 2)
-        else:
-            pass
 
         return webdriver.Firefox(options=gecko_options)
 
@@ -503,8 +468,6 @@ def get_webdriver(
             chrome_options.binary_location = (
                 f"{os.path.join('opt', 'google', 'chrome', 'google-chrome')}"
             )
-        else:
-            pass
 
         # Does not let Chrome limit my resource usage
         chrome_options.add_argument("--disable-dev-shm-usage")
@@ -525,8 +488,6 @@ def get_webdriver(
             chrome_options.add_argument("--headless")
         elif no_imgs:
             chrome_options.add_argument("--blink-settings=imagesEnabled=false")
-        else:
-            pass
 
         return webdriver.Chrome(options=chrome_options)
 
@@ -630,8 +591,6 @@ def match_list_elem_date(
         if join_hints[0]:
             spl_hint = hint.split(join_hints[1])
             hint = join_hints[2].join(spl_hint)
-        else:
-            pass
 
         matches = match_list_mult(hint, lookup_list, ignore_case=ignore_case)
 
@@ -640,8 +599,6 @@ def match_list_elem_date(
         if reverse:
             for match in get_match_items:
                 main_matches.append(match)
-        else:
-            pass
 
         date_regex = re.compile(r"(\d{2,4}-\d{1,2}-\d{1,2})")
 
@@ -685,7 +642,7 @@ def load_file_path(package: str, filename: str) -> Optional[Path]:
 
 def load_json_ctx(
     filename: str, log_err: bool = False
-) -> Optional[list[dict[...] | dict[...]]]:
+) -> Optional[list[dict[...]]]:
     """This function makes it possible to assign a JSON file from storage to a variable.
 
     :param log_err: ``True`` if you want to print error information, default ``False``.
@@ -693,25 +650,24 @@ def load_json_ctx(
     :return: ``JSON`` object
     """
     json_file = clean_filename(filename, "json")
-    parent = not os.path.exists(
-        os.path.join(is_parent_dir_required(False, relpath=True), json_file)
-    )
-    parent_or_cwd = is_parent_dir_required(parent, relpath=True)
+    parent = not os.path.exists(os.path.join(is_parent_dir_required(False), json_file))
+    parent_or_cwd = is_parent_dir_required(parent)
+    json_file_path = os.path.join(parent_or_cwd, json_file)
     try:
         with open(
-            json_file := os.path.join(parent_or_cwd, json_file), "r", encoding="utf-8"
+            json_file_path, "r", encoding="utf-8"
         ) as f:
             imp_json = json.load(f)
         return imp_json
     except FileNotFoundError:
         logging.critical(
-            f"Raised FileNotFoundError: {os.path.abspath(json_file)} not found!"
+            f"Raised FileNotFoundError: {json_file} not found!"
         )
         if log_err:
             print(
-                f"File {os.path.join(parent_or_cwd, json_file)} not found! Double-check the filename."
+                f"File {json_file_path} not found! Double-check the filename."
             )
-        return None
+        raise FileNotFoundError
 
 
 def load_from_file(filename: str, extension: str, dirname: str = "", parent=False):
@@ -791,6 +747,7 @@ def parse_date_to_iso(
     else:
         months = list(month_name)
 
+    letters = re.compile(r"[a-z]")
     year = str(full_date.split(",")[1].strip())
 
     month_num = str(months.index(full_date.split(",")[0].split(" ")[0]))
@@ -801,14 +758,14 @@ def parse_date_to_iso(
         month_num = "0" + str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     day_nth = str(full_date.split(",")[0].split(" ")[1])
-    day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+    day = day_nth.strip("".join(re.findall(letters, day_nth)))
 
     if zero_day:
         if int(day) <= 9:
-            day = day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+            day = day_nth.strip("".join(re.findall(letters, day_nth)))
     else:
         if int(day) <= 9:
-            day = "0" + day_nth.strip("".join(re.findall("[a-z]", day_nth)))
+            day = "0" + day_nth.strip("".join(re.findall(letters, day_nth)))
 
     return date.fromisoformat(year + month_num + day)
 
@@ -984,7 +941,7 @@ def split_char(
     :return: ``str`` | ``list[str]``
     """
     try:
-        chars = re.findall(r"[\W_+]", spl_str)
+        chars = re.findall(r"\W+", spl_str)
     except TypeError:
         return placeholder
 
@@ -1010,3 +967,16 @@ def split_char(
         return list(spl_str)
     else:
         return placeholder
+
+
+def clean_console() -> None:
+    """Clear console text in POSIX (Unix/Linux/macOS) or Windows.
+        Raises ``NotImplementedError`` as an edge case.
+    :return: ``None``
+    """
+    if os.name == "posix":
+        os.system("clear")
+    elif os.name == "nt":
+        os.system("cls")
+    else:
+        raise NotImplementedError

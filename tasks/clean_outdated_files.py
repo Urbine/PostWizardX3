@@ -14,6 +14,7 @@ import os
 
 # Local implementations
 import core
+from core import remove_if_exists
 
 
 def clean_outdated(
@@ -39,15 +40,15 @@ def clean_outdated(
         hints_, file_lst, ignore_case=True, strict=True, reverse=reverse
     )
     for file in outdated:
-        if not silent:
-            print(f"Removing {os.path.abspath(file)}")
-        try:
-            os.remove(file)
-        except FileNotFoundError:
+        file_path = os.path.abspath(file)
+
+        if os.path.exists(file_path):
             if not silent:
-                print(f"File {os.path.abspath(file)} not found")
-            else:
-                pass
+                print(f"Removing {file_path}")
+            os.remove(file_path)
+        else:
+            if not silent:
+                print(f"File {file_path} not found")
 
     if not silent:
         if len(outdated) != 0:
@@ -97,6 +98,12 @@ if __name__ == "__main__":
         help="Clean today's matching files and leaves outdated ones untouched.",
     )
 
+    arg_parser.add_argument(
+        "--silent",
+        action="store_true",
+        default=False,
+        help="Omit console output from file operations.",
+    )
     args = arg_parser.parse_args()
 
     hints = list(args.hints)
@@ -104,4 +111,6 @@ if __name__ == "__main__":
     # Filter the files to be deleted by their file extension.
     files = core.search_files_by_ext(args.ext, args.folder, parent=args.parent)
 
-    clean_outdated(hints, files, args.folder, invert_clean=args.invert)
+    clean_outdated(
+        hints, files, args.folder, invert_clean=args.invert, silent=args.silent
+    )
