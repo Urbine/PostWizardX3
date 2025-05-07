@@ -32,43 +32,45 @@ from ml_engine.model_train import (
     stop_words_english,
 )
 
+ML_ENGINE_PKG = "ml_engine.ml_models"
+
 # NLTK NaiveBayesClassifier
 NaiveBayes_titles = joblib.load(
-    load_file_path("ml_engine.ml_models", "NaiveBayesTitles.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "NaiveBayesTitles.joblib.pkl")
 )
 
 NaiveBayes_descriptions = joblib.load(
-    load_file_path("ml_engine.ml_models", "NaiveBayesDescriptions.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "NaiveBayesDescriptions.joblib.pkl")
 )
 
 NaiveBayes_tags = joblib.load(
-    load_file_path("ml_engine.ml_models", "NaiveBayesTags.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "NaiveBayesTags.joblib.pkl")
 )
 
 # NLTK Maxent Classifier
 Maxent_titles = joblib.load(
-    load_file_path("ml_engine.ml_models", "MaxentClassifierTitles.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "MaxentClassifierTitles.joblib.pkl")
 )
 
 Maxent_descriptions = joblib.load(
-    load_file_path("ml_engine.ml_models", "MaxentClassifierDescriptions.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "MaxentClassifierDescriptions.joblib.pkl")
 )
 
 Maxent_tags = joblib.load(
-    load_file_path("ml_engine.ml_models", "MaxentClassifierTags.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "MaxentClassifierTags.joblib.pkl")
 )
 
 # SciKit-Learn Classifier (Multinomial Naive Bayes)
 Multinomial_titles = joblib.load(
-    load_file_path("ml_engine.ml_models", "MultiNBClassifierTitles.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "MultiNBClassifierTitles.joblib.pkl")
 )
 
 Multinomial_descriptions = joblib.load(
-    load_file_path("ml_engine.ml_models", "MultiNBClassifierDescriptions.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "MultiNBClassifierDescriptions.joblib.pkl")
 )
 
 Multinomial_tags = joblib.load(
-    load_file_path("ml_engine.ml_models", "MultiNBClassifierTags.joblib.pkl")
+    load_file_path(ML_ENGINE_PKG, "MultiNBClassifierTags.joblib.pkl")
 )
 
 
