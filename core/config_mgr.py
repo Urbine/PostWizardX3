@@ -28,6 +28,7 @@ from core.custom_exceptions import InvalidConfiguration
 
 CONFIG_PKG = "core.config"
 
+
 @dataclass(frozen=True)
 class WPAuth:
     """
