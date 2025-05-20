@@ -640,9 +640,7 @@ def load_file_path(package: str, filename: str) -> Optional[Path]:
         raise FileNotFoundError
 
 
-def load_json_ctx(
-    filename: str, log_err: bool = False
-) -> Optional[list[dict[...]]]:
+def load_json_ctx(filename: str, log_err: bool = False) -> Optional[list[dict[...]]]:
     """This function makes it possible to assign a JSON file from storage to a variable.
 
     :param log_err: ``True`` if you want to print error information, default ``False``.
@@ -654,19 +652,13 @@ def load_json_ctx(
     parent_or_cwd = is_parent_dir_required(parent)
     json_file_path = os.path.join(parent_or_cwd, json_file)
     try:
-        with open(
-            json_file_path, "r", encoding="utf-8"
-        ) as f:
+        with open(json_file_path, "r", encoding="utf-8") as f:
             imp_json = json.load(f)
         return imp_json
     except FileNotFoundError:
-        logging.critical(
-            f"Raised FileNotFoundError: {json_file} not found!"
-        )
+        logging.critical(f"Raised FileNotFoundError: {json_file} not found!")
         if log_err:
-            print(
-                f"File {json_file_path} not found! Double-check the filename."
-            )
+            print(f"File {json_file_path} not found! Double-check the filename.")
         raise FileNotFoundError
 
 

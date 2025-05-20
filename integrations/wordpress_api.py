@@ -593,9 +593,7 @@ def map_wp_class_id_many(
     return result_dict
 
 
-def count_wp_class_id(
-    wp_posts_f: list[dict], match_word: str
-) -> dict[str, int]:
+def count_wp_class_id(wp_posts_f: list[dict], match_word: str) -> dict[str, int]:
     """
     This function parses the wp_posts or wp_photos JSON files to locate and count tags or other
     keywords (e.g. models) that WordPress includes in the ``['class_list']`` key.
