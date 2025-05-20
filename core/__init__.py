@@ -25,6 +25,7 @@ from core.config_mgr import (
 
 # Custom Exceptions `custom_exceptions.py`
 from core.custom_exceptions import (
+    UnableToConnectError,
     InvalidInput,
     NoSuitableArgument,
     UnsupportedParameter,

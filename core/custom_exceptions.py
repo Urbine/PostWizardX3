@@ -16,6 +16,15 @@ import os
 from requests import Response
 
 
+class UnableToConnectError(Exception):
+    """
+    Notifies the user if there is no internet connection.
+    """
+
+    def __init__(self):
+        super().__init__("Unable to connect. Check your internet connection!")
+
+
 class NoSuitableArgument(Exception):
     """
     Used by functions that depend on CLI parameters.
@@ -116,7 +125,7 @@ class HotFileSyncIntegrityError(Exception):
     """
 
     def __init__(self):
-        self.message = """WP JSON HotSync validation failed.
+        self.message = """WP JSON HotSync failed validation!
                           Maybe you have to rebuild your WordPress cache and its config.
                           Run (in project root): python3 -m integrations.wordpress_api --posts --yoast"""
         super().__init__(self.message)

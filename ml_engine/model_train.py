@@ -41,6 +41,7 @@ from integrations import wordpress_api
 
 ML_ENGINE_PKG = "ml_engine.ml_models"
 
+
 def clean_descriptions(desc_lst: list[str]):
     descriptions = desc_lst
     clean_desc = []
@@ -241,17 +242,13 @@ if __name__ == "__main__":
     sk_class_tags = sklearn_classifier.train(word_list_tags)
 
     # NLTK NaiveBayes Classifier Model
-    nbc_titles = helpers.load_file_path(
-        ML_ENGINE_PKG, "NaiveBayesTitles.joblib.pkl"
-    )
+    nbc_titles = helpers.load_file_path(ML_ENGINE_PKG, "NaiveBayesTitles.joblib.pkl")
 
     nbc_descriptions = helpers.load_file_path(
         ML_ENGINE_PKG, "NaiveBayesDescriptions.joblib.pkl"
     )
 
-    nbc_tags = helpers.load_file_path(
-        ML_ENGINE_PKG, "NaiveBayesTags.joblib.pkl"
-    )
+    nbc_tags = helpers.load_file_path(ML_ENGINE_PKG, "NaiveBayesTags.joblib.pkl")
     save_nbc_titles = joblib.dump(NaiveBClassifier_titles, nbc_titles, compress=9)
     save_nbc_descriptions = joblib.dump(
         NaiveBClassifier_descriptions, nbc_descriptions, compress=9

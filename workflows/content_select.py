@@ -22,15 +22,18 @@ import re
 import tempfile
 import time
 import sqlite3
-import warnings
+from argparse import Namespace
+from csv import excel_tab
 
+from enum import Enum
 from sqlite3 import Connection, Cursor
 from typing import Optional
 
 # Third-party modules
 import pyclip
 import requests
-import urllib3
+import rich.console
+import urllib3.exceptions
 from requests.exceptions import SSLError, ConnectionError
 from rich.console import Console
 
@@ -52,6 +55,7 @@ from core import (
     x_auth,
     bot_father,
     split_char,
+    UnableToConnectError,
 )
 
 from integrations import (
@@ -72,6 +76,19 @@ from core.config_mgr import (
     EmbedAssistConf,
     UpdateMCash,
 )
+
+
+class ConsoleStyle(Enum):
+    """
+    Store constants for color styles used with console objects from the Rich library.
+    """
+
+    TEXT_STYLE_ATTENTION = "bold yellow"
+    TEXT_STYLE_DEFAULT = "green"
+    TEXT_STYLE_DEFAULT_BOLD = "bold green"
+    TEXT_STYLE_PROMPT = "bold cyan"
+    TEXT_STYLE_SPECIAL_PROMPT = "bold magenta"
+    TEXT_STYLE_WARN = "bold red"
 
 
 def logging_setup(
@@ -756,7 +773,7 @@ def select_guard(db_name: str, partner: str) -> None:
         )
         print("\nBe careful! Partner and database must match. Re-run...")
         print(f"The program selected {db_name} for partner {partner}.")
-        quit()
+        exit(0)
 
 
 def content_select_db_match(
@@ -868,7 +885,9 @@ def content_select_db_match(
         raise InvalidInput
 
 
-def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
+def x_post_creator(
+    description: str, post_url: str, post_text: Optional[str] = None
+) -> int:
     """Create a post with a random action call for the X platform.
     Depending on your bot configuration, you can pass in your own post text and
     override the random call to action. If you just don't feel like typing and
@@ -910,10 +929,12 @@ def x_post_creator(description: str, post_url: str, post_text: str = "") -> int:
     ]
     # Env variable "X_TOKEN" is assigned in function ``x_api.refresh_flow()``
     bearer_token = os.environ.get("X_TOKEN")
-    if not post_text:
-        post_text = f"{description} | {random.choice(calls_to_action)} {post_url}"
-    else:
+
+    if post_text or post_text == "":
         post_text = f"{description} {post_text} {post_url}"
+    else:
+        post_text = f"{description} | {random.choice(calls_to_action)} {post_url}"
+
     request = x_api.post_x(post_text, bearer_token, XEndpoints())
     logging.info(f"Sent to X -> {post_text}")
     logging.info(f"X post metadata -> {request.json()}")
@@ -1031,6 +1052,94 @@ def wp_publish_checker(
     return None
 
 
+def social_sharing_controller(
+    console_obj: rich.console.Console,
+    description: str,
+    wp_slug: str,
+    cs_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+) -> None:
+    if cs_config.x_posting_enabled or cs_config.telegram_posting_enabled:
+        status_msg = "Checking WP status and preparing for social sharing."
+        status_style = ConsoleStyle.TEXT_STYLE_DEFAULT_BOLD.value
+        user_input = ConsoleStyle.TEXT_STYLE_ATTENTION.value
+        with console_obj.status(
+            f"[{status_style}]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/{status_style}]\n",
+            spinner="earth",
+        ):
+            is_published = wp_publish_checker(wp_slug, cs_config)
+        if is_published:
+            logging.info(
+                f"Post {wp_slug} has been published. Exceptions after this might be caused by social plugins."
+            )
+            if cs_config.x_posting_enabled:
+                logging.info("X Posting - Enabled in workflows config")
+                if cs_config.x_posting_auto:
+                    logging.info("X Posting Automatic detected in config")
+                    # Environment "LATEST_POST" variable assigned in wp_publish_checker()
+                    x_post_create = x_post_creator(
+                        description, os.environ.get("LATEST_POST")
+                    )
+                else:
+                    post_text = console_obj.input(
+                        f"[{user_input}]Enter your additional X post text here or press enter to use default configs: [{user_input}]\n"
+                    )
+                    logging.info(f"User entered custom post text: {post_text}")
+                    x_post_create = x_post_creator(
+                        description,
+                        os.environ.get("LATEST_POST"),
+                        post_text=post_text,
+                    )
+
+                    # Copy custom post text for the following prompt
+                    pyclip.detect_clipboard()
+                    pyclip.copy(post_text)
+
+                if x_post_create == 201:
+                    console_obj.print(
+                        "--> Post has been published on WP and shared on X.\n",
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
+                else:
+                    console_obj.print(
+                        f"--> There was an error while trying to share on X.\n Status: {x_post_create}",
+                        style=ConsoleStyle.TEXT_STYLE_WARN.value,
+                    )
+                logging.info(f"X post status code: {x_post_create}")
+
+            if cs_config.telegram_posting_enabled:
+                logging.info("Telegram Posting - Enabled in workflows config")
+                if cs_config.telegram_posting_auto:
+                    logging.info("Telegram Posting Automatic detected in config")
+                    telegram_msg = telegram_send_message(
+                        description,
+                        os.environ.get("LATEST_POST"),
+                        cs_config,
+                    )
+                else:
+                    post_text = console_obj.input(
+                        f"[{user_input}]Enter your additional Telegram message here or press enter to use default configs: [{user_input}]\n"
+                    )
+                    telegram_msg = telegram_send_message(
+                        description,
+                        os.environ.get("LATEST_POST"),
+                        cs_config,
+                        msg_text=post_text,
+                    )
+
+                if telegram_msg == 200:
+                    console_obj.print(
+                        # Env variable assigned in botfather_telegram.send_message()
+                        f"--> Message sent to Telegram {os.environ.get('T_CHAT_ID')}",
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
+                else:
+                    console_obj.print(
+                        f"--> There was an error while trying to communicate with Telegram.\n Status: {telegram_msg}",
+                        style=ConsoleStyle.TEXT_STYLE_WARN.value,
+                    )
+                logging.info(f"Telegram message status code: {telegram_msg}")
+
+
 def model_checker(
     wp_posts_f: list[dict[...]], model_prep: list[str]
 ) -> Optional[list[int]]:
@@ -1061,21 +1170,322 @@ def model_checker(
         for girl in new_models:
             console.print(
                 f"ATTENTION! --> Model: {girl} not on WordPress.",
-                style="bold red",
+                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
             )
             console.print(
                 "--> Copying missing model name to your system clipboard.",
-                style="bold yellow",
+                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
             )
             console.print(
                 "Paste it into the Pornstars field as soon as possible...\n",
-                style="bold yellow",
+                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
             )
             logging.warning(f"Missing model: {girl}")
             pyclip.detect_clipboard()
             pyclip.copy(girl)
 
     return calling_models
+
+
+def terminate_loop_logging(
+    console_obj: rich.console.Console,
+    iter_num: int,
+    total_elems: int,
+    video_count: int,
+    time_elapsed: tuple[int | float, int | float, int | float],
+    exhausted: bool,
+) -> None:
+    """Terminate the sequence of the loop by logging messages to the screen and the logs.
+
+    :param time_elapsed: ``tuple[int, int, int]`` | Time measurement variables that report elapsed execution time for logging.
+    :param console_obj: ``rich.console.Console``  | Console object used in order to log information to the console.
+    :param iter_num: ``int``       | Iteration number in main loop for logging purposes
+    :param total_elems: ``int``    | Total elements that the main loop had to process
+    :param video_count: ``int``    | Total of video elements that were pushed to the WordPress site.
+    :param exhausted: ``bool``     | Flag that controls console logging depending on whether elements are exhausted.
+    :return: ``None``
+    """
+    # The terminating parts add this function to avoid
+    # tracebacks from pyclip and enable cross-platform support.
+    pyclip.detect_clipboard()
+    pyclip.clear()
+    if exhausted:
+        logging.info(f"List exhausted. State: num={iter_num} total_elems={total_elems}")
+        console_obj.print(
+            "\nWe have reviewed all posts for this query.",
+            style=ConsoleStyle.TEXT_STYLE_WARN.value,
+        )
+        console_obj.print(
+            "Try a different SQL query or partner. I am ready when you are. ",
+            style=ConsoleStyle.TEXT_STYLE_WARN.value,
+        )
+
+    console_obj.print(
+        f"You have created {video_count} posts in this session!",
+        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+    )
+    h, mins, secs = time_elapsed
+    logging.info(
+        f"User created {video_count} posts in hours: {h} mins: {mins} secs: {secs}"
+    )
+    logging.info("Cleaning clipboard and temporary directories. Quitting...")
+    logging.shutdown()
+    exit(0)
+
+
+def pilot_warm_up(
+    cs_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+    wp_auth: WPAuth,
+    parent: bool = False,
+):
+    try:
+        logging_setup(cs_config, __file__)
+        logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
+
+        console = Console()
+
+        helpers.clean_console()
+
+        status_style = ConsoleStyle.TEXT_STYLE_DEFAULT_BOLD.value
+        with console.status(
+            f"[{status_style}] Warming up... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+            spinner="aesthetic",
+        ):
+            hot_file_sync(bot_config=cs_config)
+            x_api.refresh_flow(x_auth(), XEndpoints())
+
+        partners: list[str] = list(
+            map(lambda p: p.strip(), cs_config.partners.split(","))
+        )
+        logging.info(f"Loading partners variable: {partners}")
+
+        wp_posts_f: list[dict[...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
+        logging.info(f"Reading WordPress Post cache: {cs_config.wp_json_posts}")
+
+        wp_base_url: str = wp_auth.api_base_url
+        logging.info(f"Using {wp_base_url} as WordPress API base url")
+
+        _, cur_dump, partner_db_name, partner_indx = content_select_db_match(
+            partners, cs_config.content_hint, parent=parent
+        )
+
+        partner = partners[partner_indx]
+        select_guard(partner_db_name, partner)
+        logging.info("Select guard cleared...")
+
+        logging.info(f"Matched {partner_db_name} for {partner} index {partner_indx}")
+
+        all_vals: list[tuple[str, ...]] = helpers.fetch_data_sql(
+            cs_config.sql_query, cur_dump
+        )
+        logging.info(f"{len(all_vals)} elements found in database {partner_db_name}")
+
+        thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
+        logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
+
+        not_published: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
+
+        if isinstance(cs_config, EmbedAssistConf):
+            return console, partner, not_published, wp_posts_f, thumbnails_dir, cur_dump
+        else:
+            return console, partner, not_published, wp_posts_f, thumbnails_dir
+    except urllib3.exceptions.MaxRetryError:
+        raise UnableToConnectError
+
+
+def iter_session_print(
+    console_obj: rich.console.Console,
+    video_count: int,
+    partner: Optional[str] = None,
+) -> None:
+    # Environment variable set in logging_setup()
+    console_obj.print(
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+        justify="left",
+    )
+    if partner:
+        console_obj.print(
+            f"\nThere are {video_count} {partner} videos to be published...",
+            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            justify="center",
+        )
+    else:
+        console_obj.print(
+            f"Count: {video_count}",
+            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            justify="left",
+        )
+        console_obj.print(
+            f"\n{' Review this post ':*^30}\n",
+            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            justify="center",
+        )
+
+
+def slug_getter(console_obj: rich.console.Console, slugs: list[str]) -> str:
+    prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
+    user_attention_style = ConsoleStyle.TEXT_STYLE_ATTENTION.value
+    slug_entry_style = ConsoleStyle.TEXT_STYLE_DEFAULT_BOLD.value
+
+    def slug_getter_persist() -> str:
+        user_slug = ""
+        while not slug:
+            console_obj.print(
+                "Provide a new slug for your post now: ", style=prompt_style
+            )
+            user_slug: str = input()
+        return user_slug
+
+    if not slugs:
+        logging.critical("No slugs were provided in controlling function.")
+        new_slug = slug_getter_persist()
+        return new_slug
+
+    console_obj.print("\n--> Available slugs:\n", style=user_attention_style)
+
+    for n, slug in enumerate(slugs, start=1):
+        console_obj.print(f"{n}. -> {slug}", style=slug_entry_style)
+    console_obj.print(
+        "--> Press ENTER to provide a custom slug", style=user_attention_style
+    )
+
+    slug_option = console_obj.input(
+        f"[{prompt_style}]\nSelect your slug: [/{prompt_style}]\n"
+    )
+
+    if slug_option != "":
+        try:
+            return slugs[int(slug_option) - 1]
+        except (IndexError, ValueError):
+            console_obj.print(
+                "Invalid option! Choosing random slug...",
+                style=ConsoleStyle.TEXT_STYLE_WARN.value,
+            )
+            new_slug = random.choice(slugs)
+            logging.info(f"Chose random slug: {new_slug} automatically")
+            return new_slug
+    else:
+        custom_slug = slug_getter_persist()
+        logging.info(f"User provided slug: {custom_slug} automatically")
+        return custom_slug
+
+
+def tag_checker_print(
+    console_obj: rich.console.Console, wp_posts_f: list[dict], tag_prep: list[str]
+) -> list[int]:
+    tag_ints: list[int] = get_tag_ids(wp_posts_f, tag_prep, "tags")
+    all_tags_wp: dict[str, str] = wordpress_api.tag_id_merger_dict(wp_posts_f)
+    tag_check: Optional[list[str]] = identify_missing(
+        all_tags_wp, tag_prep, tag_ints, ignore_case=True
+    )
+
+    if tag_check is None:
+        # All tags have been found and mapped to their IDs.
+        pass
+    else:
+        for tag in tag_check:
+            console_obj.print(
+                f"ATTENTION --> Tag: {tag} not on WordPress.",
+                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            )
+            console_obj.print(
+                "--> Copying missing tag to your system clipboard.",
+                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            )
+            console_obj.print(
+                "Paste it into the tags field as soon as possible...\n",
+                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            )
+            logging.warning(f"Missing tag detected: {tag}")
+            pyclip.detect_clipboard()
+            pyclip.copy(tag)
+    return tag_ints
+
+
+def pick_classifier(
+    console_obj: rich.console.Console,
+    wp_posts_f: list[dict],
+    title: str,
+    description: str,
+    tags: str,
+):
+    def print_options(option_lst, print_delim: bool = False):
+        for opt, classifier in enumerate(option_lst, start=1):
+            console_obj.print(
+                f"{opt}. {classifier.title()}",
+                style=ConsoleStyle.TEXT_STYLE_DEFAULT.value,
+            )
+        if print_delim:
+            console_obj.print(f"{'*':=^35}")
+
+    prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
+    classifiers = [
+        classify_title(title),
+        classify_description(description),
+        classify_tags(tags),
+    ]
+
+    classifier_options = [categs for categs in classifiers if categs]
+    option = ""
+    console_obj.print(
+        "\nAvailable Machine Learning classifiers: \n",
+        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+    )
+
+    print_options(locals().keys())
+    peek = re.compile("peek", re.IGNORECASE)
+    rand = re.compile(r"rando?m?", re.IGNORECASE)
+    while not option:
+        match console_obj.input(
+            f"\n[{prompt_style}] Pick your classifier:  (Type in the 'peek' to open all classifiers or 'random' to let me choose for you)[/{prompt_style}]\n"
+        ):
+            case str() as p if peek.findall(p):
+                print_options(classifier_options, print_delim=True)
+                print_options(locals().keys())
+                option = console_obj.input(
+                    f"\n[{prompt_style}]Your choice:[/{prompt_style}]\n"
+                )
+            case str() as r if rand.findall(r):
+                random.choice(classifier_options)
+            case _:
+                continue
+    try:
+        categories = list(classifiers[int(option) - 1])
+    except (IndexError, ValueError):
+        console_obj.print(
+            "Invalid option! Picking random", style=ConsoleStyle.TEXT_STYLE_WARN.value
+        )
+        categories = list(random.choice(classifiers))
+
+    consolidate_categs = list(categories)
+    logging.info(f"Suggested categories ML: {consolidate_categs}")
+
+    console_obj.print(
+        " \n** I think these categories are appropriate: **\n",
+        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+    )
+    print_options(consolidate_categs)
+
+    categ_num = re.compile(r"\d")
+    match console_obj.input(
+        f"[{prompt_style}]\nEnter the category number or type in to look for another category within the site: [{prompt_style}]\n"
+    ):
+        case str() as num if categ_num.match(num):
+            try:
+                sel_categ = consolidate_categs[int(num) - 1]
+                logging.info(f"User selected category: {sel_categ}")
+            except (ValueError, IndexError):
+                sel_categ = random.choice(consolidate_categs)
+                logging.info(
+                    f"User typed in an incorrect option: {num}. Picking random category {sel_categ}"
+                )
+        case _ as misc:
+            sel_categ = misc
+            logging.info(f"User typed in category: {misc}")
+
+    categ_ids: list[int] = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
+    return categ_ids
 
 
 def video_upload_pilot(
@@ -1096,51 +1506,14 @@ def video_upload_pilot(
     :return: ``None``
     """
     time_start = time.time()
-
-    logging_setup(cs_config, __file__)
-    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
-
-    console = Console()
-
-    helpers.clean_console()
-
-    with console.status(
-        "[bold green] Warming up... [blink]┌(◎_◎)┘[/blink] [/bold green]\n",
-        spinner="aesthetic",
-    ):
-        hot_file_sync(bot_config=cs_config)
-        x_api.refresh_flow(x_auth(), XEndpoints())
-
-    partners: list[str] = list(map(lambda p: p.strip(), cs_config.partners.split(",")))
-    logging.info(f"Loading partners variable: {partners}")
-
-    wp_posts_f: list[dict[...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
-    logging.info(f"Reading WordPress Post cache: {cs_config.wp_json_posts}")
-
-    wp_base_url: str = wp_auth.api_base_url
-    logging.info(f"Using {wp_base_url} as WordPress API base url")
-
-    _, cur_dump, partner_db_name, partner_indx = content_select_db_match(
-        partners, cs_config.content_hint, parent=parent
+    console, partner, not_published, wp_posts_f, thumbnails_dir = pilot_warm_up(
+        cs_config, wp_auth, parent=parent
     )
-    logging.info(
-        f"Matched {partner_db_name} for {partners[partner_indx]} index {partner_indx}"
-    )
-
-    all_vals: list[tuple[str, ...]] = helpers.fetch_data_sql(
-        cs_config.sql_query, cur_dump
-    )
-    logging.info(f"{len(all_vals)} elements found in database {partner_db_name}")
-
     # Prints out at the end of the uploading session.
-    videos_uploaded: int = 0
-    partner = partners[partner_indx]
+    videos_uploaded = 0
     banners = asset_parser(cs_config, partner)
 
-    select_guard(partner_db_name, partner)
-    logging.info("Select guard cleared...")
-
-    not_published_yet: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
+    not_published_yet: list[tuple[str, ...]] = not_published
 
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published_yet)
@@ -1148,21 +1521,8 @@ def video_upload_pilot(
 
     helpers.clean_console()
 
-    # Environment variable set in logging_setup()
-    console.print(
-        f"Session ID: {os.environ.get('SESSION_ID')}",
-        style="bold yellow",
-        justify="left",
-    )
-    console.print(
-        f"\nThere are {total_elems} {partner} videos to be published...",
-        style="bold red",
-        justify="center",
-    )
+    iter_session_print(console, total_elems, partner)
     time.sleep(2)
-
-    thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
-    logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
 
     for num, vid in enumerate(not_published_yet):
         (title, *fields) = vid
@@ -1178,53 +1538,38 @@ def video_upload_pilot(
         partner_name = partner
 
         helpers.clean_console()
+        iter_session_print(console, videos_uploaded)
 
-        console.print(
-            f"Session ID: {os.environ.get('SESSION_ID')}",
-            style="bold yellow",
-            justify="left",
-        )
-        console.print(
-            f"Count: {videos_uploaded}",
-            style="bold yellow",
-            justify="left",
-        )
+        style_fields = ConsoleStyle.TEXT_STYLE_DEFAULT.value
+        console.print(title, style=style_fields)
+        console.print(description, style=style_fields)
+        console.print(f"Duration: {duration}", style=style_fields)
+        console.print(f"Tags: {tags}", style=style_fields)
+        console.print(f"Models: {models}", style=style_fields)
+        console.print(f"Date: {date}", style=style_fields)
+        console.print(f"Thumbnail URL: {thumbnail_url}", style=style_fields)
+        console.print(f"Source URL: {source_url}", style=style_fields)
 
-        console.print(
-            f"\n{' Review this post ':*^30}\n", style="bold yellow", justify="center"
-        )
-        console.print(title, style="green")
-        console.print(description, style="green")
-        console.print(f"Duration: {duration}", style="green")
-        console.print(f"Tags: {tags}", style="green")
-        console.print(f"Models: {models}", style="green")
-        console.print(f"Date: {date}", style="green")
-        console.print(f"Thumbnail URL: {thumbnail_url}", style="green")
-        console.print(f"Source URL: {source_url}", style="green")
-        # Centralized control flow
+        prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
         add_post = console.input(
-            "\n[bold cyan]Add post to WP? -> Y/N/ENTER to review next post: [/bold cyan]\n",
+            f"\n[{prompt_style}]Add post to WP? -> Y/N/ENTER to review next post: [/{prompt_style}]\n",
         ).lower()
         if add_post == ("y" or "yes"):
             logging.info(f"User accepted video element {num} for processing")
             add_post = True
         elif add_post == ("n" or "no"):
             logging.info("User declined further activity with the bot")
-            pyclip.detect_clipboard()
-            pyclip.clear()
-            console.print(
-                f"You have created {videos_uploaded} posts in this session!",
-                style="bold yellow",
-            )
             thumbnails_dir.cleanup()
             time_end = time.time()
             h, mins, secs = get_duration(time_end - time_start)
-            logging.info(
-                f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+            terminate_loop_logging(
+                console,
+                num,
+                total_elems,
+                videos_uploaded,
+                (h, mins, secs),
+                exhausted=False,
             )
-            logging.info("Cleaning clipboard and temporary directories. Quitting...")
-            logging.shutdown()
-            break
         else:
             if num < total_elems - 1:
                 logging.info(
@@ -1234,33 +1579,17 @@ def video_upload_pilot(
                 pyclip.clear()
                 continue
             else:
-                logging.info(
-                    f"List exhausted. State: num={num} total_elems={total_elems}"
-                )
-                pyclip.detect_clipboard()
-                pyclip.clear()
-                console.print(
-                    "\nWe have reviewed all posts for this query.", style="bold red"
-                )
-                console.print(
-                    "Try a different SQL query or partner. I am ready when you are. ",
-                    style="bold red",
-                )
-                console.print(
-                    f"You have created {videos_uploaded} posts in this session!",
-                    style="bold yellow",
-                )
                 thumbnails_dir.cleanup()
                 time_end = time.time()
                 h, mins, secs = get_duration(time_end - time_start)
-                logging.info(
-                    f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                terminate_loop_logging(
+                    console,
+                    num,
+                    total_elems,
+                    videos_uploaded,
+                    (h, mins, secs),
+                    exhausted=True,
                 )
-                logging.info(
-                    "Cleaning clipboard and temporary directories. Quitting..."
-                )
-                logging.shutdown()
-                break
 
         # In rare occasions, the ``tags`` is None and the real tags are placed in the ``models`` variable
         # this special handling prevents crashes
@@ -1275,61 +1604,15 @@ def video_upload_pilot(
                 make_slug(partner, models, title, "video", partner_out=True),
             ]
 
-            console.print("\n--> Available slugs:\n", style="bold yellow")
-
-            for n, slug in enumerate(slugs, start=1):
-                console.print(f"{n}. -> {slug}", style="bold green")
-            console.print("--> Enter #5 to provide a custom slug", style="bold yellow")
-
-            match console.input("[bold magenta]\nSelect your slug: [/bold magenta]\n"):
-                case "1":
-                    wp_slug: str = slugs[0]
-                case "2":
-                    wp_slug: str = slugs[1]
-                case "3":
-                    wp_slug: str = slugs[2]
-                case "4":
-                    wp_slug: str = slugs[3]
-                case "5":
-                    # Copy the default slug for editing
-                    pyclip.copy(slugs[3])
-                    console.print("Provide a new slug: ", style="bold ")
-                    wp_slug: str = input()
-                case _:
-                    # TODO: Add ``default_slug`` option to config file.
-                    # Smart slug by default (partner_out).
-                    wp_slug: str = slugs[3]
-
+            wp_slug = slug_getter(console, slugs)
             logging.info(f"WP Slug - Selected: {wp_slug}")
             tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
 
             # Making sure that the partner tag does not have apostrophes
             partner_tag: str = clean_partner_tag(partner.lower())
             tag_prep.append(partner_tag)
-            tag_ints: list[int] = get_tag_ids(wp_posts_f, tag_prep, "tags")
-            all_tags_wp: dict[str, str] = wordpress_api.tag_id_merger_dict(wp_posts_f)
-            tag_check: Optional[list[str]] = identify_missing(
-                all_tags_wp, tag_prep, tag_ints, ignore_case=True
-            )
-            if tag_check is None:
-                # All tags have been found and mapped to their IDs.
-                pass
-            else:
-                for tag in tag_check:
-                    console.print(
-                        f"ATTENTION --> Tag: {tag} not on WordPress.", style="bold red"
-                    )
-                    console.print(
-                        "--> Copying missing tag to your system clipboard.",
-                        style="bold yellow",
-                    )
-                    console.print(
-                        "Paste it into the tags field as soon as possible...\n",
-                        style="bold yellow",
-                    )
-                    logging.warning(f"Missing tag detected: {tag}")
-                    pyclip.detect_clipboard()
-                    pyclip.copy(tag)
+            tag_ints = tag_checker_print(console, wp_posts_f, tag_prep)
+
             try:
                 model_delim = models.split(
                     spl_ch if (spl_ch := split_char(models)) != " " else "-1"
@@ -1341,35 +1624,12 @@ def video_upload_pilot(
             calling_models: list[int] = model_checker(wp_posts_f, model_prep)
 
             # NaiveBayes/MaxEnt classification for titles, descriptions, and tags
-            class_title = classify_title(title)
-            class_description = classify_description(description)
-            class_tags = classify_tags(tags)
-            class_title.union(class_description)
-            class_title.union(class_tags)
-            consolidate_categs = list(class_title)
-            logging.info(f"Suggested categories ML: {consolidate_categs}")
+            categ_ids = pick_classifier(console, wp_posts_f, title, description, tags)
 
-            console.print(
-                " \n** I think these categories are appropriate: **\n",
-                style="bold yellow",
-            )
-            for numb, categ in enumerate(consolidate_categs, start=1):
-                console.print(f"{numb}. {categ}", style="green")
+            program_action_style = ConsoleStyle.TEXT_STYLE_DEFAULT_BOLD.value
+            program_warning_style = ConsoleStyle.TEXT_STYLE_WARN.value
 
-            match console.input(
-                "[bold yellow]\nEnter the category number or type in to look for another category within the site: [bold yellow]\n"
-            ):
-                case _ as option:
-                    try:
-                        sel_categ = consolidate_categs[int(option) - 1]
-                        logging.info(f"User selected category: {sel_categ}")
-                    except (ValueError, IndexError):
-                        sel_categ = option
-                        logging.info(f"User typed in category: {option}")
-
-            categ_ids = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
-
-            console.print("\n--> Making payload...", style="bold green")
+            console.print("\n--> Making payload...", style=program_action_style)
             payload = make_payload(
                 wp_slug,
                 wp_auth.default_status,
@@ -1383,7 +1643,7 @@ def video_upload_pilot(
                 categs=categ_ids,
             )
             logging.info(f"Generated payload: {payload}")
-            console.print("--> Fetching thumbnail...", style="bold green")
+            console.print("--> Fetching thumbnail...", style=program_action_style)
 
             # Check whether ImageMagick conversion has been enabled in config.
             pic_format = (
@@ -1396,17 +1656,19 @@ def video_upload_pilot(
                 fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
                 console.print(
                     f"--> Stored thumbnail {thumbnail} in cache folder {os.path.relpath(thumbnails_dir.name)}",
-                    style="bold green",
+                    style=program_action_style,
                 )
                 console.print(
-                    "--> Uploading thumbnail to WordPress Media...", style="bold green"
+                    "--> Uploading thumbnail to WordPress Media...",
+                    style=program_action_style,
                 )
                 console.print(
-                    "--> Adding image attributes on WordPress...", style="bold green"
+                    "--> Adding image attributes on WordPress...",
+                    style=program_action_style,
                 )
                 img_attrs: dict[str, str] = make_img_payload(title, description)
                 upload_img: int = wordpress_api.upload_thumbnail(
-                    wp_base_url,
+                    wp_auth.api_base_url,
                     [wp_endpoints.media],
                     os.path.join(thumbnails_dir.name, thumbnail),
                     img_attrs,
@@ -1418,15 +1680,14 @@ def video_upload_pilot(
                 # More information in integrations.wordpress_api.upload_thumbnail docs
 
                 if upload_img == 500:
-                    logging.warning(
-                        "Defective thumbnail - Bot abandoned current flow."
-                    )
+                    logging.warning("Defective thumbnail - Bot abandoned current flow.")
                     console.print(
                         "It is possible that this thumbnail is defective. Check the Thumbnail manually.",
-                        style="bold red",
+                        style=program_warning_style,
                     )
                     console.print(
-                        "--> Proceeding to the next post...\n", style="bold green"
+                        "--> Proceeding to the next post...\n",
+                        style=program_action_style,
                     )
                     continue
                 elif upload_img == (200 or 201):
@@ -1437,16 +1698,19 @@ def video_upload_pilot(
 
                 console.print(
                     f"--> WordPress Media upload status code: {upload_img}",
-                    style="bold green",
+                    style=program_action_style,
                 )
-                console.print("--> Creating post on WordPress", style="bold green")
+                console.print(
+                    "--> Creating post on WordPress", style=program_action_style
+                )
 
                 push_post: int = wordpress_api.wp_post_create(
                     [wp_endpoints.posts], payload
                 )
                 logging.info(f"WordPress post push status: {push_post}")
                 console.print(
-                    f"--> WordPress status code: {push_post}", style="bold green"
+                    f"--> WordPress status code: {push_post}",
+                    style=program_action_style,
                 )
 
                 pyclip.detect_clipboard()
@@ -1454,95 +1718,9 @@ def video_upload_pilot(
                 pyclip.copy(title)
                 console.print(
                     "--> Check the post and paste all you need from your clipboard.",
-                    style="bold green",
+                    style=program_action_style,
                 )
-                if cs_config.x_posting_enabled or cs_config.telegram_posting_enabled:
-                    status_msg = "Checking WP status and preparing for social sharing."
-                    with console.status(
-                        f"[bold green]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/bold green]\n",
-                        spinner="earth",
-                    ):
-                        is_published = wp_publish_checker(wp_slug, cs_config)
-                    if is_published:
-                        logging.info(
-                            f"Post {wp_slug} has been published. Exceptions after this might be caused by social plugins."
-                        )
-                        if cs_config.x_posting_enabled:
-                            logging.info("X Posting - Enabled in workflows config")
-                            if cs_config.x_posting_auto:
-                                logging.info("X Posting Automatic detected in config")
-                                # Environment "LATEST_POST" variable assigned in wp_publish_checker()
-                                x_post_create = x_post_creator(
-                                    description, os.environ.get("LATEST_POST")
-                                )
-                            else:
-                                post_text = console.input(
-                                    "[bold yellow]Enter your additional X post text here or press enter to use default configs: [bold yellow]\n"
-                                )
-                                logging.info(
-                                    f"User entered custom post text: {post_text}"
-                                )
-                                x_post_create = x_post_creator(
-                                    description,
-                                    os.environ.get("LATEST_POST"),
-                                    post_text=post_text,
-                                )
-
-                                # Copy custom post text for the following prompt
-                                pyclip.detect_clipboard()
-                                pyclip.copy(post_text)
-
-                            if x_post_create == 201:
-                                console.print(
-                                    "--> Post has been published on WP and shared on X.\n",
-                                    style="bold yellow",
-                                )
-                            else:
-                                console.print(
-                                    f"--> There was an error while trying to share on X.\n Status: {x_post_create}",
-                                    style="bold red",
-                                )
-                            logging.info(f"X post status code: {x_post_create}")
-
-                        if cs_config.telegram_posting_enabled:
-                            logging.info(
-                                "Telegram Posting - Enabled in workflows config"
-                            )
-                            if cs_config.telegram_posting_auto:
-                                logging.info(
-                                    "Telegram Posting Automatic detected in config"
-                                )
-                                telegram_msg = telegram_send_message(
-                                    description,
-                                    os.environ.get("LATEST_POST"),
-                                    cs_config,
-                                )
-                            else:
-                                post_text = console.input(
-                                    "[bold yellow]Enter your additional Telegram message here or press enter to use default configs: [bold yellow]\n"
-                                )
-                                telegram_msg = telegram_send_message(
-                                    description,
-                                    os.environ.get("LATEST_POST"),
-                                    cs_config,
-                                    msg_text=post_text,
-                                )
-
-                            if telegram_msg == 200:
-                                console.print(
-                                    # Env variable assigned in botfather_telegram.send_message()
-                                    f"--> Message sent to Telegram {os.environ.get('T_CHAT_ID')}",
-                                    style="bold yellow",
-                                )
-                            else:
-                                console.print(
-                                    f"--> There was an error while trying to communicate with Telegram.\n Status: {telegram_msg}",
-                                    style="bold red",
-                                )
-                            logging.info(
-                                f"Telegram message status code: {telegram_msg}"
-                            )
-
+                social_sharing_controller(console, description, wp_slug, cs_config)
                 videos_uploaded += 1
             except (SSLError, ConnectionError) as e:
                 logging.warning(f"Caught exception {e!r} - Prompting user")
@@ -1550,14 +1728,18 @@ def video_upload_pilot(
                 pyclip.clear()
                 console.print(
                     "* There was a connection error while processing this post. Check the logs for more details...*",
-                    style="bold red",
+                    style=program_warning_style,
+                )
+
+                is_published = (
+                    True if wp_slug == os.environ.get("LATEST_POST") else False
                 )
                 console.print(
                     f"Post {wp_slug} was {'' if is_published else 'NOT'} published!",
-                    style="bold red",
+                    style=program_warning_style,
                 )
                 if console.input(
-                    "\n[bold green] Do you want to continue? Y/ENTER to exit: [bold green]"
+                    f"\n[{prompt_style}] Do you want to continue? Y/ENTER to exit: [{prompt_style}]"
                 ) == ("y" or "yes"):
                     logging.info(f"User accepted to continue after catching {e!r}")
 
@@ -1571,46 +1753,34 @@ def video_upload_pilot(
                     if is_published:
                         videos_uploaded += 1
 
-                    console.print(
-                        f"You have created {videos_uploaded} posts in this session!",
-                        style="bold yellow",
-                    )
                     thumbnails_dir.cleanup()
                     time_end = time.time()
                     h, mins, secs = helpers.get_duration(time_end - time_start)
-                    logging.info(
-                        f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                    terminate_loop_logging(
+                        console,
+                        num,
+                        total_elems,
+                        videos_uploaded,
+                        (h, mins, secs),
+                        exhausted=False,
                     )
-                    logging.info(
-                        "Cleaning clipboard and temporary directories. Quitting..."
-                    )
-                    logging.shutdown()
-                    break
             if num < total_elems - 1:
                 next_post = console.input(
-                    "[bold cyan]\nNext post? -> N/ENTER to review next post: [/bold cyan]\n"
+                    f"[{prompt_style}]\nNext post? -> N/ENTER to review next post: [/{prompt_style}]\n"
                 ).lower()
                 if next_post == ("n" or "no"):
                     logging.info("User declined further activity with the bot")
-                    # The terminating parts add this function to avoid
-                    # tracebacks from pyclip and enable cross-platform support.
-                    pyclip.detect_clipboard()
-                    pyclip.clear()
-                    console.print(
-                        f"You have created {videos_uploaded} posts in this session!",
-                        style="bold yellow",
-                    )
                     thumbnails_dir.cleanup()
                     time_end = time.time()
                     h, mins, secs = get_duration(time_end - time_start)
-                    logging.info(
-                        f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                    terminate_loop_logging(
+                        console,
+                        num,
+                        total_elems,
+                        videos_uploaded,
+                        (h, mins, secs),
+                        exhausted=False,
                     )
-                    logging.info(
-                        "Cleaning clipboard and temporary directories. Quitting..."
-                    )
-                    logging.shutdown()
-                    break
                 else:
                     logging.info(
                         "User accepted to continue after successful post creation."
@@ -1618,75 +1788,31 @@ def video_upload_pilot(
                     pyclip.detect_clipboard()
                     pyclip.clear()
             else:
-                logging.info(
-                    f"List exhausted. State: num={num} total_elems={total_elems}"
-                )
-                console.print(
-                    "\nWe have reviewed all posts for this query.", style="bold red"
-                )
-                console.print(
-                    "Try a different query and run me again.", style="bold red"
-                )
-                thumbnails_dir.cleanup()
-                console.print(
-                    f"You have created {videos_uploaded} posts in this session!",
-                    style="bold yellow",
-                )
                 time_end = time.time()
                 h, mins, secs = get_duration(time_end - time_start)
-                logging.info(
-                    f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+                terminate_loop_logging(
+                    console,
+                    num,
+                    total_elems,
+                    videos_uploaded,
+                    (h, mins, secs),
+                    exhausted=True,
                 )
-                logging.info(
-                    "Cleaning clipboard and temporary directories. Quitting..."
-                )
-                logging.shutdown()
-        else:
-            logging.info(f"List exhausted. State: num={num} total_elems={total_elems}")
-            pyclip.detect_clipboard()
-            pyclip.clear()
-            console.print(
-                "\nWe have reviewed all posts for this query.", style="bold red"
-            )
-            console.print(
-                "Try a different SQL query or partner. I am ready when you are. ",
-                style="bold red",
-            )
-            console.print(
-                f"You have created {videos_uploaded} posts in this session!",
-                style="bold yellow",
-            )
+
             thumbnails_dir.cleanup()
             time_end = time.time()
             h, mins, secs = get_duration(time_end - time_start)
-            logging.info(
-                f"User created {videos_uploaded} posts in hours: {h} mins: {mins} secs: {secs}"
+            terminate_loop_logging(
+                console,
+                num,
+                total_elems,
+                videos_uploaded,
+                (h, mins, secs),
+                exhausted=True,
             )
-            logging.info("Cleaning clipboard and temporary directories. Quitting...")
-            logging.shutdown()
-            break
 
 
-def main(**kwargs):
-    try:
-        if os.name == "posix":
-            import readline
-
-        video_upload_pilot(**kwargs)
-    except KeyboardInterrupt:
-        logging.critical("KeyboardInterrupt exception detected")
-        logging.info("Cleaning clipboard and temporary directories. Quitting...")
-        print("Goodbye! ಠ‿↼")
-        pyclip.detect_clipboard()
-        pyclip.clear()
-        # When quit is called, temp dirs will be automatically cleaned.
-        logging.shutdown()
-        quit()
-
-
-if __name__ == "__main__":
-    warnings.filterwarnings("ignore", category=RuntimeWarning)
-
+def bot_cli_args() -> Namespace:
     arg_parser = argparse.ArgumentParser(
         description="Content Select Assistant - Behaviour Tweaks"
     )
@@ -1703,6 +1829,25 @@ if __name__ == "__main__":
                                         you may not want to enable it because this is treated as a package.""",
     )
 
-    args_cli = arg_parser.parse_args()
+    return arg_parser.parse_args()
 
-    main(parent=args_cli.parent)
+
+def main():
+    try:
+        if os.name == "posix":
+            import readline
+        cli_args = bot_cli_args()
+        video_upload_pilot(parent=cli_args.parent)
+    except KeyboardInterrupt:
+        logging.critical("KeyboardInterrupt exception detected")
+        logging.info("Cleaning clipboard and temporary directories. Quitting...")
+        print("Goodbye! ಠ‿↼")
+        pyclip.detect_clipboard()
+        pyclip.clear()
+        # When ``exit`` is called, temp dirs will be automatically cleaned.
+        logging.shutdown()
+        exit(0)
+
+
+if __name__ == "__main__":
+    main()

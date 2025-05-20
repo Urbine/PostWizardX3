@@ -165,6 +165,11 @@ cython_debug/
 .thumbnails/*
 .tmp/*
 
+#Eclipse PyDev
+.project
+.settings
+.pydevproject
+
 # Individual files
 !requirements.txt
 *.txt

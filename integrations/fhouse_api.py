@@ -273,7 +273,7 @@ def fhouse_parse(
                     or re.match("likes?", column.strip("#"), flags=re.IGNORECASE)
                     or re.match("duration", column.strip("#"), flags=re.IGNORECASE)
                 )
-                else column.strip('#')
+                else column.strip("#")
             )
             if total_entries == 0:
                 pre_schema = ",".join(
