@@ -1,6 +1,20 @@
 """
-Clean outdated files based on the named convention <filename>-<date-in-ISO-format>
-Accepts CLI arguments to fine-tune its cleaning behaviour and scope.
+File Cleanup Utility
+
+This module provides functionality to clean outdated files based on a standardized
+naming convention: <filename>-<date-in-ISO-format>. It helps maintain storage efficiency
+by automatically identifying and removing old files that match specific patterns.
+
+Key features:
+1. Date-based file identification and cleanup
+2. Configurable through command-line arguments
+3. Support for multiple file hints/patterns
+4. Optional silent mode for automated workflows
+5. Invertible cleaning logic to target today's files instead of older ones
+
+The module works with files that follow a consistent naming pattern where the date
+is embedded in ISO format. It provides a command-line interface that allows customization
+of the cleaning behaviour, including target folder, file extensions, and matching patterns.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net

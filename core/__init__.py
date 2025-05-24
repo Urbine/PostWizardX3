@@ -40,6 +40,8 @@ from core.custom_exceptions import (
     BraveAPIInvalidCountryCode,
     BraveAPIInvalidLanguageCode,
     MissingCacheError,
+    ClientInfoSecretsNotFound,
+    InvalidSQLConfig,
 )
 
 
@@ -92,6 +94,9 @@ __all__ = [
     "BraveAPIInvalidCountryCode",
     "BraveAPIInvalidLanguageCode",
     "MissingCacheError",
+    "ClientInfoSecretsNotFound",
+    "UnableToConnectError",
+    "InvalidSQLConfig",
     "access_url",
     "access_url_bs4",
     "clean_console",

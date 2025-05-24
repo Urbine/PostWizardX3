@@ -1,21 +1,28 @@
 """
-Model training module.
+Machine Learning Model Training Module
 
-The present program trains 9 machine learning models based on information
-cached by the ``integrations.wordpress_api`` in the general site posts information ``JSON`` file:
+This module trains a set of machine learning models to classify WordPress content based on
+cached posts data. It generates three types of classifiers, each trained on different content features:
 
-1. NaiveBayesClassifier from the Natural Language Toolkit ``NLTK`` library
-2. MaxentClassifier (Maximum Entropy modeling) from ``NLTK``
-3. NLTK Wrapper of ``SciKit-learn`` Multinomial NaiveBayes for ``NLTK`` features
+1. NLTK NaiveBayesClassifier - For statistical classification using Bayes' theorem
+2. NLTK MaxentClassifier - Maximum Entropy modeling for distribution-based classification
+3. NLTK SklearnClassifier (MultinomialNB) - SciKit-learn integration with NLTK feature formatting
 
-Such models will be used by the main workflows to classify and predict content based
-on the current classification information available on the website.
-As default content classifiers, `categories` need to be predicted in order to streamline
-the content upload processes and allow less experienced team members to accurately obtain guidance
-as to how to classify a post.
+Each classifier type is trained on three different content features:
+- Post titles
+- Post descriptions
+- Post tags
 
-Running this file will initiate model training and data preparation tasks with the current
-copy of the WordPress cache file in your local storage.
+The resulting nine models are saved as compressed joblib files for later use in content
+classification workflows. These models help predict appropriate content categories,
+streamlining the publishing process and helping less experienced team members.
+
+Running this module directly will:
+1. Load cached WordPress posts data
+2. Process and clean the text features
+3. Create feature sets for each content type
+4. Train all nine classifier models
+5. Save the models to the ml_engine.ml_models package/directory.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -43,11 +50,20 @@ ML_ENGINE_PKG = "ml_engine.ml_models"
 
 
 def clean_descriptions(desc_lst: list[str]):
+    """Cleans a list of strings by extracting and returning the substring before a
+    specified delimiter ('-') when present.
+
+    :param desc_lst: ``list[str]`` A list of descriptions where each string follows
+                        a '<title> - <description>' pattern.
+    :return: ``list[str]`` A list of cleaned descriptions where the substring prior to the
+                delimiter has been extracted, or the original string if the delimiter
+                is not found.
+    """
     descriptions = desc_lst
     clean_desc = []
     for description in descriptions:
         # Descriptions has a <title> - <description> format.
-        re_split_char = re.compile(r"\W+")
+        re_split_char = re.compile(r"[^a-z]+", re.IGNORECASE)
         find_re = re.findall(re_split_char, description)
         try:
             clean = description.split(find_re[find_re.index("-")])[0].strip()
@@ -58,6 +74,13 @@ def clean_descriptions(desc_lst: list[str]):
 
 
 def clean_titles(titles: list[str]):
+    """Cleans a list of strings by extracting and returning titles before any dash
+    delimiter when present.
+
+    :param titles: ``list[str]`` A list of titles that may contain dash delimiters
+    :return: ``list[str]`` A list of cleaned titles where content after dash delimiters
+                has been removed, or the original string if no delimiter is found.
+    """
     clean_title = []
     for t in titles:
         dash_out = t.split("-")

@@ -1,17 +1,35 @@
 """
-TXT Dump parser module
+TXT Dump Parser Module
 
-This module parses a specific type of .txt file called `dump`.
-Those files contain important video metadata that will be inserted into a database for processing and structure.
+This module provides functionality for parsing specialized .txt dump files containing video metadata.
+These dump files follow a specific format with fields separated by '|' characters and include
+information such as
+- Video titles and descriptions
+- Model/performer information
+- Tags and categories
+- Site names and publishing dates
+- Source URLs and tracking information
+- Thumbnail URLs
+
+The parsed data is inserted into SQLite databases for structured storage and further processing
+by other components of the system. This module serves as the foundation for the video content
+management pipeline used across the project.
+
+The primary function, parse_txt_dump_chain(), handles the complete parsing workflow:
+1. Locating and opening dump file
+2. Processing each line to extract structured metadata
+3. Validating and cleaning the extracted data
+4. Constructing slugs for web publishing
+5. Inserting records into the database
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+import logging
 import os
 import re
 import sqlite3
@@ -49,8 +67,8 @@ def parse_txt_dump_chain(
 
     total_entries = 0
     with open(path, "r", encoding="utf-8") as dump_file:
-        for line in dump_file.readlines():
-            try:
+        try:
+            for line in dump_file.readlines():
                 dump_line = line.split("|")
 
                 # I am not interested in videos that don't point to a source URL.
@@ -116,15 +134,18 @@ def parse_txt_dump_chain(
                     "INSERT INTO videos VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     all_values,
                 )
-                d_conn.commit()
 
                 total_entries += 1
-            except IndexError:
-                # This is a pattern.
-                # When it reaches the end and there is no more data, Python
-                # throws an IndexError in this function.
-                d_cur.close()
-                d_conn.close()
-                break
+
+            d_conn.commit()
+
+        except IndexError as ierr:
+            # This seems to be a pattern.
+            # When it reaches the end and there is no more data, Python
+            # throws an IndexError in this function.
+            logging.warn(f"Error or end of transaction stream: {ierr!r} at {__file__}.")
+        finally:
+            d_cur.close()
+            d_conn.close()
 
         return f"{os.path.abspath(d_name)}", total_entries
