@@ -12,6 +12,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import os
+from pathlib import Path
 
 from requests import Response
 
@@ -232,3 +233,31 @@ class MissingCacheError(Exception):
         super().__init__(
             f"{self.message}\n{self.help} Run (in project root): python3 -m integrations.wordpress_api --posts --yoast"
         )
+
+
+class ClientInfoSecretsNotFound(Exception):
+    """
+    Appear when the main secrets file is missing or its secrets are invalid and cannot be parsed by
+    the Configuration Manager module.
+    """
+
+    def __init__(self, path: str | Path):
+        self.path = f"Client info secrets not found at `{path}`\n"
+        self.reason = "Make sure you have the client_info.ini file in your config directory and all its entries populated.\n"
+        self.advise = "Tip: If you are just using a subset of secrets in your use case, you can add dummy values."
+        super().__init__(self.path + self.reason + self.advise)
+
+
+class InvalidSQLConfig(Exception):
+    """
+    Exception raised for invalid SQL configuration.
+    This exception is used to indicate when an invalid SQL query configuration
+    is detected for a specific partner.
+    """
+
+    def __init__(self, partner: str = ""):
+        self.message = (
+            f"Invalid SQL Query found in configuration for partner {partner}.\n"
+        )
+        self.help = "Make sure you have the correct SQL query for the partner you plan to work with in this session."
+        super().__init__(f"{self.message} {self.help}")
