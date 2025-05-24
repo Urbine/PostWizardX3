@@ -1,7 +1,16 @@
 #!/bin/sh
 
+set -euo pipefail
+
 # Go to ``docs`` to find the /source directory
-cd ~/GitHub/webmaster-seo-tools/docs
+
+targetdir="$1"
+if [ "$targetdir" != "" ]; then
+  cd "$targetdir"
+else
+  echo "Please provide the directory containing the 'source' directory as an argument for this script."
+  exit
+fi
 
 # Fetch docs from project docstrings
 sphinx-apidoc -o ./source ..
