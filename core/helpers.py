@@ -1,12 +1,25 @@
 """
-This module stores the helper functions that collaborate with other local implementations.
+Utility Helper Functions Collection
 
-The file also adds bits of reusable business logic from other modules.
-Helpers must have a reusable implementation of commonly-used code.
+This module provides reusable utility functions that support various operations across the project.
+It contains implementations for common tasks including:
+
+- URL access and web scraping (access_url, access_url_bs4)
+- File handling and manipulation (clean_filename, load_from_file, write_to_file)
+- Data processing and conversion (parse_date_to_iso, export_to_csv, lst_dict_to_csv)
+- Authentication and security (get_token_oauth, sha256_hash_generate, str_encode_b64)
+- Database operations (fetch_data_sql, get_from_db, get_project_db)
+- Web automation (get_webdriver)
+- Path and filename management (filename_creation_helper, search_files_by_ext)
+- Data matching and filtering (match_list_single, match_list_mult, match_list_elem_date)
+- Configuration handling (parse_client_config, write_config_file)
+- System utilities (clean_console, get_duration, generate_random_str)
+
+Each function is designed to be reusable across different modules and workflows in the project,
+promoting code consistency and reducing duplication.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
@@ -933,7 +946,7 @@ def split_char(
     :return: ``str`` | ``list[str]``
     """
     try:
-        chars = re.findall(r"\W+", spl_str)
+        chars = re.findall(r"[^a-z]", spl_str, re.IGNORECASE)
     except TypeError:
         return placeholder
 
