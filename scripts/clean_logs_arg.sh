@@ -1,14 +1,5 @@
 #!/bin/sh
-
-# Checks whether this script is running in the project's scripts dir.
-curr_dir=$(pwd | grep -c scripts)
-if [ "$curr_dir" = 1 ];then
-   # Go to parent dir
-   cd ..
-else
-  :
-fi
-
+set -euo pipefail
 # Cleans outdated files with list of space-separated hints.
 # Optional parameter --invert passed in as argument to clean today's logs.
 python3 -m tasks.clean_outdated_files --folder './logs' --ext '.log' --hints log "$1"

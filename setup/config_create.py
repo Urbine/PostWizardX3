@@ -1,7 +1,34 @@
 """
-Configuration template generation for ``webmaster_seo_tools``
-Generates ``client_info.ini`` , ``tasks_conf.ini`` and ``workflows_config``
-and creates the ``config`` folder in package ``core``.
+Configuration Generator for WebMaster SEO Tools
+
+This module generates the initial configuration templates required for the webmaster_seo_tools package.
+It creates the following configuration files in the core/config directory:
+
+1. `client_info.ini` - Stores authentication credentials and API endpoints for various services:
+   - WordPress admin access and API configuration
+   - MongerCash authentication
+   - Yandex API credentials
+   - X (Twitter) API credentials
+   - Telegram bot configuration
+
+2. `tasks_conf.ini` - Contains settings for specific task operations:
+   - MongerCash dump and set URLs
+   - Campaign IDs for various services
+   - Feed source configurations
+
+3. `workflows_config.ini` - Defines workflow behavior and preferences:
+   - Image processing settings (format, quality, attributes)
+   - Content selection parameters and SQL queries
+   - Gallery selection configuration
+   - Embed assistance settings
+   - Social media integration options
+
+When executed as a script, this module creates the config directory structure
+and populates it with template files that can be customized for your specific
+implementation requirements.
+
+Usage:
+    python3 config_create.py
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net

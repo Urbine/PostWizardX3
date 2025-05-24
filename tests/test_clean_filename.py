@@ -1,3 +1,23 @@
+"""
+Test Suite for core.clean_filename Function
+
+This module contains test cases for the clean_filename function, which handles
+file naming conventions and extension management. The test suite verifies various
+edge cases and expected behaviors for filename formatting:
+
+1. Preserving existing properly formatted filenames
+2. Adding extensions to filenames without them
+3. Handling dot prefixes in extensions
+4. Working with package-style naming conventions
+5. Ensuring consistent extension format regardless of input style
+
+These tests ensure the function correctly maintains or appends file extensions
+based on the provided parameters.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
 import unittest
 
 # Local implementation to be tested

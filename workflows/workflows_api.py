@@ -1,19 +1,49 @@
 """
-content_select is the biggest out of three bots that streamline the content upload and
-integration of content in my WordPress site.
+Workflows API Module
 
-It is able to identify the data sources dynamically and serve as an assistant powered
-by several local integrations, being one of those the ``integrations.wordpress_api`` implementation.
+This module consolidates reusable functionality from content selection, embedding assistance,
+and gallery selection workflows. It provides a unified interface for accessing common operations
+across these workflows.
+
+The module contains a collection of utility functions that handle various aspects of the workflow
+processes, including:
+
+1. Data Processing:
+   - Parsing assets and content from various sources
+   - Filtering published content
+   - Identifying missing elements
+   - Processing thumbnails and media files
+
+2. Payload Generation:
+   - Creating structured payloads for WordPress
+   - Building specialized payloads for images and galleries
+   - Handling metadata and attributes
+
+3. Content Management:
+   - Generating slugs for URLs
+   - File synchronization
+   - Tag and model management
+   - Database querying and filtering
+
+4. Workflow Coordination:
+   - Console-based user interaction
+   - Session management and logging
+   - Classification and tag filtering
+   - Social media integration
+
+This API serves as the backbone for the three main workflow assistants in the project:
+- Content Selection (mcash_assistant.py)
+- Embedding Assistance (embed_assistant.py)
+- Gallery Selection (gallery_select.py)
+- Data Source Update (update_manager.py) (Logging logic only)
+
+By centralizing these functions, the module promotes code reuse and consistency
+across the different workflow implementations.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
-__author__ = "Yoham Gabriel Urbine@GitHub"
-__author_email__ = "yohamg@programmer.net"
-
-import argparse
 import datetime
 import logging
 import os
@@ -21,21 +51,25 @@ import random
 import re
 import tempfile
 import time
+import shutil
 import sqlite3
-from argparse import Namespace
-from csv import excel_tab
+import zipfile
 
+from dataclasses import dataclass, fields
 from enum import Enum
-from sqlite3 import Connection, Cursor
-from typing import Optional
+from sqlite3 import Connection, Cursor, OperationalError
+from typing import TypeVar, Any, Generic, Optional
+from re import Pattern
 
 # Third-party modules
 import pyclip
 import requests
 import rich.console
 import urllib3.exceptions
-from requests.exceptions import SSLError, ConnectionError
 from rich.console import Console
+from selenium import webdriver  # Imported for type annotations
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 
 
 # Local implementations
@@ -45,6 +79,7 @@ from core import (
     HotFileSyncIntegrityError,
     AssetsNotFoundError,
     UnavailableLoggingDirectory,
+    InvalidSQLConfig,
     get_duration,
     generate_random_str,
     parse_client_config,
@@ -56,6 +91,9 @@ from core import (
     bot_father,
     split_char,
     UnableToConnectError,
+    InvalidDB,
+    monger_cash_auth,
+    gallery_select_conf,
 )
 
 from integrations import (
@@ -75,17 +113,331 @@ from core.config_mgr import (
     GallerySelectConf,
     EmbedAssistConf,
     UpdateMCash,
+    MongerCashAuth,
 )
+
+
+T = TypeVar("T")
+
+
+class EmbedsMultiSchema(Generic[T]):
+    """
+    Complementary class dealing with dynamic SQL schema reading for content databases.
+
+    EmbedsMultiSchema provides an interface to the main control flow of the bot that allows
+    for direct index probing based on the present schema. This improvement will make it easier
+    for the user to implement further functionality and behaviour based on specific fields.
+    """
+
+    @dataclass(frozen=True)
+    class SchemaRegEx:
+        """
+        Immutable dataclass containing compiled RegEx patterns for class methods.
+        """
+
+        pat_slug: Pattern[str] = re.compile(r"slug", re.IGNORECASE)
+        pat_embed: Pattern[str] = re.compile(r"embeds?", re.IGNORECASE)
+        pat_thumbnail: Pattern[str] = re.compile(r"thumb(nail)?", re.IGNORECASE)
+        pat_categories: Pattern[str] = re.compile(r"categor(ies)?", re.IGNORECASE)
+        pat_rating: Pattern[str] = re.compile(r"ratings?", re.IGNORECASE)
+        pat_title: Pattern[str] = re.compile(r"title", re.IGNORECASE)
+        pat_link: Pattern[str] = re.compile(r"links?", re.IGNORECASE)
+        pat_date: Pattern[str] = re.compile(r"date", re.IGNORECASE)
+        pat_id: Pattern[str] = re.compile(r"id", re.IGNORECASE)
+        pat_duration: Pattern[str] = re.compile(r"duration", re.IGNORECASE)
+        pat_prnstars: Pattern[str] = re.compile(r"pornstars?", re.IGNORECASE)
+        pat_models: Pattern[str] = re.compile(r"models?", re.IGNORECASE)
+        pat_resolution: Pattern[str] = re.compile("resolution", re.IGNORECASE)
+        pat_tags: Pattern[str] = re.compile(r"tags?", re.IGNORECASE)
+        pat_likes: Pattern[str] = re.compile(r"likes?", re.IGNORECASE)
+        pat_url: Pattern[str] = re.compile(r"urls?", re.IGNORECASE)
+        pat_description: Pattern[str] = re.compile(r"description", re.IGNORECASE)
+        pat_studio: Pattern[str] = re.compile(r"studios?", re.IGNORECASE)
+        pat_trailer: Pattern[str] = re.compile(r"trailers?", re.IGNORECASE)
+        pat_orientation: Pattern[str] = re.compile(r"orientation", re.IGNORECASE)
+
+        def __iter__(self):
+            for field in fields(self):
+                yield getattr(self, field.name)
+
+    @staticmethod
+    def get_schema(db_cur: sqlite3) -> tuple[str, list[tuple[int, str]]]:
+        """
+        Get a tuple with the table and its field names.
+
+        :param db_cur: ``sqlite3`` - Active database cursor
+        :return: tuple('tablename', [(indx, 'fieldname'), ...])
+        """
+        query = "SELECT sql FROM sqlite_master"
+        try:
+            schema: list[tuple[int | str, ...]] = helpers.fetch_data_sql(query, db_cur)
+            fst_table, *others = schema
+
+            if others:
+                logging.warning(
+                    "Detected db with more than one table, fetching the first one by default."
+                )
+
+            table_name: str = fst_table[0].split(" ")[2].split("(")[0]
+            query: str = "PRAGMA table_info({})".format(table_name)
+            schema = helpers.fetch_data_sql(query, db_cur)
+            fields_ord = list(map(lambda lstpl: lstpl[0:2], schema))
+
+            return table_name, fields_ord
+
+        except OperationalError:
+            logging.critical(
+                "db file was not found. Raising InvalidDB exception and quitting..."
+            )
+            raise InvalidDB
+
+    def __init__(self, db_cur: sqlite3):
+        """Initialisation logic for ``EmbedsMultiSchema`` instances.
+            Supports data field handling that can carry out error handling without
+            explicit logic in the main control flow or functionality using this class.
+        :param db_cur: Active database cursor
+        """
+        schema = EmbedsMultiSchema.get_schema(db_cur)
+        self.table_name: str = schema[0]
+        self.__fields_indx = schema[1]
+        self.__fields: list[Any] = list(map(lambda tpl: tpl[1], self.__fields_indx))
+        self.field_count: int = len(self.__fields)
+        self.__data: Optional[T] = None
+
+    def load_data_instance(self, data_instance: T) -> None:
+        """
+        Setter for the private field ``data_instance``.
+        :param data_instance: ``T`` - Generic type that ideally can handle __getitem__
+        :return: ``None``
+        """
+        self.__data = data_instance
+        return None
+
+    def get_data_instance(self) -> Optional[T]:
+        """Retrieve a copy of the data stored in the private field ``self.__data``
+
+        :return: ``T`` | None - Generic Type
+        """
+        return self.__data
+
+    def get_fields(self, keep_indx: bool = False) -> list[tuple[int, str]] | list[str]:
+        """Get the actual database field names or a data structure (tuple) including
+            its indexes.
+
+        :param keep_indx: ``bool`` - Flag that, activated, retrieves indexes and column names in a tuple.
+        :return:
+        """
+        if keep_indx:
+            return self.__fields_indx
+        else:
+            return self.__fields
+
+    def __safe_retrieve(self, re_pattern: Pattern[str]) -> Optional[T]:
+        """Getter for the private fields ``self.__fields`` and ``self.__data``.
+            Typically used in iterations where data access could result in exceptions that could
+            cause undesired crashes.
+
+        :param re_pattern: ``Pattern[str]`` - Regular Expression pattern (from local dataclass ``SchemaRegEx``)
+        :return: ``T`` | None - Generic type object
+        """
+        match = helpers.match_list_single(re_pattern, self.__fields)
+        if self.__data:
+            try:
+                return self.__data[match]
+            except (IndexError, TypeError):
+                return None
+        else:
+            return match
+
+    def get_slug(self) -> Optional[str | int]:
+        """Slug getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``slug`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_slug
+        return self.__safe_retrieve(re_pattern)
+
+    def get_embed(self) -> Optional[str | int]:
+        """Embed getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``embed`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_embed
+        return self.__safe_retrieve(re_pattern)
+
+    def get_thumbnail(self) -> Optional[str | int]:
+        """Thumbnail getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``thumbnail`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_thumbnail
+        return self.__safe_retrieve(re_pattern)
+
+    def get_categories(self) -> Optional[str | int]:
+        """Categories getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``categories`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_categories
+        return self.__safe_retrieve(re_pattern)
+
+    def get_rating(self) -> Optional[str | int]:
+        """Rating getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``rating`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_rating
+        return self.__safe_retrieve(re_pattern)
+
+    def get_title(self) -> Optional[str | int]:
+        """Title getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``title`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_title
+        return self.__safe_retrieve(re_pattern)
+
+    def get_link(self) -> Optional[str | int]:
+        """Link getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``link`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_link
+        return self.__safe_retrieve(re_pattern)
+
+    def get_date(self) -> Optional[str | int]:
+        """Date getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``date`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_date
+        return self.__safe_retrieve(re_pattern)
+
+    def get_id(self) -> Optional[str | int]:
+        """ID getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``id`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_id
+        return self.__safe_retrieve(re_pattern)
+
+    def get_duration(self) -> Optional[str | int]:
+        """Duration getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``Duration`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_duration
+        return self.__safe_retrieve(re_pattern)
+
+    def get_pornstars(self) -> Optional[str | int]:
+        """Pornstars getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``pornstars`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_prnstars
+        return self.__safe_retrieve(re_pattern)
+
+    def get_models(self) -> Optional[str | int]:
+        """Models getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``models`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_models
+        return self.__safe_retrieve(re_pattern)
+
+    def get_resolution(self) -> Optional[str | int]:
+        """Resolution getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``resolution`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_resolution
+        return self.__safe_retrieve(re_pattern)
+
+    def get_tags(self) -> Optional[str | int]:
+        """Tags getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``tags`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_tags
+        return self.__safe_retrieve(re_pattern)
+
+    def get_likes(self) -> Optional[str | int]:
+        """Likes getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``likes`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_likes
+        return self.__safe_retrieve(re_pattern)
+
+    def get_url(self) -> Optional[str | int]:
+        """URL getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``url`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_url
+        return self.__safe_retrieve(re_pattern)
+
+    def get_description(self) -> Optional[str | int]:
+        """Description getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``description`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_description
+        return self.__safe_retrieve(re_pattern)
+
+    def get_studio(self) -> Optional[str | int]:
+        """Studio getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``studio`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_studio
+        return self.__safe_retrieve(re_pattern)
+
+    def get_trailer(self) -> Optional[str | int]:
+        """Trailer getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``trailer`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_trailer
+        return self.__safe_retrieve(re_pattern)
+
+    def get_orientation(self) -> Optional[str | int]:
+        """Orientation getter/reader from the matched fields in the data structure in an instance of
+            ``EmbedsMultiSchema``
+
+        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``orientation`` index.
+        """
+        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_orientation
+        return self.__safe_retrieve(re_pattern)
 
 
 class ConsoleStyle(Enum):
     """
-    Store constants for color styles used with console objects from the Rich library.
+    Store constants for color styles used with console objects from the ``Rich`` library.
     """
 
     TEXT_STYLE_ATTENTION = "bold yellow"
     TEXT_STYLE_DEFAULT = "green"
-    TEXT_STYLE_DEFAULT_BOLD = "bold green"
+    TEXT_STYLE_ACTION = "bold green"
     TEXT_STYLE_PROMPT = "bold cyan"
     TEXT_STYLE_SPECIAL_PROMPT = "bold magenta"
     TEXT_STYLE_WARN = "bold red"
@@ -227,9 +579,9 @@ def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
         return False
 
 
-def published_json(title: str, wp_posts_f: list[dict[str, ...]]) -> bool:
+def published_json(title: str, wp_posts_f: list[dict]) -> bool:
     """This function leverages the power of a local implementation that specialises
-    in getting, manipulating, and filtering WordPress API post information in JSON format.
+    in getting, manipulating and filtering WordPress API post information in JSON format.
     After getting the posts from the local cache, the function filters each element using
     the ``re`` module to find matches to the title passed in as a parameter. After all that work,
     the function returns a boolean; True if the title was found and that just suggests
@@ -783,7 +1135,7 @@ def content_select_db_match(
     prompt_db: bool = False,
     parent: bool = False,
 ) -> tuple[Connection, Cursor, str, int]:
-    """Give a list of databases, match them with multiple hints and retrieves the most up-to-date filename.
+    """Give a list of databases, match them with multiple hints, and retrieves the most up-to-date filename.
     This is a specialised implementation based on the ``filename_select`` function in the ``core.helpers`` module.
 
     ``content_select_db_match`` finds a common index where the correct partner offer and database are located
@@ -1058,9 +1410,18 @@ def social_sharing_controller(
     wp_slug: str,
     cs_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
 ) -> None:
+    """Share WordPress posts to social media platforms based on the settings in the workflow config.
+    It is able to identify whether X or Telegram workflows have been enabled and post content accordingly.
+
+    :param console_obj: ``rich.console.Console`` Console object used to provide user feedback
+    :param description: ``str`` description/caption that will be shared
+    :param wp_slug: ``str`` WordPress slug used to identify the published post
+    :param cs_config: ``ContentSelectConf`` | ``GallerySelectConf`` | ``EmbedAssistConf`` workflow config object
+    :return: ``None``
+    """
     if cs_config.x_posting_enabled or cs_config.telegram_posting_enabled:
         status_msg = "Checking WP status and preparing for social sharing."
-        status_style = ConsoleStyle.TEXT_STYLE_DEFAULT_BOLD.value
+        status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         user_input = ConsoleStyle.TEXT_STYLE_ATTENTION.value
         with console_obj.status(
             f"[{status_style}]{status_msg} [blink]ε= ᕕ(⎚‿⎚)ᕗ[blink] [/{status_style}]\n",
@@ -1191,18 +1552,20 @@ def terminate_loop_logging(
     console_obj: rich.console.Console,
     iter_num: int,
     total_elems: int,
-    video_count: int,
+    done_count: int,
     time_elapsed: tuple[int | float, int | float, int | float],
     exhausted: bool,
+    sets: bool = False,
 ) -> None:
     """Terminate the sequence of the loop by logging messages to the screen and the logs.
 
     :param time_elapsed: ``tuple[int, int, int]`` | Time measurement variables that report elapsed execution time for logging.
     :param console_obj: ``rich.console.Console``  | Console object used in order to log information to the console.
-    :param iter_num: ``int``       | Iteration number in main loop for logging purposes
-    :param total_elems: ``int``    | Total elements that the main loop had to process
-    :param video_count: ``int``    | Total of video elements that were pushed to the WordPress site.
-    :param exhausted: ``bool``     | Flag that controls console logging depending on whether elements are exhausted.
+    :param iter_num: ``int``    | Iteration number in main loop for logging purposes
+    :param total_elems: ``int`` | Total elements that the main loop had to process
+    :param done_count: ``int``  | Total of video elements that were pushed to the WordPress site.
+    :param exhausted: ``bool``  | Flag that controls console logging depending on whether elements are exhausted.
+    :param sets: ``bool``       | Flag that controls console logging depending on whether elements are sets.
     :return: ``None``
     """
     # The terminating parts add this function to avoid
@@ -1219,14 +1582,19 @@ def terminate_loop_logging(
             "Try a different SQL query or partner. I am ready when you are. ",
             style=ConsoleStyle.TEXT_STYLE_WARN.value,
         )
-
-    console_obj.print(
-        f"You have created {video_count} posts in this session!",
-        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-    )
+    elif not sets:
+        console_obj.print(
+            f"You have created {done_count} posts in this session!",
+            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+        )
+    else:
+        console_obj.print(
+            f"You have created {done_count} sets in this session!",
+            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+        )
     h, mins, secs = time_elapsed
     logging.info(
-        f"User created {video_count} posts in hours: {h} mins: {mins} secs: {secs}"
+        f"User created {done_count} {'posts' if not sets else 'sets'} in hours: {h} mins: {mins} secs: {secs}"
     )
     logging.info("Cleaning clipboard and temporary directories. Quitting...")
     logging.shutdown()
@@ -1238,6 +1606,20 @@ def pilot_warm_up(
     wp_auth: WPAuth,
     parent: bool = False,
 ):
+    """
+    Performs initialization operations for processing content selection, database operations,
+    and WordPress post-handling with the provided configuration and authentication.
+
+    :param cs_config: ``ContentSelectConf | GallerySelectConf | EmbedAssistConf`` Configuration
+                     object specifying details for content selection, including database and partner
+                     information.
+    :param wp_auth: ``WPAuth`` Authentication object for WordPress API access.
+    :param parent: ``bool`` optional. Flag indicating whether to use parent-level matching for
+                  database content selection. Defaults to False.
+    :return: ``None``
+    :raises: ``UnableToConnectError`` Raised when the connection to the server fails after exceeding
+            the maximum number of retries.
+    """
     try:
         logging_setup(cs_config, __file__)
         logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}")
@@ -1246,7 +1628,7 @@ def pilot_warm_up(
 
         helpers.clean_console()
 
-        status_style = ConsoleStyle.TEXT_STYLE_DEFAULT_BOLD.value
+        status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         with console.status(
             f"[{status_style}] Warming up... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
             spinner="aesthetic",
@@ -1275,9 +1657,16 @@ def pilot_warm_up(
 
         logging.info(f"Matched {partner_db_name} for {partner} index {partner_indx}")
 
-        all_vals: list[tuple[str, ...]] = helpers.fetch_data_sql(
-            cs_config.sql_query, cur_dump
-        )
+        try:
+            all_vals: list[tuple[str, ...]] = helpers.fetch_data_sql(
+                cs_config.sql_query, cur_dump
+            )
+        except sqlite3.OperationalError as oerr:
+            logging.error(
+                f"Error while fetching data from SQL: {oerr!r} likely a configuration issue for partner {partner}."
+            )
+            raise InvalidSQLConfig(partner=partner)
+
         logging.info(f"{len(all_vals)} elements found in database {partner_db_name}")
 
         thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
@@ -1287,8 +1676,23 @@ def pilot_warm_up(
 
         if isinstance(cs_config, EmbedAssistConf):
             return console, partner, not_published, wp_posts_f, thumbnails_dir, cur_dump
-        else:
+        elif isinstance(cs_config, ContentSelectConf):
             return console, partner, not_published, wp_posts_f, thumbnails_dir
+        else:
+            wp_photos_f = helpers.load_json_ctx(cs_config.wp_json_photos)
+            logging.info(
+                f"Reading WordPress Photo Posts cache: {cs_config.wp_json_posts}"
+            )
+            return (
+                console,
+                partner,
+                not_published,
+                all_vals,
+                wp_posts_f,
+                wp_photos_f,
+                thumbnails_dir,
+            )
+
     except urllib3.exceptions.MaxRetryError:
         raise UnableToConnectError
 
@@ -1296,9 +1700,22 @@ def pilot_warm_up(
 def iter_session_print(
     console_obj: rich.console.Console,
     video_count: int,
+    elem_num: int = 0,
     partner: Optional[str] = None,
 ) -> None:
-    # Environment variable set in logging_setup()
+    """Print session information and element statistics to the console using Rich library styling.
+
+    When partner is provided, prints the total count of videos to be published for that partner.
+    Otherwise, prints the current element number and count in an iteration session. Uses environment
+    variables set in logging_setup() to display session ID.
+
+    :param console_obj: ``rich.console.Console`` Console object used for styled printing
+    :param video_count: ``int`` Total count of videos or current count in session
+    :param elem_num: ``int`` Current element number being processed, defaults to 0
+    :param partner: ``Optional[str]`` Partner name to display with video count, defaults to None
+    :return: ``None``
+    """
+
     console_obj.print(
         f"Session ID: {os.environ.get('SESSION_ID')}",
         style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
@@ -1312,21 +1729,34 @@ def iter_session_print(
         )
     else:
         console_obj.print(
+            f"Element #{elem_num + 1}",
+            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            justify="left",
+        )
+        console_obj.print(
             f"Count: {video_count}",
             style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
             justify="left",
         )
         console_obj.print(
-            f"\n{' Review this post ':*^30}\n",
+            f"\n{' Review this element ':*^30}\n",
             style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
             justify="center",
         )
 
 
 def slug_getter(console_obj: rich.console.Console, slugs: list[str]) -> str:
+    """
+    Retrieve a slug based on user input from provided options or get a custom one.
+    Handles edge cases when no slugs are available or user input is invalid.
+
+    :param console_obj: ``rich.console.Console`` Console object for printing and user interaction
+    :param slugs: ``list[str]`` List of available slug options to choose from
+    :return: ``str`` The selected slug, either from the provided list or a custom one
+    """
     prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
     user_attention_style = ConsoleStyle.TEXT_STYLE_ATTENTION.value
-    slug_entry_style = ConsoleStyle.TEXT_STYLE_DEFAULT_BOLD.value
+    slug_entry_style = ConsoleStyle.TEXT_STYLE_ACTION.value
 
     def slug_getter_persist() -> str:
         user_slug = ""
@@ -1374,6 +1804,15 @@ def slug_getter(console_obj: rich.console.Console, slugs: list[str]) -> str:
 def tag_checker_print(
     console_obj: rich.console.Console, wp_posts_f: list[dict], tag_prep: list[str]
 ) -> list[int]:
+    """
+    Checks the tags in the given WordPress posts and identifies any missing tags, printing
+    messages for missing tags as necessary and copying those to the system clipboard.
+
+    :param console_obj: ``rich.console.Console`` The console object used for styled text output
+    :param wp_posts_f: ``list[dict]`` A list of WordPress post data, where each post is a dictionary
+    :param tag_prep: ``list[str]`` A list of prepared tags to be checked
+    :return: ``list[int]`` A list of tag IDs corresponding to the provided tags
+    """
     tag_ints: list[int] = get_tag_ids(wp_posts_f, tag_prep, "tags")
     all_tags_wp: dict[str, str] = wordpress_api.tag_id_merger_dict(wp_posts_f)
     tag_check: Optional[list[str]] = identify_missing(
@@ -1409,11 +1848,23 @@ def pick_classifier(
     title: str,
     description: str,
     tags: str,
-):
+) -> list[int]:
+    """
+    Picks a classifier for content selection based on user input and automatically assigns relevant categories.
+
+    :raises ValueError: If an invalid option is chosen by the user.
+    :param console_obj: The rich.console.Console object to print output.
+    :param wp_posts_f: A list of dictionaries representing WordPress posts.
+    :param title: The title of the content being selected.
+    :param description: A short description of the content.
+    :param tags: The relevant tags for the content.
+    :return: None
+    """
+
     def print_options(option_lst, print_delim: bool = False):
         for opt, classifier in enumerate(option_lst, start=1):
             console_obj.print(
-                f"{opt}. {classifier.title()}",
+                f"{opt}. {classifier.title() if isinstance(classifier, str) else classifier}",
                 style=ConsoleStyle.TEXT_STYLE_DEFAULT.value,
             )
         if print_delim:
@@ -1426,35 +1877,40 @@ def pick_classifier(
         classify_tags(tags),
     ]
 
+    classifier_str_lst: list[str] = list(locals().keys())[2:5]
     classifier_options = [categs for categs in classifiers if categs]
+
     option = ""
     console_obj.print(
         "\nAvailable Machine Learning classifiers: \n",
         style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
     )
 
-    print_options(locals().keys())
+    print_options(classifier_str_lst)
     peek = re.compile("peek", re.IGNORECASE)
     rand = re.compile(r"rando?m?", re.IGNORECASE)
     while not option:
         match console_obj.input(
-            f"\n[{prompt_style}] Pick your classifier:  (Type in the 'peek' to open all classifiers or 'random' to let me choose for you)[/{prompt_style}]\n"
+            f"\n[{prompt_style}]Pick your classifier:  (Type in the 'peek' to open all classifiers or 'random' to let me choose for you)[/{prompt_style}]\n"
         ):
             case str() as p if peek.findall(p):
                 print_options(classifier_options, print_delim=True)
-                print_options(locals().keys())
+                print_options(classifier_str_lst)
                 option = console_obj.input(
                     f"\n[{prompt_style}]Your choice:[/{prompt_style}]\n"
                 )
             case str() as r if rand.findall(r):
-                random.choice(classifier_options)
+                option = random.choice(classifier_options)
             case _:
                 continue
     try:
-        categories = list(classifiers[int(option) - 1])
+        # Here ``option`` can be either ``str`` or ``set[str]``
+        categories = (
+            list(classifiers[int(option) - 1]) if isinstance(option, str) else option
+        )
     except (IndexError, ValueError):
         console_obj.print(
-            "Invalid option! Picking random", style=ConsoleStyle.TEXT_STYLE_WARN.value
+            "Invalid option! Picking randomly", style=ConsoleStyle.TEXT_STYLE_WARN.value
         )
         categories = list(random.choice(classifiers))
 
@@ -1488,366 +1944,438 @@ def pick_classifier(
     return categ_ids
 
 
-def video_upload_pilot(
-    wp_auth: WPAuth = wp_auth(),
-    wp_endpoints: WPEndpoints = WPEndpoints,
-    cs_config: ContentSelectConf = content_select_conf(),
-    parent: bool = False,
-) -> None:
-    """Coordinate execution of all functions that interact with the video upload process.
-    In other words, this function gives continuity to what ``workflows.update_mcash_chain`` does with
-    the data processing and normalisation. Of course, that is just one way to put it since all other
-    members in the module undertake a fraction of work, thus, each output is received and made meaningful here.
+def filter_tags(
+    tgs: str, filter_lst: Optional[list[str]] = None
+) -> Optional[list[str]]:
+    """Remove redundant words found in tags and return a clear list of unique filtered tags.
 
-    :param wp_auth: ``WPAuth`` element provided by the ``core.config_mgr`` module. Set by default and bound to change based on the config file.
-    :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
-    :param cs_config: ``ContentSelectConf`` Object that contains configuration options for this module.
-    :param parent: ``True`` if you want to locate relevant files in the parent directory. Default False
+    :param tgs: ``list[str]`` tags to be filtered
+    :param filter_lst: ``list[str]`` lookup list of words to be removed
+    :return: ``list[str]``
+    """
+    if tgs is None:
+        return None
+
+    no_sp_chars = lambda w: "".join(re.findall(r"\w+", w))
+
+    # Split with a whitespace separator is not necessary at this point:
+    t_split = tgs.split(spl if (spl := helpers.split_char(tgs)) != " " else "-1")
+
+    new_set = set({})
+    for tg in t_split:
+        temp_lst = []
+        sublist = tg.split(" ")
+        for word in sublist:
+            if filter_lst is None:
+                temp_lst.append(no_sp_chars(word))
+            elif word not in filter_lst:
+                temp_lst.append(no_sp_chars(word))
+            elif temp_lst:
+                continue
+        new_set.add(" ".join(temp_lst))
+    return list(new_set)
+
+
+def filter_published_embeds(
+    wp_posts_f: list[dict[...]], videos: list[tuple[str, ...]], db_cur: sqlite3
+) -> list[tuple[str, ...]]:
+    """filter_published does its filtering work based on the published_json function.
+    It is based on a similar version from module `content_select`, however, this one is adapted to embedded videos
+    and a different db schema.
+
+    This function does not need a lot of explanation, it takes in a list of tuples and iterates over them.
+    By unpacking one of its core values, it carries out the manual classification to generate a new set of
+    titles.
+
+    :param videos: ``list[tuple[str, ...]]`` usually resulting from the SQL database query values.
+    :param wp_posts_f: ``list[dict[str, ...]]`` WordPress Post Information case file (previously loaded and ready to process)
+    :param db_cur: ``sqlite3`` - Active database cursor
+    :return: ``list[tuple[str, ...]]`` with the new filtered values.
+    """
+    db_interface = EmbedsMultiSchema(db_cur)
+    post_titles: list[str] = wordpress_api.get_post_titles_local(wp_posts_f, yoast=True)
+
+    not_published: list[tuple] = []
+    for elem in videos:
+        db_interface.load_data_instance(elem)
+        vid_title = db_interface.get_title()
+        if vid_title in post_titles:
+            continue
+        else:
+            not_published.append(elem)
+    return not_published
+
+
+def fetch_zip(
+    dwn_dir: str,
+    remote_res: str,
+    parent: bool = False,
+    gecko: bool = False,
+    headless: bool = False,
+    m_cash_auth: MongerCashAuth = monger_cash_auth(),
+) -> None:
+    """Fetch a .zip archive from the internet by following set of authentication and retrieval
+    steps via automated execution of a browser instance (webdriver).
+
+    **Note about "headless" mode: In this function, I have performed testing for a headless retrieval of the .zip
+    archive, however, "headless" mode seems incompatible for this process. I am leaving the parameter to explore the
+    execution in other platforms like Microsoft Windows as this function has been tested in Linux for the most
+    part.**
+
+    *Take into consideration that function fetch_zip() downloads files and Chrome does not usually wait
+    until current downloads finish before closing running browser instances; fixes have been applied here to correct that behaviour.*
+
+    *Headless mode does not show users why a certain iteration of the program failed and, due to the many factors, including but not limited to,
+    internet connection speeds, the browser instance may require user collaboration to ensure the file has been
+    downloaded and the former could then be closed either automatically or explicitly.*
+    **For this reason, refrain from using headless mode with this module.**
+
+    :param dwn_dir: ``str``  Download directory. Typically, a temporary location.
+    :param remote_res: ``str`` Archive download URL. It must be a direct link (automatic download)
+    :param parent: ``bool``  ``True`` if your download dir is in a parent directory. Default ``False``
+    :param gecko: ``bool`` ``True`` if you want to use Gecko (Firefox) webdriver instead of Chrome. Default ``False``
+    :param headless: ``bool`` ``True`` if you want headless execution. Default ``False``.
+    :param m_cash_auth: ``MongerCashAuth`` object with authentication information to access MongerCash.
     :return: ``None``
     """
-    time_start = time.time()
-    console, partner, not_published, wp_posts_f, thumbnails_dir = pilot_warm_up(
-        cs_config, wp_auth, parent=parent
+    webdrv: webdriver = helpers.get_webdriver(dwn_dir, headless=headless, gecko=gecko)
+
+    webdrv_user_sel = "Gecko" if gecko else "Chrome"
+    logging.info(
+        f"User selected webdriver {webdrv_user_sel} -> Headless? {str(headless)}"
     )
-    # Prints out at the end of the uploading session.
-    videos_uploaded = 0
-    banners = asset_parser(cs_config, partner)
+    logging.info(f"Using {dwn_dir} for downloads as per function params")
 
-    not_published_yet: list[tuple[str, ...]] = not_published
+    username: str = m_cash_auth.username
+    password: str = m_cash_auth.password
+    with webdrv as driver:
+        # Go to URL
+        print("--> Getting files from MongerCash")
+        print("--> Authenticating...")
+        driver.get(remote_res)
+        driver.implicitly_wait(30)
 
-    # You can keep on getting posts until this variable is equal to one.
-    total_elems: int = len(not_published_yet)
-    logging.info(f"Detected {total_elems} to be published for {partner}")
+        username_box: WebElement = driver.find_element(By.ID, "user")
+        pass_box: WebElement = driver.find_element(By.ID, "password")
 
-    helpers.clean_console()
+        username_box.send_keys(username)
+        pass_box.send_keys(password)
 
-    iter_session_print(console, total_elems, partner)
-    time.sleep(2)
+        button_login: WebElement = driver.find_element(By.ID, "head-login")
 
-    for num, vid in enumerate(not_published_yet):
-        (title, *fields) = vid
-        logging.info(f"Displaying on iteration {num} data: {vid}")
-        description = fields[0]
-        models = fields[1]
-        tags = fields[2]
-        date = fields[3]
-        duration = fields[4]
-        source_url = fields[5]
-        thumbnail_url = fields[6]
-        tracking_url = fields[7]
-        partner_name = partner
+        button_login.click()
+        print("--> Downloading...")
 
-        helpers.clean_console()
-        iter_session_print(console, videos_uploaded)
+        if not gecko:
+            # Chrome exits after authenticating and before completing pending downloads.
+            # On the other hand, Gecko does not need additional time.
+            time.sleep(15)
 
-        style_fields = ConsoleStyle.TEXT_STYLE_DEFAULT.value
-        console.print(title, style=style_fields)
-        console.print(description, style=style_fields)
-        console.print(f"Duration: {duration}", style=style_fields)
-        console.print(f"Tags: {tags}", style=style_fields)
-        console.print(f"Models: {models}", style=style_fields)
-        console.print(f"Date: {date}", style=style_fields)
-        console.print(f"Thumbnail URL: {thumbnail_url}", style=style_fields)
-        console.print(f"Source URL: {source_url}", style=style_fields)
+    time.sleep(5)
+    zip_set = helpers.search_files_by_ext(
+        "zip", parent=parent, folder=os.path.relpath(dwn_dir)
+    )[0]
+    print(f"--> Fetched file {zip_set}")
+    logging.info(f"--> Fetched archive file {zip_set}")
+    return None
 
-        prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
-        add_post = console.input(
-            f"\n[{prompt_style}]Add post to WP? -> Y/N/ENTER to review next post: [/{prompt_style}]\n",
-        ).lower()
-        if add_post == ("y" or "yes"):
-            logging.info(f"User accepted video element {num} for processing")
-            add_post = True
-        elif add_post == ("n" or "no"):
-            logging.info("User declined further activity with the bot")
-            thumbnails_dir.cleanup()
-            time_end = time.time()
-            h, mins, secs = get_duration(time_end - time_start)
-            terminate_loop_logging(
-                console,
-                num,
-                total_elems,
-                videos_uploaded,
-                (h, mins, secs),
-                exhausted=False,
-            )
-        else:
-            if num < total_elems - 1:
-                logging.info(
-                    f"Moving forward - ENTER action detected. State: num={num} total_elems={total_elems}"
+
+def extract_zip(zip_path: str, extr_dir: str) -> None:
+    """Locate and extract a .zip archive in different locations.
+    For example, you can locate the .zip archive from a temporary location and extract it
+    somewhere else.
+
+    :param zip_path: ``str`` where to locate the zip archive.
+    :param extr_dir: ``str`` where to extract the contents of the archive
+    :return: ``None``
+    """
+    get_zip: list[str] = helpers.search_files_by_ext(
+        "zip", folder=os.path.relpath(zip_path)
+    )
+    try:
+        with zipfile.ZipFile(
+            zip_loc := os.path.join(zip_path, get_zip[0]), "r"
+        ) as zipf:
+            zipf.extractall(path=os.path.abspath(extr_dir))
+        print(
+            f"--> Extracted files from {os.path.basename(zip_loc)} in folder {os.path.relpath(extr_dir)}"
+        )
+        logging.info(f"Extracted {zip_loc}")
+        print("--> Tidying up...")
+        try:
+            # Some archives have a separate set of redundant files in that folder.
+            # I don't want them.
+            shutil.rmtree(junk_folder := os.path.join(extr_dir, "__MACOSX"))
+            logging.info(f"Junk folder {junk_folder} detected and cleaned.")
+        except (FileNotFoundError, NotImplementedError) as e:
+            logging.warning(f"Caught {e!r} - Handled")
+        finally:
+            logging.info(f"Cleaning remaining archive in {zip_path}")
+            os.remove(zip_loc)
+    except (IndexError, zipfile.BadZipfile) as e:
+        logging.error(f"Something went wrong with the archive extraction -> {e!r}")
+        return None
+
+
+def make_gallery_payload(
+    gal_title: str,
+    iternum: int,
+    gallery_sel_conf: GallerySelectConf = gallery_select_conf(),
+):
+    """Make the image gallery payload that will be sent with the PUT/POST request
+    to the WordPress media endpoint.
+
+    :param gal_title: ``str`` Gallery title/name
+    :param iternum: ``str`` short for "iteration number" and it allows for image numbering in the payload.
+    :param gallery_sel_conf: ``GallerySelectConf`` - Bot configuration object
+    :return: ``dict[str, str]``
+    """
+    img_attrs: bool = gallery_sel_conf.img_attrs
+    img_payload: dict[str, str] = {
+        "alt_text": f"Photo {iternum} from {gal_title}" if img_attrs else "",
+        "caption": f"Photo {iternum} from {gal_title}" if img_attrs else "",
+        "description": f"Photo {iternum} from {gal_title}" if img_attrs else "",
+    }
+    return img_payload
+
+
+def search_db_like(
+    cur: sqlite3, table: str, field: str, query: str
+) -> Optional[list[tuple[...]]]:
+    """Perform a ``SQL`` database search with the ``like``  parameter in a SQLite3 database.
+
+    :param cur: ``sqlite3`` db cursor object
+    :param table: ``str`` table in the db schema
+    :param field: ``str`` field you want to match with ``like``
+    :param query: ``str`` database query in ``SQL``
+    :return: ``list[tuple[...]]`` or ``None``
+    """
+    qry: str = f'SELECT * FROM {table} WHERE {field} like "{query}%"'
+    return cur.execute(qry).fetchall()
+
+
+def get_from_db(cur: sqlite3, field: str, table: str) -> Optional[list[tuple[...]]]:
+    """Get a specific field or all ( ``*`` ) from a SQLite3 database.
+
+    :param cur: ``sqlite3`` database cursor
+    :param field: ``str`` field that you want to consult.
+    :param table: ``str`` table in you db schema
+    :return: ``list[tuple[...]]``  or ``None``
+    """
+    qry: str = f"SELECT {field} from {table}"
+    try:
+        return cur.execute(qry).fetchall()
+    except OperationalError:
+        return None
+
+
+def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
+    """Query the database and isolate the values of a single column to aggregate them
+    in a set of str. In this case, the function isolates the ``models`` field from a
+    table that the user specifies.
+
+    :param db_cursor: ``sqlite3`` database cursor
+    :param table: ``str`` table you want to consult.
+    :return: ``set[str]``
+    """
+    models: list[tuple[str]] = get_from_db(db_cursor, "models", table)
+    new_lst: list[str] = [
+        model[0].strip(",") for model in models if model[0] is not None
+    ]
+    return {
+        elem
+        for model in new_lst
+        for elem in (model.split(",") if re.findall(r",+", model) else [model])
+    }
+
+
+def make_photos_post_payload(
+    status_wp: str,
+    set_name: str,
+    partner_name: str,
+    tags: list[int],
+    reverse_slug: bool = False,
+    wpauth: WPAuth = wp_auth(),
+) -> dict[str, str | int]:
+    """Construct the photos payload that will be sent with all the parameters for the
+    WordPress REST API request to create a ``photos`` post.
+    In addition, this function makes the permalink that I will be using for the post.
+
+    :param status_wp: ``str`` typically ``draft`` but it can be ``publish``, however, all posts need review.
+    :param set_name: ``str`` photo gallery name.
+    :param partner_name: ``str`` partner offer that I am promoting
+    :param tags: ``list[int]`` tag IDs that will be sent to WordPress for classification and integration.
+    :param reverse_slug: ``bool`` ``True`` if you want to reverse the permalink (slug) construction.
+    :param wpauth: ``WPAuth`` Object with the author information.
+    :return: ``dict[str, str | int]``
+    """
+    filter_words: set[str] = {"on", "in", "at", "&", "and"}
+
+    no_partner_name: list[str] = list(
+        filter(lambda w: w not in set(partner_name.split(" ")), set_name.split(" "))
+    )
+
+    # no_partner_name: list[str] = [
+    #     word for word in set_name.split(" ") if word not in set(partner_name.split(" "))
+    # ]
+
+    wp_pre_slug: str = "-".join(
+        [
+            word.lower()
+            for word in no_partner_name
+            if re.match(r"\w+", word, flags=re.IGNORECASE)
+            and word.lower() not in filter_words
+        ]
+    )
+
+    if reverse_slug:
+        # '-pics' tells Google the main content of the page.
+        final_slug: str = (
+            f"{wp_pre_slug}-{'-'.join(partner_name.lower().split(' '))}-pics"
+        )
+    else:
+        final_slug: str = (
+            f"{'-'.join(partner_name.lower().split(' '))}-{wp_pre_slug}-pics"
+        )
+    # Setting Env variable since the slug is needed outside this function.
+    os.environ["SET_SLUG"] = final_slug
+
+    author: int = int(wpauth.author_admin)
+
+    payload_post: dict[str, str | int] = {
+        "slug": final_slug,
+        "status": f"{status_wp}",
+        "type": "photos",
+        "link": f"{wpauth.full_base_url}/{final_slug}/",
+        "title": f"{set_name}",
+        "author": author,
+        "featured_media": 0,
+        "photos_tag": tags,
+    }
+    return payload_post
+
+
+def upload_image_set(
+    ext: str,
+    folder: str,
+    title: str,
+    wp_params: WPAuth = wp_auth(),
+    wp_endpoints: WPEndpoints = WPEndpoints(),
+) -> None:
+    """Upload a set of images to the WordPress Media endpoint.
+
+    :param ext: ``str`` image file extension to look for.
+    :param folder:  ``str`` Your thumbnails folder, just the name is necessary.
+    :param title: ``str`` gallery name
+    :param wp_params: ``WPAuth`` object with the base URL of the WP site.
+    :return: ``None``
+    """
+    thumbnails: list[str] = helpers.search_files_by_ext(ext, folder=folder)
+    if len(thumbnails) == 0:
+        # Assumes the thumbnails are contained in a directory
+        # This could be caused by the archive extraction
+        logging.info("Thumbnails contained in directory - Running recursive search")
+        files: list[str] = helpers.search_files_by_ext(
+            ".jpg", recursive=True, folder=folder
+        )
+
+        get_parent_dir = lambda dr: os.path.split(os.path.split(dr)[-2:][0])[1]
+
+        thumbnails: list[str] = [
+            os.path.join(get_parent_dir(path), os.path.basename(path)) for path in files
+        ]
+
+    if len(thumbnails) != 0:
+        logging.info(
+            prnt_imgs
+            := f"--> Uploading set with {len(thumbnails)} images to WordPress Media..."
+        )
+        print(prnt_imgs)
+        print("--> Adding image attributes on WordPress...")
+        thumbnails.sort()
+
+    # Prepare the image new name so that separators are replaced by hyphens.
+    # E.g. this_is_a_cool_pic.jpg => this-is-a-cool-pic.jpg
+    new_name_img = lambda name: "-".join(
+        f"{os.path.basename(name)!s}".split(helpers.split_char(name))
+    )
+
+    for number, image in enumerate(thumbnails, start=1):
+        img_attrs: dict[str, str] = make_gallery_payload(title, number)
+        img_file = "-".join(
+            new_name_img(image).split(helpers.split_char(image, placeholder=" "))
+        )
+        os.renames(
+            os.path.join(folder, os.path.basename(image)),
+            img_new := os.path.join(folder, os.path.basename(img_file)),
+        )
+        status_code: int = wordpress_api.upload_thumbnail(
+            wp_params.api_base_url,
+            [wp_endpoints.media],
+            img_new,
+            img_attrs,
+        )
+
+        img_now = os.path.basename(img_new)
+        if status_code == (200 or 201):
+            logging.info(f"Removing --> {img_now}")
+            os.remove(img_new)
+
+        logging.info(
+            img_seq := f"* Image {number} | {img_now} --> Status code: {status_code}"
+        )
+        print(img_seq)
+    try:
+        # Check if I have paths instead of filenames
+        if len(thumbnails[0].split(os.sep)) > 1:
+            try:
+                shutil.rmtree(
+                    remove_dir
+                    := f"{os.path.join(os.path.abspath(folder), thumbnails[0].split(os.sep)[0])}"
                 )
-                pyclip.detect_clipboard()
-                pyclip.clear()
+                logging.info(f"Removed dir -> {remove_dir}")
+            except NotImplementedError:
+                logging.info(
+                    "Incompatible platform - Directory cleaning relies on tempdir logic for now"
+                )
+    except (IndexError, AttributeError):
+        pass
+
+
+def filter_relevant(
+    all_galleries: list[tuple[str, ...]],
+    wp_posts_f: list[dict[...]],
+    wp_photos_f: list[dict[...]],
+) -> list[tuple[str, ...]]:
+    """Filter relevant galleries by using a simple algorithm to identify the models in
+    each photo set and returning matches to the user. It is an experimental feature because it
+    does not always work, specially when some image sets use the full name of the model and that
+    makes it difficult for this simple algorithm to work.
+    This could be reimplemented in a different (more efficient) manner, however,
+    I do not believe it is a critical feature.
+
+    :param all_galleries: ``list[tuple[str, ...]`` typically returned by a database query response.
+    :param wp_posts_f: ``list[dict[...]]`` WordPress Posts data structure
+    :param wp_photos_f:  ``list[dict[...]]`` WordPress Photos data structure
+    :return: ``list[tuple[str, ...]]`` Image sets related to models present in the WP site.
+    """
+    models_set: set[str] = set(
+        wordpress_api.map_wp_class_id(wp_posts_f, "pornstars", "pornstars").keys()
+    )
+    not_published_yet = []
+    for elem in all_galleries:
+        (title, *fields) = elem
+        model_in_set = False
+        title_split = title.split(" ")
+        for word in title_split:
+            if word not in models_set:
                 continue
             else:
-                thumbnails_dir.cleanup()
-                time_end = time.time()
-                h, mins, secs = get_duration(time_end - time_start)
-                terminate_loop_logging(
-                    console,
-                    num,
-                    total_elems,
-                    videos_uploaded,
-                    (h, mins, secs),
-                    exhausted=True,
-                )
+                model_in_set = True
+                break
 
-        # In rare occasions, the ``tags`` is None and the real tags are placed in the ``models`` variable
-        # this special handling prevents crashes
-        if not tags:
-            tags, models = models, tags
-
-        if add_post:
-            slugs: list[str] = [
-                f"{fields[8]}-video",
-                make_slug(partner, models, title, "video"),
-                make_slug(partner, models, title, "video", reverse=True),
-                make_slug(partner, models, title, "video", partner_out=True),
-            ]
-
-            wp_slug = slug_getter(console, slugs)
-            logging.info(f"WP Slug - Selected: {wp_slug}")
-            tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
-
-            # Making sure that the partner tag does not have apostrophes
-            partner_tag: str = clean_partner_tag(partner.lower())
-            tag_prep.append(partner_tag)
-            tag_ints = tag_checker_print(console, wp_posts_f, tag_prep)
-
-            try:
-                model_delim = models.split(
-                    spl_ch if (spl_ch := split_char(models)) != " " else "-1"
-                )
-                model_prep = list(map(lambda model: model.strip(), model_delim))
-            except AttributeError:
-                model_prep = []
-
-            calling_models: list[int] = model_checker(wp_posts_f, model_prep)
-
-            # NaiveBayes/MaxEnt classification for titles, descriptions, and tags
-            categ_ids = pick_classifier(console, wp_posts_f, title, description, tags)
-
-            program_action_style = ConsoleStyle.TEXT_STYLE_DEFAULT_BOLD.value
-            program_warning_style = ConsoleStyle.TEXT_STYLE_WARN.value
-
-            console.print("\n--> Making payload...", style=program_action_style)
-            payload = make_payload(
-                wp_slug,
-                wp_auth.default_status,
-                title,
-                description,
-                tracking_url,
-                random.choice(banners),
-                partner_name,
-                tag_ints,
-                calling_models,
-                categs=categ_ids,
-            )
-            logging.info(f"Generated payload: {payload}")
-            console.print("--> Fetching thumbnail...", style=program_action_style)
-
-            # Check whether ImageMagick conversion has been enabled in config.
-            pic_format = (
-                cs_config.pic_format if cs_config.imagick else cs_config.pic_fallback
-            )
-            thumbnail = clean_filename(wp_slug, pic_format)
-            logging.info(f"Thumbnail name: {thumbnail}")
-
-            try:
-                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
-                console.print(
-                    f"--> Stored thumbnail {thumbnail} in cache folder {os.path.relpath(thumbnails_dir.name)}",
-                    style=program_action_style,
-                )
-                console.print(
-                    "--> Uploading thumbnail to WordPress Media...",
-                    style=program_action_style,
-                )
-                console.print(
-                    "--> Adding image attributes on WordPress...",
-                    style=program_action_style,
-                )
-                img_attrs: dict[str, str] = make_img_payload(title, description)
-                upload_img: int = wordpress_api.upload_thumbnail(
-                    wp_auth.api_base_url,
-                    [wp_endpoints.media],
-                    os.path.join(thumbnails_dir.name, thumbnail),
-                    img_attrs,
-                )
-                logging.info(f"Image Attrs: {img_attrs}")
-
-                # Sometimes, the function fetch_thumbnail fetches an element that is not a thumbnail.
-                # upload_thumbnail will report a 500 status code when this is the case.
-                # More information in integrations.wordpress_api.upload_thumbnail docs
-
-                if upload_img == 500:
-                    logging.warning("Defective thumbnail - Bot abandoned current flow.")
-                    console.print(
-                        "It is possible that this thumbnail is defective. Check the Thumbnail manually.",
-                        style=program_warning_style,
-                    )
-                    console.print(
-                        "--> Proceeding to the next post...\n",
-                        style=program_action_style,
-                    )
-                    continue
-                elif upload_img == (200 or 201):
-                    os.remove(
-                        removed_img := os.path.join(thumbnails_dir.name, thumbnail)
-                    )
-                    logging.info(f"Uploaded and removed: {removed_img}")
-
-                console.print(
-                    f"--> WordPress Media upload status code: {upload_img}",
-                    style=program_action_style,
-                )
-                console.print(
-                    "--> Creating post on WordPress", style=program_action_style
-                )
-
-                push_post: int = wordpress_api.wp_post_create(
-                    [wp_endpoints.posts], payload
-                )
-                logging.info(f"WordPress post push status: {push_post}")
-                console.print(
-                    f"--> WordPress status code: {push_post}",
-                    style=program_action_style,
-                )
-
-                pyclip.detect_clipboard()
-                pyclip.copy(source_url)
-                pyclip.copy(title)
-                console.print(
-                    "--> Check the post and paste all you need from your clipboard.",
-                    style=program_action_style,
-                )
-                social_sharing_controller(console, description, wp_slug, cs_config)
-                videos_uploaded += 1
-            except (SSLError, ConnectionError) as e:
-                logging.warning(f"Caught exception {e!r} - Prompting user")
-                pyclip.detect_clipboard()
-                pyclip.clear()
-                console.print(
-                    "* There was a connection error while processing this post. Check the logs for more details...*",
-                    style=program_warning_style,
-                )
-
-                is_published = (
-                    True if wp_slug == os.environ.get("LATEST_POST") else False
-                )
-                console.print(
-                    f"Post {wp_slug} was {'' if is_published else 'NOT'} published!",
-                    style=program_warning_style,
-                )
-                if console.input(
-                    f"\n[{prompt_style}] Do you want to continue? Y/ENTER to exit: [{prompt_style}]"
-                ) == ("y" or "yes"):
-                    logging.info(f"User accepted to continue after catching {e!r}")
-
-                    if is_published:
-                        videos_uploaded += 1
-
-                    continue
-                else:
-                    logging.info(f"User declined after catching {e!r}")
-
-                    if is_published:
-                        videos_uploaded += 1
-
-                    thumbnails_dir.cleanup()
-                    time_end = time.time()
-                    h, mins, secs = helpers.get_duration(time_end - time_start)
-                    terminate_loop_logging(
-                        console,
-                        num,
-                        total_elems,
-                        videos_uploaded,
-                        (h, mins, secs),
-                        exhausted=False,
-                    )
-            if num < total_elems - 1:
-                next_post = console.input(
-                    f"[{prompt_style}]\nNext post? -> N/ENTER to review next post: [/{prompt_style}]\n"
-                ).lower()
-                if next_post == ("n" or "no"):
-                    logging.info("User declined further activity with the bot")
-                    thumbnails_dir.cleanup()
-                    time_end = time.time()
-                    h, mins, secs = get_duration(time_end - time_start)
-                    terminate_loop_logging(
-                        console,
-                        num,
-                        total_elems,
-                        videos_uploaded,
-                        (h, mins, secs),
-                        exhausted=False,
-                    )
-                else:
-                    logging.info(
-                        "User accepted to continue after successful post creation."
-                    )
-                    pyclip.detect_clipboard()
-                    pyclip.clear()
-            else:
-                time_end = time.time()
-                h, mins, secs = get_duration(time_end - time_start)
-                terminate_loop_logging(
-                    console,
-                    num,
-                    total_elems,
-                    videos_uploaded,
-                    (h, mins, secs),
-                    exhausted=True,
-                )
-
-            thumbnails_dir.cleanup()
-            time_end = time.time()
-            h, mins, secs = get_duration(time_end - time_start)
-            terminate_loop_logging(
-                console,
-                num,
-                total_elems,
-                videos_uploaded,
-                (h, mins, secs),
-                exhausted=True,
-            )
-
-
-def bot_cli_args() -> Namespace:
-    arg_parser = argparse.ArgumentParser(
-        description="Content Select Assistant - Behaviour Tweaks"
-    )
-
-    arg_parser.add_argument(
-        "--parent",
-        action="store_true",
-        help="""Define if database and file search happens in the parent directory.
-                                        This argument also affects:
-                                        1. Thumbnail search
-                                        2. HotSync caching
-                                        3. Cache cleaning
-                                        The default is set to false, so if you execute this file as a module,
-                                        you may not want to enable it because this is treated as a package.""",
-    )
-
-    return arg_parser.parse_args()
-
-
-def main():
-    try:
-        if os.name == "posix":
-            import readline
-        cli_args = bot_cli_args()
-        video_upload_pilot(parent=cli_args.parent)
-    except KeyboardInterrupt:
-        logging.critical("KeyboardInterrupt exception detected")
-        logging.info("Cleaning clipboard and temporary directories. Quitting...")
-        print("Goodbye! ಠ‿↼")
-        pyclip.detect_clipboard()
-        pyclip.clear()
-        # When ``exit`` is called, temp dirs will be automatically cleaned.
-        logging.shutdown()
-        exit(0)
-
-
-if __name__ == "__main__":
-    main()
+        if not published_json(title, wp_photos_f) and model_in_set:
+            not_published_yet.append(elem)
+        else:
+            continue
+    return not_published_yet

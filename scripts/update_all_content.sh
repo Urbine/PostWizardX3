@@ -1,14 +1,16 @@
 #!/bin/sh
-curr_dir=$(pwd | grep -c scripts)
-if [ "$curr_dir" != 1 ];then
-   # Go to scripts dir if executed outside the scripts dir
-   cd ~/GitHub/webmaster-seo-tools/scripts
+set -euo pipefail
+
+targetdir="$1"
+if [ "$targetdir" != "" ]; then
+  cd "$targetdir"
 else
-  :
+  echo "Please provide the root directory of your project or where you want to output the resulting files as an argument for this script."
+  exit
 fi
 
-./update_embeds.sh
+./update_embeds.sh  "$targetdir"
 echo -e "\n"
-./update_mcash_dbs.sh
+/update_mcash_dbs.sh "$targetdir"
 # Back to the starting directory
-cd -
+cd - || exit

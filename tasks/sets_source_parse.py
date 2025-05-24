@@ -1,8 +1,22 @@
 """
-Photo set HTML Source Parser module
+HTML Source Parser for Photo Set Metadata
 
-This module parses source code to collect metadata and links to create a photo set database
-from MongerCash.
+This module provides functionality to extract and process metadata from HTML sources
+for photo sets from MongerCash. It offers tools to:
+
+1. Parse titles, dates, and download links from HTML content
+2. Store extracted metadata in SQLite databases
+3. Handle file path generation and database management
+
+The main workflow involves using BeautifulSoup to extract metadata elements,
+process them into appropriate formats, and store them in a structured database
+for later use in content management workflows.
+
+Key functions:
+- parse_titles: Extract photo set titles from HTML
+- parse_dates: Extract and format dates from HTML
+- parse_links: Extract and format download links from HTML
+- db_generate: Create SQLite database with extracted metadata
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -13,6 +27,7 @@ __author_email__ = "yohamg@programmer.net"
 
 # Standard Library
 import datetime
+import logging
 import os
 import re
 import sqlite3
@@ -99,13 +114,21 @@ def db_generate(
     # Sum of entered into the db.
     total_photosets = 0
     all_values = zip(set_titles, set_dates, set_links)
-    for vals in all_values:
-        cursor.execute("INSERT INTO sets VALUES(?, ?, ?)", vals)
-        db_conn.commit()
-        total_photosets += 1
 
-    cursor.close()
-    db_conn.close()
+    try:
+        for vals in all_values:
+            cursor.execute("INSERT INTO sets VALUES(?, ?, ?)", vals)
+            total_photosets += 1
+
+        db_conn.commit()
+    except Exception as e:
+        logging.warn(
+            f"Error: {e!r} detected in the database generation process at {__file__}."
+        )
+    finally:
+        cursor.close()
+        db_conn.close()
+
     db_path = os.path.join(helpers.is_parent_dir_required(parent), d_name)
 
     return db_path, total_photosets

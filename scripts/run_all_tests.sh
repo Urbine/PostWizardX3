@@ -1,20 +1,12 @@
 #!/bin/sh
+set -euo pipefail
 
-# Checks whether this script is running in the project's scripts dir.
-curr_dir=$(pwd | grep -c scripts)
-if [ "$curr_dir" = 1 ];then
-   # Go to parent dir
-   cd ..
+targetdir="$1"
+if [ "$targetdir" != "" ]; then
+  cd "$targetdir"
 else
-  :
-fi
-
-venv=$(pwd | grep -c venv)
-if [ "$venv" = 1 ];then
-  # Go to parent dir if executed from .venv
-  cd ..
-else
-  :
+  echo "Please provide the root directory of the project as an argument for this script."
+  exit
 fi
 
 echo "--> Testing function clean_filename from the core package:"

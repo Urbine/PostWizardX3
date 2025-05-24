@@ -23,18 +23,10 @@ workflows is thinking about them as orchestration artifacts.
 Submodules
 ----------
 
-workflows.content\_select module
---------------------------------
+workflows.embed\_assistant module
+---------------------------------
 
-.. automodule:: workflows.content_select
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-workflows.embed\_assist module
-------------------------------
-
-.. automodule:: workflows.embed_assist
+.. automodule:: workflows.embed_assistant
    :members:
    :undoc-members:
    :show-inheritance:
@@ -47,10 +39,26 @@ workflows.gallery\_select module
    :undoc-members:
    :show-inheritance:
 
+workflows.mcash\_assistant module
+---------------------------------
+
+.. automodule:: workflows.mcash_assistant
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 workflows.update\_mcash\_chain module
 -------------------------------------
 
 .. automodule:: workflows.update_mcash_chain
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+workflows.workflows\_api module
+-------------------------------
+
+.. automodule:: workflows.workflows_api
    :members:
    :undoc-members:
    :show-inheritance:

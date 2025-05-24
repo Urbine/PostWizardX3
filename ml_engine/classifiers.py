@@ -1,17 +1,24 @@
 """
-Classifier moduler
+Classifier Module
 
-Load and export the most important functions that implement the three NaiveBayes models
-selected for this task. The module is meant to export these functions to the main programs
-in the ``workflows`` package to aid in the classification of features like title, description and categories.
+This module provides machine learning classification capabilities using three different NaiveBayes
+implementation models: NLTK NaiveBayesClassifier, NLTK MaxentClassifier, and Scikit-learn's
+Multinomial NaiveBayes. These classifiers are used to analyze and categorize content based on
+titles, descriptions, and tags.
 
-In order that you can use this module, the machine learning models must be trained first with the
-``ml_engine.model_train`` program.
+The module exports functions that are utilized by the main programs in the ``workflows`` package
+to assist in content classification tasks. It provides a more intelligent approach to categorizing
+content, which helps maintain consistency across the website.
 
-It is important to note that the models in this project are in the initial phases of training and accuracy
-will be improved as users make independent classification decisions that will impact the models' learning.
-Feel to select whatever makes sense if the models are not accurate in their predictions.
-Classification models used in this project use the Supervised Learning methodology.
+Before using this module, the machine learning models must be trained with the
+``ml_engine.model_train`` program using existing website data as the training set.
+
+Note that these models are in their initial training phase, and their accuracy will
+improve over time as users make independent classification decisions that feed back
+into the models' learning processes. If model predictions seem inaccurate, feel free
+to select categories that make sense for your content.
+
+All classification models in this project utilize Supervised Learning methodology.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -74,6 +81,17 @@ Multinomial_tags = joblib.load(
 )
 
 
+def categs_to_str(categs: set[str]):
+    """
+    Help to enforce ``str`` output when certain classifiers return instances of ``np.str_``
+
+    :param categs: ``set[str]`` | resultset from the classifier process
+    :return: ``set[str]``       | new resultset from the classifier process ensuring str typing.
+    """
+    categ_set = map(lambda categ: str(categ), categs)
+    return set(categ_set)
+
+
 def classify_title(title: str) -> set[str]:
     """Classify a post title based on its word content.
     First prepare the data, and then pass it to the three classifiers in order to get
@@ -87,11 +105,12 @@ def classify_title(title: str) -> set[str]:
         for word in vocabulary_titles
         if word not in stop_words_english
     }
-    return {
+    results = {
         NaiveBayes_titles.classify(prep_title),
         Maxent_titles.classify(prep_title),
         Multinomial_titles.classify(prep_title),
     }
+    return categs_to_str(results)
 
 
 def classify_description(description: str) -> set[str]:
@@ -99,7 +118,7 @@ def classify_description(description: str) -> set[str]:
         First prepare the data, and then pass it to the three classifiers in order to get
         a result set.
 
-    :param title: ``str`` description of the post to be classified
+    :param description: ``str`` description of the post to be classified
     :return: ``set[str]`` Classification result set
     """
     prep_description = {
@@ -107,11 +126,12 @@ def classify_description(description: str) -> set[str]:
         for word in vocabulary_descriptions
         if word not in stop_words_english
     }
-    return {
+    results = {
         NaiveBayes_descriptions.classify(prep_description),
         Maxent_descriptions.classify(prep_description),
         Multinomial_descriptions.classify(prep_description),
     }
+    return categs_to_str(results)
 
 
 def classify_tags(tag_str: str):
@@ -130,8 +150,9 @@ def classify_tags(tag_str: str):
         for word in vocabulary_tags
         if word not in stop_words_english
     }
-    return {
+    results = {
         NaiveBayes_tags.classify(prep_tags),
         Maxent_tags.classify(prep_tags),
         Multinomial_tags.classify(prep_tags),
     }
+    return categs_to_str(results)

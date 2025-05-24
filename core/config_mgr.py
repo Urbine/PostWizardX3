@@ -1,18 +1,21 @@
 """
-Config_mgr (Configuration Manager) module
+Config_mgr (Configuration Manager) Module
 
-Store and load the secrets necessary for interaction with other services.
-Load important configuration variables that affect the project's behaviour.
+Centralized configuration management system for handling service authentication and application settings.
+This module provides:
 
-This module was implemented in order to resolve issues reading directly
-from the data structures that store those secrets and configs.
+1. Immutable dataclass structures for storing configuration parameters
+2. Factory functions that load values from configuration files
+3. Standardized access to secrets and configuration variables
 
-For example, several IndexError were raised due to relative references to files
-in module operations.
+Key features:
+- Immutable dataclasses prevent unexpected modification of configuration values
+- Configuration changes are only possible through config file updates
+- Centralized error handling for missing configuration values
+- Structured access to service credentials and application behavior settings
 
-Note that you can't assign values to instances of the dataclasses in this file (from other modules)
-as they are immutable. The only way to modify any of the parameters in this file is by means of a config file.
-This avoids side effects or unexpected behaviour.
+The immutable design pattern ensures a consistent configuration state throughout
+the application lifecycle, eliminating side effects and configuration-related bugs.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -21,10 +24,11 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+import os
 from dataclasses import dataclass
 
 from core.helpers import parse_client_config
-from core.custom_exceptions import InvalidConfiguration
+from core.custom_exceptions import InvalidConfiguration, ClientInfoSecretsNotFound
 
 CONFIG_PKG = "core.config"
 
@@ -243,24 +247,30 @@ class UpdateMCash:
 # client_info.ini
 client_info = parse_client_config("client_info", CONFIG_PKG)
 
+# Environment variable set the in parse_client_config() function in the helpers.py file.
+client_info_path = os.environ.get("INI_PATH")
+
 
 def wp_auth() -> WPAuth:
     """Factory function for dataclass ``WPAuth``
 
     :return: ``WPAuth``
     """
-    return WPAuth(
-        user=client_info["WP_Admin"]["user"],
-        app_password=client_info["WP_Admin"]["app_password"],
-        author_admin=client_info["WP_Admin"]["author_admin"],
-        hostname=client_info["WP_Admin"]["hostname"],
-        api_base_url=client_info["WP_Admin"]["api_base_url"],
-        full_base_url=client_info["WP_Admin"]["full_base_url"],
-        default_status=client_info["WP_Admin"]["default_status"],
-        wp_cache_file=client_info["WP_Admin"]["wp_cache_file"],
-        wp_posts_file=client_info["WP_Admin"]["wp_posts_file"],
-        wp_photos_file=client_info["WP_Admin"]["wp_photos_file"],
-    )
+    try:
+        return WPAuth(
+            user=client_info["WP_Admin"]["user"],
+            app_password=client_info["WP_Admin"]["app_password"],
+            author_admin=client_info["WP_Admin"]["author_admin"],
+            hostname=client_info["WP_Admin"]["hostname"],
+            api_base_url=client_info["WP_Admin"]["api_base_url"],
+            full_base_url=client_info["WP_Admin"]["full_base_url"],
+            default_status=client_info["WP_Admin"]["default_status"],
+            wp_cache_file=client_info["WP_Admin"]["wp_cache_file"],
+            wp_posts_file=client_info["WP_Admin"]["wp_posts_file"],
+            wp_photos_file=client_info["WP_Admin"]["wp_photos_file"],
+        )
+    except KeyError:
+        raise ClientInfoSecretsNotFound(client_info_path)
 
 
 def monger_cash_auth() -> MongerCashAuth:
@@ -268,10 +278,13 @@ def monger_cash_auth() -> MongerCashAuth:
 
     :return: ``MongerCashAuth``
     """
-    return MongerCashAuth(
-        username=client_info["MongerCash"]["username"],
-        password=client_info["MongerCash"]["password"],
-    )
+    try:
+        return MongerCashAuth(
+            username=client_info["MongerCash"]["username"],
+            password=client_info["MongerCash"]["password"],
+        )
+    except KeyError:
+        raise ClientInfoSecretsNotFound(client_info_path)
 
 
 def yandex_auth() -> YandexAuth:
@@ -279,10 +292,13 @@ def yandex_auth() -> YandexAuth:
 
     :return: ``YandexAuth``
     """
-    return YandexAuth(
-        client_id=client_info["Yandex"]["client_id"],
-        client_secret=client_info["Yandex"]["client_secret"],
-    )
+    try:
+        return YandexAuth(
+            client_id=client_info["Yandex"]["client_id"],
+            client_secret=client_info["Yandex"]["client_secret"],
+        )
+    except KeyError:
+        raise ClientInfoSecretsNotFound(client_info_path)
 
 
 def x_auth() -> XAuth:
@@ -290,18 +306,21 @@ def x_auth() -> XAuth:
 
     :return: ``XAuth``
     """
-    return XAuth(
-        client_id=client_info["x_api"]["client_id"],
-        client_secret=client_info["x_api"]["client_id"],
-        api_key=client_info["x_api"]["api_key"],
-        api_secret=client_info["x_api"]["api_secret"],
-        uri_callback=client_info["x_api"]["uri_callback"],
-        x_username=client_info["x_api"]["x_username"],
-        x_passw=client_info["x_api"]["x_passw"],
-        x_email=client_info["x_api"]["x_email"],
-        access_token=client_info["x_api"]["access_token"],
-        refresh_token=client_info["x_api"]["refresh_token"],
-    )
+    try:
+        return XAuth(
+            client_id=client_info["x_api"]["client_id"],
+            client_secret=client_info["x_api"]["client_id"],
+            api_key=client_info["x_api"]["api_key"],
+            api_secret=client_info["x_api"]["api_secret"],
+            uri_callback=client_info["x_api"]["uri_callback"],
+            x_username=client_info["x_api"]["x_username"],
+            x_passw=client_info["x_api"]["x_passw"],
+            x_email=client_info["x_api"]["x_email"],
+            access_token=client_info["x_api"]["access_token"],
+            refresh_token=client_info["x_api"]["refresh_token"],
+        )
+    except KeyError:
+        raise ClientInfoSecretsNotFound(client_info_path)
 
 
 def bot_father() -> BotAuth:
@@ -309,10 +328,15 @@ def bot_father() -> BotAuth:
 
     :return: ``BotAuth``
     """
-    return BotAuth(
-        telegram_chat_id=client_info["telegram_botfather"]["telegram_group_channel_id"],
-        token=client_info["telegram_botfather"]["bot_token"],
-    )
+    try:
+        return BotAuth(
+            telegram_chat_id=client_info["telegram_botfather"][
+                "telegram_group_channel_id"
+            ],
+            token=client_info["telegram_botfather"]["bot_token"],
+        )
+    except KeyError:
+        raise ClientInfoSecretsNotFound(client_info_path)
 
 
 def brave_auth() -> BraveAuth:
@@ -320,7 +344,12 @@ def brave_auth() -> BraveAuth:
 
     :return: ``BraveAuth``
     """
-    return BraveAuth(api_key_search=client_info["brave_search_api"]["api_key_search"])
+    try:
+        return BraveAuth(
+            api_key_search=client_info["brave_search_api"]["api_key_search"]
+        )
+    except KeyError:
+        raise ClientInfoSecretsNotFound(client_info_path)
 
 
 # workflows_config.ini

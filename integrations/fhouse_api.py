@@ -264,43 +264,44 @@ def fhouse_parse(
 
     total_entries = 0
     with open(path, "r", encoding="utf-8") as dump_file:
-        for line in dump_file.readlines():
-            line_spl = lambda ln: ln.split(urllib.parse.unquote(sep))
-            integer_type_match = (
-                lambda column: f"{column.strip('#')} INTEGER"
-                if (
-                    re.match("ids?", column.strip("#"), flags=re.IGNORECASE)
-                    or re.match("likes?", column.strip("#"), flags=re.IGNORECASE)
-                    or re.match("duration", column.strip("#"), flags=re.IGNORECASE)
-                )
-                else column.strip("#")
-            )
-            if total_entries == 0:
-                pre_schema = ",".join(
-                    map(
-                        integer_type_match,
-                        line_spl(line),
+        try:
+            for line in dump_file.readlines():
+                line_spl = lambda ln: ln.split(urllib.parse.unquote(sep))
+                integer_type_match = (
+                    lambda column: f"{column.strip('#')} INTEGER"
+                    if (
+                        re.match("ids?", column.strip("#"), flags=re.IGNORECASE)
+                        or re.match("likes?", column.strip("#"), flags=re.IGNORECASE)
+                        or re.match("duration", column.strip("#"), flags=re.IGNORECASE)
                     )
+                    else column.strip("#")
                 )
-                db_create_table = "CREATE TABLE embeds({})".format(pre_schema)
-                db_cur.execute(db_create_table)
-                total_entries += 1
-            else:
-                line_split = tuple([elem.strip("\n") for elem in line_spl(line)])
-                value_calc = f"{'?,' * len(line_split)}".strip(",")
-                try:
-                    db_cur.execute(
-                        f"INSERT INTO embeds values({value_calc})",
-                        line_split,
+                if total_entries == 0:
+                    pre_schema = ",".join(
+                        map(
+                            integer_type_match,
+                            line_spl(line),
+                        )
                     )
-                    db_conn.commit()
+                    db_create_table = "CREATE TABLE embeds({})".format(pre_schema)
+                    db_cur.execute(db_create_table)
                     total_entries += 1
-                except sqlite3.OperationalError:
-                    # Invalid entries are ignored.
-                    continue
-
-    db_cur.close()
-    db_conn.close()
+                else:
+                    line_split = tuple([elem.strip("\n") for elem in line_spl(line)])
+                    value_calc = f"{'?,' * len(line_split)}".strip(",")
+                    try:
+                        db_cur.execute(
+                            f"INSERT INTO embeds values({value_calc})",
+                            line_split,
+                        )
+                        total_entries += 1
+                    except sqlite3.OperationalError:
+                        # Invalid entries are ignored.
+                        continue
+            db_conn.commit()
+        finally:
+            db_cur.close()
+            db_conn.close()
 
     if log_res:
         print(f"Inserted a total of {total_entries} video entries into {db_name}")

@@ -53,30 +53,17 @@ from core import (
     update_mcash_conf,
 )
 
-from workflows.content_select import logging_setup
+from .workflows_api import logging_setup, ConsoleStyle
 from tasks.mcash_dump_create import get_vid_dump_flow
 from tasks.mcash_scrape import get_set_source_flow
 from tasks.parse_txt_dump import parse_txt_dump_chain
 from tasks.sets_source_parse import db_generate
 
 
-if __name__ == "__main__":
-    start_time = time.time()
-    logging_setup(update_mcash_conf(), __file__)
-    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}\n")
-
-    console = Console()
-    console.print(
-        f"Session ID: {os.environ.get('SESSION_ID')}",
-        style="bold yellow",
-        justify="left",
-    )
-
-    console.print(
-        "Welcome to the MongerCash local update wizard\n",
-        style="bold green",
-        justify="center",
-    )
+def cli_arg_updater():
+    """
+    Process and handle command line arguments for the MongerCash update wizard.
+    """
 
     arg_parser = argparse.ArgumentParser(
         description="mcash local update wizard arguments"
@@ -106,7 +93,29 @@ if __name__ == "__main__":
         "--silent", action="store_true", help="Ignore user warnings"
     )
 
-    args = arg_parser.parse_args()
+    return arg_parser.parse_args()
+
+
+if __name__ == "__main__":
+    start_time = time.time()
+    logging_setup(update_mcash_conf(), __file__)
+    logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}\n")
+
+    console = Console()
+    console.print(
+        f"Session ID: {os.environ.get('SESSION_ID')}",
+        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+        justify="left",
+    )
+
+    console.print(
+        "Welcome to the MongerCash local update wizard\n",
+        style=ConsoleStyle.TEXT_STYLE_ACTION.value,
+        justify="center",
+    )
+
+    args = cli_arg_updater()
+
     logging.info(f"Passed in {args.__dict__}")
 
     if args.silent:
@@ -212,6 +221,8 @@ if __name__ == "__main__":
     remove_if_exists(db_path)
     db_conn = sqlite3.connect(db_path)
     cursor = db_conn.cursor()
+    logging.info(f"Created database {db_name} at {db_path}")
+    cursor.execute("BEGIN TRANSACTION")
     cursor.execute(
         """
     CREATE TABLE
@@ -243,7 +254,9 @@ if __name__ == "__main__":
         vid_result
         := f"{parsing[1]} video entries have been processed from {dump_f} and inserted into\n{parsing[0]}\n"
     )
-    console.print(vid_result, style="bold yellow", justify="left")
+    console.print(
+        vid_result, style=ConsoleStyle.TEXT_STYLE_ATTENTION.value, justify="left"
+    )
 
     parsing_photos = db_generate(
         photoset_source[0], photoset_source[1], parent=args.parent
@@ -253,10 +266,14 @@ if __name__ == "__main__":
         photo_result
         := f"{parsing_photos[1]} photo set entries have been processed and inserted into\n{parsing_photos[0]}\n"
     )
-    console.print(photo_result, style="bold yellow", justify="left")
+    console.print(
+        photo_result, style=ConsoleStyle.TEXT_STYLE_ATTENTION.value, justify="left"
+    )
 
     logging.info(tidy_up := f"Cleaning temporary directory {temp_dir.name}")
-    console.print(tidy_up, style="bold yellow", justify="left")
+    console.print(
+        tidy_up, style=ConsoleStyle.TEXT_STYLE_ATTENTION.value, justify="left"
+    )
     temp_dir.cleanup()
 
     end_time = time.time()

@@ -195,9 +195,9 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
                     "INSERT INTO embeds values(?,?,?,?,?,?,?,?,?,?)",
                     all_values,
                 )
-                db_conn.commit()
                 total_entries += 1
 
+    db_conn.commit()
     db_cur.close()
     db_conn.close()
     return f"Inserted a total of {total_entries} video entries into {db_name}"

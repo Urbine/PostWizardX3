@@ -1,3 +1,17 @@
+"""
+Tests for the parse_date_to_iso function.
+
+This module contains unit tests that verify the parse_date_to_iso function
+correctly converts date strings like 'August 13th, 2024' or 'Aug 13th, 2024'
+to datetime.date objects. Tests cover various parameter combinations including:
+- Month abbreviations vs. full month names
+- Different day formats with ordinal suffixes
+- Zero-padding options for single-digit days
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
 import unittest
 import datetime
 

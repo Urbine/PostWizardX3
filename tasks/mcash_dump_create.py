@@ -1,13 +1,23 @@
 """
-Video dump file creation with web automation
+MongerCash Video Dump Creator
 
-The main responsibility of this program is the collection of video information from our content partner:
-`MongerCash`; it generates a ``.txt`` file with all information specific to a partner offer.
-This is the first step in the data collection process.
+This module automates the creation of video information dump files from the MongerCash partner platform.
+Using web automation via Selenium, it logs into the MongerCash interface, navigates through the site,
+and extracts video metadata into structured dump files.
+
+Key features:
+- Automated login to MongerCash partner platform
+- Partner selection with interactive or programmatic options
+- Configuration of dump format with consistent field structure
+- Extraction of comprehensive video metadata (title, description, models, etc.)
+- Generation of properly formatted dump files for further processing
+
+The generated dump files serve as the first stage in the content management pipeline,
+providing structured data that can be consumed by other modules in the system for
+embedding, uploading, and publishing video content.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"

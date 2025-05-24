@@ -1,17 +1,20 @@
 """
-Access MongerCash to get Hosted Videos and links via web automation.
-This file was initially conceived a like a parser that could get links and information
-directly from the source code.
+MongerCash Web Automation Module
 
-Although the functions in this program work for getting some pieces of information, it did not
-continue growing because the project favoured a more specialised and easier approach to accomplish
-most parsing and automation tasks. However, this task is still relevant because it obtains the full
-source code of a page that one of the parsers in this package ``tasks.sets_source_parse`` uses.
-The web automation logic sits here for modularization purposes.
+This module provides web automation functionality for extracting content from MongerCash.
+It contains functions for:
+
+1. Extracting video metadata (titles, descriptions, dates, durations)
+2. Extracting media links (source URLs, thumbnails)
+3. Retrieving XML export data
+4. Automating authentication and site navigation
+
+While originally designed as a comprehensive parser for direct source code extraction,
+its primary current use is obtaining the full source code of pages for further
+processing by the specialized parser in `tasks.sets_source_parse`.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
-
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
@@ -30,9 +33,6 @@ from selenium.webdriver.common.keys import Keys
 from core import helpers, monger_cash_auth, tasks_conf
 from core.config_mgr import TasksConf, MongerCashAuth
 from tasks import parse_partner_name
-
-
-# ==== Functions ====
 
 
 def extract_descriptions(bs4_obj: BeautifulSoup) -> list[str]:

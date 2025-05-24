@@ -1,15 +1,12 @@
 #!/bin/sh
+set -euo pipefail
 
-# In case there is a dir change this variable will be set to one.
-cd_init=0
-# Checks whether this script is running in the project's scripts dir.
-curr_dir=$(pwd | grep -c scripts)
-if [ "$curr_dir" != 1 ];then
-   # Go to scripts dir if executed outside the scripts dir
-   cd ~/GitHub/webmaster-seo-tools
-   cd_init=1
+targetdir="$1"
+if [ "$targetdir" != "" ]; then
+  cd "$targetdir"
 else
-  :
+  echo "Please provide the root directory of your project or where you want to output the resulting files as an argument for this script."
+  exit
 fi
 
 echo "** Updating Tube Corporate Feeds databases... **"
@@ -24,11 +21,6 @@ echo "** Updating FapHouse databse... **"
 python3 -m integrations.fhouse_api --no-embed-dur
 echo "** Cleaning old databases... **"
 
-if [ "$cd_init" = 1 ];then
-  # if the script moved to the parent dir, it has to come back
-  ./scripts/outdated_clean_smart.sh
-else
-  ./outdated_clean_smart.sh
-fi
-# Back to the starting directory
-cd -
+./scripts/outdated_clean_smart.sh "$targetdir"
+
+cd - || exit

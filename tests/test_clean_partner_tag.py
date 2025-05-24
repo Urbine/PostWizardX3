@@ -1,5 +1,27 @@
+"""
+Partner Tag Cleaning Tests Module
+
+This module contains unit tests for the clean_partner_tag function from the workflows_api module.
+The clean_partner_tag function is responsible for processing partner tags by removing possessive
+apostrophes to ensure consistent URL generation and taxonomy across the website.
+
+The test suite verifies that the function correctly handles:
+1. Single possessive apostrophes in words
+2. Apostrophes in different word positions
+3. Multiple possessive forms in a single tag
+4. Strings without apostrophes
+5. Single words without apostrophes
+
+These tests ensure that the partner tag cleaning functionality works reliably across
+various inputs, which is important for maintaining consistent URL patterns and taxonomy
+organization in the WordPress content management system.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
 import unittest
-from workflows.content_select import clean_partner_tag
+from workflows.workflows_api import clean_partner_tag
 
 
 class TestCleanPartnerTag(unittest.TestCase):

@@ -811,7 +811,7 @@ def update_published_titles_db(
             cur.execute(
                 "INSERT INTO sets VALUES (?, ?, ?)", (title.title(), model, slug)
             )
-            db.commit()
+        db.commit()
     else:
         cur.execute("CREATE TABLE videos(title, models, wp_slug)")
         vid_slugs = get_slugs(wp_posts_f)
@@ -819,7 +819,7 @@ def update_published_titles_db(
         vid_models = get_post_models(wp_posts_f)
         for title, models, slug in zip(vid_titles, vid_models, vid_slugs):
             cur.execute("INSERT INTO videos VALUES (?, ?, ?)", (title, models, slug))
-            db.commit()
+    db.commit()
     cur.close()
     db.close()
 
