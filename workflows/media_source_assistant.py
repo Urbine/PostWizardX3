@@ -66,7 +66,7 @@ from . import workflows_api as workflows
 
 def video_upload_pilot(
     wp_auth: WPAuth = wp_auth(),
-    wp_endpoints: WPEndpoints = WPEndpoints,
+    wp_endpoints: WPEndpoints = WPEndpoints(),
     cs_config: ContentSelectConf = content_select_conf(),
     parent: bool = False,
 ) -> None:
@@ -114,7 +114,7 @@ def video_upload_pilot(
         partner_name = partner
 
         helpers.clean_console()
-        workflows.iter_session_print(console, videos_uploaded, elem_num=num + 1)
+        workflows.iter_session_print(console, videos_uploaded, elem_num=num)
 
         style_fields = workflows.ConsoleStyle.TEXT_STYLE_DEFAULT.value
         console.print(title, style=style_fields)

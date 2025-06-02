@@ -15,18 +15,26 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
+import base64
+
+import aiohttp
 import argparse
+import asyncio
 import datetime
 import logging
 import os
 import re
+import threading
+
 from dataclasses import dataclass
 
 import requests
 import sqlite3
 
-from collections import namedtuple
+from collections import namedtuple, deque
 from pathlib import Path
+
+from docutils.frontend import validate_encoding
 from requests.auth import HTTPBasicAuth
 from typing import Generator
 
@@ -38,8 +46,10 @@ from urllib3 import BaseHTTPResponse
 # Local implementations
 from core import NoSuitableArgument, MissingCacheError, helpers, is_parent_dir_required
 from core.config_mgr import WPAuth, wp_auth
+from core.helpers import singleton
 
 
+@singleton
 @dataclass(frozen=True)
 class WPEndpoints:
     """
@@ -89,6 +99,100 @@ def curl_wp_self_concat(
     return http.request("GET", wp_self, headers=headers)
 
 
+def create_wp_local_cache(
+    wpauth: WPAuth = wp_auth(), photos: bool = False
+) -> list[dict]:
+    """Gets all posts from your WP Site.
+    It does this by fetching every page with 10 posts each and concatenating the ``JSON``
+    responses to return a single list of dict elements.
+
+    :param wpauth: ``WPAuth`` object with local configuration options and important filenames.
+    :param photos: ``bool`` ``True`` if you want to cache photo posts. Default ``False``
+    :return: ``list[dict]``
+    """
+    result_lock = threading.Lock()
+    result_deque = deque()
+
+    x_wp_total = 0
+    x_wp_totalpages = 0
+
+    def add_result(elem):
+        """
+        Appends an element to a shared list while ensuring thread safety using a lock.
+
+        This function attempts to acquire a lock that is intended to protect access to the shared_list.
+        If the lock cannot be acquired within 30 seconds, it prints a message indicating the failure.
+
+        :param elem: Element to be appended to the shared list. The type of this parameter is not specified as it can be any object.
+        """
+        timeout = 30
+        try:
+            if result_lock.acquire(timeout=timeout):
+                result_deque.append(elem)
+            else:
+                print(
+                    f"Could not acquire lock in {threading.current_thread()!r} at add_result() within {timeout} seconds."
+                )
+        finally:
+            result_lock.release()
+
+    endpoints: WPEndpoints = WPEndpoints()
+    end_param_posts = [endpoints.photos if photos else endpoints.posts]
+    wp_cache: str = helpers.clean_filename(
+        wpauth.wp_photos_file if photos else wpauth.wp_posts_file, "json"
+    )
+    print(f"\nCreating WordPress {wp_cache} cache file...\n")
+
+    http = urllib3.PoolManager()
+    curl_wp = curl_wp_self_concat(http, list(end_param_posts))
+    headers = curl_wp.headers
+    x_wp_total += int(headers["x-wp-total"])
+    x_wp_totalpages += int(headers["x-wp-totalpages"])
+    end_param_posts.append(endpoints.page)
+    secrets: WPAuth = wp_auth()
+
+    wp_pages = []
+    for page_num in range(1, x_wp_totalpages + 1):
+        wp_self: str = secrets.api_base_url
+        wp_pages.append(wp_self + "".join(end_param_posts) + str(page_num))
+
+    semaphore = asyncio.Semaphore(value=10)
+
+    async def async_wp_self_concat(session: aiohttp.ClientSession, wp_url: str):
+        """This function makes a ``GET`` request to the ``wp-json/wp/v2/posts`` endpoint.
+        It is a coroutine function, so it can be awaited.
+        """
+        username_: str = secrets.user
+        app_pass_: str = secrets.app_password
+        auth = aiohttp.BasicAuth(username_, app_pass_)
+        headers_aiohttp = {"keep-alive": "True", "accept-encoding": "True"}
+        async with semaphore:
+            async with session.get(
+                wp_url, auth=auth, headers=headers_aiohttp
+            ) as response:
+                if response.status != 400:
+                    print(f"--> Fetching page #{wp_url.split('=')[-1]}")
+
+                    res_json = await response.json()
+                    for item in res_json:
+                        add_result(item)
+
+    async def get_all_posts():
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(30),
+            connector=aiohttp.TCPConnector(ssl_shutdown_timeout=10.0, force_close=True),
+        ) as session:
+            pages = [async_wp_self_concat(session, wp_page) for wp_page in wp_pages]
+            await asyncio.gather(*pages)
+
+    asyncio.run(get_all_posts())
+
+    # Assumes that no config file exists.
+    local_cache_config(wp_cache, x_wp_totalpages, x_wp_total)
+    print(f"\n{'DONE':=^30}\n")
+    return list(result_deque)
+
+
 def wp_post_create(endp_lst: list[str], payload, secrets: WPAuth = wp_auth()) -> int:
     """Makes the ``POST`` request based on the mechanism as described on the docs.
 
@@ -110,57 +214,6 @@ def wp_post_create(endp_lst: list[str], payload, secrets: WPAuth = wp_auth()) ->
     # auth_wp = urllib3.make_headers(basic_auth=f"{username_}:{app_pass_}")
     # wp_self: str = wp_self + "".join(endp_lst)
     # return http.request("POST", wp_self, json=payload, headers=auth_wp).status
-
-
-def create_wp_local_cache(
-    wpauth: WPAuth = wp_auth(), photos: bool = False
-) -> list[dict]:
-    """Gets all posts from your WP Site.
-    It does this by fetching every page with 10 posts each and concatenating the ``JSON``
-    responses to return a single list of dict elements.
-
-    :param wpauth: ``WPAuth`` object with local configuration options and important filenames.
-    :param photos: ``bool`` ``True`` if you want to cache photo posts. Default ``False``
-    :return: ``list[dict]``
-    """
-
-    http = urllib3.PoolManager(
-        num_pools=10,
-        maxsize=10,
-        retries=urllib3.Retry(total=2, backoff_factor=0.5),
-    )
-    endpoints: WPEndpoints = WPEndpoints()
-    result_dict: list[dict] = []
-    page_num: int = 1
-    x_wp_total = 0
-    x_wp_totalpages = 0
-    end_params_posts: list[str] = [endpoints.photos] if photos else [endpoints.posts]
-    page_num_param: bool = False
-    wp_cache: str = helpers.clean_filename(
-        wpauth.wp_photos_file if photos else wpauth.wp_posts_file, "json"
-    )
-    print(f"\nCreating WordPress {wp_cache} cache file...\n")
-    while True:
-        curl_json = curl_wp_self_concat(http, end_params_posts)
-        if curl_json.status == 400:
-            # Assumes that no config file exists.
-            local_cache_config(wp_cache, x_wp_totalpages, x_wp_total)
-            print(f"\n{'DONE':=^30}\n")
-            return result_dict
-        else:
-            print(f"--> Processing page #{page_num}")
-            page_num += 1
-            if page_num_param is False:
-                headers = curl_json.headers
-                x_wp_total += int(headers["x-wp-total"])
-                x_wp_totalpages += int(headers["x-wp-totalpages"])
-                end_params_posts.append(endpoints.page)
-                end_params_posts.append(str(page_num))
-                page_num_param = True
-            else:
-                end_params_posts[-1] = str(page_num)
-            for item in curl_json.json():
-                result_dict.append(item)
 
 
 def get_tags_num_count(wp_posts_f: list[dict], photos: bool = False) -> dict[str, int]:
@@ -936,6 +989,7 @@ def update_json_cache(
     :return: ``list[dict]`` Updated ``JSON`` cache file.
     """
 
+    # Replace with aiohttp
     http = urllib3.PoolManager(
         num_pools=10,
         maxsize=10,

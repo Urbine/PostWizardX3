@@ -46,7 +46,7 @@ natural language processing for automated content classification and optimizatio
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/webmaster-seo-tools.git
+git clone https://github.com/Urbine/webmaster-seo-tools.git
 cd webmaster-seo-tools
 ```
 
@@ -65,19 +65,19 @@ uv pip install -r requirements.txt
 
 ## Project Structure
 
-webmaster-seo-tools/
-├── core/               # Core functionality and utilities
-├── docs/              # Documentation
-├── logs/              # Application logs
-├── ml_engine/         # Machine learning models and training
-│   ├── ml_models/     # Trained model files
-│   └── model_train/   # Training scripts and utilities
-├── setup/             # Setup and configuration scripts
-├── tasks/             # Task definitions and scheduling
-├── tests/             # Test suite
-├── scripts/           # Utility scripts
-├── workflows/         # Main application workflows
-└── experimental/      # Experimental features and testing      # Utility scripts
+<strong> webmaster-seo-tools/ </strong> <br>
+├── core/           <span style="margin-left: 3em;"></span> # Core functionality and utilities <br>
+├── docs/           <span style="margin-left: 3em;"></span> # Documentation <br>
+├── logs/           <span style="margin-left: 3em;"></span> # Application logs <br>
+├── ml_engine/      <span style="margin-left: 3em;"></span> # Machine learning models and training <br>
+│ ├── ml_models/    <span style="margin-left: 3em;"></span> # Trained model files <br>
+│ └── model_train/  <span style="margin-left: 3em;"></span> # Training scripts and utilities <br>
+├── setup/          <span style="margin-left: 3em;"></span> # Setup and configuration scripts <br>
+├── tasks/          <span style="margin-left: 3em;"></span> # Task definitions and scheduling <br>
+├── tests/          <span style="margin-left: 3em;"></span> # Test suite <br>
+├── scripts/        <span style="margin-left: 3em;"></span> # Utility scripts <br>
+├── workflows/      <span style="margin-left: 3em;"></span> # Main application workflows <br>
+└── experimental/   <span style="margin-left: 3em;"></span> # Experimental features and testing <br>
 
 ## Usage
 
@@ -105,10 +105,12 @@ tag_categories = classify_tags("tag1, tag2, tag3")
 
 The project uses a configuration management system located in `core/config/`. Modify the configuration files to adjust:
 
-- Model parameters
-- Classification thresholds
+- WordPress site information
+- External integration secrets
 - Logging settings
 - Integration parameters
+- Workflow parameters
+- Data source queries
 
 The project uses various configuration files:
 
@@ -118,28 +120,35 @@ The project uses various configuration files:
 
 ### Running Tests
 ``` bash
-python -m pytest tests/
+./scripts/run_all_tests.sh .
 ```
 
 ### Code Style
-This project follows PEP 8 guidelines and uses ruff for linting:
+This project follows PEP 8 guidelines and uses ruff for linting and formatting:
 ``` bash
-ruff check .
+ruff check  .
+ruff format .
 ```
 
 ## Documentation
 Detailed documentation is available in the directory. Key documentation includes: `docs/`
+- Project overview
+- Quickstart
 - API Reference
 - Machine Learning Model Specifications
 - Workflow Guides
 - Integration Examples
+- Usage Examples
+- Troubleshooting Guides
+- Configuration Management Specifications
+- Tricks & Features
 
 ## License
 TDB - see the LICENSE file for details.
 
 ## Author
 Yoham Gabriel B. @Urbine
-- GitHub: [@YohamGabriel](https://github.com/YohamGabriel)
+- GitHub: [@Urbine](https://github.com/Urbine)
 - Email: yohamg@programmer.net
 
 ## Status
