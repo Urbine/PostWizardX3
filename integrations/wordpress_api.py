@@ -15,26 +15,19 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
-import base64
-
 import aiohttp
 import argparse
 import asyncio
 import datetime
-import logging
 import os
 import re
-import threading
-
-from dataclasses import dataclass
-
 import requests
 import sqlite3
+import threading
 
 from collections import namedtuple, deque
+from dataclasses import dataclass
 from pathlib import Path
-
-from docutils.frontend import validate_encoding
 from requests.auth import HTTPBasicAuth
 from typing import Generator
 
