@@ -45,7 +45,7 @@ from . import workflows_api as workflows
 def embedding_pilot(
     embed_ast_conf=embed_assist_conf(),
     wpauths=wp_auth(),
-    wp_endpoints: WPEndpoints = WPEndpoints,
+    wp_endpoints: WPEndpoints = WPEndpoints(),
 ) -> None:
     """
     Assist the user in video embedding from the information originated from local
@@ -218,7 +218,9 @@ def embedding_pilot(
                 wp_posts_f,
                 db_interface.get_title(),
                 db_interface.get_description(),
-                db_interface.get_tags(),
+                db_interface.get_tags()
+                if db_interface.get_tags()
+                else db_interface.get_categories(),
             )
             category = categ_ids
 
