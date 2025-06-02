@@ -64,6 +64,30 @@ from core.custom_exceptions import ConfigFileNotFound
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 
+def singleton(cls):
+    """
+    A decorator that transforms a class into a Singleton.
+
+    This decorator ensures only one instance of the decorated class is created.
+    Subsequent calls to the class constructor will return the same instance.
+
+    Usage:
+        @singleton
+        class MyClass:
+            ...
+    """
+    instances = {}
+
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+
+    get_instance.__wrapped__ = cls
+
+    return get_instance
+
+
 def access_url_bs4(url_to_bs4: str) -> BeautifulSoup:
     """Accesses a URL and returns a BeautifulSoup object that's ready to parse.
 
@@ -128,7 +152,7 @@ def clean_filename(filename: str, extension: str = "") -> str:
 
 def clean_file_cache(cache_folder: str | Path, file_ext: str) -> None:
     """The purpose of this function is simple: cleaning remaining temporary files once the job control
-    has used them; this is specially useful when dealing with thumbnails.
+    has used them; this is especially useful when dealing with thumbnails.
 
     :param cache_folder: ``str`` folder used for caching (name only)
     :param file_ext: ``str`` file extension of cached files to be removed
@@ -164,8 +188,10 @@ def export_client_info() -> Optional[dict[str, dict[str, str]]]:
     return info
 
 
-def fetch_data_sql(sql_query: str, db_cursor: sqlite3) -> list[tuple[str | int, ...]]:
-    """Fetch videos takes a SQL query in string format and returns the data
+def fetch_data_sql(
+    sql_query: str, db_cursor: sqlite3
+) -> Optional[list[tuple[str | int, ...]]]:
+    """Takes a SQL query in string format and returns the data
     in a list of tuples. In case there is no data, the function returns None.
 
     :param sql_query: SQL Query string.
@@ -199,7 +225,7 @@ def filename_creation_helper(suggestions: list[str], extension: str = "") -> str
         if len(name_select.split(".")) >= 2:
             return name_select
         elif name_select == "":
-            raise RuntimeError("You really need a database name to continue.")
+            raise RuntimeError("You really need a filename to continue.")
         else:
             return clean_filename(name_select, extension)
 
@@ -616,9 +642,9 @@ def match_list_elem_date(
         date_regex = re.compile(r"(\d{2,4}-\d{1,2}-\d{1,2})")
 
         extract_dates = [
-            date.fromisoformat(re.findall(date_regex, match)[0])
+            date.fromisoformat(date_regex.findall(match)[0])
             for match in get_match_items
-            if re.findall(date_regex, match)
+            if date_regex.findall(match)
         ]
 
         if extract_dates:
@@ -727,7 +753,7 @@ def parse_client_config(
     try:
         with importlib.resources.path(package_name, f_ini) as f_path:
             if env_var:
-                os.environ["INI_PATH"] = os.path.abspath(f_path)
+                os.environ["CONFIG_PATH"] = os.path.abspath(f_path)
             config.read(f_path)
     except ModuleNotFoundError:
         raise ConfigFileNotFound(f_ini, package_name)
@@ -763,14 +789,14 @@ def parse_date_to_iso(
         month_num = "0" + str(months.index(full_date.split(",")[0].split(" ")[0]))
 
     day_nth = str(full_date.split(",")[0].split(" ")[1])
-    day = day_nth.strip("".join(re.findall(letters, day_nth)))
+    day = day_nth.strip("".join(letters.findall(day_nth)))
 
     if zero_day:
         if int(day) <= 9:
-            day = day_nth.strip("".join(re.findall(letters, day_nth)))
+            day = day_nth.strip("".join(letters.findall(day_nth)))
     else:
         if int(day) <= 9:
-            day = "0" + day_nth.strip("".join(re.findall(letters, day_nth)))
+            day = "0" + day_nth.strip("".join(letters.findall(day_nth)))
 
     return date.fromisoformat(year + month_num + day)
 
@@ -843,7 +869,7 @@ def write_config_file(
     """
     config = parse_client_config(filename, package, env_var=True)
     config.set(section, option, str(value))
-    with open(os.environ.get("INI_PATH"), "w") as update:
+    with open(os.environ.get("CONFIG_PATH"), "w") as update:
         config.write(update)
     return None
 
@@ -909,7 +935,7 @@ def sha256_hash_generate(r_str: str) -> str:
 
 
 def generate_random_str(k: int) -> str:
-    """Generate random string of ASCII characters based on a sample size ``k``.
+    """Generate a random string of ASCII characters based on a sample size ``k``.
 
     :param k: ``int`` Number of letters per random string or "sample size"
     :return: ``str``
@@ -927,17 +953,17 @@ def split_char(
 ) -> str | list[str]:
     """
     Identify the split character dynamically in order that str.split() knows what
-    the correct separator is. In this project, the most relevant separators are ``,`` and
+    the correct separator is. In this project, the most relevant separators are ``, `` and
     ``;``, in contrast, whitespaces are not as important. That said, if the only non-alphanumeric character of
-    the string is a whitespace, the function has to return it. Additional parameters
+    the string is whitespace, the function has to return it. Additional parameters
     help with complementary logic and graceful error handling across modules.
 
     By design, this implementation assumes that, if there are multiple separators or the first one
-    in the match list is a whitespace, the former may repeat itself or the latter may not be relevant for the purpose;
+    in the match list is whitespace, the former may repeat itself or the latter may not be relevant for the purpose;
     therefore, the logic discards all whitespaces and focuses on other special characters that occur the most if there
     are more multiple matches. This is so because it is common to separate words with a whitespace at first and then
     use another separator, one that is really meant to be a separator; for example, in the case
-    ``colorful skies; great landscape;...`` whitespace is not the real separator.
+    ``colorful skies; great landscape; ...`` whitespace is not the real separator.
 
     :param spl_str: ``str`` with or without separators
     :param placeholder: ``str`` - Return this character if there is no separator as it can't be empty. Default: ``"-1"``
@@ -946,8 +972,8 @@ def split_char(
     :return: ``str`` | ``list[str]``
     """
     try:
-        chars = re.findall(r"[^a-z]", spl_str, re.IGNORECASE)
-    except TypeError:
+        chars = re.findall(r"[^0-9a-z]", spl_str, re.IGNORECASE)
+    except TypeError:  # if ``spl_str`` is ``None``
         return placeholder
 
     lst_strip = lambda chls: list(map(lambda s: s.strip(), chls))
