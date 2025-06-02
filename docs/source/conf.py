@@ -33,6 +33,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
+    "sphinx_rtd_dark_mode",
 ]
 
 autodoc_type_aliases = {"List": "List", "Dict": "Dict"}
@@ -59,7 +60,7 @@ exclude_patterns = []
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
+default_dark_mode = True
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 html_title = "webmaster-seo-tools | Internal Docs"

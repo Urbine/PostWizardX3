@@ -116,7 +116,6 @@ from core.config_mgr import (
     MongerCashAuth,
 )
 
-
 T = TypeVar("T")
 
 
@@ -444,7 +443,7 @@ class ConsoleStyle(Enum):
 
 
 def logging_setup(
-    bot_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf | UpdateMCash,
+    bot_config,
     path_to_this: str,
 ) -> None:
     """Initiate the basic logging configuration for bots in the ``workflows`` package.
@@ -1026,7 +1025,7 @@ def make_slug(
 
 
 def hot_file_sync(
-    bot_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+    bot_config,
 ) -> bool:
     """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
@@ -1046,14 +1045,12 @@ def hot_file_sync(
         if os.path.exists(f"./{clean_filename(bot_config.wp_cache_config, 'json')}")
         else True
     )
-    if isinstance(bot_config, GallerySelectConf):
+    if photos := hasattr(bot_config, "wp_json_photos"):
         wp_filename: str = helpers.clean_filename(bot_config.wp_json_photos, "json")
     else:
         wp_filename: str = helpers.clean_filename(bot_config.wp_json_posts, "json")
 
-    sync_changes: list[dict[...]] = wordpress_api.update_json_cache(
-        photos=True if isinstance(bot_config, GallerySelectConf) else False
-    )
+    sync_changes: list[dict[...]] = wordpress_api.update_json_cache(photos=photos)
 
     # Reload config
     config_json: list[dict[...]] = helpers.load_json_ctx(bot_config.wp_cache_config)
@@ -1296,7 +1293,7 @@ def x_post_creator(
 def telegram_send_message(
     description: str,
     post_url: str,
-    bot_config: ContentSelectConf | EmbedAssistConf | GallerySelectConf,
+    bot_config,
     msg_text: str = "",
 ) -> int:
     """Set up a message template for the Telegram BotFather function ``send_message()``
@@ -1350,9 +1347,7 @@ def telegram_send_message(
     return req.status_code
 
 
-def wp_publish_checker(
-    post_slug: str, cs_conf: ContentSelectConf | EmbedAssistConf | GallerySelectConf
-) -> Optional[bool]:
+def wp_publish_checker(post_slug: str, cs_conf) -> Optional[bool]:
     """Check for the publication a post in real time by using iteration of the Hot File Sync
     algorithm. It will detect that you have effectively hit the publish button, so that functionality
     that directly depends on the post being online can take it from there.
@@ -1372,7 +1367,7 @@ def wp_publish_checker(
     while hot_sync:
         posts_file = (
             cs_conf.wp_json_photos
-            if isinstance(cs_conf, GallerySelectConf)
+            if hasattr(cs_conf, "wp_json_photos")
             else cs_conf.wp_json_posts
         )
         wp_postf = helpers.load_json_ctx(posts_file)
@@ -1408,7 +1403,7 @@ def social_sharing_controller(
     console_obj: rich.console.Console,
     description: str,
     wp_slug: str,
-    cs_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+    cs_config,
 ) -> None:
     """Share WordPress posts to social media platforms based on the settings in the workflow config.
     It is able to identify whether X or Telegram workflows have been enabled and post content accordingly.
@@ -1602,7 +1597,7 @@ def terminate_loop_logging(
 
 
 def pilot_warm_up(
-    cs_config: ContentSelectConf | GallerySelectConf | EmbedAssistConf,
+    cs_config,
     wp_auth: WPAuth,
     parent: bool = False,
 ):
@@ -1630,7 +1625,7 @@ def pilot_warm_up(
 
         status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         with console.status(
-            f"[{status_style}] Warming up... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+            f"[{status_style}] Warming up... [blink]┌(◎ _ ◎)┘[/blink] [/{status_style}]\n",
             spinner="aesthetic",
         ):
             hot_file_sync(bot_config=cs_config)
@@ -1674,9 +1669,9 @@ def pilot_warm_up(
 
         not_published: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
 
-        if isinstance(cs_config, EmbedAssistConf):
+        if cs_config.__class__.__name__ == "EmbedAssistConf":
             return console, partner, not_published, wp_posts_f, thumbnails_dir, cur_dump
-        elif isinstance(cs_config, ContentSelectConf):
+        elif cs_config.__class__.__name__ == "ContentSelectConf":
             return console, partner, not_published, wp_posts_f, thumbnails_dir
         else:
             wp_photos_f = helpers.load_json_ctx(cs_config.wp_json_photos)
@@ -1941,6 +1936,9 @@ def pick_classifier(
             logging.info(f"User typed in category: {misc}")
 
     categ_ids: list[int] = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
+    logging.info(
+        f"WordPress matched category ID: {categ_ids} for category: {sel_categ}"
+    )
     return categ_ids
 
 

@@ -27,13 +27,20 @@ __author_email__ = "yohamg@programmer.net"
 import os
 from dataclasses import dataclass
 
-from core.helpers import parse_client_config
+from core.helpers import parse_client_config, singleton
 from core.custom_exceptions import InvalidConfiguration, ClientInfoSecretsNotFound
 
 CONFIG_PKG = "core.config"
+CLIENT_INFO_INI = parse_client_config("client_info", CONFIG_PKG)
+WORKFLOWS_CONFIG_INI = parse_client_config("workflows_config", CONFIG_PKG)
+TASKS_CONFIG_INI = parse_client_config("tasks_config", CONFIG_PKG)
+
+# Environment variable set the in parse_client_config() function in the helpers.py file.
+CONFIG_PATH = os.environ.get("CONFIG_PATH")
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class WPAuth:
     """
     Immutable dataclass responsible for holding WordPress secret structure,
@@ -55,7 +62,8 @@ class WPAuth:
         return "WPAuth()"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class MongerCashAuth:
     """
     Immutable dataclass with the MongerCash secret structure.
@@ -68,7 +76,8 @@ class MongerCashAuth:
         return "MongerCash(username, password)"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class YandexAuth:
     """
     Immutable dataclass responsible for ordering Yandex API details.
@@ -81,7 +90,8 @@ class YandexAuth:
         return "YandexAuth(client_id, client_secret)"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class ContentSelectConf:
     """
     Immutable dataclass responsible for holding content-select
@@ -111,7 +121,8 @@ class ContentSelectConf:
         return "ContentSelectConf()"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class GallerySelectConf:
     """
     Immutable dataclass responsible for holding gallery-select
@@ -142,7 +153,8 @@ class GallerySelectConf:
         return "GallerySelectConf()"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class EmbedAssistConf:
     """
     Immutable dataclass responsible for holding embed-assist
@@ -171,7 +183,8 @@ class EmbedAssistConf:
         return "EmbedAssistConf()"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class TasksConf:
     """
     Immutable dataclass for configuration constants for the ``tasks`` package.
@@ -184,7 +197,8 @@ class TasksConf:
         return "TasksConf()"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class XAuth:
     """
     Immutable dataclass responsible for structuring X platform secrets
@@ -206,7 +220,8 @@ class XAuth:
         return "XAuth(client_id, client_secret)"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class BotAuth:
     """
     Immutable class in charge of providing secrets for the BotFather
@@ -220,7 +235,8 @@ class BotAuth:
         return "BotAuth()"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class BraveAuth:
     """
     Immutable data class for the Brave Search API and its modes.
@@ -232,7 +248,8 @@ class BraveAuth:
         return "BraveAuth()"
 
 
-@dataclass(frozen=True)
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class UpdateMCash:
     """
     Immutable class with behavioral tweaks for
@@ -244,13 +261,6 @@ class UpdateMCash:
         return "UpdateMCash()"
 
 
-# client_info.ini
-client_info = parse_client_config("client_info", CONFIG_PKG)
-
-# Environment variable set the in parse_client_config() function in the helpers.py file.
-client_info_path = os.environ.get("INI_PATH")
-
-
 def wp_auth() -> WPAuth:
     """Factory function for dataclass ``WPAuth``
 
@@ -258,19 +268,19 @@ def wp_auth() -> WPAuth:
     """
     try:
         return WPAuth(
-            user=client_info["WP_Admin"]["user"],
-            app_password=client_info["WP_Admin"]["app_password"],
-            author_admin=client_info["WP_Admin"]["author_admin"],
-            hostname=client_info["WP_Admin"]["hostname"],
-            api_base_url=client_info["WP_Admin"]["api_base_url"],
-            full_base_url=client_info["WP_Admin"]["full_base_url"],
-            default_status=client_info["WP_Admin"]["default_status"],
-            wp_cache_file=client_info["WP_Admin"]["wp_cache_file"],
-            wp_posts_file=client_info["WP_Admin"]["wp_posts_file"],
-            wp_photos_file=client_info["WP_Admin"]["wp_photos_file"],
+            user=CLIENT_INFO_INI["WP_Admin"]["user"],
+            app_password=CLIENT_INFO_INI["WP_Admin"]["app_password"],
+            author_admin=CLIENT_INFO_INI["WP_Admin"]["author_admin"],
+            hostname=CLIENT_INFO_INI["WP_Admin"]["hostname"],
+            api_base_url=CLIENT_INFO_INI["WP_Admin"]["api_base_url"],
+            full_base_url=CLIENT_INFO_INI["WP_Admin"]["full_base_url"],
+            default_status=CLIENT_INFO_INI["WP_Admin"]["default_status"],
+            wp_cache_file=CLIENT_INFO_INI["WP_Admin"]["wp_cache_file"],
+            wp_posts_file=CLIENT_INFO_INI["WP_Admin"]["wp_posts_file"],
+            wp_photos_file=CLIENT_INFO_INI["WP_Admin"]["wp_photos_file"],
         )
     except KeyError:
-        raise ClientInfoSecretsNotFound(client_info_path)
+        raise ClientInfoSecretsNotFound(CONFIG_PATH)
 
 
 def monger_cash_auth() -> MongerCashAuth:
@@ -280,11 +290,11 @@ def monger_cash_auth() -> MongerCashAuth:
     """
     try:
         return MongerCashAuth(
-            username=client_info["MongerCash"]["username"],
-            password=client_info["MongerCash"]["password"],
+            username=CLIENT_INFO_INI["MongerCash"]["username"],
+            password=CLIENT_INFO_INI["MongerCash"]["password"],
         )
     except KeyError:
-        raise ClientInfoSecretsNotFound(client_info_path)
+        raise ClientInfoSecretsNotFound(CONFIG_PATH)
 
 
 def yandex_auth() -> YandexAuth:
@@ -294,11 +304,11 @@ def yandex_auth() -> YandexAuth:
     """
     try:
         return YandexAuth(
-            client_id=client_info["Yandex"]["client_id"],
-            client_secret=client_info["Yandex"]["client_secret"],
+            client_id=CLIENT_INFO_INI["Yandex"]["client_id"],
+            client_secret=CLIENT_INFO_INI["Yandex"]["client_secret"],
         )
     except KeyError:
-        raise ClientInfoSecretsNotFound(client_info_path)
+        raise ClientInfoSecretsNotFound(CONFIG_PATH)
 
 
 def x_auth() -> XAuth:
@@ -308,19 +318,19 @@ def x_auth() -> XAuth:
     """
     try:
         return XAuth(
-            client_id=client_info["x_api"]["client_id"],
-            client_secret=client_info["x_api"]["client_id"],
-            api_key=client_info["x_api"]["api_key"],
-            api_secret=client_info["x_api"]["api_secret"],
-            uri_callback=client_info["x_api"]["uri_callback"],
-            x_username=client_info["x_api"]["x_username"],
-            x_passw=client_info["x_api"]["x_passw"],
-            x_email=client_info["x_api"]["x_email"],
-            access_token=client_info["x_api"]["access_token"],
-            refresh_token=client_info["x_api"]["refresh_token"],
+            client_id=CLIENT_INFO_INI["x_api"]["client_id"],
+            client_secret=CLIENT_INFO_INI["x_api"]["client_id"],
+            api_key=CLIENT_INFO_INI["x_api"]["api_key"],
+            api_secret=CLIENT_INFO_INI["x_api"]["api_secret"],
+            uri_callback=CLIENT_INFO_INI["x_api"]["uri_callback"],
+            x_username=CLIENT_INFO_INI["x_api"]["x_username"],
+            x_passw=CLIENT_INFO_INI["x_api"]["x_passw"],
+            x_email=CLIENT_INFO_INI["x_api"]["x_email"],
+            access_token=CLIENT_INFO_INI["x_api"]["access_token"],
+            refresh_token=CLIENT_INFO_INI["x_api"]["refresh_token"],
         )
     except KeyError:
-        raise ClientInfoSecretsNotFound(client_info_path)
+        raise ClientInfoSecretsNotFound(CONFIG_PATH)
 
 
 def bot_father() -> BotAuth:
@@ -330,13 +340,13 @@ def bot_father() -> BotAuth:
     """
     try:
         return BotAuth(
-            telegram_chat_id=client_info["telegram_botfather"][
+            telegram_chat_id=CLIENT_INFO_INI["telegram_botfather"][
                 "telegram_group_channel_id"
             ],
-            token=client_info["telegram_botfather"]["bot_token"],
+            token=CLIENT_INFO_INI["telegram_botfather"]["bot_token"],
         )
     except KeyError:
-        raise ClientInfoSecretsNotFound(client_info_path)
+        raise ClientInfoSecretsNotFound(CONFIG_PATH)
 
 
 def brave_auth() -> BraveAuth:
@@ -346,14 +356,10 @@ def brave_auth() -> BraveAuth:
     """
     try:
         return BraveAuth(
-            api_key_search=client_info["brave_search_api"]["api_key_search"]
+            api_key_search=CLIENT_INFO_INI["brave_search_api"]["api_key_search"]
         )
     except KeyError:
-        raise ClientInfoSecretsNotFound(client_info_path)
-
-
-# workflows_config.ini
-workflows_config = parse_client_config("workflows_config", CONFIG_PKG)
+        raise ClientInfoSecretsNotFound(CONFIG_PATH)
 
 
 def content_select_conf() -> ContentSelectConf:
@@ -363,30 +369,32 @@ def content_select_conf() -> ContentSelectConf:
     """
     try:
         return ContentSelectConf(
-            wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
-            wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
-            pic_format=workflows_config["general_config"]["pic_format"],
-            pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
-            imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-            quality=workflows_config.getint("general_config", "conversion_quality"),
-            sql_query=workflows_config["content_select"]["sql_query"],
-            content_hint=workflows_config["content_select"]["db_content_hint"],
-            assets_conf=workflows_config["content_select"]["assets_conf"],
-            partners=workflows_config["content_select"]["partners"],
-            site_name=workflows_config["general_config"]["website_name"],
-            domain_tld=workflows_config["general_config"]["domain_tld"],
-            logging_dirname=workflows_config["general_config"]["logging_dirname"],
-            img_attrs=workflows_config.getboolean("general_config", "img_attrs"),
-            x_posting_auto=workflows_config.getboolean(
+            wp_json_posts=WORKFLOWS_CONFIG_INI["general_config"]["wp_json_posts"],
+            wp_cache_config=WORKFLOWS_CONFIG_INI["general_config"]["wp_cache_config"],
+            pic_format=WORKFLOWS_CONFIG_INI["general_config"]["pic_format"],
+            pic_fallback=WORKFLOWS_CONFIG_INI["general_config"]["fallback_pic_format"],
+            imagick=WORKFLOWS_CONFIG_INI.getboolean(
+                "general_config", "imagick_enabled"
+            ),
+            quality=WORKFLOWS_CONFIG_INI.getint("general_config", "conversion_quality"),
+            sql_query=WORKFLOWS_CONFIG_INI["content_select"]["sql_query"],
+            content_hint=WORKFLOWS_CONFIG_INI["content_select"]["db_content_hint"],
+            assets_conf=WORKFLOWS_CONFIG_INI["content_select"]["assets_conf"],
+            partners=WORKFLOWS_CONFIG_INI["content_select"]["partners"],
+            site_name=WORKFLOWS_CONFIG_INI["general_config"]["website_name"],
+            domain_tld=WORKFLOWS_CONFIG_INI["general_config"]["domain_tld"],
+            logging_dirname=WORKFLOWS_CONFIG_INI["general_config"]["logging_dirname"],
+            img_attrs=WORKFLOWS_CONFIG_INI.getboolean("general_config", "img_attrs"),
+            x_posting_auto=WORKFLOWS_CONFIG_INI.getboolean(
                 "content_select", "x_posting_auto"
             ),
-            x_posting_enabled=workflows_config.getboolean(
+            x_posting_enabled=WORKFLOWS_CONFIG_INI.getboolean(
                 "content_select", "x_posting_enabled"
             ),
-            telegram_posting_auto=workflows_config.getboolean(
+            telegram_posting_auto=WORKFLOWS_CONFIG_INI.getboolean(
                 "content_select", "telegram_posting_auto"
             ),
-            telegram_posting_enabled=workflows_config.getboolean(
+            telegram_posting_enabled=WORKFLOWS_CONFIG_INI.getboolean(
                 "content_select", "telegram_posting_enabled"
             ),
         )
@@ -401,31 +409,35 @@ def gallery_select_conf() -> GallerySelectConf:
     """
     try:
         return GallerySelectConf(
-            pic_format=workflows_config["general_config"]["pic_format"],
-            pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
-            imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-            quality=workflows_config.getint("general_config", "conversion_quality"),
-            wp_json_photos=workflows_config["gallery_select"]["wp_json_photos"],
-            wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
-            wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
-            content_hint=workflows_config["gallery_select"]["db_content_hint"],
-            sql_query=workflows_config["gallery_select"]["sql_query"],
-            partners=workflows_config["gallery_select"]["partners"],
-            site_name=workflows_config["general_config"]["website_name"],
-            domain_tld=workflows_config["general_config"]["domain_tld"],
-            logging_dirname=workflows_config["general_config"]["logging_dirname"],
-            img_attrs=workflows_config.getboolean("general_config", "img_attrs"),
-            reverse_slug=workflows_config.getboolean("gallery_select", "reverse_slug"),
-            x_posting_auto=workflows_config.getboolean(
+            pic_format=WORKFLOWS_CONFIG_INI["general_config"]["pic_format"],
+            pic_fallback=WORKFLOWS_CONFIG_INI["general_config"]["fallback_pic_format"],
+            imagick=WORKFLOWS_CONFIG_INI.getboolean(
+                "general_config", "imagick_enabled"
+            ),
+            quality=WORKFLOWS_CONFIG_INI.getint("general_config", "conversion_quality"),
+            wp_json_photos=WORKFLOWS_CONFIG_INI["gallery_select"]["wp_json_photos"],
+            wp_json_posts=WORKFLOWS_CONFIG_INI["general_config"]["wp_json_posts"],
+            wp_cache_config=WORKFLOWS_CONFIG_INI["general_config"]["wp_cache_config"],
+            content_hint=WORKFLOWS_CONFIG_INI["gallery_select"]["db_content_hint"],
+            sql_query=WORKFLOWS_CONFIG_INI["gallery_select"]["sql_query"],
+            partners=WORKFLOWS_CONFIG_INI["gallery_select"]["partners"],
+            site_name=WORKFLOWS_CONFIG_INI["general_config"]["website_name"],
+            domain_tld=WORKFLOWS_CONFIG_INI["general_config"]["domain_tld"],
+            logging_dirname=WORKFLOWS_CONFIG_INI["general_config"]["logging_dirname"],
+            img_attrs=WORKFLOWS_CONFIG_INI.getboolean("general_config", "img_attrs"),
+            reverse_slug=WORKFLOWS_CONFIG_INI.getboolean(
+                "gallery_select", "reverse_slug"
+            ),
+            x_posting_auto=WORKFLOWS_CONFIG_INI.getboolean(
                 "gallery_select", "x_posting_auto"
             ),
-            x_posting_enabled=workflows_config.getboolean(
+            x_posting_enabled=WORKFLOWS_CONFIG_INI.getboolean(
                 "gallery_select", "x_posting_enabled"
             ),
-            telegram_posting_auto=workflows_config.getboolean(
+            telegram_posting_auto=WORKFLOWS_CONFIG_INI.getboolean(
                 "gallery_select", "telegram_posting_auto"
             ),
-            telegram_posting_enabled=workflows_config.getboolean(
+            telegram_posting_enabled=WORKFLOWS_CONFIG_INI.getboolean(
                 "gallery_select", "telegram_posting_enabled"
             ),
         )
@@ -440,29 +452,31 @@ def embed_assist_conf() -> EmbedAssistConf:
     """
     try:
         return EmbedAssistConf(
-            wp_json_posts=workflows_config["general_config"]["wp_json_posts"],
-            wp_cache_config=workflows_config["general_config"]["wp_cache_config"],
-            pic_format=workflows_config["general_config"]["pic_format"],
-            pic_fallback=workflows_config["general_config"]["fallback_pic_format"],
-            imagick=workflows_config.getboolean("general_config", "imagick_enabled"),
-            quality=workflows_config.getint("general_config", "conversion_quality"),
-            sql_query=workflows_config["embed_assist"]["sql_query"],
-            content_hint=workflows_config["embed_assist"]["db_content_hint"],
-            partners=workflows_config["embed_assist"]["partners"],
-            site_name=workflows_config["general_config"]["website_name"],
-            domain_tld=workflows_config["general_config"]["domain_tld"],
-            logging_dirname=workflows_config["general_config"]["logging_dirname"],
-            img_attrs=workflows_config.getboolean("general_config", "img_attrs"),
-            x_posting_auto=workflows_config.getboolean(
+            wp_json_posts=WORKFLOWS_CONFIG_INI["general_config"]["wp_json_posts"],
+            wp_cache_config=WORKFLOWS_CONFIG_INI["general_config"]["wp_cache_config"],
+            pic_format=WORKFLOWS_CONFIG_INI["general_config"]["pic_format"],
+            pic_fallback=WORKFLOWS_CONFIG_INI["general_config"]["fallback_pic_format"],
+            imagick=WORKFLOWS_CONFIG_INI.getboolean(
+                "general_config", "imagick_enabled"
+            ),
+            quality=WORKFLOWS_CONFIG_INI.getint("general_config", "conversion_quality"),
+            sql_query=WORKFLOWS_CONFIG_INI["embed_assist"]["sql_query"],
+            content_hint=WORKFLOWS_CONFIG_INI["embed_assist"]["db_content_hint"],
+            partners=WORKFLOWS_CONFIG_INI["embed_assist"]["partners"],
+            site_name=WORKFLOWS_CONFIG_INI["general_config"]["website_name"],
+            domain_tld=WORKFLOWS_CONFIG_INI["general_config"]["domain_tld"],
+            logging_dirname=WORKFLOWS_CONFIG_INI["general_config"]["logging_dirname"],
+            img_attrs=WORKFLOWS_CONFIG_INI.getboolean("general_config", "img_attrs"),
+            x_posting_auto=WORKFLOWS_CONFIG_INI.getboolean(
                 "embed_assist", "x_posting_auto"
             ),
-            x_posting_enabled=workflows_config.getboolean(
+            x_posting_enabled=WORKFLOWS_CONFIG_INI.getboolean(
                 "embed_assist", "x_posting_enabled"
             ),
-            telegram_posting_auto=workflows_config.getboolean(
+            telegram_posting_auto=WORKFLOWS_CONFIG_INI.getboolean(
                 "embed_assist", "telegram_posting_auto"
             ),
-            telegram_posting_enabled=workflows_config.getboolean(
+            telegram_posting_enabled=WORKFLOWS_CONFIG_INI.getboolean(
                 "embed_assist", "telegram_posting_enabled"
             ),
         )
@@ -476,12 +490,8 @@ def update_mcash_conf() -> UpdateMCash:
     :return: ``UpdateMCash``
     """
     return UpdateMCash(
-        logging_dirname=workflows_config["general_config"]["logging_dirname"]
+        logging_dirname=WORKFLOWS_CONFIG_INI["general_config"]["logging_dirname"]
     )
-
-
-# tasks_config.ini
-tasks_config = parse_client_config("tasks_config", "core.config")
 
 
 def tasks_conf() -> TasksConf:
@@ -490,6 +500,6 @@ def tasks_conf() -> TasksConf:
     :return: ``TasksConf``
     """
     return TasksConf(
-        mcash_dump_url=tasks_config["dump_create_config"]["mcash_dump_url"],
-        mcash_set_url=tasks_config["dump_create_config"]["mcash_set_url"],
+        mcash_dump_url=TASKS_CONFIG_INI["dump_create_config"]["mcash_dump_url"],
+        mcash_set_url=TASKS_CONFIG_INI["dump_create_config"]["mcash_set_url"],
     )
