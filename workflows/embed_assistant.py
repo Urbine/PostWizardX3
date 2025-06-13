@@ -191,6 +191,7 @@ def embedding_pilot(
                 ["asian", "japanese"],
             )
             # Default tag per partner
+            # TODO: Allow tag per partner config from config file, maybe a tuple. Refactor!!
             if partner == "feed_alpha" or partner == "feed_beta":
                 tag_prep.append("japanese")
             elif partner == "PartnerNine":
