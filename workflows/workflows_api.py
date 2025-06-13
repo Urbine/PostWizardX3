@@ -111,8 +111,6 @@ from core.config_mgr import (
     WPAuth,
     ContentSelectConf,
     GallerySelectConf,
-    EmbedAssistConf,
-    UpdateMCash,
     MongerCashAuth,
 )
 
@@ -156,6 +154,13 @@ class EmbedsMultiSchema(Generic[T]):
         pat_orientation: Pattern[str] = re.compile(r"orientation", re.IGNORECASE)
 
         def __iter__(self):
+            """
+            Yields the attribute values of this object based on its fields.
+
+            This method iterates over the attributes defined by the `fields` function,
+            which typically returns a list of Field objects. For each field, it yields the value
+            of the corresponding attribute using Python's built-in `getattr` function.
+            """
             for field in fields(self):
                 yield getattr(self, field.name)
 
@@ -798,6 +803,25 @@ def fetch_thumbnail(
     return remote_data.status_code
 
 
+def fetch_thumbnail_file(
+    folder: str,
+    remote_res: str,
+) -> tuple[str, int]:
+    """
+    Fetches a thumbnail file from the given remote resource and saves it to the specified folder.
+
+    :param folder: ``str`` thumbnails dir (typically a temporary folder)
+    :param remote_res: ``str`` thumbnail download URL
+    :return: ``tuple[str, int]`` (file name, status code)
+    """
+    thumbnail_dir: str = folder
+    remote_data: requests = requests.get(remote_res)
+    img_name = (spl_str := remote_res).split(split_char(spl_str))[-1]
+    with open(os.path.join(thumbnail_dir, img_name), "wb") as img:
+        img.write(remote_data.content)
+    return os.path.join(os.path.abspath(folder), img_name), remote_data.status_code
+
+
 def make_payload(
     vid_slug,
     status_wp: str,
@@ -905,36 +929,48 @@ def make_img_payload(
     vid_title: str,
     vid_description: str,
     bot_config: ContentSelectConf = content_select_conf(),
+    flat_payload: bool | tuple[str, str, str] = False,
 ) -> dict[str, str]:
     """Similar to the make_payload function, this one makes the payload for the video thumbnails,
     it gives them the video description and focus key phrase, which is the video title plus a call to
-    action in case that ALT text appears on the image search vertical, and they want to watch the video.
+    action in case that a certain ALT text appears on the image search vertical, and they want to watch the video.
 
-    :param vid_title: ``str`` self-explanatory
-    :param vid_description: ``str`` self-explanatory
+    :param vid_title: ``str`` The title of the video.
+    :param vid_description: ``str`` The description of the video.
     :param bot_config: ``ContentSelectConf`` Uses general configuration options to customise payloads.
-    :return: ``dict[str, str]``
+    :param flat_payload: ``bool | tuple[str, str, str]``, optional
+        When ``False`` (default), the payload is generated automatically.
+        If a tuple of (`alt_text`, `caption`, `description`) is provided, it is used to create the payload.
+    :return: ``dict[str, str]`` A dictionary with the image payload.
     """
+
     # In case that the description is the same as the title, the program will send
     # a different payload to avoid keyword over-optimization.
-    if vid_title == vid_description:
+    flat_attrs_dict = {
+        "alt_text": "",
+        "caption": "",
+        "description": "",
+    }
+
+    if vid_title == vid_description and not flat_payload:
         img_payload: dict[str, str] = {
             "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
             "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
             "description": f"{vid_title} {bot_config.site_name}{bot_config.domain_tld}",
         }
     elif not bot_config.img_attrs:
-        img_payload: dict[str, str] = {
-            "alt_text": "",
-            "caption": "",
-            "description": "",
-        }
-    else:
+        img_payload = flat_attrs_dict
+    elif not flat_payload:
         img_payload: dict[str, str] = {
             "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
             "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
             "description": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
         }
+    else:
+        flat_attrs_dict["alt_text"] = flat_payload[0]
+        flat_attrs_dict["caption"] = flat_payload[1]
+        flat_attrs_dict["description"] = flat_payload[2]
+        img_payload = flat_attrs_dict
 
     return img_payload
 
@@ -1937,7 +1973,7 @@ def pick_classifier(
 
     categ_ids: list[int] = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
     logging.info(
-        f"WordPress matched category ID: {categ_ids} for category: {sel_categ}"
+        f"WordPress API matched category ID: {categ_ids} for category: {sel_categ}"
     )
     return categ_ids
 

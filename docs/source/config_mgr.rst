@@ -58,6 +58,16 @@ However, here is a template that can help you get started:
     telegram_group_channel_id = @<your-group-or-channel>
     bot_token =
 
+    [brave_search_api]
+    api_key_search =
+
+    [google_custom_search]
+    api_key =
+    <Generated one with image search, no safesearch filtering>
+    <Both cse ids can be equal if you use a custom search engine that supports image search>
+    search_engine_id_img =
+    search_engine_id_web =
+
 Just fill in the configuration options once you have the information required.
 
 .. caution::

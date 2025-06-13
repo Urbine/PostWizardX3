@@ -79,6 +79,17 @@ refresh_token = <added automatically after app authorization>
 telegram_group_channel_id = @<chat_id>
 bot_token = 
 
+[brave_search_api]
+api_key_search = 
+
+[google_custom_search]
+api_key = 
+# Generated one with image search, no safesearch filtering
+# Both ids can be equal if you use a custom search engine that supports image search.
+search_engine_id_img =
+search_engine_id_web =
+
+
 """
 TASKS_CONF_INI = """[dump_create_config]
 mcash_dump_url = https://mongercash.com/internal.php?page=adtools&category=3&typeid=23&view=dump

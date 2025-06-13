@@ -1,7 +1,21 @@
 """
-Common utilities for the project.
+Core Utilities Package
 
-This package includes helper functions and custom exceptions.
+This module provides essential utilities, helpers, and exception handling for the project.
+It centralizes core functionality used across different parts of the application.
+
+Key components:
+- Custom exceptions for standardized error handling
+- Helper functions for common operations (file I/O, string manipulation, network requests)
+- Configuration management via the config_mgr module
+- Authentication handlers for various services (WordPress, MongoDB, X/Twitter)
+- Data transformation and processing utilities
+
+The module is designed with a focus on reusability, maintainability, and consistent
+error handling patterns to ensure reliable operation across the entire application.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
 """
 
 __author__ = "Yoham Gabriel Urbine@GitHub"
@@ -20,6 +34,7 @@ from core.config_mgr import (
     bot_father,
     update_mcash_conf,
     brave_auth,
+    google_search_conf,
 )
 
 
@@ -74,6 +89,7 @@ from core.helpers import (
     parse_client_config,
     remove_if_exists,
     search_files_by_ext,
+    singleton,
     split_char,
     write_to_file,
     write_config_file,
@@ -123,6 +139,7 @@ __all__ = [
     "parse_client_config",
     "remove_if_exists",
     "search_files_by_ext",
+    "singleton",
     "split_char",
     "update_mcash_conf",
     "write_to_file",
@@ -136,4 +153,5 @@ __all__ = [
     "x_auth",
     "bot_father",
     "brave_auth",
+    "google_search_conf",
 ]

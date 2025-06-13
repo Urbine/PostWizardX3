@@ -250,6 +250,17 @@ class BraveAuth:
 
 @singleton
 @dataclass(frozen=True, kw_only=True)
+class GoogleSearch:
+    api_key: str
+    cse_id_img: str
+    cse_id_web: str
+
+    def __repr__(self):
+        return "GoogleSearch()"
+
+
+@singleton
+@dataclass(frozen=True, kw_only=True)
 class UpdateMCash:
     """
     Immutable class with behavioral tweaks for
@@ -440,6 +451,18 @@ def gallery_select_conf() -> GallerySelectConf:
             telegram_posting_enabled=WORKFLOWS_CONFIG_INI.getboolean(
                 "gallery_select", "telegram_posting_enabled"
             ),
+        )
+    except ValueError:
+        raise InvalidConfiguration
+
+
+def google_search_conf() -> GoogleSearch:
+    """Factory function for dataclass ``GoogleSearch``"""
+    try:
+        return GoogleSearch(
+            api_key=CLIENT_INFO_INI["google_custom_search"]["api_key"],
+            cse_id_img=CLIENT_INFO_INI["google_custom_search"]["search_engine_id_img"],
+            cse_id_web=CLIENT_INFO_INI["google_custom_search"]["search_engine_id_web"],
         )
     except ValueError:
         raise InvalidConfiguration
