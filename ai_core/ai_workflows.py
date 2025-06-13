@@ -209,24 +209,3 @@ def ai_video_attrs(
 
     return alt_text, caption, description, category, slug, tags
 
-
-if __name__ == "__main__":
-    # Testing code
-    from core import get_duration
-    import time
-
-    llm, _ = load_llm_model()
-    print("LLM loaded")
-    time_start = time.time()
-    ai_act = ai_video_attrs(
-        Path("../nunxang_korean_ai.jpg"),
-        "Korean Fucks Guest",
-        "Cute Korean hotel maid takes off her pants and pleasures guest's hard white dick",
-        None,
-        llm,
-    )
-    print(ai_act)
-    time_end = time.time()
-    h, mins, secs = get_duration(time_end - time_start)
-    print("This process took: ", "hours:", h, "mins:", mins, "secs:", secs)
-    llm.unload()
