@@ -984,7 +984,7 @@ def make_slug(
     reverse: bool = False,
     partner_out: bool = False,
 ) -> str:
-    """This function is a new approach to the generation of slugs inspired by the slug making
+    """This function is a new approach to the generation of slugs inspired by the slug-making
     mechanism from gallery_select.py. It takes in strings that will be transformed into URL slugs
     that will help us optimise the permalinks for SEO purposes.
 
@@ -997,7 +997,6 @@ def make_slug(
     :param partner_out: ``bool`` ``True`` if you want to build slugs without the partner name. Default ``False``.
     :return: ``str`` formatted string of a WordPress-ready URL slug.
     """
-    model_spl = split_char(model, placeholder=" ")
     join_wrds = lambda wrd: "-".join(map(lambda w: w.lower(), re.findall(r"\w+", wrd)))
     build_slug = lambda lst: "-".join(filter(lambda e_str: e_str != "", lst))
 
@@ -1026,44 +1025,55 @@ def make_slug(
     )
 
     partner_sl: str = "-".join(clean_partner_tag(partner.lower()).split())
-    content: str = join_wrds(content)
-    studio: str = join_wrds(studio) if studio is not None else ""
+    content_sl: str = join_wrds(content)
+    studio_sl: str = join_wrds(studio) if studio is not None else ""
 
-    try:
-        model_sl: str = "-".join(
-            [
-                "-".join(map(join_wrds, name.split(" ")))
-                for name in list(
-                    map(
-                        lambda m: m.lower().strip(),
-                        model.split(model_spl if model_spl != " " else "."),
-                    )
-                )
-            ]
+    model_sl: str = ""
+    if model:
+        model_delim = split_char(model, placeholder=" ")
+        model_sl = "-".join(
+            "-".join(map(join_wrds, name.split(" ")))
+            for name in map(
+                lambda m: m.lower().strip(),
+                model.split(model_delim if model_delim != " " else "."),
+            )
         )
 
-        if reverse:
-            return build_slug([title_sl, partner_sl, model_sl, studio, content])
-        elif partner_out:
-            return build_slug([title_sl, model_sl, content])
-        elif studio:
-            return build_slug([partner_sl, model_sl, title_sl, studio, content])
-        else:
-            return build_slug([partner_sl, model_sl, title_sl, content])
-    except AttributeError:
-        # Model can be NoneType and crash the program if this is not handled.
-        if reverse:
-            return build_slug([title_sl, partner_sl, content])
-        elif partner_out:
-            return build_slug([title_sl, studio, content])
-        else:
-            return build_slug([partner_sl, title_sl, content])
+    # Build slug segments according to flags
+    segments: list[str]
+    if reverse:
+        # reverse has precedence over every other flag
+        segments = [title_sl, partner_sl]
+        if model_sl:
+            segments.append(model_sl)
+        if studio_sl:
+            segments.append(studio_sl)
+        segments.append(content_sl)
+    elif partner_out:
+        # partner name omitted
+        segments = [title_sl]
+        if model_sl:
+            segments.append(model_sl)
+        elif studio_sl:
+            segments.append(studio_sl)
+        segments.append(content_sl)
+    else:
+        # default behaviour
+        segments = [partner_sl]
+        if model_sl:
+            segments.append(model_sl)
+        segments.append(title_sl)
+        if studio_sl:
+            segments.append(studio_sl)
+        segments.append(content_sl)
+
+    return build_slug(segments)
 
 
 def hot_file_sync(
     bot_config,
 ) -> bool:
-    """I named this feature "Hot Sync" as it has the ability to modify the data structure we are using as a cached
+    """I named this feature "Hot Sync" as it can modify the data structure we are using as a cached
     datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
     This function leverages the power of the caching mechanism defined
     in wordpress_api.py that dynamically appends new items in order and keeps track of cached pages with the
