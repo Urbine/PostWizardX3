@@ -44,10 +44,11 @@ import torch
 from PIL import Image
 from transformers import AutoProcessor, BlipForConditionalGeneration
 
+from ai_core.ai_client_mgr import load_llm_model
 
 # Local implementations
-from .config.ai_config import get_load_model_config, get_inference_params, MODEL_ID
-from integrations import google_search, wordpress_api
+from .config.ai_config import get_inference_params
+from integrations import google_search
 from ml_engine import classify_title, classify_description, classify_tags
 
 
@@ -67,19 +68,9 @@ caption_lock = threading.Lock()
 semaphore = asyncio.Semaphore(10)
 captions = deque()
 
-
-def load_llm_model():
-    client_lms = lms.Client()
-    loaded_models = client_lms.list_loaded_models()
-    if loaded_models:
-        for llm_model in loaded_models:
-            llm_model.unload()
-    model_instance = client_lms.llm.load_new_instance(
-        MODEL_ID, config=get_load_model_config()
-    )
-    return lms.llm(MODEL_ID), model_instance
-
 video_path = ""
+
+
 def video_frame_captions(video_path):
     """
     Captures all frames from a given video file.
@@ -209,3 +200,24 @@ def ai_video_attrs(
 
     return alt_text, caption, description, category, slug, tags
 
+
+if __name__ == "__main__":
+    # Testing code
+    from core import get_duration
+    import time
+
+    llm, _ = load_llm_model()
+    print("LLM loaded")
+    time_start = time.time()
+    ai_act = ai_video_attrs(
+        Path(""),
+        "",
+        "",
+        None,
+        llm,
+    )
+    print(ai_act)
+    time_end = time.time()
+    h, mins, secs = get_duration(time_end - time_start)
+    print("This process took: ", "hours:", h, "mins:", mins, "secs:", secs)
+    llm.unload()
