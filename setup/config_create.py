@@ -120,6 +120,14 @@ logging_dirname = logs
 # Tweak this option if you want to remove image attributes
 # This is useful to de-optimise images for SEO
 img_attrs = False
+# AI Configs are not essential for the project to run and default to `None` if not populated
+# Inference parameters and model loading config is managed from ``ai_config.py`` in ai_core.config
+# It supports lmstudio or ollama
+llm_provider = "ollama"
+llm_model_tag = ""
+# Local ollama or lmstudio server
+llm_host = localhost
+llm_port = 11433
 
 [content_select]
 pic_format = .jpg

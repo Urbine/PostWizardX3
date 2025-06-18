@@ -27,7 +27,6 @@ Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
 """
 
-
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
@@ -67,7 +66,8 @@ from core.config_mgr import (
     ContentSelectConf,
 )
 
-from ai_core.ai_workflows import ai_video_attrs, load_llm_model
+from ai_core.ai_workflows import ai_video_attrs
+from ai_core.ai_client_mgr import load_llm_model
 from ai_core.config import ai_config as ai
 from . import workflows_api as workflows
 from .workflows_api import ConsoleStyle

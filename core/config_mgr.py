@@ -26,7 +26,9 @@ __author_email__ = "yohamg@programmer.net"
 
 import os
 from dataclasses import dataclass
+from typing import Optional
 
+# Local implementations
 from core.helpers import parse_client_config, singleton
 from core.custom_exceptions import InvalidConfiguration, ClientInfoSecretsNotFound
 
@@ -272,6 +274,15 @@ class UpdateMCash:
         return "UpdateMCash()"
 
 
+@singleton
+@dataclass(frozen=True, kw_only=True)
+class ai_services:
+    llm_provider: str
+    llm_model_tag: str
+    llm_serve_host: str
+    llm_serve_port: str
+
+
 def wp_auth() -> WPAuth:
     """Factory function for dataclass ``WPAuth``
 
@@ -515,6 +526,19 @@ def update_mcash_conf() -> UpdateMCash:
     return UpdateMCash(
         logging_dirname=WORKFLOWS_CONFIG_INI["general_config"]["logging_dirname"]
     )
+
+
+def ai_services_conf() -> Optional[ai_services]:
+    """Factory function for dataclass ``ai_services``"""
+    try:
+        return ai_services(
+            llm_provider=WORKFLOWS_CONFIG_INI["general_config"]["llm_provider"],
+            llm_model_tag=WORKFLOWS_CONFIG_INI["general_config"]["llm_model_tag"],
+            llm_serve_host=WORKFLOWS_CONFIG_INI["general_config"]["llm_host"],
+            llm_serve_port=WORKFLOWS_CONFIG_INI["general_config"]["llm_port"],
+        )
+    except ValueError:
+        return None
 
 
 def tasks_conf() -> TasksConf:

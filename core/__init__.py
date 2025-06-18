@@ -24,6 +24,7 @@ __version__ = "1.0.0"
 
 # Config_mgr constants
 from core.config_mgr import (
+    ai_services_conf,
     wp_auth,
     monger_cash_auth,
     gallery_select_conf,
@@ -57,6 +58,7 @@ from core.custom_exceptions import (
     MissingCacheError,
     ClientInfoSecretsNotFound,
     InvalidSQLConfig,
+    InvalidAIConfig,
 )
 
 
@@ -113,8 +115,10 @@ __all__ = [
     "ClientInfoSecretsNotFound",
     "UnableToConnectError",
     "InvalidSQLConfig",
+    "InvalidAIConfig",
     "access_url",
     "access_url_bs4",
+    "ai_services_conf",
     "clean_console",
     "clean_filename",
     "clean_file_cache",
