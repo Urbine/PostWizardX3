@@ -261,3 +261,14 @@ class InvalidSQLConfig(Exception):
         )
         self.help = "Make sure you have the correct SQL query for the partner you plan to work with in this session."
         super().__init__(f"{self.message} {self.help}")
+
+
+class InvalidAIConfig(Exception):
+    """
+    The InvalidAIConfig class represents an error object used when there is a misconfiguration or lack of AI system's parameters or settings.
+    """
+
+    def __init__(self, message: str = ""):
+        self.message = message
+        self.help = "Double check your AI configuration under the `general_config` section in the workflows_config.ini file."
+        super().__init__(f"{self.message}\n{self.help}")
