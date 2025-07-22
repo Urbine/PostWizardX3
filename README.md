@@ -1,7 +1,7 @@
-# webmaster-seo-tools
+# PostDirectorX3 
 
 A comprehensive Python-based SEO toolset featuring machine learning classification, content optimization, and workflow
-automation.
+automation for WordPress-based adult websites.
 
 ## Overview
 

@@ -1,10 +1,10 @@
 [project]
-name = "webmaster-seo-tools"
+name = "PostDirectorX3"
 version = "0.1.0"
 authors = [
     {name = "Yoham Gabriel ~ Urbine@GitHub", email = "yohamg@programmer.net" }
 ]
-description = "Collection of tools that streamline webmaster SEO workflows."
+description = "A comprehensive Python-based SEO toolset featuring machine learning classification, content optimization, and workflow automation for WordPress-based adult websites."
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
