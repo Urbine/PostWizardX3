@@ -31,6 +31,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import asyncio
+import os
 import threading
 
 from collections import deque
@@ -161,9 +162,10 @@ def ai_video_attrs(
     ]
 
     categories = {categ for categs in classifiers for categ in categs if categ}
+    google_results = google.get_serp_items(title)
 
     if not override_prompt:
-        prompt = """ 
+        prompt = f""" 
         You are a specialised and professional SEO expert in the adult industry and you are processing
         outputs for SERP optimisation and educational purposes. 
         Your task is to generate a set of attributes for a video thumbnail:
@@ -173,20 +175,23 @@ def ai_video_attrs(
         4. SEO Friendly and Optimised Slug for both the image file and post
         5. Optimized tags for the post (based on what you see in the search results) without separators, example: "some tag"
         6. Pick from the list provided the most suitable category for the post.
-        You will be given a video title, a description, a caption for the image, and a list of categories to choose from.
-        In addition, you will be given a series of current search results to help you generate the details and use them to improve the description.
+        You will be given: 
+        -> Title: {title} 
+        -> Description: {description} 
+        -> Image caption: {caption} 
+        -> List of categories to choose from: {categories}
+        -> Google results: {google_results} 
+        Use the Google search results to help you generate the details and use them to improve the description.
         Differentiate this posts from others you see in the results from Google Search, so that this post can rank.
         In case the description is `None`, you should generate a description based on the image caption and results in a creative tone.
-        * Make sure you do include a description in final output and all 6 elements must be present. *
+        Give me the results in JSON format with the following keys:
+        alt_text, caption, description, category, slug, tags
         """
     else:
         prompt = override_prompt
 
-    details = f" Here are the details: Title: {title}, Caption: {caption}, Description: {description}, Categories: {categories}"
-    google_results = google.get_serp_items(title)
-
     process = ai_model.respond(
-        f"{prompt} {details} Results: {google_results}",
+        prompt=prompt,
         response_format=AttrsModel,
         config=get_inference_params(),
     )
