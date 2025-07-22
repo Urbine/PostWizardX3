@@ -36,7 +36,7 @@ natural language processing for automated content classification and optimizatio
 
 ## Technical Requirements
 
-- Python 3.13.3+
+- Python 3.11+
 - Virtual environment support
 - Required external services:
     - WordPress installation

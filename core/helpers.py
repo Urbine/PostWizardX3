@@ -679,7 +679,7 @@ def load_file_path(package: str, filename: str) -> Optional[Path]:
         raise FileNotFoundError
 
 
-def load_json_ctx(filename: str, log_err: bool = False) -> Optional[list[dict[...]]]:
+def load_json_ctx(filename: str, log_err: bool = False, file_path: Optional[Path] = None) -> Optional[list[dict[...]]]:
     """This function makes it possible to assign a JSON file from storage to a variable.
 
     :param log_err: ``True`` if you want to print error information, default ``False``.

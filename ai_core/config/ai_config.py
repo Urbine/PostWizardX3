@@ -155,22 +155,22 @@ def get_load_model_config():
 
 def get_ollama_load_config():
     return OllamaLoadConfig(
-        num_ctx=4096,         # Larger context for better accuracy (reduce if VRAM limited)
-        num_batch=16,         # Reasonable batch size to balance throughput and latency
+        num_ctx=4096,  # Larger context for better accuracy (reduce if VRAM limited)
+        num_batch=16,  # Reasonable batch size to balance throughput and latency
         num_gpu=1,
-        main_gpu=0,           # Assuming you have the primary GPU 0
-        low_vram=False,       # Set True if you see OOM errors
-        f16_kv=True,          # Use half-precision key-values for better performance
-        use_mmap=True,        # Enable memory-mapped files for faster load times
-        use_mlock=True,       # Leave off unless you're sure you want to pin in RAM
+        main_gpu=0,  # Assuming you have the primary GPU 0
+        low_vram=False,  # Set True if you see OOM errors
+        f16_kv=True,  # Use half-precision key-values for better performance
+        use_mmap=True,  # Enable memory-mapped files for faster load times
+        use_mlock=True,  # Leave off unless you're sure you want to pin in RAM
         embedding_only=False,
         num_thread=os.cpu_count(),  # Matches your physical cores
         # --- Runtime configs ---
-        temperature=0.7,            # Balance between randomness and coherence
-        top_k=40,                   # Good balance for diversity
-        top_p=0.9,                  # Nucleus sampling for controlled creativity
-        repeat_penalty=1.1,         # Reduce likelihood of repetition
-        repeat_last_n=64,           # Consider last 64 tokens for repetition penalty
-        num_predict=256,            # Adjust as needed for your task
-        mirostat=0,                 # Use standard sampling unless you need dynamic control
+        temperature=0.8,  # Balance between randomness and coherence
+        top_k=40,  # Good balance for diversity
+        top_p=0.9,  # Nucleus sampling for controlled creativity
+        repeat_penalty=1.1,  # Reduce likelihood of repetition
+        repeat_last_n=64,  # Consider last 64 tokens for repetition penalty
+        num_predict=300,  # Adjust as needed for your task
+        mirostat=0,  # Use standard sampling unless you need dynamic control
     )
