@@ -37,7 +37,8 @@ import xlsxwriter
 from urllib3 import BaseHTTPResponse
 
 # Local implementations
-from core import NoSuitableArgument, MissingCacheError, helpers, is_parent_dir_required
+from core import NoSuitableArgument, helpers, is_parent_dir_required
+from wordpress.exceptions.internal_exceptions import MissingCacheError
 from core.config_mgr import WPAuth, wp_auth
 from core.helpers import singleton
 
