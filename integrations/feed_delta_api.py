@@ -20,13 +20,13 @@ from dataclasses import dataclass
 
 # Local implementations
 from core import (
-    NoFieldsException,
     access_url_bs4,
     write_to_file,
     remove_if_exists,
     clean_filename,
     parse_client_config,
 )
+from integrations.exceptions.integration_exceptions import NoFieldsException
 from integrations.url_builder import (
     URLEncode,
 )

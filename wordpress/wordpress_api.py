@@ -1,0 +1,978 @@
+"""
+WordPress API integration module for data extraction, caching, and analysis.
+
+This module provides a class-based interface to interact with the WordPress REST API,
+enabling retrieval, creation, and management of posts, tags, categories, and media.
+It supports local caching of API data, efficient synchronization, and various utilities
+for filtering, mapping, and reporting on WordPress site content.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__email__ = "yohamg@programmer.net"
+
+import aiohttp
+import asyncio
+import datetime
+import logging
+import os
+import re
+import requests
+import threading
+
+from collections import namedtuple, deque
+from enum import Enum
+from pathlib import Path
+from requests.auth import HTTPBasicAuth
+from typing import Optional
+
+# Third-party modules
+import urllib3
+
+# Local implementations
+import core
+import wordpress.exceptions.internal_exceptions
+from wordpress.exceptions.internal_exceptions import (
+    MissingCacheError,
+    YoastSEOUnsupported,
+)
+
+
+class WordPress:
+    class WPEndpoints(Enum):
+        """
+        Enum class for the WordPress API Endpoints constants.
+        """
+
+        USERS = "/users?"
+        POSTS = "/posts"
+        PER_PAGE = "?per_page="
+        PAGE = "?page="
+        FIELDS_BASE = "?_fields="
+        # fields are comma-separated in the URL after the
+        # fields_base value.
+        FIELD_AUTHOR = "author"
+        FIELD_ID = "id"
+        FIELD_EXCERPT = "excerpt"
+        FIELD_TITLE = "title"
+        FIELD_LINK = "link"
+        CATEGORIES = "/categories"
+        MEDIA = "/media"
+        TAGS = "/tags"
+
+    class WPTaxonomyValues(Enum):
+        """
+        Enum class for the WordPress cache taxonomy value representation.
+
+        A taxonomy value list is a key in the WordPress post data that holds a list of numeric IDs
+        for a given taxonomy, such as tags or categories.
+
+        Example:
+            "tags": [12, 34, 56]
+            "categories": [2, 5]
+        """
+
+        TAGS = "tags"
+        CATEGORIES = "categories"
+
+    class WPTaxonomyMarker(Enum):
+        """
+        Enum class for the WordPress cache taxonomy key markers.
+
+        A taxonomy marker is a prefix or identifier used in the 'class_list' field of a post
+        to indicate the type of taxonomy (e.g., tag, category, post type, status).
+
+        Example:
+            "tag-python", "category-tutorial", "status-published"
+
+        These markers help extract and group related metadata from posts.
+        """
+
+        TAG = "tag"
+        CATEGORY = "category"
+        POST = "post"
+        TYPE = "type"
+        STATUS = "status"
+
+    def __init__(
+        self,
+        fq_domain_name: str,
+        username: str,
+        password: str,
+        cache_path: str | Path,
+    ):
+        """
+        Initializes the WordPress API handler with authentication and cache configuration.
+
+        :param fq_domain_name: ``str`` -> Fully qualified domain name of the WordPress site.
+        :param username: ``str`` -> Username for WordPress API authentication.
+        :param password: ``str`` -> Application password for WordPress API authentication.
+        :param cache_path: ``str | Path`` -> Path to the local cache file.
+        :return: ``None``
+        """
+        core.logging_setup("logs", __file__)
+        self.session_number = os.environ.get("SESSION_ID")
+        self.fq_domain_name = fq_domain_name
+        self.api_base_url = f"https://{self.fq_domain_name}/wp-json/wp/v2"
+        self.username = username
+        self.app_password = password
+        self.cache_path = cache_path
+        self.cache_dir = os.path.split(self.cache_path)[0]
+        self.cache_name = os.path.basename(self.cache_path)
+        self.cache_metadata_file = (
+            f"{os.path.split(self.cache_path)[1].split('.')[0]}_metadata.json"
+        )
+        self.cache_metadata_path = self.cache_path if self.cache_path else None
+        self.__cache_metadata: Optional[dict | list[dict]] = (
+            core.load_json_ctx(Path(self.cache_dir, self.cache_metadata_file))
+            if os.path.exists(self.cache_path)
+            else None
+        )
+        self.cached_pages: Optional[int] = None
+        self.total_posts: Optional[int] = None
+        self.last_updated: Optional[str] = None
+
+        # Set up cache dir, if it does not exist.
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir, exist_ok=True)
+
+        if self.__cache_metadata:
+            metadata_fields = self.__cache_metadata[0][self.cache_name]
+            self.cached_pages: int = metadata_fields["cached_pages"]
+            self.total_posts: int = metadata_fields["total_posts"]
+            self.last_updated: str = metadata_fields["last_updated"]
+
+        try:
+            if os.path.exists(self.cache_path):
+                self.cache_sync()
+            else:
+                self.create_export_local_cache()
+        except requests.ConnectionError:
+            if os.path.exists(self.cache_path):
+                self.cache_data: list[dict] = core.load_json_ctx(Path(self.cache_path))
+            else:
+                raise wordpress.exceptions.internal_exceptions.MissingCacheError(
+                    self.cache_path
+                )
+
+    def curl_wp_self_concat(
+        self,
+        http: urllib3.PoolManager,
+        param_lst: list[str],
+    ) -> urllib3.BaseHTTPResponse:
+        """
+        Makes a GET request to the WordPress API using urllib3 and basic authentication.
+
+        :param http: ``urllib3.PoolManager`` -> HTTP client for requests.
+        :param param_lst: ``list[str]`` -> List of URL parameters to append to the endpoint.
+        :return: ``urllib3.BaseHTTPResponse`` -> HTTP response object.
+        """
+        wp_self: str = self.api_base_url
+        username_: str = self.username
+        app_pass_: str = self.app_password
+        headers = urllib3.make_headers(
+            keep_alive=True,
+            accept_encoding=True,
+            basic_auth=f"{username_}:{app_pass_}",
+        )
+        wp_self: str = wp_self + "".join(param_lst)
+        return http.request("GET", wp_self, headers=headers)
+
+    def create_local_cache(self, wp_cache_fname: str) -> list[dict]:
+        """
+        Fetches all posts from the WordPress site and creates a local cache.
+
+        :param wp_cache_fname: ``str`` -> Cache filename to use for storing posts.
+        :return: ``list[dict]`` -> List of post dictionaries.
+        """
+        result_lock = threading.Lock()
+        result_deque = deque()
+
+        x_wp_total = 0
+        x_wp_totalpages = 0
+
+        def add_result(elem) -> None:
+            """
+            Appends an element to a shared list while ensuring thread safety using a lock.
+
+            :param elem: ``Any`` -> Element to be appended to the shared list.
+            :return: ``None``
+            """
+            timeout = 30
+            try:
+                if result_lock.acquire(timeout=timeout):
+                    result_deque.append(elem)
+                else:
+                    print(
+                        f"Could not acquire lock in {threading.current_thread()!r} at add_result() within {timeout} seconds."
+                    )
+            finally:
+                result_lock.release()
+
+        end_param_posts = [self.WPEndpoints.POSTS.value]
+        wp_cache: str = core.clean_filename(wp_cache_fname, "json")
+        print(f"\nCreating WordPress {wp_cache} cache file...\n")
+
+        http = urllib3.PoolManager()
+        curl_wp = self.curl_wp_self_concat(http, list(end_param_posts))
+        headers = curl_wp.headers
+        x_wp_total += int(headers["x-wp-total"])
+        x_wp_totalpages += int(headers["x-wp-totalpages"])
+        end_param_posts.append(self.WPEndpoints.PAGE.value)
+
+        wp_pages = []
+        for page_num in range(1, x_wp_totalpages + 1):
+            wp_self: str = self.api_base_url
+            wp_pages.append(wp_self + "".join(end_param_posts) + str(page_num))
+
+        semaphore = asyncio.Semaphore(value=5)
+
+        async def async_wp_self_concat(
+            session: aiohttp.ClientSession, wp_url: str
+        ) -> None:
+            """
+            Coroutine to fetch a single page of posts from the WordPress API.
+
+            :param session: ``aiohttp.ClientSession`` -> HTTP session for requests.
+            :param wp_url: ``str`` -> URL to fetch.
+            :return: ``None``
+            """
+            username_: str = self.username
+            app_pass_: str = self.app_password
+            auth = aiohttp.BasicAuth(username_, app_pass_)
+            headers_aiohttp = {"keep-alive": "True", "accept-encoding": "True"}
+            async with semaphore:
+                async with session.get(
+                    wp_url, auth=auth, headers=headers_aiohttp
+                ) as response:
+                    if response.status != 400:
+                        print(f"--> Fetching page #{wp_url.split('=')[-1]}")
+
+                        res_json = await response.json()
+                        for item in res_json:
+                            add_result(item)
+
+        async def get_all_posts() -> None:
+            """
+            Fetches all post pages asynchronously and aggregates results.
+
+            :return: ``None``
+            """
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(30),
+                connector=aiohttp.TCPConnector(
+                    ssl_shutdown_timeout=10.0, force_close=True
+                ),
+            ) as session:
+                pages = [async_wp_self_concat(session, wp_page) for wp_page in wp_pages]
+                await asyncio.gather(*pages)
+
+        asyncio.run(get_all_posts())
+
+        # Assumes that no config file exists.
+        self.local_cache_config(x_wp_totalpages, x_wp_total)
+        print(f"\n{'DONE':=^30}\n")
+        return list(result_deque)
+
+    def create_export_local_cache(self) -> None:
+        """
+        Helper function that creates and exports the WordPress local cache.
+
+        :return: ``None``
+        """
+        wp_cache = self.create_local_cache(self.cache_name)
+        core.export_request_json(
+            self.cache_name, wp_cache, 1, target_dir=self.cache_dir
+        )
+        self.cache_data = wp_cache
+        return None
+
+    def update_json_cache(self) -> list[dict]:
+        """
+        Updates the local WordPress cache file by fetching new posts.
+
+        :return: ``list[dict]`` -> Updated list of post dictionaries.
+        :raises core.utils.custom_exceptions.MissingCacheError: If the cache file is missing.
+        """
+        http = urllib3.PoolManager(
+            num_pools=10,
+            maxsize=10,
+            retries=urllib3.Retry(total=2, backoff_factor=0.5),
+        )
+        try:
+            cache_details = core.load_json_ctx(Path(self.cache_path))
+        except FileNotFoundError:
+            raise wordpress.exceptions.internal_exceptions.MissingCacheError(
+                self.cache_name
+            )
+
+        params_posts: list[str] = [self.WPEndpoints.POSTS.value]
+        x_wp_total = 0
+        x_wp_totalpages = 0
+        # The loop will add 1 to page num when the first request is successful.
+        page_num = self.cached_pages - 2
+        result_dict: list[dict[...]] = core.load_json_ctx(Path(self.cache_path))
+        total_elems = len(result_dict)
+        recent_posts: list[dict] = []
+        page_num_param: bool = False
+        while True:
+            curl_json = self.curl_wp_self_concat(http, params_posts)
+            if curl_json.status == 400:
+                diff = x_wp_total - total_elems
+                if diff != 0:
+                    add_list = recent_posts[:diff]
+                    add_list.reverse()
+                    for recent in add_list:
+                        result_dict.insert(0, recent)
+                self.local_cache_config(page_num, x_wp_total)
+                return result_dict
+            else:
+                page_num += 1
+                if page_num_param is False:
+                    headers = curl_json.headers
+                    x_wp_total += int(headers["x-wp-total"])
+                    x_wp_totalpages = int(headers["x-wp-totalpages"])
+                    params_posts.append(self.WPEndpoints.PAGE.value)
+                    params_posts.append(str(page_num))
+                    page_num_param = True
+                else:
+                    params_posts[-1] = str(page_num)
+                for item in curl_json.json():
+                    if item not in result_dict:
+                        recent_posts.append(item)
+                    else:
+                        continue
+
+    def local_cache_config(self, wp_curr_page: int, total_posts: int) -> None:
+        """
+        Creates or updates the local cache configuration file with metadata.
+
+        :param wp_curr_page: ``int`` -> Last cached page number.
+        :param total_posts: ``int`` -> Total number of posts.
+        :return: ``None``
+        """
+        wp_cache_metadata_file = self.cache_metadata_file
+        path_exists = os.path.exists(
+            os.path.join(self.cache_dir, wp_cache_metadata_file)
+        )
+        create_new = [
+            {
+                self.cache_name: {
+                    "cached_pages": wp_curr_page,
+                    "total_posts": total_posts,
+                    "last_updated": str(datetime.date.today()),
+                }
+            }
+        ]
+        if path_exists:
+            existing_file = self.__cache_metadata
+            for item in existing_file:
+                item.update(
+                    {
+                        self.cache_name: {
+                            "cached_pages": wp_curr_page,
+                            "total_posts": total_posts,
+                            "last_updated": str(datetime.date.today()),
+                        }
+                    }
+                )
+            create_new = existing_file
+
+        self.__cache_metadata = create_new
+        metadata_fields = self.__cache_metadata[0][self.cache_name]
+        self.cached_pages: int = metadata_fields["cached_pages"]
+        self.total_posts: int = metadata_fields["total_posts"]
+        self.last_updated: str = metadata_fields["last_updated"]
+
+        core.export_request_json(
+            wp_cache_metadata_file, create_new, target_dir=self.cache_dir
+        )
+        return None
+
+    def cache_sync(self) -> Optional[bool]:
+        """
+        Synchronizes the local cache with the WordPress site.
+
+        :raises HotFileSyncIntegrityError: If validation fails.
+        :return: ``Optional[bool]`` -> True if sync is successful, otherwise None.
+        """
+        sync_changes: list[dict[...]] = self.update_json_cache()
+        # Reload config
+        if len(sync_changes) == self.total_posts:
+            core.export_request_json(
+                self.cache_name, sync_changes, 1, target_dir=self.cache_dir
+            )
+            self.__cache_metadata = core.load_json_ctx(
+                Path(self.cache_dir, self.cache_metadata_file)
+            )
+            self.cache_data = core.load_json_ctx(Path(self.cache_path))
+
+            metadata_fields = self.__cache_metadata[0][self.cache_name]
+            self.cached_pages: int = metadata_fields["cached_pages"]
+            self.total_posts: int = metadata_fields["total_posts"]
+            self.last_updated: str = metadata_fields["last_updated"]
+
+            logging.info(f"Exporting new WordPress cache config: {self.cache_name}")
+            logging.info("CacheSync Successful")
+            return True
+        else:
+            logging.critical("CacheSync failed - Rebuilding local cache...")
+            self.create_export_local_cache()
+        return None
+
+    def post_create(self, payload) -> int:
+        """
+        Creates a new post on the WordPress site via a POST request.
+
+        :param payload: ``dict`` -> Dictionary containing post information.
+        :return: ``int`` -> HTTP status code of the request.
+        """
+        wp_self: str = self.api_base_url
+        username_: str = self.username
+        app_pass_: str = self.app_password
+        auth_wp = HTTPBasicAuth(username_, app_pass_)
+        wp_self: str = wp_self + self.WPEndpoints.POSTS.value
+        return requests.post(wp_self, json=payload, auth=auth_wp).status_code
+
+    def tag_create(
+        self,
+        tag_name: str,
+        tag_slug: str,
+        description: Optional[str] = None,
+        sync_on_add: bool = False,
+    ) -> int:
+        """
+        Adds a new tag to the WordPress site via a POST request.
+
+        :param tag_name: ``str`` -> Name of the new tag.
+        :param tag_slug: ``str`` -> Slug for the new tag.
+        :param description: ``Optional[str]`` -> Optional description for the tag.
+        :param sync_on_add: ``bool`` -> If True, synchronizes the cache after adding.
+        :return: ``int`` -> HTTP status code of the request.
+        """
+        payload_schema = {
+            "name": tag_name,
+            "slug": tag_slug,
+        }
+        if description:
+            payload_schema["description"] = description
+        wp_self: str = self.api_base_url
+        username_: str = self.username
+        app_pass_: str = self.app_password
+        auth_wp = HTTPBasicAuth(username_, app_pass_)
+        wp_self: str = wp_self + self.WPEndpoints.TAGS.value
+        status_code = requests.post(
+            wp_self, json=payload_schema, auth=auth_wp
+        ).status_code
+        if status_code == 201 and sync_on_add:
+            self.cache_sync()
+        return status_code
+
+    def upload_image(
+        self,
+        file_path: str | Path,
+        payload: dict[str, str | int],
+    ) -> int:
+        """
+        Uploads an image as a WordPress media attachment.
+
+        :param file_path: ``str | Path`` -> Path to the image file.
+        :param payload: ``dict[str, str | int]`` -> Image attributes (ALT text, description, caption).
+        :return: ``int`` -> HTTP status code of the request.
+        """
+        username_: str = self.username
+        app_pass_: str = self.app_password
+        auth_wp = HTTPBasicAuth(username_, app_pass_)
+        # headers = {"Content-Disposition": f"attachment; filename={file_path}"}
+        wp_self: str = self.fq_domain_name + self.WPEndpoints.MEDIA.value
+        with open(file_path, "rb") as thumb:
+            request = requests.post(wp_self, files={"file": thumb}, auth=auth_wp)
+        try:
+            image_json = request.json()
+            return requests.post(
+                self.fq_domain_name + "/" + str(image_json["id"]),
+                json=payload,
+                auth=auth_wp,
+            ).status_code
+        except (KeyError, requests.exceptions.JSONDecodeError):
+            return request.status_code
+
+    def get_tags_num_count(self) -> dict[int, int]:
+        """
+        Counts the occurrences of tag IDs in the cached posts.
+
+        :return: ``dict[int, int]`` -> Mapping tag ID to occurrence count.
+        """
+        content = self.WPTaxonomyValues.TAGS
+        tags_nums_count: dict = {}
+        for dic in self.cache_data:
+            for tag_num in dic[content.value]:
+                if tag_num in tags_nums_count.keys():
+                    tags_nums_count[tag_num] += 1
+                else:
+                    tags_nums_count[tag_num] = 1
+        return tags_nums_count
+
+    def get_slugs(self) -> list[str]:
+        """
+        Retrieves all slugs from the cached WordPress posts.
+
+        :return: ``list[str]`` -> List of slugs/permalinks.
+        """
+        return [elem["slug"] for elem in self.cache_data]
+
+    def get_links(self) -> list[str]:
+        """
+        Retrieves all post links from the cached WordPress posts.
+
+        :return: ``list[str]`` -> List of post links.
+        """
+        return [elem["link"] for elem in self.cache_data]
+
+    def map_wp_class_id(
+        self, taxonomy_marker: WPTaxonomyMarker, taxonomy_values: WPTaxonomyValues
+    ) -> dict[str, int]:
+        """
+        Maps keywords from the class_list to their numeric IDs.
+
+        :param taxonomy_marker: ``WPTaxonomyMarker`` -> Enum value for the keyword prefix to match.
+            A taxonomy marker is a prefix in the class_list (e.g., "tag", "category").
+        :param taxonomy_values: ``WPTaxonomyValues`` -> Enum value for the key containing numeric IDs.
+            A taxonomy value list is a key in the post dict (e.g., "tags", "categories").
+        :return: ``dict[str, int]`` -> Mapping keyword to numeric ID.
+
+        Output sample:
+            ``{"Python": 12, "Tutorial": 34}``
+        """
+        result_dict = {}
+        for elem in self.cache_data:
+            kw = [
+                " ".join(item.split("-")[1:]).title()
+                for item in elem["class_list"]
+                if re.findall(taxonomy_marker.value, item)
+            ]
+            model_ids = elem[taxonomy_values.value]
+            for item in zip(kw, model_ids):
+                (name, wp_id) = item
+                if name not in result_dict.keys():
+                    result_dict[name] = wp_id
+                else:
+                    continue
+        return result_dict
+
+    def get_from_class_list(
+        self, taxonomy_marker: WPTaxonomyMarker, unique_str: bool = False
+    ) -> list[str]:
+        """
+        Gets keywords from a post dictionary that WordPress prefixes with a specific pattern.
+
+        Output sample:
+            ``["Python", "Tutorial", "Beginner"]``
+
+        Note:
+            If unique_str is True, only unique keywords are returned.
+
+        :param taxonomy_marker: ``WPTaxonomyMarker`` -> Enum class with taxonomy marker values.
+            Used to match prefixes in the class_list (e.g., "tag", "category").
+        :param unique_str: ``bool`` -> Return unique results.
+        :return: ``list[str]`` -> Cleaned keywords.
+        """
+        double_join = lambda tag: "".join(" ".join(tag).title())
+        class_list = [
+            [
+                double_join(cls_lst.split("-")[1:])
+                for cls_lst in elem["class_list"]
+                if re.match(taxonomy_marker.value, cls_lst)
+                if cls_lst is not None
+            ]
+            for elem in self.cache_data
+        ]
+
+        taxonomy_lst = [
+            taxonomy if len(item) != 0 else None
+            for item in class_list
+            for taxonomy in item
+        ]
+        return (
+            taxonomy_lst
+            if not unique_str
+            else list({taxonomy for taxonomy in taxonomy_lst})
+        )
+
+    def get_class_list_id_groups(
+        self, taxonomy_marker: WPTaxonomyMarker, tags_key: bool = False
+    ) -> dict[str, list[str | int]] | list[dict[str | int, str]]:
+        """
+        Gets keywords from a post dictionary that WordPress prefixes with a specific pattern.
+        Output: ``{post_id: [tag_list]}`` or if ``tag_key`` is ``True``, then ``{tag: [post_id_list]}``
+
+        Output sample (``tags_key=False``):
+            ``[{123: ["Python", "Tutorial"]}, {124: ["Beginner"]}]``
+        Output sample (``tags_key=True``):
+            ``{"Python": [123], "Tutorial": [123], "Beginner": [124]}``
+
+        Note:
+            This function can invert the mapping depending on ``tags_key``.
+
+        :param taxonomy_marker: ``WPTaxonomyMarker`` -> Enum class with taxonomy marker values.
+            Used to match prefixes in the class_list (e.g., "tag", "category").
+        :param tags_key: ``bool`` -> If True, returns a dictionary with the keyword as key and list of ids as value.
+        :return: ``dict[str, list[str | int]] | list[dict[str | int, str]]`` -> Grouping keywords and IDs.
+        """
+        double_join = lambda tag: "".join(" ".join(tag).title())
+        class_list = [
+            {
+                elem["id"]: [
+                    double_join(cls_lst.split("-")[1:])
+                    for cls_lst in elem["class_list"]
+                    if re.match(taxonomy_marker.value, cls_lst)
+                ]
+            }
+            for elem in self.cache_data
+        ]
+
+        if tags_key:
+            tags_site = self.get_tag_count().keys()
+            class_list_dict = {kw: [] for kw in tags_site}
+            for post in class_list:
+                for id_, cls_list in post.items():
+                    for cls in cls_list:
+                        if cls in class_list_dict.keys():
+                            class_list_dict[cls].append(id_)
+            class_list = class_list_dict
+        return class_list
+
+    def tag_id_merger_dict(self) -> dict[str, int]:
+        """
+        Returns a dictionary mapping tag names to their IDs.
+
+        Output sample:
+            ``{"Python": 12, "Tutorial": 34}``
+
+        :return: ``dict[str, int]`` -> Mapping tag name to tag ID.
+        """
+        return {
+            tag: t_id
+            for tag, t_id in zip(
+                self.get_tag_count().keys(), self.get_tags_num_count().keys()
+            )
+        }
+
+    def get_tag_count(self, yoast_support: bool = False) -> dict[str, int]:
+        """
+        Counts every occurrence of a tag in the entire posts json file.
+
+        Output sample:
+            ``{"Python": 5, "Tutorial": 2}``
+
+        Note:
+            If yoast_support is True, this uses the Yoast SEO plugin's keywords.
+            If the Yoast SEO plugin is not installed or data is missing, a :exc:`core.utils.custom_exceptions.YoastSEOUnsupported` exception is raised.
+
+        :param yoast_support: ``bool`` -> Enable Yoast SEO support for parsing.
+        :return: ``dict[str, int]`` -> Mapping tag name to count.
+        :raises core.utils.custom_exceptions.YoastSEOUnsupported: If Yoast SEO data is missing.
+        """
+        tags_count: dict = {}
+        if yoast_support:
+            for dic in self.cache_data:
+                if dic["yoast_head_json"]["schema"]["@graph"][0]["keywords"]:
+                    for kw in dic["yoast_head_json"]["schema"]["@graph"][0]["keywords"]:
+                        if kw in tags_count.keys():
+                            tags_count[kw] = tags_count[kw] + 1
+                        else:
+                            tags_count[kw] = 1
+                else:
+                    raise wordpress.exceptions.internal_exceptions.YoastSEOUnsupported
+        else:
+            tags_count = self.count_wp_class_id(self.WPTaxonomyMarker.TAG)
+        return tags_count
+
+    def tag_id_count_merger(self) -> list:
+        """
+        Returns a list of NamedTuples with tag title, ID, and count.
+
+        Output sample:
+            ``[WP_Tags(title='Python', ID=12, count=5), WP_Tags(title='Tutorial', ID=34, count=2)]``
+
+        :return: ``list`` -> List of NamedTuples (title, ID, count).
+        """
+        tag_count: dict = self.get_tag_count()
+        tag_id_merger = zip(
+            tag_count.keys(),
+            self.get_tags_num_count().keys(),
+            tag_count.values(),
+        )
+        Tag_ID_Count = namedtuple("WP_Tags", ["title", "ID", "count"])
+        result = [
+            Tag_ID_Count(title, ids, count) for title, ids, count in tag_id_merger
+        ]
+        return result
+
+    def get_tag_id_pairs(
+        self, yoast_support: bool = False
+    ) -> dict[str, list[str | int]]:
+        """
+        Creates a dictionary mapping tag names to lists of post IDs.
+
+        Output sample:
+            ``{"Python": [123, 124], "Tutorial": [123]}``
+
+        Note:
+            If yoast_support is True, this uses the Yoast SEO plugin's keywords.
+
+        :param yoast_support: ``bool`` -> Enable Yoast SEO support for parsing.
+        :return: ``dict[str, list[str | int]]`` -> Mapping tag name to list of post IDs.
+        """
+        unique_tags = self.get_tag_count(yoast_support=yoast_support).keys()
+        tags_c: dict[str, list[str | int]] = {kw: [] for kw in unique_tags}
+        if yoast_support:
+            for dic in self.cache_data:
+                for kw in unique_tags:
+                    if kw in dic["yoast_head_json"]["schema"]["@graph"][0]["keywords"]:
+                        tags_c[kw].append(dic["id"])
+        else:
+            tags_c = self.get_class_list_id_groups(
+                self.WPTaxonomyMarker.TAG, tags_key=True
+            )
+        return tags_c
+
+    def get_post_titles_local(self, yoast_support: bool = False) -> list[str]:
+        """
+        Gets a list of all post titles from the cache.
+
+        :param yoast_support: ``bool`` -> Enable Yoast SEO support for parsing.
+        :return: ``list[str]`` -> List of post titles.
+        """
+        all_titles = []
+        for post in self.cache_data:
+            if yoast_support:
+                all_titles.append(
+                    " ".join(post["yoast_head_json"]["title"].split(" ")[:-2])
+                )
+            else:
+                all_titles.append(post["title"]["rendered"])
+        return all_titles
+
+    def map_posts_by_id(self, include_host_name: bool = False) -> dict[str, int]:
+        """
+        Maps post ID to a slug or URL.
+
+        :param include_host_name: ``bool`` -> If True, includes the hostname in the URL.
+        :return: ``dict[str, str]`` -> Mapping post ID to slug or URL.
+        """
+        wp_cache_data = self.cache_data
+        u_pack = zip(
+            [idd["id"] for idd in wp_cache_data], [url["slug"] for url in wp_cache_data]
+        )
+        if include_host_name:
+            return {idd: f"{self.fq_domain_name}/" + url for idd, url in u_pack}
+        else:
+            return {idd: url for idd, url in u_pack}
+
+    def map_tags_post_urls(
+        self, include_host_name: bool = False
+    ) -> dict[str, list[str]]:
+        """
+        Creates a dictionary mapping tag names to lists of post slugs or URLs.
+
+        :param include_host_name: ``bool`` -> If True, includes the hostname in the URLs.
+        :return: ``dict[str, list[str]]`` -> Mapping tag name to list of slugs or URLs.
+        """
+        mapped_ids = self.map_posts_by_id(include_host_name=include_host_name)
+        unique_tags = self.get_tag_count().keys()
+        tags_c = {kw: [] for kw in unique_tags}
+        clean_kw = lambda tag: " ".join(tag.split("-")[1:]).title()
+        for dic in self.cache_data:
+            for kw in dic["class_list"]:
+                if (kw := clean_kw(kw)) in tags_c.keys():
+                    tags_c[kw].append(mapped_ids[dic["id"]])
+        return tags_c
+
+    def map_tags_posts(
+        self,
+        taxonomy_marker: WPTaxonomyMarker,
+        include_host_name: bool = False,
+        idd: bool = None,
+        yoast_support: bool = False,
+    ) -> dict[str, list[str]]:
+        """
+        Creates a dictionary mapping tag names to lists of post slugs or IDs.
+
+        Output sample (``idd=False``):
+            ``{"Python": ["python-intro", "python-advanced"], "Tutorial": ["tutorial-1"]}``
+        Output sample (``idd=True``):
+            ``{"Python": [123, 124], "Tutorial": [123]}``
+
+        Note:
+            If yoast_support is True, this uses the Yoast SEO plugin's keywords.
+
+        :param taxonomy_marker: ``WPTaxonomyMarker`` -> Taxonomy that you want to match with the Tag key.
+            Used to match prefixes in the class_list (e.g., "tag", "category").
+        :param include_host_name: ``bool`` -> If True, includes the hostname in the URLs.
+        :param idd: ``bool | None`` -> If True, returns post IDs instead of slugs.
+        :param yoast_support: ``bool`` -> Enable Yoast SEO support for parsing.
+        :return: ``dict[str, list[str]]`` -> Mapping tag name to list of slugs or IDs.
+        """
+        mapped_ids: dict = self.map_posts_by_id(include_host_name=include_host_name)
+        unique_tags = self.get_tag_count(yoast_support=yoast_support).keys()
+        tags_c: dict = {kw: [] for kw in unique_tags}
+        if yoast_support:
+            for dic in self.cache_data:
+                for kw in dic["yoast_head_json"]["schema"]["@graph"][0]["keywords"]:
+                    if kw in tags_c.keys():
+                        if idd is True:
+                            tags_c[kw].append(dic["id"])
+                        else:
+                            tags_c[kw].append(mapped_ids[dic["id"]])
+        else:
+            class_list = self.get_class_list_id_groups(taxonomy_marker, tags_key=True)
+            for tag, post_ids in class_list.items():
+                for post_id in post_ids:
+                    for post in self.cache_data:
+                        if post["id"] == post_id:
+                            if idd:
+                                append_val = post["id"]
+                            else:
+                                append_val = post["slug"]
+
+                            if tag.title() in tags_c.keys():
+                                tags_c[tag.title()].append(append_val)
+        return tags_c
+
+    def map_post_id_slug(
+        self,
+        include_host_name: bool = False,
+        yoast_support: bool = False,
+    ) -> dict[str, str]:
+        """
+        Associates post ID with a slug or URL.
+
+        :param include_host_name: ``bool`` -> If True, includes the hostname in the URLs.
+        :param yoast_support: ``bool`` -> Enable Yoast SEO support for parsing.
+        :return: ``dict[str, str]`` -> Mapping post ID to slug or URL.
+        """
+        # In the case of KeyError, there is at least one post that hasn't been categorized in WordPress.
+        # Check the culprit with the following code if this behaviour is not intended.
+        id_list = [id_post["id"] for id_post in self.cache_data]
+        if yoast_support:
+            post_pack = zip(
+                id_list,
+                [
+                    post["yoast_head_json"]["schema"]["@graph"][1]["url"].split("/")[-2]
+                    if not include_host_name
+                    else post["yoast_head_json"]["schema"]["@graph"][1]["url"]
+                    for post in self.cache_data
+                ],
+            )
+        else:
+            post_pack = zip(
+                id_list,
+                [post["slug"] for post in self.cache_data],
+            )
+
+        if include_host_name and not yoast_support:
+            return {idd: f"{self.fq_domain_name}/" + url for idd, url in post_pack}
+        else:
+            return {idd: cat for idd, cat in post_pack}
+
+    def get_post_categories(self) -> list[str]:
+        """
+        Retrieves the category for each post from the cached data.
+
+        :return: ``list[str]`` -> List of categories.
+        """
+        categories = self.get_from_class_list(self.WPTaxonomyMarker.CATEGORY)
+        return categories
+
+    def get_post_descriptions(self, yoast_support: bool = False) -> list[str]:
+        """
+        Extracts post descriptions (excerpts) from the cached data.
+
+        :param yoast_support: ``bool`` -> Enable Yoast SEO support for parsing.
+        :return: ``list[str]`` -> List of post descriptions.
+        """
+        wp_cached_data = self.cache_data
+        if yoast_support:
+            return [item["yoast_head_json"]["description"] for item in wp_cached_data]
+        else:
+            return [
+                item["excerpt"]["rendered"].strip("\n").strip("<p>").strip("</p>")
+                for item in wp_cached_data
+            ]
+
+    def map_wp_class_id_many(
+        self,
+        match_taxonomy_marker: WPTaxonomyMarker,
+        compare_taxonomy_marker: WPTaxonomyMarker,
+    ) -> dict[str, set[str]]:
+        """
+        Combine two keys in the class-list key.
+
+        Output sample:
+            ``{"Beginner": {"Python", "Tutorial"}, "Advanced": {"Python"}}``
+
+        Note:
+            This function creates a mapping between two different taxonomy markers.
+
+        :param match_taxonomy_marker: ``WPTaxonomyMarker`` -> Taxonomy you want to match.
+            Used to match prefixes in the class_list (e.g., "tag", "category").
+        :param compare_taxonomy_marker: ``WPTaxonomyMarker`` -> Taxonomy you want to map to match_taxonomy_marker matches.
+            Used to match another prefix in the class_list.
+        :return: ``dict[str, set[str]]`` -> Mapping taxonomy to set of matched values.
+        """
+        result_dict = {}
+        for elem in self.cache_data:
+            kw = [
+                " ".join(item.split("-")[1:]).title()
+                for item in elem["class_list"]
+                if re.findall(match_taxonomy_marker.value, item)
+            ]
+
+            d_kw = [
+                " ".join(item.split("-")[1:]).title()
+                for item in elem["class_list"]
+                if re.findall(compare_taxonomy_marker.value, item)
+            ]
+
+            for item in d_kw:
+                if item not in result_dict.keys():
+                    result_dict[item] = set(kw)
+                else:
+                    result_dict[item].union(kw)
+        return result_dict
+
+    def count_wp_class_id(self, taxonomy_marker: WPTaxonomyMarker) -> dict[str, int]:
+        """
+        Parses the cache to locate and count tags or other keywords in the class_list key.
+
+         Output sample:
+            ``{"Python": 5, "Tutorial": 2}``
+
+        :param taxonomy_marker: ``WPTaxonomyMarker`` -> Taxonomy you want to match.
+            Used to match prefixes in the class_list (e.g., "tag", "category").
+        :return: ``dict[str, int]`` -> Mapping taxonomy to count.
+        """
+        result_dict = {}
+        for elem in self.cache_data:
+            kw = [
+                " ".join(item.split("-")[1:]).title()
+                for item in elem["class_list"]
+                if re.findall(taxonomy_marker.value, item)
+            ]
+            for item in kw:
+                if item not in result_dict.keys():
+                    result_dict[item] = 1
+                else:
+                    result_dict[item] += 1
+        return result_dict
+
+
+if __name__ == "__main__":
+    # This file is not meant to be run directly yet.
+    # It is a module that is imported by other modules.
+    raise RuntimeError(
+        "This file is not meant to be run directly yet. It is a module that is imported by other modules."
+    )

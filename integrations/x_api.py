@@ -37,13 +37,16 @@ import core
 from core import (
     get_webdriver,
     generate_random_str,
+)
+from integrations.exceptions.integration_exceptions import (
     RefreshTokenError,
-    x_auth,
     AccessTokenRetrievalError,
 )
 
-from core.config_mgr import XAuth  # Imported for type annotations.
-from workflows import clean_outdated
+from core.utils.secret_handler import SecretHandler
+from core.models.secret_model import SecretType
+from core.models.secret_model import XAuth
+from tasks import clean_outdated
 
 
 @dataclass(frozen=True)
@@ -149,7 +152,7 @@ def x_oauth_pkce(xauth: XAuth, x_endpoints: XEndpoints) -> str:
     return requests.get(x_endpoints.authorise_url, params=params).url
 
 
-def access_token(code: str, xauth: XAuth, x_endpoints: XEndpoints) -> Response:
+def access_token(code: str, username: str, x_endpoints: XEndpoints) -> Response:
     """After the user authorises my app, X will generate an authorisation code that makes it
     possible to request the new bearer and refresh tokens (if offline.access has been passed
     through the URL scope parameters).
@@ -157,26 +160,28 @@ def access_token(code: str, xauth: XAuth, x_endpoints: XEndpoints) -> Response:
     to the redirect URI address.
 
     :param code: ``str`` Authorisation code from the redirect URI ``GET`` request.
+    :param username: ``str`` Username of the X account that is being used to authorise the app.
     :param xauth: ``XAuth`` Factory object with the parsed config with API secrets.
     :param x_endpoints: ``XEndpoints`` dataclass containing the endpoints used in this application.
     :return: ``Any`` More precisely a ``JSON`` object. Requests describes this object as ``Any`` for typing purposes.
 
     """
     token_url = x_endpoints.token_url
+    x_secrets = SecretHandler().get_secret(SecretType.X_CLIENT_SECRET)[0]
     header = {
         "Content-Type": "application/x-www-form-urlencoded",
     }
     data = {
         "code": f"{code}",
         "grant_type": "authorization_code",
-        "client_id": f"{xauth.client_id}",
-        "redirect_uri": f"{xauth.uri_callback}",
+        "client_id": f"{x_secrets.client_id}",
+        "redirect_uri": f"{x_secrets.uri_callback}",
         "code_verifier": "challenge",
     }
     return requests.post(
         token_url,
         data=data,
-        auth=(xauth.client_id, xauth.client_secret),
+        auth=(x_secrets.client_id, x_secrets.client_secret),
         headers=header,
     )
 
@@ -330,10 +335,10 @@ def write_tokens_cinfo(new_bearer_token: str, new_refresh_token: str) -> None:
     :param new_refresh_token: ``str`` self-explanatory
     :return: ``None`` (Writes in client_info.ini config)
     """
-    core.write_config_file(
+    core.update_config_file(
         "client_info", "core.config", "x_api", "access_token", new_bearer_token
     )
-    core.write_config_file(
+    core.update_config_file(
         "client_info", "core.config", "x_api", "refresh_token", new_refresh_token
     )
     return None
@@ -380,7 +385,7 @@ def main(*args, **kwargs) -> None:
     :return: ``None``
     """
     ch_code = authorise_app_x(*args, **kwargs)
-    new_tokens = access_token(ch_code, x_auth(), XEndpoints())
+    new_tokens = access_token(ch_code, kwargs["x_username"], XEndpoints())
     try:
         write_tokens_cinfo(
             new_tokens.json()["access_token"], new_tokens.json()["refresh_token"]
@@ -409,5 +414,16 @@ if __name__ == "__main__":
         help="Use the Gecko webdriver for the automation.",
     )
 
+    arg.add_argument(
+        "--x-username",
+        type=str,
+        help="X username to be used for the authorisation.",
+    )
+
     args_cli = arg.parse_args()
-    main(x_auth(), XEndpoints(), headless=args_cli.headless, gecko=args_cli.gecko)
+    main(
+        XEndpoints(),
+        headless=args_cli.headless,
+        gecko=args_cli.gecko,
+        x_username=args_cli.x_username,
+    )
