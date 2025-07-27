@@ -1,161 +1,104 @@
-"""
-Core Utilities Package
-
-This module provides essential utilities, helpers, and exception handling for the project.
-It centralizes core functionality used across different parts of the application.
-
-Key components:
-- Custom exceptions for standardized error handling
-- Helper functions for common operations (file I/O, string manipulation, network requests)
-- Configuration management via the config_mgr module
-- Authentication handlers for various services (WordPress, MongoDB, X/Twitter)
-- Data transformation and processing utilities
-
-The module is designed with a focus on reusability, maintainability, and consistent
-error handling patterns to ensure reliable operation across the entire application.
-
-Author: Yoham Gabriel Urbine@GitHub
-Email: yohamg@programmer.net
-"""
-
-__author__ = "Yoham Gabriel Urbine@GitHub"
-__email__ = "yohamg@programmer.net"
-__version__ = "1.0.0"
-
-# Config_mgr constants
-from core.config_mgr import (
-    ai_services_conf,
-    wp_auth,
-    monger_cash_auth,
-    gallery_select_conf,
-    content_select_conf,
-    embed_assist_conf,
-    tasks_conf,
-    x_auth,
-    bot_father,
-    update_mcash_conf,
-    brave_auth,
-    google_search_conf,
+from core.utils.decorators import singleton
+from core.config.config_factories import (
+    ai_config_factory,
+    general_config_factory,
+    image_config_factory,
+    social_config_factory,
 )
 
-
-# Custom Exceptions `custom_exceptions.py`
-from core.custom_exceptions import (
-    UnableToConnectError,
-    InvalidInput,
-    NoSuitableArgument,
-    UnsupportedParameter,
-    RefreshTokenError,
-    HotFileSyncIntegrityError,
-    AssetsNotFoundError,
-    AccessTokenRetrievalError,
-    UnavailableLoggingDirectory,
-    NoFieldsException,
+from core.exceptions.data_access_exceptions import (
     InvalidDB,
-    BraveAPIValidationError,
-    BraveAPIInvalidCountryCode,
-    BraveAPIInvalidLanguageCode,
-    MissingCacheError,
-    ClientInfoSecretsNotFound,
     InvalidSQLConfig,
+    UnableToConnectError,
+)
+from core.exceptions.config_exceptions import (
+    SectionsNotFoundError,
+    ClientSecretsNotFound,
     InvalidAIConfig,
 )
+from core.exceptions.util_exceptions import (
+    NoSuitableArgument,
+    InvalidInput,
+    UnsupportedParameter,
+    UnavailableLoggingDirectory,
+    UnsupportedPlatform,
+    InvalidOperationMode,
+)
 
-
-# Project helper functions `helpers.py`
-from core.helpers import (
+from core.utils.helpers import (
     access_url,
     access_url_bs4,
+    apply_os_permissions,
     clean_console,
-    clean_filename,
     clean_file_cache,
+    clean_filename,
+    create_store,
     export_request_json,
     fetch_data_sql,
     filename_creation_helper,
     filename_select,
-    get_duration,
     generate_random_str,
-    sha256_hash_generate,
-    str_encode_b64,
+    get_dict_key,
+    get_duration,
     get_token_oauth,
     get_webdriver,
+    goto_project_root,
     is_parent_dir_required,
     load_file_path,
     load_from_file,
     load_json_ctx,
+    logging_setup,
     lst_dict_to_csv,
     match_list_elem_date,
     match_list_mult,
     match_list_single,
-    parse_date_to_iso,
     parse_client_config,
+    parse_date_to_iso,
     remove_if_exists,
     search_files_by_ext,
-    singleton,
+    sha256_hash_generate,
     split_char,
+    str_encode_b64,
     write_to_file,
-    write_config_file,
 )
 
 __all__ = [
-    "NoSuitableArgument",
-    "UnsupportedParameter",
-    "InvalidInput",
-    "RefreshTokenError",
-    "HotFileSyncIntegrityError",
-    "AssetsNotFoundError",
-    "AccessTokenRetrievalError",
-    "UnavailableLoggingDirectory",
-    "NoFieldsException",
-    "InvalidDB",
-    "BraveAPIValidationError",
-    "BraveAPIInvalidCountryCode",
-    "BraveAPIInvalidLanguageCode",
-    "MissingCacheError",
-    "ClientInfoSecretsNotFound",
-    "UnableToConnectError",
-    "InvalidSQLConfig",
-    "InvalidAIConfig",
-    "access_url",
-    "access_url_bs4",
-    "ai_services_conf",
+    "ai_config_factory",
+    "apply_os_permissions",
     "clean_console",
-    "clean_filename",
     "clean_file_cache",
+    "clean_filename",
+    "create_store",
+    "export_request_json",
+    "fetch_data_sql",
     "filename_creation_helper",
     "filename_select",
-    "export_request_json",
-    "get_duration",
+    "general_config_factory",
     "generate_random_str",
-    "sha256_hash_generate",
-    "str_encode_b64",
+    "get_dict_key",
+    "get_duration",
     "get_token_oauth",
     "get_webdriver",
+    "goto_project_root",
+    "image_config_factory",
     "is_parent_dir_required",
-    "match_list_elem_date",
-    "match_list_mult",
-    "match_list_single",
     "load_file_path",
     "load_from_file",
     "load_json_ctx",
+    "logging_setup",
     "lst_dict_to_csv",
-    "parse_date_to_iso",
+    "match_list_elem_date",
+    "match_list_mult",
+    "match_list_single",
     "parse_client_config",
+    "parse_date_to_iso",
     "remove_if_exists",
     "search_files_by_ext",
-    "singleton",
+    "sha256_hash_generate",
+    "social_config_factory",
     "split_char",
-    "update_mcash_conf",
+    "str_encode_b64",
     "write_to_file",
-    "write_config_file",
-    "wp_auth",
-    "monger_cash_auth",
-    "gallery_select_conf",
-    "content_select_conf",
-    "embed_assist_conf",
-    "tasks_conf",
-    "x_auth",
-    "bot_father",
-    "brave_auth",
-    "google_search_conf",
+    "access_url",
+    "access_url_bs4",
 ]

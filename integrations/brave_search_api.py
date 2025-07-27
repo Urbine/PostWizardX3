@@ -8,12 +8,14 @@ from urllib3 import BaseHTTPResponse
 
 # Local implementations
 import core
-from core import (
-    brave_auth,
+from integrations.exceptions.integration_exceptions import (
     BraveAPIValidationError,
     BraveAPIInvalidCountryCode,
     BraveAPIInvalidLanguageCode,
 )
+
+from core.utils.secret_handler import SecretHandler
+from core.models.secret_model import SecretType
 
 
 class BraveSearchAPI:
@@ -147,6 +149,7 @@ class BraveSearchAPI:
         self.__base_url = "https://api.search.brave.com/res/v1"
         self.endpoint: str = self.Endpoint.search
         self.http = http
+        self.__api_key = SecretHandler().get_secret(SecretType.BRAVE_API_KEY)[0].api_key
 
         if web:
             self.mode: str = self.Mode.web
@@ -245,7 +248,7 @@ class BraveSearchAPI:
         headers = {
             "Accept": "application/json",
             "Accept-Encoding": "gzip",
-            "X-Subscription-Token": brave_auth().api_key_search,
+            "X-Subscription-Token": self.__api_key,
         }
 
         if not raw_query:

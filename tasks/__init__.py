@@ -21,6 +21,9 @@ from tasks.parse_txt_dump import parse_txt_dump_chain
 # ** MongerCash HTML photoset dump parser
 from tasks.sets_source_parse import db_generate
 
+# ** Clean outdated files
+from tasks.clean_outdated_files import clean_outdated
+
 __all__ = [
     "parse_partner_name",
     "get_vid_dump_flow",

@@ -17,8 +17,10 @@ import requests
 from requests import Response  # Imported for typing purposes.
 
 # Local imports
-from core import bot_father
-from core.config_mgr import BotAuth  # Imported for typing purposes.
+from core.utils.secret_handler import SecretHandler
+from core.models.secret_model import SecretType
+from core.models.secret_model import BotAuth
+from core import ClientSecretsNotFound
 
 
 @dataclass(frozen=True)
@@ -90,6 +92,7 @@ def send_message(
 
 
 if __name__ == "__main__":
+    SECRET_HANDLER = SecretHandler()
     args = argparse.ArgumentParser(
         description="Telegram BotFather CLI for webmaster-seo-tools."
     )
@@ -108,13 +111,24 @@ if __name__ == "__main__":
 
     args_cli = args.parse_args()
 
+    bot_father_token = SECRET_HANDLER.get_secret(SecretType.TELEGRAM_ACCESS_TOKEN)[
+        0
+    ].token
+    if bot_father_token is None:
+        raise ClientSecretsNotFound(
+            "BotFather secrets not found. Please check your secrets database."
+        )
+
     if args_cli.msg is not None:
         print(
             send_message(
-                bot_father(), BotFatherCommands(), BotFatherEndpoints(), args_cli.msg
+                bot_father_token,
+                BotFatherCommands(),
+                BotFatherEndpoints(),
+                args_cli.msg,
             ).json()
         )
     elif args_cli.getme:
-        print(get_me(bot_father(), BotFatherCommands()).json())
+        print(get_me(bot_father_token, BotFatherCommands()).json())
     else:
         quit(0)

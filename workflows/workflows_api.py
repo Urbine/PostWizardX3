@@ -1376,7 +1376,7 @@ def telegram_send_message(
         "Watch free:Click to watch full video:",
         "Don't miss out:",
     ]
-    auto_mode = bot_config.telegram_posting_auto
+    auto_mode = bot_config.telegram_sharing_auto
     if auto_mode:
         msg_text = random.choice(calls_to_action)
 
@@ -1460,7 +1460,7 @@ def social_sharing_controller(
     :param cs_config: ``ContentSelectConf`` | ``GallerySelectConf`` | ``EmbedAssistConf`` workflow config object
     :return: ``None``
     """
-    if cs_config.x_posting_enabled or cs_config.telegram_posting_enabled:
+    if cs_config.x_posting_enabled or cs_config.telegram_sharing_enabled:
         status_msg = "Checking WP status and preparing for social sharing."
         status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         user_input = ConsoleStyle.TEXT_STYLE_ATTENTION.value
@@ -1508,9 +1508,9 @@ def social_sharing_controller(
                     )
                 logging.info(f"X post status code: {x_post_create}")
 
-            if cs_config.telegram_posting_enabled:
+            if cs_config.telegram_sharing_enabled:
                 logging.info("Telegram Posting - Enabled in workflows config")
-                if cs_config.telegram_posting_auto:
+                if cs_config.telegram_sharing_auto:
                     logging.info("Telegram Posting Automatic detected in config")
                     telegram_msg = telegram_send_message(
                         description,

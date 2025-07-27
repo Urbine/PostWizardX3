@@ -26,12 +26,13 @@ Usage:
     results = google.get_serp_items("search query")
 
     image_search = GoogleImage()
-    image_results = image_search.get_serp_items("search query",
-                                               size=GoogleImage.ImageSize.LARGE,
-                                               image_type=GoogleImage.ImageType.PHOTO)
+    image_results = \
+    image_search.get_serp_items("search query",
+    size=GoogleImage.ImageSize.LARGE,
+    image_type=GoogleImage.ImageType.PHOTO)
+
 Author: Yoham Gabriel Github@Urbine
 Email: yohamg@programmer.org
-
 """
 
 import requests
@@ -40,7 +41,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 # Local implementations
-from core import google_search_conf
+from core.utils.secret_handler import SecretHandler
+from core.models.secret_model import SecretType
 
 
 class Google:
@@ -59,9 +61,11 @@ class Google:
 
     def __init__(self):
         self.base_url = "https://www.googleapis.com/customsearch/v1?"
-        self.api_key = google_search_conf().api_key
-        self.cse_id = google_search_conf().cse_id_web
-        self.formed = f"{self.base_url}key={self.api_key}&cx={self.cse_id}"
+        self.__api_key = (
+            SecretHandler().get_secret(SecretType.GOOGLE_API_KEY)[0].api_key
+        )
+        self.__cse_id = SecretHandler().get_secret(SecretType.GOOGLE_API_KEY)[0].cse_id
+        self.formed = f"{self.base_url}key={self.__api_key}&cx={self.__cse_id}"
 
     def query(self, query: str):
         request = requests.get(self.formed + f"&q={query}")
@@ -123,10 +127,12 @@ class GoogleImage:
 
     def __init__(self):
         self.base_url = "https://www.googleapis.com/customsearch/v1?"
-        self.api_key = google_search_conf().api_key
-        self.cse_id = google_search_conf().cse_id_img
+        self.__api_key = (
+            SecretHandler().get_secret(SecretType.GOOGLE_API_KEY)[0].api_key
+        )
+        self.__cse_id = SecretHandler().get_secret(SecretType.GOOGLE_API_KEY)[0].cse_id
         self.formed = (
-            f"{self.base_url}key={self.api_key}&cx={self.cse_id}&searchType=image"
+            f"{self.base_url}key={self.__api_key}&cx={self.__cse_id}&searchType=image"
         )
 
     def query(

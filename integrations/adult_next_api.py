@@ -20,7 +20,7 @@ from dataclasses import dataclass
 
 # Local implementations
 import core
-from core.helpers import remove_if_exists, parse_client_config
+from core.utils.helpers import remove_if_exists, parse_client_config
 from .url_builder import CSVColumns, URLEncode
 
 
