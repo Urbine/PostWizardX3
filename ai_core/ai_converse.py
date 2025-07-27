@@ -25,7 +25,7 @@ ollama_llm = ChatOllama(
     num_thread=OLLAMA_CONFIG.num_thread,
     num_gpu=OLLAMA_CONFIG.num_gpu,
     num_ctx=OLLAMA_CONFIG.num_ctx,
-    format="json"
+    format="json",
 )
 
 prompt_example_1 = """ 
@@ -145,13 +145,7 @@ if __name__ == "__main__":
     import os
 
     time_start = time.time()
-    ai_act = ai_video_attrs(
-        Path(""),
-        "",
-        "",
-        "",
-        prompt_example_1
-    )
+    ai_act = ai_video_attrs(Path(""), "", "", "", prompt_example_1)
     print(ai_act)
     time_end = time.time()
     h, mins, secs = get_duration(time_end - time_start)
