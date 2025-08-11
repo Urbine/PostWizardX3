@@ -21,7 +21,7 @@ Email: yohamg@programmer.net
 """
 
 import unittest
-from workflows.workflows_api import clean_partner_tag
+from tools.workflows_api import clean_partner_tag
 
 
 class TestCleanPartnerTag(unittest.TestCase):
