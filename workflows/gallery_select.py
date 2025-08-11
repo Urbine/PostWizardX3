@@ -38,8 +38,10 @@ import time
 import pyclip
 from requests.exceptions import ConnectionError, SSLError
 
+import core.utils.system_shell
+
 # Local implementations
-from .workflows_api import (
+from tools.workflows_api import (
     ConsoleStyle,
     filter_published,
     get_tag_ids,
@@ -125,7 +127,7 @@ def gallery_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
 
-    helpers.clean_console()
+    core.utils.system_shell.clean_console()
 
     iter_session_print(console, total_elems, partner=partner)
     time.sleep(2)
@@ -146,7 +148,7 @@ def gallery_upload_pilot(
         download_url: str = fields[1]
         partner_name: str = partner
 
-        helpers.clean_console()
+        core.utils.system_shell.clean_console()
 
         iter_session_print(console, galleries_uploaded, elem_num=num)
         console.print(title, style=user_default_style)

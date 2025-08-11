@@ -40,10 +40,10 @@ from pathlib import Path
 
 
 # Third-party modules
-import lmstudio as lms
 import pyclip
 from requests.exceptions import SSLError, ConnectionError
 
+import core.utils.system_shell
 
 # Local implementations
 from core import (
@@ -69,8 +69,8 @@ from core.config_mgr import (
 from ai_core.ai_workflows import ai_video_attrs
 from ai_core.ai_client_mgr import load_llm_model
 from ai_core.config import ai_config as ai
-from . import workflows_api as workflows
-from .workflows_api import ConsoleStyle
+from tools import workflows_api as workflows
+from tools.workflows_api import ConsoleStyle
 
 
 def video_upload_pilot(
@@ -95,7 +95,7 @@ def video_upload_pilot(
         workflows.pilot_warm_up(cs_config, wp_auth, parent=parent)
     )
 
-    helpers.clean_console()
+    core.utils.system_shell.clean_console()
 
     with console.status(
         f"Loading Large Language Model... ᕙ(▀̿ĺ̯▀̿ ̿)ᕗ",
@@ -115,7 +115,7 @@ def video_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published for {partner}")
 
-    helpers.clean_console()
+    core.utils.system_shell.clean_console()
 
     workflows.iter_session_print(console, total_elems, partner=partner)
     time.sleep(2)
@@ -133,7 +133,7 @@ def video_upload_pilot(
         tracking_url = fields[7]
         partner_name = partner
 
-        helpers.clean_console()
+        core.utils.system_shell.clean_console()
         workflows.iter_session_print(console, videos_uploaded, elem_num=num)
 
         style_fields = workflows.ConsoleStyle.TEXT_STYLE_DEFAULT.value
@@ -262,7 +262,9 @@ def video_upload_pilot(
 
             # Check whether ImageMagick conversion has been enabled in config.
             pic_format = (
-                cs_config.pic_format if cs_config.imagick else cs_config.pic_fallback
+                cs_config.pic_format
+                if core.utils.system_shell.imagick
+                else cs_config.pic_fallback
             )
             thumbnail = clean_filename(wp_slug, pic_format)
             logging.info(f"Thumbnail name: {thumbnail}")
