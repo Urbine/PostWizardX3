@@ -23,78 +23,47 @@ import requests
 import threading
 
 from collections import namedtuple, deque
-from enum import Enum
 from pathlib import Path
 from requests.auth import HTTPBasicAuth
-from typing import Optional
+from typing import Optional, List, Any, Dict
 
 # Third-party modules
 import urllib3
 
 # Local implementations
-import core
-import wordpress.exceptions.internal_exceptions
+from core.utils.file_system import load_json_ctx, export_request_json, logging_setup
+from core.utils.strings import clean_filename
 from wordpress.exceptions.internal_exceptions import (
     MissingCacheError,
     YoastSEOUnsupported,
 )
+from wordpress.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
+from wordpress.endpoints import WPEndpoints
 
 
 class WordPress:
-    class WPEndpoints(Enum):
-        """
-        Enum class for the WordPress API Endpoints constants.
-        """
+    """
+    WordPress API handler for data extraction, caching, and analysis.
 
-        USERS = "/users?"
-        POSTS = "/posts"
-        PER_PAGE = "?per_page="
-        PAGE = "?page="
-        FIELDS_BASE = "?_fields="
-        # fields are comma-separated in the URL after the
-        # fields_base value.
-        FIELD_AUTHOR = "author"
-        FIELD_ID = "id"
-        FIELD_EXCERPT = "excerpt"
-        FIELD_TITLE = "title"
-        FIELD_LINK = "link"
-        CATEGORIES = "/categories"
-        MEDIA = "/media"
-        TAGS = "/tags"
+    This class encapsulates the WordPress REST API integration, enabling retrieval,
+    creation, and management of posts, tags, categories, and media. It supports local
+    caching of API data, efficient synchronization, and various utilities for filtering,
+    mapping, and reporting on WordPress site content.
 
-    class WPTaxonomyValues(Enum):
-        """
-        Enum class for the WordPress cache taxonomy value representation.
-
-        A taxonomy value list is a key in the WordPress post data that holds a list of numeric IDs
-        for a given taxonomy, such as tags or categories.
-
-        Example:
-            "tags": [12, 34, 56]
-            "categories": [2, 5]
-        """
-
-        TAGS = "tags"
-        CATEGORIES = "categories"
-
-    class WPTaxonomyMarker(Enum):
-        """
-        Enum class for the WordPress cache taxonomy key markers.
-
-        A taxonomy marker is a prefix or identifier used in the 'class_list' field of a post
-        to indicate the type of taxonomy (e.g., tag, category, post type, status).
-
-        Example:
-            "tag-python", "category-tutorial", "status-published"
-
-        These markers help extract and group related metadata from posts.
-        """
-
-        TAG = "tag"
-        CATEGORY = "category"
-        POST = "post"
-        TYPE = "type"
-        STATUS = "status"
+    Attributes:
+        fq_domain_name (str): Fully qualified domain name of the WordPress site.
+        username (str): Username for WordPress API authentication.
+        app_password (str): Application password for WordPress API authentication.
+        cache_path (str | Path): Path to the local cache file.
+        cache_dir (str): Directory path for the cache file.
+        cache_name (str): Name of the cache file.
+        cache_metadata_file (str): Name of the metadata file for the cache file.
+        cache_metadata_path (str | Path): Path to the metadata file for the cache file.
+        __cache_metadata (dict | list[dict]): Metadata for the cache file.
+        cached_pages (int): Number of cached pages.
+        total_posts (int): Total number of posts.
+        last_updated (str): Date when the cache was last updated.
+    """
 
     def __init__(
         self,
@@ -112,7 +81,7 @@ class WordPress:
         :param cache_path: ``str | Path`` -> Path to the local cache file.
         :return: ``None``
         """
-        core.logging_setup("logs", __file__)
+        logging_setup("logs", __file__)
         self.session_number = os.environ.get("SESSION_ID")
         self.fq_domain_name = fq_domain_name
         self.api_base_url = f"https://{self.fq_domain_name}/wp-json/wp/v2"
@@ -126,7 +95,7 @@ class WordPress:
         )
         self.cache_metadata_path = self.cache_path if self.cache_path else None
         self.__cache_metadata: Optional[dict | list[dict]] = (
-            core.load_json_ctx(Path(self.cache_dir, self.cache_metadata_file))
+            load_json_ctx(Path(self.cache_dir, self.cache_metadata_file))
             if os.path.exists(self.cache_path)
             else None
         )
@@ -151,11 +120,9 @@ class WordPress:
                 self.create_export_local_cache()
         except requests.ConnectionError:
             if os.path.exists(self.cache_path):
-                self.cache_data: list[dict] = core.load_json_ctx(Path(self.cache_path))
+                self.cache_data: list[dict] = load_json_ctx(Path(self.cache_path))
             else:
-                raise wordpress.exceptions.internal_exceptions.MissingCacheError(
-                    self.cache_path
-                )
+                raise MissingCacheError(self.cache_path)
 
     def curl_wp_self_concat(
         self,
@@ -211,8 +178,8 @@ class WordPress:
             finally:
                 result_lock.release()
 
-        end_param_posts = [self.WPEndpoints.POSTS.value]
-        wp_cache: str = core.clean_filename(wp_cache_fname, "json")
+        end_param_posts = [WPEndpoints.POSTS.value]
+        wp_cache: str = clean_filename(wp_cache_fname, "json")
         print(f"\nCreating WordPress {wp_cache} cache file...\n")
 
         http = urllib3.PoolManager()
@@ -220,7 +187,7 @@ class WordPress:
         headers = curl_wp.headers
         x_wp_total += int(headers["x-wp-total"])
         x_wp_totalpages += int(headers["x-wp-totalpages"])
-        end_param_posts.append(self.WPEndpoints.PAGE.value)
+        end_param_posts.append(WPEndpoints.PAGE.value)
 
         wp_pages = []
         for page_num in range(1, x_wp_totalpages + 1):
@@ -283,9 +250,7 @@ class WordPress:
         :return: ``None``
         """
         wp_cache = self.create_local_cache(self.cache_name)
-        core.export_request_json(
-            self.cache_name, wp_cache, 1, target_dir=self.cache_dir
-        )
+        export_request_json(self.cache_name, wp_cache, 1, target_dir=self.cache_dir)
         self.cache_data = wp_cache
         return None
 
@@ -302,18 +267,16 @@ class WordPress:
             retries=urllib3.Retry(total=2, backoff_factor=0.5),
         )
         try:
-            cache_details = core.load_json_ctx(Path(self.cache_path))
+            cache_details = load_json_ctx(Path(self.cache_path))
         except FileNotFoundError:
-            raise wordpress.exceptions.internal_exceptions.MissingCacheError(
-                self.cache_name
-            )
+            raise MissingCacheError(self.cache_name)
 
-        params_posts: list[str] = [self.WPEndpoints.POSTS.value]
+        params_posts: list[str] = [WPEndpoints.POSTS.value]
         x_wp_total = 0
         x_wp_totalpages = 0
         # The loop will add 1 to page num when the first request is successful.
         page_num = self.cached_pages - 2
-        result_dict: list[dict[...]] = core.load_json_ctx(Path(self.cache_path))
+        result_dict: List[Dict[str, Any]] = load_json_ctx(Path(self.cache_path))
         total_elems = len(result_dict)
         recent_posts: list[dict] = []
         page_num_param: bool = False
@@ -334,7 +297,7 @@ class WordPress:
                     headers = curl_json.headers
                     x_wp_total += int(headers["x-wp-total"])
                     x_wp_totalpages = int(headers["x-wp-totalpages"])
-                    params_posts.append(self.WPEndpoints.PAGE.value)
+                    params_posts.append(WPEndpoints.PAGE.value)
                     params_posts.append(str(page_num))
                     page_num_param = True
                 else:
@@ -386,7 +349,7 @@ class WordPress:
         self.total_posts: int = metadata_fields["total_posts"]
         self.last_updated: str = metadata_fields["last_updated"]
 
-        core.export_request_json(
+        export_request_json(
             wp_cache_metadata_file, create_new, target_dir=self.cache_dir
         )
         return None
@@ -398,16 +361,16 @@ class WordPress:
         :raises HotFileSyncIntegrityError: If validation fails.
         :return: ``Optional[bool]`` -> True if sync is successful, otherwise None.
         """
-        sync_changes: list[dict[...]] = self.update_json_cache()
+        sync_changes: List[Dict[str, Any]] = self.update_json_cache()
         # Reload config
         if len(sync_changes) == self.total_posts:
-            core.export_request_json(
+            export_request_json(
                 self.cache_name, sync_changes, 1, target_dir=self.cache_dir
             )
-            self.__cache_metadata = core.load_json_ctx(
+            self.__cache_metadata = load_json_ctx(
                 Path(self.cache_dir, self.cache_metadata_file)
             )
-            self.cache_data = core.load_json_ctx(Path(self.cache_path))
+            self.cache_data = load_json_ctx(Path(self.cache_path))
 
             metadata_fields = self.__cache_metadata[0][self.cache_name]
             self.cached_pages: int = metadata_fields["cached_pages"]
@@ -433,7 +396,7 @@ class WordPress:
         username_: str = self.username
         app_pass_: str = self.app_password
         auth_wp = HTTPBasicAuth(username_, app_pass_)
-        wp_self: str = wp_self + self.WPEndpoints.POSTS.value
+        wp_self: str = wp_self + WPEndpoints.POSTS.value
         return requests.post(wp_self, json=payload, auth=auth_wp).status_code
 
     def tag_create(
@@ -462,7 +425,7 @@ class WordPress:
         username_: str = self.username
         app_pass_: str = self.app_password
         auth_wp = HTTPBasicAuth(username_, app_pass_)
-        wp_self: str = wp_self + self.WPEndpoints.TAGS.value
+        wp_self: str = wp_self + WPEndpoints.TAGS.value
         status_code = requests.post(
             wp_self, json=payload_schema, auth=auth_wp
         ).status_code
@@ -486,7 +449,7 @@ class WordPress:
         app_pass_: str = self.app_password
         auth_wp = HTTPBasicAuth(username_, app_pass_)
         # headers = {"Content-Disposition": f"attachment; filename={file_path}"}
-        wp_self: str = self.fq_domain_name + self.WPEndpoints.MEDIA.value
+        wp_self: str = self.fq_domain_name + WPEndpoints.MEDIA.value
         with open(file_path, "rb") as thumb:
             request = requests.post(wp_self, files={"file": thumb}, auth=auth_wp)
         try:
@@ -505,7 +468,7 @@ class WordPress:
 
         :return: ``dict[int, int]`` -> Mapping tag ID to occurrence count.
         """
-        content = self.WPTaxonomyValues.TAGS
+        content = WPTaxonomyValues.TAGS
         tags_nums_count: dict = {}
         for dic in self.cache_data:
             for tag_num in dic[content.value]:
@@ -685,9 +648,9 @@ class WordPress:
                         else:
                             tags_count[kw] = 1
                 else:
-                    raise wordpress.exceptions.internal_exceptions.YoastSEOUnsupported
+                    raise YoastSEOUnsupported
         else:
-            tags_count = self.count_wp_class_id(self.WPTaxonomyMarker.TAG)
+            tags_count = self.count_wp_class_id(WPTaxonomyMarker.TAG)
         return tags_count
 
     def tag_id_count_merger(self) -> list:
@@ -734,9 +697,7 @@ class WordPress:
                     if kw in dic["yoast_head_json"]["schema"]["@graph"][0]["keywords"]:
                         tags_c[kw].append(dic["id"])
         else:
-            tags_c = self.get_class_list_id_groups(
-                self.WPTaxonomyMarker.TAG, tags_key=True
-            )
+            tags_c = self.get_class_list_id_groups(WPTaxonomyMarker.TAG, tags_key=True)
         return tags_c
 
     def get_post_titles_local(self, yoast_support: bool = False) -> list[str]:
@@ -884,7 +845,7 @@ class WordPress:
 
         :return: ``list[str]`` -> List of categories.
         """
-        categories = self.get_from_class_list(self.WPTaxonomyMarker.CATEGORY)
+        categories = self.get_from_class_list(WPTaxonomyMarker.CATEGORY)
         return categories
 
     def get_post_descriptions(self, yoast_support: bool = False) -> list[str]:
