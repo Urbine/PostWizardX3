@@ -7,6 +7,8 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 
 import core
+import core.utils.file_system
+import core.utils.strings
 from .secret_repository import SecretsDBInterface
 from . import (
     KEY_DIR,
@@ -30,14 +32,18 @@ def initialize_key_file() -> Path:
     keys_dir = KEY_DIR
     os.makedirs(os.path.join(SECRETS_DIR, keys_dir), exist_ok=True)
     # Only one key in the vault directory is allowed
-    keys_in_dir = core.search_files_by_ext("key", keys_dir, abspaths=True)
+    keys_in_dir = core.utils.file_system.search_files_by_ext(
+        "key", keys_dir, abspaths=True
+    )
     if keys_in_dir:
         return Path(keys_in_dir[0])
     else:
         key = Fernet.generate_key()
         with open(key_path := os.path.join(keys_dir, KEY_NAME), "wb") as key_file:
             key_file.write(key)
-        core.apply_os_permissions(key_path := Path(key_path), read_only=True)
+        core.utils.file_system.apply_os_permissions(
+            key_path := Path(key_path), read_only=True
+        )
         return key_path
 
 
@@ -51,13 +57,15 @@ def initialize_vault(test_mode: bool = False) -> None:
     :return: ``None`` -> This function does not return anything.
     """
     vault_db_name = LOCAL_VAULT_NAME if not test_mode else LOCAL_TEST_VAULT_NAME
-    vault_path = os.path.join(VAULT_DIR, core.clean_filename(vault_db_name, "db"))
+    vault_path = os.path.join(
+        VAULT_DIR, core.utils.strings.clean_filename(vault_db_name, "db")
+    )
     if not (dir_exists := os.path.exists(VAULT_DIR)) or not os.path.exists(vault_path):
         if not dir_exists:
             os.makedirs(VAULT_DIR, exist_ok=True)
-            core.apply_os_permissions(VAULT_DIR, dir_permissions=True)
+            core.utils.file_system.apply_os_permissions(VAULT_DIR, dir_permissions=True)
         try:
-            connection, cursor = core.create_store(vault_path)
+            connection, cursor = core.utils.file_system.create_store(vault_path)
             secret_mgr_table = """
             CREATE TABLE secrets(
                 id INTEGER PRIMARY KEY,
@@ -74,7 +82,7 @@ def initialize_vault(test_mode: bool = False) -> None:
         except sqlite3.OperationalError as OpErr:
             raise OpErr
     else:
-        connection, cursor = core.create_store(vault_path)
+        connection, cursor = core.utils.file_system.create_store(vault_path)
         cursor.close()
         connection.close()
     return None
@@ -97,7 +105,7 @@ def secrets_factory(
     return SecretsDBInterface(
         Path(
             VAULT_DIR,
-            core.clean_filename(
+            core.utils.strings.clean_filename(
                 LOCAL_VAULT_NAME if not test_mode else LOCAL_TEST_VAULT_NAME, "db"
             ),
         ),

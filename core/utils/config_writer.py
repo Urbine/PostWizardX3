@@ -9,10 +9,10 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from typing import Iterable, Callable, get_type_hints
+from typing import Iterable, Callable, Any, get_type_hints
 
 # Local implementation
-from core.utils.helpers import write_config_file
+from core.utils.file_system import write_config_file
 from core.exceptions.util_exceptions import UnsupportedConfigArgument
 from core.models.config_model import ConfigOption, ConfigSection
 
@@ -49,7 +49,17 @@ class ConfigWriter:
         )
 
     @staticmethod
-    def config_validate(writer_func: Callable, /, *args) -> None:
+    def config_validate(writer_func: Callable, /, *args: Iterable[Any]) -> None:
+        """
+        Validate the arguments passed to a configuration writing function.
+        The function checks if the number of arguments matches the number of arguments in the function signature,
+        and if the types of the arguments match the types specified in the function signature to avoid potential
+        corruption of the configuration file.
+
+        :param writer_func: ``Callable`` -> The function to validate.
+        :param args: ``Iterable[Any]`` -> The arguments to validate.
+        :return: ``None``
+        """
         args_annotations = {
             var: typ
             for var, typ in get_type_hints(writer_func).items()
