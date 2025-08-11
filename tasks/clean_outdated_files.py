@@ -27,8 +27,8 @@ import argparse
 import os
 
 # Local implementations
-import core
-from core import remove_if_exists
+from core.utils.strings import match_list_elem_date
+from core.utils.file_system import search_files_by_ext
 
 
 def clean_outdated(
@@ -50,7 +50,7 @@ def clean_outdated(
     """
     reverse = True if not invert_clean else False
     os.chdir(folder)
-    outdated = core.match_list_elem_date(
+    outdated = match_list_elem_date(
         hints_, file_lst, ignore_case=True, strict=True, reverse=reverse
     )
     for file in outdated:
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     hints = list(args.hints)
 
     # Filter the files to be deleted by their file extension.
-    files = core.search_files_by_ext(args.ext, args.folder, parent=args.parent)
+    files = search_files_by_ext(args.ext, args.folder, parent=args.parent)
 
     clean_outdated(
         hints, files, args.folder, invert_clean=args.invert, silent=args.silent

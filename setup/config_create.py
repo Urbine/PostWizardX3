@@ -41,6 +41,7 @@ import os
 
 # Locally implemented modules
 import core
+import core.utils.file_system
 
 # Create the client_info.ini that store secrets and move it to the core package.
 CLIENT_INFO_INI = """[WP_Admin]
@@ -184,12 +185,12 @@ if __name__ == "__main__":
     if os.path.exists(cfg_path := os.path.join(os.getcwd(), "core", "config")):
         os.makedirs(cfg_path, exist_ok=True)
 
-    core.write_to_file(
+    core.utils.file_system.write_to_file(
         "client_info", os.path.join("core", "config"), "ini", CLIENT_INFO_INI
     )
-    core.write_to_file(
+    core.utils.file_system.write_to_file(
         "tasks_config", os.path.join("core", "config"), "ini", TASKS_CONF_INI
     )
-    core.write_to_file(
+    core.utils.file_system.write_to_file(
         "workflows_config", os.path.join("core", "config"), "ini", WORKFLOWS_CONF_INI
     )

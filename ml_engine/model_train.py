@@ -42,6 +42,8 @@ from sklearn.naive_bayes import MultinomialNB
 import nltk.corpus
 import joblib
 
+import core.utils.file_system
+
 # Local module implementations
 from core import helpers, wp_auth
 from integrations import wordpress_api
@@ -128,7 +130,7 @@ def wp_get_training_data() -> tuple[list[tuple[str, str, str]], list[tuple[str, 
     First element contains the structure ``(title, description, category)``
     Second element contains the structure ``(tags_str, category)``
     """
-    import_wp_cache = helpers.load_json_ctx(wp_auth().wp_posts_file)
+    import_wp_cache = core.utils.file_system.load_json_ctx(wp_auth().wp_posts_file)
     title = wordpress_api.get_post_titles_local(import_wp_cache, yoast=True)
     raw_descriptions = wordpress_api.get_post_descriptions(import_wp_cache, yoast=True)
     categories = wordpress_api.get_post_category(import_wp_cache)
@@ -265,13 +267,17 @@ if __name__ == "__main__":
     sk_class_tags = sklearn_classifier.train(word_list_tags)
 
     # NLTK NaiveBayes Classifier Model
-    nbc_titles = helpers.load_file_path(ML_ENGINE_PKG, "NaiveBayesTitles.joblib.pkl")
+    nbc_titles = core.utils.file_system.load_file_path(
+        ML_ENGINE_PKG, "NaiveBayesTitles.joblib.pkl"
+    )
 
-    nbc_descriptions = helpers.load_file_path(
+    nbc_descriptions = core.utils.file_system.load_file_path(
         ML_ENGINE_PKG, "NaiveBayesDescriptions.joblib.pkl"
     )
 
-    nbc_tags = helpers.load_file_path(ML_ENGINE_PKG, "NaiveBayesTags.joblib.pkl")
+    nbc_tags = core.utils.file_system.load_file_path(
+        ML_ENGINE_PKG, "NaiveBayesTags.joblib.pkl"
+    )
     save_nbc_titles = joblib.dump(NaiveBClassifier_titles, nbc_titles, compress=9)
     save_nbc_descriptions = joblib.dump(
         NaiveBClassifier_descriptions, nbc_descriptions, compress=9
@@ -279,15 +285,15 @@ if __name__ == "__main__":
     save_nbc_tags = joblib.dump(NaiveBClassifier_tags, nbc_tags, compress=9)
 
     # NLTK Maxent Classifier
-    maxent_titles = helpers.load_file_path(
+    maxent_titles = core.utils.file_system.load_file_path(
         ML_ENGINE_PKG, "MaxentClassifierTitles.joblib.pkl"
     )
 
-    maxent_descriptions = helpers.load_file_path(
+    maxent_descriptions = core.utils.file_system.load_file_path(
         ML_ENGINE_PKG, "MaxentClassifierDescriptions.joblib.pkl"
     )
 
-    maxent_tags = helpers.load_file_path(
+    maxent_tags = core.utils.file_system.load_file_path(
         ML_ENGINE_PKG, "MaxentClassifierTags.joblib.pkl"
     )
 
@@ -298,15 +304,15 @@ if __name__ == "__main__":
     save_maxent_tags = joblib.dump(maxent_cl_tags, maxent_tags, compress=9)
 
     # SciKit-Learn Classifier (Multinomial Naive Bayes)
-    multinb_titles = helpers.load_file_path(
+    multinb_titles = core.utils.file_system.load_file_path(
         ML_ENGINE_PKG, "MultiNBClassifierTitles.joblib.pkl"
     )
 
-    multinb_descriptions = helpers.load_file_path(
+    multinb_descriptions = core.utils.file_system.load_file_path(
         ML_ENGINE_PKG, "MultiNBClassifierDescriptions.joblib.pkl"
     )
 
-    multinb_tags = helpers.load_file_path(
+    multinb_tags = core.utils.file_system.load_file_path(
         ML_ENGINE_PKG, "MultiNBClassifierTags.joblib.pkl"
     )
     save_multi_titles = joblib.dump(sk_class_titles, multinb_titles, compress=9)

@@ -27,12 +27,15 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
+
 
 # Local module implementations
-from core import helpers, monger_cash_auth, tasks_conf
-from core.config_mgr import TasksConf, MongerCashAuth
-from tasks import parse_partner_name
+from core.models.config_model import WebSourcesConf
+from core.models.secret_model import SecretType, MongerCashAuth
+from core.config.config_factories import web_sources_conf_factory
+from core.utils.secret_handler import SecretHandler
+from core.utils.strings import match_list_single
+from .mcash_dump_create import parse_partner_name
 
 
 def extract_descriptions(bs4_obj: BeautifulSoup) -> list[str]:
@@ -162,15 +165,17 @@ def xml_tag_text(bs4_xml: BeautifulSoup, elem_tag: str) -> str:
 
 def get_set_source_flow(
     webdrv: webdriver,
-    task_conf: TasksConf = tasks_conf(),
-    mcash_auth: MongerCashAuth = monger_cash_auth(),
+    web_sources_conf: WebSourcesConf = web_sources_conf_factory(),
+    mcash_auth: MongerCashAuth = SecretHandler().get_secret(
+        SecretType.MONGERCASH_PASSWORD
+    )[0],
     partner_hint: str = None,
 ) -> tuple[BeautifulSoup, str]:
     """Get the photo set source code for further parsing.
     This source file will be parsed by a specialised parser in this package.
 
     :param webdrv: ``webdriver`` Chrome/Gecko webdriver instance
-    :param task_conf: ``TasksConf`` object with configuration for task modules
+    :param web_sources_conf: ``TasksConf`` object with configuration for task modules
     :param mcash_auth: ``MongerCashAuth`` with credentials to access the partner site.
     :param partner_hint: ``str`` pattern to match the correct partner offer
     :return: ``tuple[BeautifulSoup, str]`` (source_code, filename)
@@ -178,7 +183,7 @@ def get_set_source_flow(
     source_html = None
     with webdrv as driver:
         # Go to URL
-        driver.get(task_conf.mcash_set_url)
+        driver.get(web_sources_conf.mcash_set_url)
 
         driver.implicitly_wait(30)
 
@@ -196,7 +201,7 @@ def get_set_source_flow(
         partner_options = website_partner_select.options
 
         if partner_hint:
-            selection = helpers.match_list_single(
+            selection = match_list_single(
                 partner_hint, partner_options, ignore_case=True
             )
         else:

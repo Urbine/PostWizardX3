@@ -25,7 +25,6 @@ __author_email__ = "yohamg@programmer.net"
 
 import datetime
 import tempfile
-import time
 from tempfile import TemporaryDirectory
 from typing import Optional
 
@@ -36,9 +35,12 @@ from selenium.webdriver.common.by import By
 
 
 # Local implementations
-import core
-from core import monger_cash_auth, tasks_conf
-from core.config_mgr import MongerCashAuth, TasksConf
+from core.utils.file_system import write_to_file
+from core.utils.strings import match_list_single
+from core.utils.secret_handler import SecretHandler
+from core.models.secret_model import SecretType, MongerCashAuth
+from core.models.config_model import WebSourcesConf
+from core.config.config_factories import web_sources_conf_factory
 
 
 def parse_partner_name(partner_options: list[WebElement], select_num: int) -> str:
@@ -56,8 +58,10 @@ def parse_partner_name(partner_options: list[WebElement], select_num: int) -> st
 
 def get_vid_dump_flow(
     webdrv,
-    mcash_info: MongerCashAuth = monger_cash_auth(),
-    task_conf: TasksConf = tasks_conf(),
+    mcash_info: MongerCashAuth = SecretHandler().get_secret(
+        SecretType.MONGERCASH_PASSWORD
+    )[0],
+    web_sources_conf: WebSourcesConf = web_sources_conf_factory(),
     partner_hint: Optional[str] = None,
     temp_dir_p: str = "",
 ) -> tuple[TemporaryDirectory[str], str] | str:
@@ -66,16 +70,15 @@ def get_vid_dump_flow(
 
     :param temp_dir_p: ``str`` - path of your temporary directory
     :param mcash_info: ``MongerCashAuth`` object with necessary credentials for authentication. (Default)
-    :param task_conf: ``TasksConf`` object with configuration information like `download_folder`
+    :param web_sources_conf: ``TasksConf`` object with configuration information like `download_folder`
     :param webdrv: ``webdriver`` Chrome/Gecko webdriver that interfaces with Selenium.
-    :param parent: ``bool`` True to tell the ``write_to_file`` function to write in the parent directory.
     :param partner_hint: ``str`` pattern to match the partner with available options.
     :return: ``str`` new dump filename
     """
     with webdrv as driver:
         # Go to URL
         driver.minimize_window()
-        driver.get(task_conf.mcash_dump_url)
+        driver.get(web_sources_conf.mcash_dump_url)
         driver.implicitly_wait(30)
 
         username_box = driver.find_element(By.ID, "user")
@@ -91,7 +94,7 @@ def get_vid_dump_flow(
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
         if partner_hint:
-            selection = core.match_list_single(
+            selection = match_list_single(
                 partner_hint, partner_options, ignore_case=True
             )
         else:
@@ -176,8 +179,8 @@ def get_vid_dump_flow(
 
         if temp_dir_p == "":
             temp_dir = tempfile.TemporaryDirectory(dir=".")
-            core.write_to_file(dump_name, temp_dir.name, "txt", dump_content)
+            write_to_file(dump_name, temp_dir.name, "txt", dump_content)
             return temp_dir, dump_name
         else:
-            core.write_to_file(dump_name, temp_dir_p, "txt", dump_content)
+            write_to_file(dump_name, temp_dir_p, "txt", dump_content)
             return dump_name

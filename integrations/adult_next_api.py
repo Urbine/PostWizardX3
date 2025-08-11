@@ -20,7 +20,10 @@ from dataclasses import dataclass
 
 # Local implementations
 import core
-from core.utils.helpers import remove_if_exists, parse_client_config
+import core.utils.data_access
+import core.utils.file_system
+import core.utils.strings
+from core import remove_if_exists, parse_client_config
 from .url_builder import CSVColumns, URLEncode
 
 
@@ -135,7 +138,7 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
 
-    c_filename = core.clean_filename(filename, "csv")
+    c_filename = core.utils.strings.clean_filename(filename, "csv")
     path = os.path.join(os.path.abspath(dirname), c_filename)
     db_name = os.path.join(os.getcwd(), f"{filename}-{datetime.date.today()}.db")
     remove_if_exists(db_name)
@@ -213,8 +216,11 @@ def main(*args, **kwargs):
     )
     temp_dir = tempfile.TemporaryDirectory(dir=".")
 
-    core.write_to_file(
-        "abjav-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
+    core.utils.file_system.write_to_file(
+        "abjav-dump",
+        temp_dir.name,
+        "csv",
+        core.utils.data_acess.access_url_bs4(main_url),
     )
 
     result = adult_next_dump_parse("abjav-dump", temp_dir.name, "jav", URLEncode.PIPE)

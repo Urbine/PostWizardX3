@@ -36,6 +36,9 @@ import urllib3
 import xlsxwriter
 from urllib3 import BaseHTTPResponse
 
+import core.utils.file_system
+import core.utils.strings
+
 # Local implementations
 from core import NoSuitableArgument, helpers, is_parent_dir_required
 from wordpress.exceptions.internal_exceptions import MissingCacheError
@@ -132,7 +135,7 @@ def create_wp_local_cache(
 
     endpoints: WPEndpoints = WPEndpoints()
     end_param_posts = [endpoints.photos if photos else endpoints.posts]
-    wp_cache: str = helpers.clean_filename(
+    wp_cache: str = core.utils.strings.clean_filename(
         wpauth.wp_photos_file if photos else wpauth.wp_posts_file, "json"
     )
     print(f"\nCreating WordPress {wp_cache} cache file...\n")
@@ -711,7 +714,7 @@ def count_track_wp_class_id(
                 match = [
                     hint
                     for hint in hint_list
-                    if helpers.match_list_single(hint, track_kw)
+                    if core.utils.strings.match_list_single(hint, track_kw)
                 ]
                 tr_kw = match[0] if match else False
 
@@ -752,8 +755,8 @@ def create_tag_report_excel(
     except ModuleNotFoundError:
         hints = []
 
-    workbook_fname = helpers.clean_filename(workbook_name, ".xlsx")
-    dir_prefix = helpers.is_parent_dir_required(parent)
+    workbook_fname = core.utils.strings.clean_filename(workbook_name, ".xlsx")
+    dir_prefix = core.utils.file_system.is_parent_dir_required(parent)
 
     tags_match_key = ("tag", "tags")
     tags_dict = map_wp_class_id(wp_posts_f, tags_match_key[0], tags_match_key[1])
@@ -816,7 +819,7 @@ def create_tag_report_excel(
     workbook.close()
 
     print(
-        f"\nFind the new file {workbook_fname} in \n{helpers.is_parent_dir_required(parent=parent)}\n"
+        f"\nFind the new file {workbook_fname} in \n{core.utils.file_system.is_parent_dir_required(parent=parent)}\n"
     )
     return None
 
@@ -846,7 +849,7 @@ def update_published_titles_db(
         else f"wp-posts-{datetime.date.today()}.db"
     )
     db_full_name = os.path.join(is_parent_dir_required(parent), db_name)
-    helpers.remove_if_exists(db_full_name)
+    core.utils.file_system.remove_if_exists(db_full_name)
     db = sqlite3.connect(db_full_name)
     cur = db.cursor()
     if photosets:
@@ -937,7 +940,7 @@ def local_cache_config(
     :return: Function ``helpers.export_request_json`` with a return type of ``str``.
     """
     wp_cache_filename = wpauth.wp_cache_file
-    wp_filen = helpers.clean_filename(wp_filen, ".json")
+    wp_filen = core.utils.strings.clean_filename(wp_filen, ".json")
     path_exists = os.path.exists(os.path.join(os.getcwd(), wp_cache_filename))
     create_new = [
         {
@@ -949,7 +952,7 @@ def local_cache_config(
         }
     ]
     if path_exists:
-        existing_file = helpers.load_json_ctx(wp_cache_filename)
+        existing_file = core.utils.file_system.load_json_ctx(wp_cache_filename)
         for item in existing_file:
             item.update(
                 {
@@ -961,11 +964,11 @@ def local_cache_config(
                 }
             )
 
-        return helpers.export_request_json(
+        return core.utils.file_system.export_request_json(
             wp_cache_filename, existing_file, indent=2, parent=False
         )
     else:
-        return helpers.export_request_json(
+        return core.utils.file_system.export_request_json(
             wp_cache_filename, create_new, indent=2, parent=False
         )
 
@@ -992,20 +995,20 @@ def update_json_cache(
     wp_endpoints: WPEndpoints = WPEndpoints()
 
     try:
-        config = helpers.load_json_ctx(wpauth.wp_cache_file)
+        config = core.utils.file_system.load_json_ctx(wpauth.wp_cache_file)
     except FileNotFoundError:
         raise MissingCacheError(wpauth.wp_cache_file)
 
     params_posts: list[str] = [wp_endpoints.photos] if photos else [wp_endpoints.posts]
     x_wp_total = 0
     x_wp_totalpages = 0
-    clean_fname = helpers.clean_filename(
+    clean_fname = core.utils.strings.clean_filename(
         wpauth.wp_photos_file if photos else wpauth.wp_posts_file, ".json"
     )
     # The loop will add 1 to page num when the first request is successful.
     cached = lambda cfg: cfg[clean_fname]["cached_pages"]
     page_num = [cached(dic) for dic in config if clean_fname in dic.keys()][0] - 2
-    result_dict: list[dict[...]] = helpers.load_json_ctx(clean_fname)
+    result_dict: list[dict[...]] = core.utils.file_system.load_json_ctx(clean_fname)
     total_elems = len(result_dict)
     recent_posts: list[dict] = []
     page_num_param: bool = False
@@ -1066,8 +1069,10 @@ def upgrade_wp_local_cache(
     else:
         updated_local_cache = create_wp_local_cache(photos=photos)
 
-    helpers.export_request_json(wp_cache, updated_local_cache, 1, parent=parent)
-    local_json: list[dict[...]] = helpers.load_json_ctx(wp_cache)
+    core.utils.file_system.export_request_json(
+        wp_cache, updated_local_cache, 1, parent=parent
+    )
+    local_json: list[dict[...]] = core.utils.file_system.load_json_ctx(wp_cache)
     update_published_titles_db(local_json, parent=parent, yoast=yoast, photosets=photos)
     return None
 
@@ -1125,7 +1130,9 @@ if __name__ == "__main__":
     args = args_parser.parse_args()
 
     if args.excel:
-        imported_json: list[dict] = helpers.load_json_ctx(wp_auth().wp_posts_file)
+        imported_json: list[dict] = core.utils.file_system.load_json_ctx(
+            wp_auth().wp_posts_file
+        )
         create_tag_report_excel(
             imported_json, f"tag-report-excel-{datetime.date.today()}"
         )

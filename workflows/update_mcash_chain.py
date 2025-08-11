@@ -53,7 +53,7 @@ from core import (
     update_mcash_conf,
 )
 
-from .workflows_api import logging_setup, ConsoleStyle
+from tools.workflows_api import logging_setup, ConsoleStyle
 from tasks.mcash_dump_create import get_vid_dump_flow
 from tasks.mcash_scrape import get_set_source_flow
 from tasks.parse_txt_dump import parse_txt_dump_chain

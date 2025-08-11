@@ -20,7 +20,7 @@ Email: yohamg@programmer.net
 """
 
 from unittest import TestCase
-from workflows.workflows_api import make_slug
+from tools.workflows_api import make_slug
 
 
 class TestMakeSlug(TestCase):

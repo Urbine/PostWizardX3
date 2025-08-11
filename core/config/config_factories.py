@@ -37,7 +37,7 @@ import os
 
 
 # Local implementations
-from core.utils.helpers import parse_client_config
+from core.utils.parsers import parse_client_config
 from core.exceptions.config_exceptions import ConfigFileNotFound, InvalidConfiguration
 from core.config import create_workflows_config
 from core.models.config_model import (

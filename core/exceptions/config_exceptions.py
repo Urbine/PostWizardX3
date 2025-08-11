@@ -73,3 +73,15 @@ class InvalidAIConfig(Exception):
         self.message = message
         self.help = "Double check your AI configuration under the `general_config` section in the workflows_config.ini file."
         super().__init__(f"{self.message}\n{self.help}")
+
+
+class AssetsNotFoundError(Exception):
+    """
+    Notifies the user in case there are no assets in the asset config file.
+    However, if there is no config file, exception ``ConfigFileNotFound`` may occur first.
+    """
+
+    def __init__(self):
+        self.message = """No assets found in config file. 
+                          Make sure you add your assets to the corresponding file before launching this application."""
+        super().__init__(self.message)

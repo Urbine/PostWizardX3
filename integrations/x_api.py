@@ -34,6 +34,8 @@ from selenium.common.exceptions import NoSuchElementException
 
 # Local implementations
 import core
+import core.utils.file_system
+import core.utils.strings
 from core import (
     get_webdriver,
     generate_random_str,
@@ -317,11 +319,13 @@ def load_tokens_json(folder: str) -> Optional[tuple[str, str]]:
     :param folder: ``str`` Location of your ``JSON`` file containing the tokens.
     :return: ``tuple[str, str]`` (access_token, refresh_token)
     """
-    local_files = core.search_files_by_ext("json", folder)
+    local_files = core.utils.file_system.search_files_by_ext("json", folder)
     # In case there are outdated files
     clean_outdated(["token-x"], local_files, folder, silent=True)
-    if token_file := core.match_list_single("token-x", local_files, ignore_case=True):
-        tokens = core.load_json_ctx(local_files[token_file])
+    if token_file := core.utils.strings.match_list_single(
+        "token-x", local_files, ignore_case=True
+    ):
+        tokens = core.utils.file_system.load_json_ctx(local_files[token_file])
         return tokens["access_token"], tokens["refresh_token"]
     else:
         return None

@@ -25,7 +25,6 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-# Standard Library
 import datetime
 import logging
 import os
@@ -37,7 +36,13 @@ import sqlite3
 from bs4 import BeautifulSoup
 
 # Local implementation
-from core import helpers, remove_if_exists
+from core.utils.file_system import (
+    is_parent_dir_required,
+    filename_creation_helper,
+    remove_if_exists,
+)
+from core.utils.parsers import parse_date_to_iso
+from core.utils.strings import clean_filename
 
 
 def parse_titles(soup_html: BeautifulSoup) -> list[str]:
@@ -61,7 +66,7 @@ def parse_dates(soup_html: BeautifulSoup) -> list[datetime.date]:
     dates = soup_html.find_all("td", attrs={"class": "tab-column col_1 center-align"})
 
     def parse_date(td):
-        return helpers.parse_date_to_iso(td.text.strip(), zero_day=True, m_abbr=False)
+        return parse_date_to_iso(td.text.strip(), zero_day=True, m_abbr=False)
 
     return list(map(parse_date, dates))
 
@@ -102,11 +107,11 @@ def db_generate(
     set_links = parse_links(soup_html)
 
     if isinstance(db_suggest, list):
-        d_name = helpers.filename_creation_helper(db_suggest, extension="db")
+        d_name = filename_creation_helper(db_suggest, extension="db")
     else:
-        d_name = helpers.clean_filename(db_suggest, "db")
+        d_name = clean_filename(db_suggest, "db")
 
-    db_path = os.path.join(helpers.is_parent_dir_required(parent), d_name)
+    db_path = os.path.join(is_parent_dir_required(parent), d_name)
     remove_if_exists(db_path)
     db_conn = sqlite3.connect(db_path)
     cursor = db_conn.cursor()
@@ -122,13 +127,13 @@ def db_generate(
 
         db_conn.commit()
     except Exception as e:
-        logging.warn(
+        logging.warning(
             f"Error: {e!r} detected in the database generation process at {__file__}."
         )
     finally:
         cursor.close()
         db_conn.close()
 
-    db_path = os.path.join(helpers.is_parent_dir_required(parent), d_name)
+    db_path = os.path.join(is_parent_dir_required(parent), d_name)
 
     return db_path, total_photosets

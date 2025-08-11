@@ -1,6 +1,7 @@
 # This file will be gathering information from the Yandex Webmaster API, and it will be
 # focused specifically in its keyword and impression analysis capabilities.
-
+import core.utils.data_access
+import core.utils.file_system
 from core import helpers
 import requests
 
@@ -31,9 +32,9 @@ uri_callback = "http://127.0.0.47:8888"
 
 generate_tkn = input("Generate new token? Y/N ")
 if generate_tkn.lower() == ("y" or "yes"):
-    helpers.export_request_json(
+    core.utils.file_system.export_request_json(
         "token",
-        helpers.get_token_oauth(
+        core.utils.data_acess.get_token_oauth(
             client_id, uri_callback, client_secret, authorization_url, token_url
         ),
         4,
@@ -42,7 +43,7 @@ if generate_tkn.lower() == ("y" or "yes"):
 else:
     pass
 
-token_json = helpers.load_json_ctx("token")
+token_json = core.utils.file_system.load_json_ctx("token")
 
 base_url = "https://api.webmaster.yandex.net/v4/user/"
 headers_auth = {"Authorization": f"OAuth {token_json['access_token']}"}

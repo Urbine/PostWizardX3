@@ -35,11 +35,14 @@ from typing import Optional
 import pyclip
 from requests.exceptions import SSLError, ConnectionError
 
+import core.utils.system_shell
+import tooling.interfaces.embeds_multi_schema
+
 # Local implementations
 from core import helpers, embed_assist_conf, wp_auth, clean_filename
 from integrations import wordpress_api, WPEndpoints
 
-from . import workflows_api as workflows
+from tools import workflows_api as workflows
 
 
 def embedding_pilot(
@@ -62,14 +65,14 @@ def embedding_pilot(
         workflows.pilot_warm_up(embed_ast_conf, wpauths)
     )
 
-    db_interface = workflows.EmbedsMultiSchema(cur_dump)
+    db_interface = tooling.interfaces.embeds_multi_schema.EmbedsMultiSchema(cur_dump)
     videos_uploaded: int = 0
 
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published)
     logging.info(f"Detected {total_elems} to be published for {partner}")
 
-    helpers.clean_console()
+    core.utils.system_shell.clean_console()
 
     # Styles
     user_default = workflows.ConsoleStyle.TEXT_STYLE_DEFAULT.value
@@ -84,7 +87,7 @@ def embedding_pilot(
         db_interface.load_data_instance(vid)
         logging.info(f"Displaying on iteration {num} data: {vid}")
 
-        helpers.clean_console()
+        core.utils.system_shell.clean_console()
 
         workflows.iter_session_print(console, videos_uploaded, elem_num=num + 1)
 
@@ -241,7 +244,7 @@ def embedding_pilot(
 
             pic_format = (
                 embed_ast_conf.pic_format
-                if embed_ast_conf.imagick
+                if core.utils.system_shell.imagick
                 else embed_ast_conf.pic_fallback
             )
             thumbnail = clean_filename(wp_slug, pic_format)

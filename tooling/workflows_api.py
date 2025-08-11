@@ -44,7 +44,6 @@ Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
 """
 
-import datetime
 import logging
 import os
 import random
@@ -55,11 +54,9 @@ import shutil
 import sqlite3
 import zipfile
 
-from dataclasses import dataclass, fields
 from enum import Enum
 from sqlite3 import Connection, Cursor, OperationalError
-from typing import TypeVar, Any, Generic, Optional
-from re import Pattern
+from typing import Optional, List, Tuple, Dict, Any
 
 # Third-party modules
 import pyclip
@@ -73,27 +70,24 @@ from selenium.webdriver.remote.webelement import WebElement
 
 
 # Local implementations
-from core import (
-    InvalidInput,
-    UnsupportedParameter,
-    HotFileSyncIntegrityError,
-    AssetsNotFoundError,
-    UnavailableLoggingDirectory,
-    InvalidSQLConfig,
-    get_duration,
-    generate_random_str,
-    parse_client_config,
-    content_select_conf,
-    helpers,
-    wp_auth,
-    clean_filename,
-    x_auth,
-    bot_father,
-    split_char,
-    UnableToConnectError,
-    InvalidDB,
-    monger_cash_auth,
-    gallery_select_conf,
+from core.utils.data_access import fetch_data_sql, get_webdriver
+from core.utils.file_system import load_json_ctx, search_files_by_ext, is_parent_dir_required, logging_setup
+from core.utils.helpers import get_duration
+from core.utils.parsers import parse_client_config
+from core.utils.strings import split_char, clean_filename, match_list_elem_date, match_list_mult, match_list_single
+from core.utils.system_shell import imagick, clean_console
+from core.exceptions.util_exceptions import InvalidInput, UnsupportedParameter
+from core.exceptions.data_access_exceptions import UnableToConnectError, InvalidSQLConfig
+from core.exceptions.config_exceptions import AssetsNotFoundError
+
+from core.config.config_factories import (
+    mcash_content_bot_conf_factory,
+    mcash_gallery_bot_conf_factory,
+    social_config_factory,
+    image_config_factory,
+    general_config_factory,
+    image_config_factory,
+    web_sources_conf_factory,
 )
 
 from integrations import (
@@ -107,331 +101,16 @@ from integrations.botfather_telegram import BotFatherCommands, BotFatherEndpoint
 from ml_engine import classify_title, classify_description, classify_tags
 
 # Imported for typing purposes
-from core.config_mgr import (
-    WPAuth,
-    ContentSelectConf,
-    GallerySelectConf,
-    MongerCashAuth,
+from core.models.config_model import (
+    MCashContentBotConf,
+    MCashGalleryBotConf,
+    GeneralConfigs,
+    ImageConfig
 )
 
-T = TypeVar("T")
+from core.models.secret_model import MongerCashAuth
 
-
-class EmbedsMultiSchema(Generic[T]):
-    """
-    Complementary class dealing with dynamic SQL schema reading for content databases.
-
-    EmbedsMultiSchema provides an interface to the main control flow of the bot that allows
-    for direct index probing based on the present schema. This improvement will make it easier
-    for the user to implement further functionality and behaviour based on specific fields.
-    """
-
-    @dataclass(frozen=True)
-    class SchemaRegEx:
-        """
-        Immutable dataclass containing compiled RegEx patterns for class methods.
-        """
-
-        pat_slug: Pattern[str] = re.compile(r"slug", re.IGNORECASE)
-        pat_embed: Pattern[str] = re.compile(r"embeds?", re.IGNORECASE)
-        pat_thumbnail: Pattern[str] = re.compile(r"thumb(nail)?", re.IGNORECASE)
-        pat_categories: Pattern[str] = re.compile(r"categor(ies)?", re.IGNORECASE)
-        pat_rating: Pattern[str] = re.compile(r"ratings?", re.IGNORECASE)
-        pat_title: Pattern[str] = re.compile(r"title", re.IGNORECASE)
-        pat_link: Pattern[str] = re.compile(r"links?", re.IGNORECASE)
-        pat_date: Pattern[str] = re.compile(r"date", re.IGNORECASE)
-        pat_id: Pattern[str] = re.compile(r"id", re.IGNORECASE)
-        pat_duration: Pattern[str] = re.compile(r"duration", re.IGNORECASE)
-        pat_prnstars: Pattern[str] = re.compile(r"pornstars?", re.IGNORECASE)
-        pat_models: Pattern[str] = re.compile(r"models?", re.IGNORECASE)
-        pat_resolution: Pattern[str] = re.compile("resolution", re.IGNORECASE)
-        pat_tags: Pattern[str] = re.compile(r"tags?", re.IGNORECASE)
-        pat_likes: Pattern[str] = re.compile(r"likes?", re.IGNORECASE)
-        pat_url: Pattern[str] = re.compile(r"urls?", re.IGNORECASE)
-        pat_description: Pattern[str] = re.compile(r"description", re.IGNORECASE)
-        pat_studio: Pattern[str] = re.compile(r"studios?", re.IGNORECASE)
-        pat_trailer: Pattern[str] = re.compile(r"trailers?", re.IGNORECASE)
-        pat_orientation: Pattern[str] = re.compile(r"orientation", re.IGNORECASE)
-
-        def __iter__(self):
-            """
-            Yields the attribute values of this object based on its fields.
-
-            This method iterates over the attributes defined by the `fields` function,
-            which typically returns a list of Field objects. For each field, it yields the value
-            of the corresponding attribute using Python's built-in `getattr` function.
-            """
-            for field in fields(self):
-                yield getattr(self, field.name)
-
-    @staticmethod
-    def get_schema(db_cur: sqlite3) -> tuple[str, list[tuple[int, str]]]:
-        """
-        Get a tuple with the table and its field names.
-
-        :param db_cur: ``sqlite3`` - Active database cursor
-        :return: tuple('tablename', [(indx, 'fieldname'), ...])
-        """
-        query = "SELECT sql FROM sqlite_master"
-        try:
-            schema: list[tuple[int | str, ...]] = helpers.fetch_data_sql(query, db_cur)
-            fst_table, *others = schema
-
-            if others:
-                logging.warning(
-                    "Detected db with more than one table, fetching the first one by default."
-                )
-
-            table_name: str = fst_table[0].split(" ")[2].split("(")[0]
-            query: str = "PRAGMA table_info({})".format(table_name)
-            schema = helpers.fetch_data_sql(query, db_cur)
-            fields_ord = list(map(lambda lstpl: lstpl[0:2], schema))
-
-            return table_name, fields_ord
-
-        except OperationalError:
-            logging.critical(
-                "db file was not found. Raising InvalidDB exception and quitting..."
-            )
-            raise InvalidDB
-
-    def __init__(self, db_cur: sqlite3):
-        """Initialisation logic for ``EmbedsMultiSchema`` instances.
-            Supports data field handling that can carry out error handling without
-            explicit logic in the main control flow or functionality using this class.
-        :param db_cur: Active database cursor
-        """
-        schema = EmbedsMultiSchema.get_schema(db_cur)
-        self.table_name: str = schema[0]
-        self.__fields_indx = schema[1]
-        self.__fields: list[Any] = list(map(lambda tpl: tpl[1], self.__fields_indx))
-        self.field_count: int = len(self.__fields)
-        self.__data: Optional[T] = None
-
-    def load_data_instance(self, data_instance: T) -> None:
-        """
-        Setter for the private field ``data_instance``.
-        :param data_instance: ``T`` - Generic type that ideally can handle __getitem__
-        :return: ``None``
-        """
-        self.__data = data_instance
-        return None
-
-    def get_data_instance(self) -> Optional[T]:
-        """Retrieve a copy of the data stored in the private field ``self.__data``
-
-        :return: ``T`` | None - Generic Type
-        """
-        return self.__data
-
-    def get_fields(self, keep_indx: bool = False) -> list[tuple[int, str]] | list[str]:
-        """Get the actual database field names or a data structure (tuple) including
-            its indexes.
-
-        :param keep_indx: ``bool`` - Flag that, activated, retrieves indexes and column names in a tuple.
-        :return:
-        """
-        if keep_indx:
-            return self.__fields_indx
-        else:
-            return self.__fields
-
-    def __safe_retrieve(self, re_pattern: Pattern[str]) -> Optional[T]:
-        """Getter for the private fields ``self.__fields`` and ``self.__data``.
-            Typically used in iterations where data access could result in exceptions that could
-            cause undesired crashes.
-
-        :param re_pattern: ``Pattern[str]`` - Regular Expression pattern (from local dataclass ``SchemaRegEx``)
-        :return: ``T`` | None - Generic type object
-        """
-        match = helpers.match_list_single(re_pattern, self.__fields)
-        if self.__data:
-            try:
-                return self.__data[match]
-            except (IndexError, TypeError):
-                return None
-        else:
-            return match
-
-    def get_slug(self) -> Optional[str | int]:
-        """Slug getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``slug`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_slug
-        return self.__safe_retrieve(re_pattern)
-
-    def get_embed(self) -> Optional[str | int]:
-        """Embed getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``embed`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_embed
-        return self.__safe_retrieve(re_pattern)
-
-    def get_thumbnail(self) -> Optional[str | int]:
-        """Thumbnail getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``thumbnail`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_thumbnail
-        return self.__safe_retrieve(re_pattern)
-
-    def get_categories(self) -> Optional[str | int]:
-        """Categories getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``categories`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_categories
-        return self.__safe_retrieve(re_pattern)
-
-    def get_rating(self) -> Optional[str | int]:
-        """Rating getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``rating`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_rating
-        return self.__safe_retrieve(re_pattern)
-
-    def get_title(self) -> Optional[str | int]:
-        """Title getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``title`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_title
-        return self.__safe_retrieve(re_pattern)
-
-    def get_link(self) -> Optional[str | int]:
-        """Link getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``link`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_link
-        return self.__safe_retrieve(re_pattern)
-
-    def get_date(self) -> Optional[str | int]:
-        """Date getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``date`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_date
-        return self.__safe_retrieve(re_pattern)
-
-    def get_id(self) -> Optional[str | int]:
-        """ID getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``id`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_id
-        return self.__safe_retrieve(re_pattern)
-
-    def get_duration(self) -> Optional[str | int]:
-        """Duration getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``Duration`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_duration
-        return self.__safe_retrieve(re_pattern)
-
-    def get_pornstars(self) -> Optional[str | int]:
-        """Pornstars getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``pornstars`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_prnstars
-        return self.__safe_retrieve(re_pattern)
-
-    def get_models(self) -> Optional[str | int]:
-        """Models getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``models`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_models
-        return self.__safe_retrieve(re_pattern)
-
-    def get_resolution(self) -> Optional[str | int]:
-        """Resolution getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``resolution`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_resolution
-        return self.__safe_retrieve(re_pattern)
-
-    def get_tags(self) -> Optional[str | int]:
-        """Tags getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``tags`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_tags
-        return self.__safe_retrieve(re_pattern)
-
-    def get_likes(self) -> Optional[str | int]:
-        """Likes getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``likes`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_likes
-        return self.__safe_retrieve(re_pattern)
-
-    def get_url(self) -> Optional[str | int]:
-        """URL getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``url`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_url
-        return self.__safe_retrieve(re_pattern)
-
-    def get_description(self) -> Optional[str | int]:
-        """Description getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``description`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_description
-        return self.__safe_retrieve(re_pattern)
-
-    def get_studio(self) -> Optional[str | int]:
-        """Studio getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``studio`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_studio
-        return self.__safe_retrieve(re_pattern)
-
-    def get_trailer(self) -> Optional[str | int]:
-        """Trailer getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``trailer`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_trailer
-        return self.__safe_retrieve(re_pattern)
-
-    def get_orientation(self) -> Optional[str | int]:
-        """Orientation getter/reader from the matched fields in the data structure in an instance of
-            ``EmbedsMultiSchema``
-
-        :return: ``Optional[str | int]`` - Data from ``self.__data`` located in the ``orientation`` index.
-        """
-        re_pattern: Pattern[str] = EmbedsMultiSchema.SchemaRegEx.pat_orientation
-        return self.__safe_retrieve(re_pattern)
+from tooling.interfaces.embeds_multi_schema import EmbedsMultiSchema
 
 
 class ConsoleStyle(Enum):
@@ -445,54 +124,6 @@ class ConsoleStyle(Enum):
     TEXT_STYLE_PROMPT = "bold cyan"
     TEXT_STYLE_SPECIAL_PROMPT = "bold magenta"
     TEXT_STYLE_WARN = "bold red"
-
-
-def logging_setup(
-    bot_config,
-    path_to_this: str,
-) -> None:
-    """Initiate the basic logging configuration for bots in the ``workflows`` package.
-
-    :param bot_config: ``ContentSelectConf`` | ``GallerySelectConf`` | ``EmbedAssistConf`` | ``UpdateMCash`` - config functions
-    :param path_to_this: ``str`` - Equivalent to __file__ but passed in as a parameter.
-    :return: ``None``
-    """
-    get_filename = lambda f: os.path.basename(f).split(".")[0]
-    sample_size = 5
-    random_int_id = "".join(
-        random.choices([str(num) for num in range(1, 10)], k=sample_size)
-    )
-    uniq_log_id = f"{random_int_id}{generate_random_str(sample_size)}"
-
-    # This will help users identify their corresponding log per session.
-    os.environ["SESSION_ID"] = uniq_log_id
-    log_name = (
-        f"{get_filename(path_to_this)}-log-{uniq_log_id}-{datetime.date.today()}.log"
-    )
-    log_dirname_cfg = bot_config.logging_dirname
-
-    if os.path.exists(log_dirname_cfg):
-        log_dir_path = os.path.abspath(log_dirname_cfg)
-    elif os.path.exists(
-        log_dir_parent := os.path.join(os.path.dirname(os.getcwd()), log_dirname_cfg)
-    ):
-        log_dir_path = log_dir_parent
-    else:
-        try:
-            os.mkdir(log_dirname_cfg)
-            log_dir_path = log_dirname_cfg
-        except OSError:
-            raise UnavailableLoggingDirectory(log_dirname_cfg)
-
-    logging.basicConfig(
-        filename=os.path.join(log_dir_path, log_name),
-        filemode="w+",
-        level=logging.INFO,
-        encoding="utf8",
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        force=True,
-    )
-    return None
 
 
 def clean_partner_tag(partner_tag: str) -> str:
@@ -514,7 +145,7 @@ def clean_partner_tag(partner_tag: str) -> str:
         return partner_tag
 
 
-def asset_parser(bot_config: ContentSelectConf, partner: str):
+def asset_parser(bot_config: MCashContentBotConf, partner: str):
     """Parse asset images for post payload from the specified file in the
     ``workflows_config.ini`` file.
 
@@ -583,7 +214,7 @@ def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
         return False
 
 
-def published_json(title: str, wp_posts_f: list[dict]) -> bool:
+def published_json(title: str, wp_posts_f: List[Dict[str, Any]]) -> bool:
     """This function leverages the power of a local implementation that specialises
     in getting, manipulating and filtering WordPress API post information in JSON format.
     After getting the posts from the local cache, the function filters each element using
@@ -613,8 +244,8 @@ def published_json(title: str, wp_posts_f: list[dict]) -> bool:
 
 
 def filter_published(
-    all_videos: list[tuple], wp_posts_f: list[dict]
-) -> list[tuple[str, ...]]:
+    all_videos: List[Tuple[Any]], wp_posts_f: List[Dict[str, Any]]
+) -> List[Tuple[str]]:
     """``filter_published`` does its filtering work based on the ``published_json`` function.
     Actually, the ``published_json`` is the brain behind this function and the reason why I decided to
     separate brain and body, as it were, is modularity. I want to be able to modify the classification rationale
@@ -629,7 +260,7 @@ def filter_published(
     :param wp_posts_f: ``list[dict]`` WordPress Post Information case file (previously loaded and ready to process)
     :return: ``list[tuple]`` with the new filtered values.
     """
-    not_published: list[tuple] = []
+    not_published: List[Tuple[str]] = []
     for elem in all_videos:
         (title, *fields) = elem
         if published_json(title, wp_posts_f):
@@ -639,7 +270,7 @@ def filter_published(
     return not_published
 
 
-def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list[int]:
+def get_tag_ids(wp_posts_f: List[Dict[str, Any]], tag_lst: List[str], preset: str) -> List[int]:
     """WordPress uses integers to identify several elements that posts share like models or tags.
     This function is equipped to deal with inconsistencies that are inherent to the way that WP
     handles its tags; for example, some tags can have the same meaning but differ in case.
@@ -680,7 +311,7 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list
         case _ as err:
             raise UnsupportedParameter(err)
 
-    tag_tracking: dict[str, int] = wordpress_api.map_wp_class_id(
+    tag_tracking: Dict[str, int] = wordpress_api.map_wp_class_id(
         wp_posts_f, preset[0], preset[1]
     )
 
@@ -691,7 +322,7 @@ def get_tag_ids(wp_posts_f: list[dict], tag_lst: list[str], preset: str) -> list
 
     # It is crucial that tags don't have any special characters
     # before processing them with ``tag_tracking``.
-    matched_keys: list[str] = [
+    matched_keys: List[str] = [
         wptag
         for wptag in tag_tracking.keys()
         for tag in cl_tags
@@ -784,7 +415,7 @@ def fetch_thumbnail(
     """
     thumbnail_dir: str = folder
     remote_data: requests = requests.get(remote_res)
-    cs_conf = content_select_conf()
+    cs_conf = image_config_factory()
     if thumbnail_name != "":
         name: str = f"-{thumbnail_name.split('.')[0]}"
     else:
@@ -794,9 +425,9 @@ def fetch_thumbnail(
         img.write(remote_data.content)
 
     if cs_conf.imagick:
-        helpers.imagick(
+        imagick(
             os.path.join(thumbnail_dir, img_name),
-            cs_conf.quality,
+            cs_conf.img_conversion_quality,
             cs_conf.pic_format,
         )
 
@@ -832,7 +463,8 @@ def make_payload(
     partner_name: str,
     tag_int_lst: list[int],
     model_int_lst: list[int],
-    bot_conf: ContentSelectConf = content_select_conf(),
+    general_conf: GeneralConfigs = general_config_factory(),
+    image_conf: ImageConfig = image_config_factory(),
     categs: Optional[list[int]] = None,
     wpauth: WPAuth = wp_auth(),
 ) -> dict[str, str | int]:
@@ -853,21 +485,21 @@ def make_payload(
     :param partner_name: ``str`` The offer you are promoting
     :param tag_int_lst: ``list[int]`` tag ID list
     :param model_int_lst: ``list[int]`` model ID list
-    :param bot_conf: ``ContentSelectConf`` Bot configuration object
+    :param general_conf: ``GeneralConf`` Bot configuration object
+    :param image_conf: ``ImageConf`` Bot configuration object
     :param categs: ``list[int]`` category numbers to be passed with the post information
     :param wpauth: ``WPAuth`` Object with the author information.
     :return: ``dict[str, str | int]``
     """
-    author: int = int(wpauth.author_admin)
-    img_attrs: bool = bot_conf.img_attrs
+    author: int = 1
+    img_attrs: bool = image_conf.img_seo_attrs
     payload_post: dict = {
         "slug": f"{vid_slug}",
         "status": f"{status_wp}",
         "type": "post",
-        "link": f"{wpauth.full_base_url.strip('/')}/{vid_slug}/",
         "title": f"{vid_name}",
         "excerpt": f"<p>{vid_description}</p>\n",
-        "content": f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt="{vid_name} | {partner_name} on {bot_conf.site_name}{bot_conf.domain_tld}"/></a></figure>'
+        "content": f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt="{vid_name} | {partner_name} on {general_conf.fq_domain_name}"/></a></figure>'
         if img_attrs
         else f'<p>{vid_description}</p><figure class="wp-block-image size-large"><a href="{banner_tracking_url}"><img decoding="async" src="{banner_img}" alt=""/></a></figure>',
         "author": author,
@@ -928,7 +560,8 @@ def make_payload_simple(
 def make_img_payload(
     vid_title: str,
     vid_description: str,
-    bot_config: ContentSelectConf = content_select_conf(),
+    general_config: GeneralConfigs = general_config_factory(),
+    image_conf: ImageConfig = image_config_factory(),
     flat_payload: bool | tuple[str, str, str] = False,
 ) -> dict[str, str]:
     """Similar to the make_payload function, this one makes the payload for the video thumbnails,
@@ -937,7 +570,8 @@ def make_img_payload(
 
     :param vid_title: ``str`` The title of the video.
     :param vid_description: ``str`` The description of the video.
-    :param bot_config: ``ContentSelectConf`` Uses general configuration options to customise payloads.
+    :param general_config: ``ContentSelectConf`` Uses general configuration options to customise payloads.
+    :param image_conf: ``ImageConf`` Uses image configuration options to customise payloads.
     :param flat_payload: ``bool | tuple[str, str, str]``, optional
         When ``False`` (default), the payload is generated automatically.
         If a tuple of (`alt_text`, `caption`, `description`) is provided, it is used to create the payload.
@@ -954,17 +588,17 @@ def make_img_payload(
 
     if vid_title == vid_description and not flat_payload:
         img_payload: dict[str, str] = {
-            "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
-            "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld}",
-            "description": f"{vid_title} {bot_config.site_name}{bot_config.domain_tld}",
+            "alt_text": f"{vid_title} on {general_config.site_name}",
+            "caption": f"{vid_title} on {general_config.fq_domain_name}",
+            "description": f"{vid_title} {general_config.fq_domain_name}",
         }
-    elif not bot_config.img_attrs:
+    elif not image_conf.img_seo_attrs:
         img_payload = flat_attrs_dict
     elif not flat_payload:
         img_payload: dict[str, str] = {
-            "alt_text": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
-            "caption": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
-            "description": f"{vid_title} on {bot_config.site_name}{bot_config.domain_tld} - {vid_description}",
+            "alt_text": f"{vid_title} on {general_config.fq_domain_name} - {vid_description}",
+            "caption": f"{vid_title} on {general_config.fq_domain_name} - {vid_description}",
+            "description": f"{vid_title} on {general_config.fq_domain_name} - {vid_description}",
         }
     else:
         flat_attrs_dict["alt_text"] = flat_payload[0]
@@ -1070,47 +704,6 @@ def make_slug(
     return build_slug(segments)
 
 
-def hot_file_sync(
-    bot_config,
-) -> bool:
-    """I named this feature "Hot Sync" as it can modify the data structure we are using as a cached
-    datasource and allows for more efficiency in keeping an up-to-date copy of all your posts.
-    This function leverages the power of the caching mechanism defined
-    in wordpress_api.py that dynamically appends new items in order and keeps track of cached pages with the
-    total count of posts at the time of update. ``hot_file_sync`` just updates the JSON cache of the WP site and
-    reloads the local cache configuration file to validate the changes.
-
-    Hot Sync will write the changes once the new ones are validated and compared with the local config file.
-    In other words, if it isn't right, the WP post file remains untouched.
-
-    :param bot_config: ``ContentSelectConf`` or ``GallerySelectConf`` or ``EmbedAssistConf`` with configuration information.
-    :return: ``bool`` - ``True`` if everything went well or raise ``HotFileSyncIntegrityError`` if the validation failed
-    """
-    parent = (
-        False
-        if os.path.exists(f"./{clean_filename(bot_config.wp_cache_config, 'json')}")
-        else True
-    )
-    if photos := hasattr(bot_config, "wp_json_photos"):
-        wp_filename: str = helpers.clean_filename(bot_config.wp_json_photos, "json")
-    else:
-        wp_filename: str = helpers.clean_filename(bot_config.wp_json_posts, "json")
-
-    sync_changes: list[dict[...]] = wordpress_api.update_json_cache(photos=photos)
-
-    # Reload config
-    config_json: list[dict[...]] = helpers.load_json_ctx(bot_config.wp_cache_config)
-    if len(sync_changes) == config_json[0][wp_filename]["total_posts"]:
-        helpers.export_request_json(wp_filename, sync_changes, 1, parent=parent)
-        logging.info(
-            f"Exporting new WordPress cache config: {bot_config.wp_cache_config}"
-        )
-        logging.info("HotFileSync Successful")
-        return True
-    else:
-        logging.critical("Raised HotFileSyncIntegrityError - Quitting...")
-        raise HotFileSyncIntegrityError
-
 
 def partner_select(
     partner_lst: list[str],
@@ -1208,10 +801,10 @@ def content_select_db_match(
 
     console = Console()
 
-    available_files: list[str] = helpers.search_files_by_ext(
+    available_files: list[str] = search_files_by_ext(
         "db", folder=folder, parent=parent
     )
-    filtered_files: list[str] = helpers.match_list_elem_date(
+    filtered_files: list[str] = match_list_elem_date(
         hint_lst,
         available_files,
         join_hints=(True, " ", "-"),
@@ -1222,7 +815,7 @@ def content_select_db_match(
     relevant_content: list[str] = list(
         map(
             lambda indx: filtered_files[indx],
-            helpers.match_list_mult(content_hint, filtered_files),
+            match_list_mult(content_hint, filtered_files),
         )
     )
 
@@ -1250,7 +843,7 @@ def content_select_db_match(
 
         select_file: int = 0
         for hint in clean_hint:
-            rel_content: int = helpers.match_list_single(
+            rel_content: int = match_list_single(
                 hint, relevant_content, ignore_case=True
             )
             if hint:
@@ -1261,7 +854,7 @@ def content_select_db_match(
                 continue
 
         is_parent: str = (
-            helpers.is_parent_dir_required(parent)
+            is_parent_dir_required(parent)
             if folder == ""
             else os.path.abspath(folder)
         )
@@ -1392,7 +985,7 @@ def telegram_send_message(
     logging.info(f"BotFather post metadata -> {req.json()}")
     return req.status_code
 
-
+# TODO: Add this feature in the WordPress module.
 def wp_publish_checker(post_slug: str, cs_conf) -> Optional[bool]:
     """Check for the publication a post in real time by using iteration of the Hot File Sync
     algorithm. It will detect that you have effectively hit the publish button, so that functionality
@@ -1416,7 +1009,7 @@ def wp_publish_checker(post_slug: str, cs_conf) -> Optional[bool]:
             if hasattr(cs_conf, "wp_json_photos")
             else cs_conf.wp_json_posts
         )
-        wp_postf = helpers.load_json_ctx(posts_file)
+        wp_postf = load_json_ctx(posts_file)
         slugs = wordpress_api.get_slugs(wp_postf)
         if post_slug in slugs:
             os.environ["LATEST_POST"] = wp_postf[0]["link"]
@@ -1667,7 +1260,7 @@ def pilot_warm_up(
 
         console = Console()
 
-        helpers.clean_console()
+        clean_console()
 
         status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         with console.status(
@@ -1682,7 +1275,9 @@ def pilot_warm_up(
         )
         logging.info(f"Loading partners variable: {partners}")
 
-        wp_posts_f: list[dict[...]] = helpers.load_json_ctx(cs_config.wp_json_posts)
+        wp_posts_f: List[Dict[str, Any]] = load_json_ctx(
+            cs_config.wp_json_posts
+        )
         logging.info(f"Reading WordPress Post cache: {cs_config.wp_json_posts}")
 
         wp_base_url: str = wp_auth.api_base_url
@@ -1699,7 +1294,7 @@ def pilot_warm_up(
         logging.info(f"Matched {partner_db_name} for {partner} index {partner_indx}")
 
         try:
-            all_vals: list[tuple[str, ...]] = helpers.fetch_data_sql(
+            all_vals: list[tuple[str, ...]] = fetch_data_sql(
                 cs_config.sql_query, cur_dump
             )
         except sqlite3.OperationalError as oerr:
@@ -1710,7 +1305,7 @@ def pilot_warm_up(
 
         logging.info(f"{len(all_vals)} elements found in database {partner_db_name}")
 
-        thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
+        thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir="../workflows")
         logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
 
         not_published: list[tuple[str, ...]] = filter_published(all_vals, wp_posts_f)
@@ -1720,7 +1315,7 @@ def pilot_warm_up(
         elif cs_config.__class__.__name__ == "ContentSelectConf":
             return console, partner, not_published, wp_posts_f, thumbnails_dir
         else:
-            wp_photos_f = helpers.load_json_ctx(cs_config.wp_json_photos)
+            wp_photos_f = load_json_ctx(cs_config.wp_json_photos)
             logging.info(
                 f"Reading WordPress Photo Posts cache: {cs_config.wp_json_posts}"
             )
@@ -2003,7 +1598,9 @@ def filter_tags(
     no_sp_chars = lambda w: "".join(re.findall(r"\w+", w))
 
     # Split with a whitespace separator is not necessary at this point:
-    t_split = tgs.split(spl if (spl := helpers.split_char(tgs)) != " " else "-1")
+    t_split = tgs.split(
+        spl if (spl := split_char(tgs)) != " " else "-1"
+    )
 
     new_set = set({})
     for tg in t_split:
@@ -2082,7 +1679,9 @@ def fetch_zip(
     :param m_cash_auth: ``MongerCashAuth`` object with authentication information to access MongerCash.
     :return: ``None``
     """
-    webdrv: webdriver = helpers.get_webdriver(dwn_dir, headless=headless, gecko=gecko)
+    webdrv: webdriver = get_webdriver(
+        dwn_dir, headless=headless, gecko=gecko
+    )
 
     webdrv_user_sel = "Gecko" if gecko else "Chrome"
     logging.info(
@@ -2116,7 +1715,7 @@ def fetch_zip(
             time.sleep(15)
 
     time.sleep(5)
-    zip_set = helpers.search_files_by_ext(
+    zip_set = search_files_by_ext(
         "zip", parent=parent, folder=os.path.relpath(dwn_dir)
     )[0]
     print(f"--> Fetched file {zip_set}")
@@ -2133,7 +1732,7 @@ def extract_zip(zip_path: str, extr_dir: str) -> None:
     :param extr_dir: ``str`` where to extract the contents of the archive
     :return: ``None``
     """
-    get_zip: list[str] = helpers.search_files_by_ext(
+    get_zip: list[str] = search_files_by_ext(
         "zip", folder=os.path.relpath(zip_path)
     )
     try:
@@ -2164,7 +1763,7 @@ def extract_zip(zip_path: str, extr_dir: str) -> None:
 def make_gallery_payload(
     gal_title: str,
     iternum: int,
-    gallery_sel_conf: GallerySelectConf = gallery_select_conf(),
+    gallery_sel_conf: ImageConfig = image_config_factory(),
 ):
     """Make the image gallery payload that will be sent with the PUT/POST request
     to the WordPress media endpoint.
@@ -2174,7 +1773,7 @@ def make_gallery_payload(
     :param gallery_sel_conf: ``GallerySelectConf`` - Bot configuration object
     :return: ``dict[str, str]``
     """
-    img_attrs: bool = gallery_sel_conf.img_attrs
+    img_attrs: bool = gallery_sel_conf.img_seo_attrs
     img_payload: dict[str, str] = {
         "alt_text": f"Photo {iternum} from {gal_title}" if img_attrs else "",
         "caption": f"Photo {iternum} from {gal_title}" if img_attrs else "",
@@ -2314,12 +1913,14 @@ def upload_image_set(
     :param wp_params: ``WPAuth`` object with the base URL of the WP site.
     :return: ``None``
     """
-    thumbnails: list[str] = helpers.search_files_by_ext(ext, folder=folder)
+    thumbnails: list[str] = search_files_by_ext(
+        ext, folder=folder
+    )
     if len(thumbnails) == 0:
         # Assumes the thumbnails are contained in a directory
         # This could be caused by the archive extraction
         logging.info("Thumbnails contained in directory - Running recursive search")
-        files: list[str] = helpers.search_files_by_ext(
+        files: list[str] = search_files_by_ext(
             ".jpg", recursive=True, folder=folder
         )
 
@@ -2341,13 +1942,15 @@ def upload_image_set(
     # Prepare the image new name so that separators are replaced by hyphens.
     # E.g. this_is_a_cool_pic.jpg => this-is-a-cool-pic.jpg
     new_name_img = lambda name: "-".join(
-        f"{os.path.basename(name)!s}".split(helpers.split_char(name))
+        f"{os.path.basename(name)!s}".split(split_char(name))
     )
 
     for number, image in enumerate(thumbnails, start=1):
         img_attrs: dict[str, str] = make_gallery_payload(title, number)
         img_file = "-".join(
-            new_name_img(image).split(helpers.split_char(image, placeholder=" "))
+            new_name_img(image).split(
+                split_char(image, placeholder=" ")
+            )
         )
         os.renames(
             os.path.join(folder, os.path.basename(image)),

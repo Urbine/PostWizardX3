@@ -10,7 +10,7 @@ __author_email__ = "yohamg@programmer.net"
 import os
 
 # Locally implemented modules
-from core.utils.helpers import goto_project_root
+from core import goto_project_root
 from core.config import create_workflows_config
 
 

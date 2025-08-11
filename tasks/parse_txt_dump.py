@@ -35,7 +35,9 @@ import re
 import sqlite3
 
 # Local implementations
-from core import helpers
+from core.utils.file_system import is_parent_dir_required
+from core.utils.parsers import parse_date_to_iso
+from core.utils.strings import clean_filename
 
 
 # Make sure that you get a dump file with all these fields:
@@ -59,11 +61,11 @@ def parse_txt_dump_chain(
     :param parent: ``bool`` look for the file in the parent directory
     :return: ``tuple[str, int]`` (abs_path_db, total_entries_in_db)
     """
-    cl_fname = helpers.clean_filename(filename, "txt")
+    cl_fname = clean_filename(filename, "txt")
     if dirname:
         path = os.path.join(dirname, cl_fname)
     else:
-        path = os.path.join(helpers.is_parent_dir_required(parent), cl_fname)
+        path = os.path.join(is_parent_dir_required(parent), cl_fname)
 
     total_entries = 0
     with open(path, "r", encoding="utf-8") as dump_file:
@@ -87,7 +89,7 @@ def parse_txt_dump_chain(
                 if tags == "":
                     tags = None
 
-                date = str(helpers.parse_date_to_iso(dump_line[5], m_abbr=True))
+                date = str(parse_date_to_iso(dump_line[5], m_abbr=True))
 
                 # The duration comes at the end of source urls.
                 pre_duration = dump_line[6].split("/")[-1:][0].split("_")
@@ -143,7 +145,9 @@ def parse_txt_dump_chain(
             # This seems to be a pattern.
             # When it reaches the end and there is no more data, Python
             # throws an IndexError in this function.
-            logging.warn(f"Error or end of transaction stream: {ierr!r} at {__file__}.")
+            logging.warning(
+                f"Error or end of transaction stream: {ierr!r} at {__file__}."
+            )
         finally:
             d_cur.close()
             d_conn.close()
