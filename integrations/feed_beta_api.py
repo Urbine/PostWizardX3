@@ -21,6 +21,9 @@ from dataclasses import dataclass
 
 # Local implementations
 import core
+import core.utils.data_access
+import core.utils.file_system
+import core.utils.strings
 from .url_builder import CSVColumns, URLEncode
 from core.helpers import remove_if_exists, parse_client_config
 
@@ -131,7 +134,7 @@ def feed_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
-    c_filename = core.clean_filename(filename, "csv")
+    c_filename = core.utils.strings.clean_filename(filename, "csv")
     path = os.path.join(os.path.abspath(dirname), c_filename)
     db_name = os.path.join(os.getcwd(), f"{filename}-{datetime.date.today()}.db")
     remove_if_exists(db_name)
@@ -211,7 +214,12 @@ def main(*args, **kwargs):
 
     temp_dir = tempfile.TemporaryDirectory(dir=".")
 
-    core.write_to_file("feed_beta-dump", temp_dir.name, "csv", core.access_url_bs4(main_url))
+    core.utils.file_system.write_to_file(
+        "feed_beta-dump",
+        temp_dir.name,
+        "csv",
+        core.utils.data_acess.access_url_bs4(main_url),
+    )
 
     result = feed_dump_parse("feed_beta-dump", temp_dir.name, "partner_test", URLEncode.PIPE)
 
@@ -219,8 +227,11 @@ def main(*args, **kwargs):
 
     main_url = construct_feed_beta_dump_url(feed_b_url, *args, **kwargs)
 
-    core.write_to_file(
-        "feed-b-dump", temp_dir.name, "csv", core.access_url_bs4(main_url)
+    core.utils.file_system.write_to_file(
+        "feed-b-dump",
+        temp_dir.name,
+        "csv",
+        core.utils.data_acess.access_url_bs4(main_url),
     )
 
     result = feed_dump_parse("feed-b-dump", temp_dir.name, "", URLEncode.PIPE)

@@ -8,6 +8,8 @@ from urllib3 import BaseHTTPResponse
 
 # Local implementations
 import core
+import core.utils.file_system
+import core.utils.strings
 from integrations.exceptions.integration_exceptions import (
     BraveAPIValidationError,
     BraveAPIInvalidCountryCode,
@@ -171,12 +173,15 @@ class BraveSearchAPI:
                 raise BraveAPIInvalidCountryCode
         elif search_lang:
             search_lang = search_lang.strip().lower()
-            if len(search_lang) != 2 and core.split_char(search_lang) != "-":
+            if (
+                len(search_lang) != 2
+                and core.utils.strings.split_char(search_lang) != "-"
+            ):
                 raise BraveAPIInvalidLanguageCode
         elif ui_lang:
             # ui_lang is indeed case-sensitive.
             ui_lang = ui_lang.strip()
-            if core.split_char(ui_lang) != "-":
+            if core.utils.strings.split_char(ui_lang) != "-":
                 raise BraveAPIInvalidLanguageCode
 
         fields = self.QParams.__dict__
@@ -253,7 +258,9 @@ class BraveSearchAPI:
 
         if not raw_query:
             query_prep = (
-                "+".join(query.split()) if core.split_char(query) == " " else query
+                "+".join(query.split())
+                if core.utils.strings.split_char(query) == " "
+                else query
             )
         else:
             query_prep = query
@@ -708,15 +715,15 @@ def main(*args, **kwargs):
     brave_search.send_query(*args)
 
     if webserp := brave_search.webserp_factory_collect(as_dict=True):
-        core.lst_dict_to_csv(
+        core.utils.file_system.lst_dict_to_csv(
             webserp, f"brave-web-search-report-{datetime.date.today()}"
         )
     elif imgserp := brave_search.imgserp_factory_collect(as_dict=True):
-        core.lst_dict_to_csv(
+        core.utils.file_system.lst_dict_to_csv(
             imgserp, f"brave-image-search-report-{datetime.date.today()}"
         )
     elif vidserp := brave_search.vidserp_factory_collect(as_dict=True):
-        core.lst_dict_to_csv(
+        core.utils.file_system.lst_dict_to_csv(
             vidserp, f"brave-image-search-report-{datetime.date.today()}"
         )
 
