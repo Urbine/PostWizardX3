@@ -39,8 +39,7 @@ from core.controllers.secrets_controller import (
 
 # Local imports
 from core.views.themes import elegant_theme
-from core.utils.helpers import logging_setup
-
+from core import logging_setup
 
 with gr.Blocks(
     theme=elegant_theme, title="PostDirector - Secrets Manager"

@@ -276,6 +276,7 @@ def repair_from_template() -> None:
     repair_result = create_workflows_config(repair_from_template=True)
     if repair_result:
         gr.Success("Configuration file repaired successfully!")
+        gr.Info("Stop the application and restart it to apply the changes.")
         reload_config()
     else:
         gr.Error("Failed to repair configuration. Check your configuration file.")
