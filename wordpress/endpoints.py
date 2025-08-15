@@ -25,6 +25,7 @@ class WPEndpoints(Enum):
     POSTS = "/posts"
     PER_PAGE = "?per_page="
     PAGE = "?page="
+    PHOTOS = "/photos"
     FIELDS_BASE = "?_fields="
     # fields are comma-separated in the URL after the
     # fields_base value.

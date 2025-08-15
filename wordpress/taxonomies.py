@@ -33,6 +33,8 @@ class WPTaxonomyValues(Enum):
 
     TAGS = "tags"
     CATEGORIES = "categories"
+    MODELS = "pornstars"
+    PHOTOS = "photos_tag"
 
 
 class WPTaxonomyMarker(Enum):
@@ -53,3 +55,5 @@ class WPTaxonomyMarker(Enum):
     POST = "post"
     TYPE = "type"
     STATUS = "status"
+    MODELS = "pornstars"
+    PHOTOS = "photos_tag"

@@ -21,6 +21,7 @@ import os
 import re
 import requests
 import threading
+import time
 
 from collections import namedtuple, deque
 from pathlib import Path
@@ -32,7 +33,8 @@ import urllib3
 
 # Local implementations
 from core.utils.file_system import load_json_ctx, export_request_json, logging_setup
-from core.utils.strings import clean_filename
+from core.utils.strings import clean_filename, match_list_single
+from core.utils.helpers import get_duration
 from wordpress.exceptions.internal_exceptions import (
     MissingCacheError,
     YoastSEOUnsupported,
@@ -71,14 +73,19 @@ class WordPress:
         username: str,
         password: str,
         cache_path: str | Path,
+        use_photo_support: bool = False,
     ):
         """
         Initializes the WordPress API handler with authentication and cache configuration.
+        If you are using the photo cache, please make sure that the cache filename is different,
+        otherwise the existing file will be overwritten. If you manage posts and photo posts
+        in the same site, create two instances of WordPress, one for posts and one with photo support.
 
         :param fq_domain_name: ``str`` -> Fully qualified domain name of the WordPress site.
         :param username: ``str`` -> Username for WordPress API authentication.
         :param password: ``str`` -> Application password for WordPress API authentication.
-        :param cache_path: ``str | Path`` -> Path to the local cache file.
+        :param cache_path: ``str | Path`` -> Path to the local cache file, including the filename.
+        :param use_photo_support: ``bool`` -> Flag indicating whether to fetch photo posts. Default is False.
         :return: ``None``
         """
         logging_setup("logs", __file__)
@@ -88,6 +95,7 @@ class WordPress:
         self.username = username
         self.app_password = password
         self.cache_path = cache_path
+        self.use_photo_cache = use_photo_support
         self.cache_dir = os.path.split(self.cache_path)[0]
         self.cache_name = os.path.basename(self.cache_path)
         self.cache_metadata_file = (
@@ -178,7 +186,11 @@ class WordPress:
             finally:
                 result_lock.release()
 
-        end_param_posts = [WPEndpoints.POSTS.value]
+        end_param_posts = [
+            WPEndpoints.POSTS.value
+            if not self.use_photo_cache
+            else WPEndpoints.PHOTOS.value
+        ]
         wp_cache: str = clean_filename(wp_cache_fname, "json")
         print(f"\nCreating WordPress {wp_cache} cache file...\n")
 
@@ -271,7 +283,11 @@ class WordPress:
         except FileNotFoundError:
             raise MissingCacheError(self.cache_name)
 
-        params_posts: list[str] = [WPEndpoints.POSTS.value]
+        params_posts: list[str] = (
+            [WPEndpoints.POSTS.value]
+            if not self.use_photo_cache
+            else [WPEndpoints.PHOTOS.value]
+        )
         x_wp_total = 0
         x_wp_totalpages = 0
         # The loop will add 1 to page num when the first request is successful.
@@ -432,6 +448,50 @@ class WordPress:
         if status_code == 201 and sync_on_add:
             self.cache_sync()
         return status_code
+
+    def post_polling(self, post_slug: str, retry_offset: int = 5) -> Optional[bool]:
+        """Check for the publication a post in real time by using iteration of the Cache Sync
+        algorithm. It will detect that you have effectively hit the publish button, so that functionality
+        that directly depends on the post being online can take it from there.
+
+        The function assigns environment variable ``"LATEST_POST"`` since objects
+        present in this application do not usually work with fully qualified links because it is
+        not necessary. This mechanism has also proven effective for manipulating pieces of information during runtime.
+
+        :param post_slug: ``str`` -> self-explanatory
+        :param retry_offset: ``int`` -> self-explanatory, defaults to 5
+        :return: ``None`` | ``True``
+        """
+        retries = 0
+        start_check = time.time()
+        cache_sync = self.cache_sync()
+        while cache_sync:
+            slugs = self.get_slugs()
+            if post_slug in slugs:
+                os.environ["LATEST_POST"] = self.get_links()[slugs.index(post_slug)]
+                end_check = time.time()
+                h, mins, secs = get_duration(end_check - start_check)
+                logging.info(
+                    f"wordpress_post_polling took -> hours: {h} mins: {mins} secs: {secs} in {retries} retries"
+                )
+                return True
+
+            time.sleep(retry_offset)
+
+            if retry_offset != 0:
+                retry_offset -= 1
+            else:
+                retry_offset = 5
+
+            retries += 1
+            # Safeguard mechanism
+            try:
+                cache_sync = self.cache_sync()
+            except KeyboardInterrupt:
+                while not cache_sync:
+                    continue
+                raise KeyboardInterrupt
+        return None
 
     def upload_image(
         self,
@@ -929,6 +989,136 @@ class WordPress:
                 else:
                     result_dict[item] += 1
         return result_dict
+
+    def count_map_match_taxonomy(
+        self,
+        match_taxonomy: WPTaxonomyMarker,
+        track_taxonomy: WPTaxonomyMarker,
+        hint_list: list[str],
+    ) -> dict[str, tuple[tuple[int | str]]]:
+        """
+        This function parses the WordPress cache to locate and count tags or other
+        keywords that WordPress includes in the ``['class_list']`` key, here defined as taxonomy markers.
+        In case there is a relationship between taxonomy markers, the function takes a tracking word
+        (any pattern that is associated with ``match_taxonomy``) to return a tuple with a count of the latter and the flag that
+        realise the relationship with ``track_taxonomy`` by using a list of hints (``hint_list``).
+
+        The problem that sustains the existence of this function resides in the need to map the models, video count and partner.
+        Both model and partner (elements in the ``['class_list']`` key) are related and; therefore, such connection
+        is realised by a list of hints that make sorting and matching easier.
+
+        This function is based on ``map_wp_class_id`` and implements its basic idea (taxonomy marker vs taxonomy value).
+        for more information about mechanism of matching, see the docstring for ``map_wp_class_id``
+
+        :param wp_posts_f: list[dict] (wp_posts or wp_photos) previously loaded in the program.
+        :param match_word: ``str`` prefix of the keywords that you want to match.
+        :param track_match_wrd: ``str`` pattern that will be matched and has a relationship with ``match_word``
+        :param hint_list: ``list[str]`` Matching hints that are related to ``track_match_wrd``
+        :return: ``dict[str, tuple[int, str]`` {'keyword': (count: int, matching_track_taxonomy: str)}
+        """
+        result_dict = {}
+        for elem in self.cache_data:
+            kw = [
+                " ".join(item.split("-")[1:]).title()
+                for item in elem["class_list"]
+                if re.findall(match_taxonomy.value, item)
+            ]
+
+            track_kw = [
+                " ".join(item.split("-")[1:]).title()
+                for item in elem["class_list"]
+                if re.findall(track_taxonomy.value, item)
+            ]
+
+            post_id = elem["id"]
+            for item in kw:
+                if item not in result_dict.keys():
+                    match = [
+                        hint for hint in hint_list if match_list_single(hint, track_kw)
+                    ]
+                    tr_kw = match[0] if match else False
+
+                    if tr_kw:
+                        result_dict[item] = [(1, tr_kw), post_id]
+                    else:
+                        result_dict[item] = [(1, "AdultNext/TubeCorporate"), post_id]
+                else:
+                    result_dict[item][0] = (
+                        result_dict[item][0][0] + 1,
+                        result_dict[item][0][1],
+                    )
+                    result_dict[item].append(post_id)
+        # Packing into tuples makes it easier to process for reporting purposes.
+        return {r: tuple(vals) for r, vals in result_dict.items()}
+
+    def map_postsid_category(self, host_name: bool = False) -> dict[str, str]:
+        """
+        Associates post ``ID`` with a URL. As many functions, it assumes that your *WordPress* installation has
+        the *Yoast SEO* plug-in in place.
+
+        :param wp_posts_f: ``list[dict]`` Posts ``JSON``
+        :param host_name: ``bool`` add your hostname to the URL in the result list. Default ``False``
+        :return: ``dict[str, str]``
+        """
+        # In the case of KeyError, there is at least one post that hasn't been categorized in WordPress.
+        # Check the culprit with the following code if this behaviour is not intended:
+        # for url in imported_json:
+        #   try:
+        #      print(url['yoast_head_json']['schema']['@graph'][0]['articleSection'])
+        #   except KeyError:
+        #      pprint.pprint(url)
+
+        u_pack = zip(
+            [idd["id"] for idd in self.cache_data],
+            [
+                url["yoast_head_json"]["schema"]["@graph"][0]["articleSection"]
+                for url in self.cache_data
+            ],
+        )
+        if host_name is not None:
+            return {idd: f"{self.fq_domain_name}/" + url for idd, url in u_pack}
+        else:
+            return {idd: cat for idd, cat in u_pack}
+
+    def get_post_models(self) -> list[str]:
+        """This function is based on the same principle as ``get unique tags``, however, this is a
+            domain specific implementation that is no longer in operation and has been replaced by function
+            ``get_from_class_list`` and used by reporting modules.
+
+        :param wp_posts_f: ``list[dict]``
+        :return: ``list[str]`` of model items joined by a comma individually.
+                 This behaviour is desired because some videos have more than one model item associated with it,
+                 making it easier for other functions to process these individually and find unique occurrences.
+        """
+        models = [
+            [
+                " ".join(cls_lst.split("-")[1:]).title()
+                for cls_lst in elem["class_list"]
+                if re.match("pornstars", cls_lst)
+            ]
+            for elem in self.cache_data
+        ]
+        return [",".join(model) if len(model) != 0 else None for model in models]
+
+    def get_post_category(self) -> list[str]:
+        """It assumes that each post has only one category, so that's why I am not joining
+        them with commas within the return list comprehension.
+        This is a domain specific implementation for categories.
+        If you have more than one category, you can use the ``get_from_class_list`` with ``'category'``
+        as the taxonomy marker.
+
+        :param wp_posts_f: ``list[dict]``
+        :return: ``list[str]``
+        """
+        categories = [
+            [
+                " ".join(cls_lst.split("-")[1:]).title()
+                for cls_lst in elem["class_list"]
+                if re.match("category", cls_lst)
+            ]
+            for elem in self.cache_data
+        ]
+        return [category[0] for category in categories]
 
 
 if __name__ == "__main__":

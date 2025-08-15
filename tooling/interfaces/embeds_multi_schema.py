@@ -88,9 +88,7 @@ class EmbedsMultiSchema(Generic[T]):
         """
         query = "SELECT sql FROM sqlite_master"
         try:
-            schema: list[tuple[int | str, ...]] = fetch_data_sql(
-                query, db_cur
-            )
+            schema: list[tuple[int | str, ...]] = fetch_data_sql(query, db_cur)
             fst_table, *others = schema
 
             if others:

@@ -38,10 +38,13 @@ import time
 import pyclip
 from requests.exceptions import ConnectionError, SSLError
 
-import core.utils.system_shell
+from core import general_config_factory, image_config_factory
+from core.models.config_model import MCashGalleryBotConf
+from core.utils.system_shell import clean_console
+from core.utils.helpers import get_duration
 
 # Local implementations
-from tools.workflows_api import (
+from tooling.workflows_api import (
     ConsoleStyle,
     filter_published,
     get_tag_ids,
@@ -56,11 +59,7 @@ from tools.workflows_api import (
     social_sharing_controller,
 )
 
-from core import helpers, gallery_select_conf, wp_auth
-
-# Imported for typing purposes
-from core.config_mgr import WPAuth, GallerySelectConf
-from integrations import wordpress_api, WPEndpoints
+from core.config.config_factories import mcash_gallery_bot_conf_factory
 
 
 def gallery_upload_pilot(
@@ -68,9 +67,6 @@ def gallery_upload_pilot(
     gecko: bool = False,
     headless: bool = False,
     parent: bool = False,
-    wp_admin_auth: WPAuth = wp_auth(),
-    wp_endpoints: WPEndpoints = WPEndpoints,
-    gallery_sel_conf: GallerySelectConf = gallery_select_conf(),
 ) -> None:
     """Control the entire execution of the gallery upload process.
     This ``gallery_upload_pilot`` function is a modification of ``video_upload_pilot``
@@ -93,41 +89,41 @@ def gallery_upload_pilot(
     :param gecko: ``bool`` ``True`` if you want to use the Gecko webdriver. Default ``False`` (Chrome)
     :param headless: ``bool`` ``True`` will enable the ``headless`` of the webdriver. For more information on this refer to the ``fetch_zip`` documentation on this module.
     :param parent: ``bool`` ``True`` if you are operating in the parent directory. Default ``False``
-    :param wp_admin_auth: ``WPAuth`` object with information about you WP site.
-    :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
-    :param gallery_sel_conf: ``GallerySelectConf`` object with configuration options for this module.
     :return: ``None``
     """
     time_start = time.time()
+    gallery_sel_conf: MCashGalleryBotConf = mcash_gallery_bot_conf_factory()
 
     (
         console,
         partner,
         not_published,
         all_galleries,
-        wp_posts_f,
-        wp_photos_f,
+        wp_posts_site,
+        wp_photos_site,
         thumbnails_dir,
-    ) = pilot_warm_up(gallery_sel_conf, wp_admin_auth, parent=parent)
+    ) = pilot_warm_up(gallery_sel_conf, parent=parent)
 
     # Prints out at the end of the uploading session.
     galleries_uploaded: int = 0
 
     if relevancy_on:
         logging.info("Relevancy algorithm on...")
-        not_published_yet = filter_relevant(all_galleries, wp_posts_f, wp_photos_f)
+        not_published_yet = filter_relevant(
+            all_galleries, wp_posts_site, wp_photos_site
+        )
     else:
         # In theory, this will work "sometimes" since I modify some of the
         # gallery names to reflect the queries we rank for on Google.
         # I don't use it as it is still experimental.
         logging.info("Relevancy algorithm off...")
-        not_published_yet = filter_published(all_galleries, wp_photos_f)
+        not_published_yet = filter_published(all_galleries, wp_photos_site)
 
     # You can keep on getting sets until this variable is equal to one.
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published")
 
-    core.utils.system_shell.clean_console()
+    clean_console()
 
     iter_session_print(console, total_elems, partner=partner)
     time.sleep(2)
@@ -148,7 +144,7 @@ def gallery_upload_pilot(
         download_url: str = fields[1]
         partner_name: str = partner
 
-        core.utils.system_shell.clean_console()
+        clean_console()
 
         iter_session_print(console, galleries_uploaded, elem_num=num)
         console.print(title, style=user_default_style)
@@ -165,7 +161,7 @@ def gallery_upload_pilot(
             temp_dir.cleanup()
             thumbnails_dir.cleanup()
             time_end = time.time()
-            h, mins, secs = helpers.get_duration(time_end - time_start)
+            h, mins, secs = get_duration(time_end - time_start)
             terminate_loop_logging(
                 console,
                 num,
@@ -186,7 +182,7 @@ def gallery_upload_pilot(
                 temp_dir.cleanup()
                 thumbnails_dir.cleanup()
                 time_end = time.time()
-                h, mins, secs = helpers.get_duration(time_end - time_start)
+                h, mins, secs = get_duration(time_end - time_start)
                 terminate_loop_logging(
                     console,
                     num,
@@ -197,13 +193,13 @@ def gallery_upload_pilot(
                 )
         if add_post:
             console.print("\n--> Making payload...", style=user_program_action)
-            tag_list: list[int] = get_tag_ids(wp_photos_f, [partner_name], "photos")
+            tag_list: list[int] = get_tag_ids(wp_photos_site, [partner_name], "photos")
             payload: dict[str, str | int] = make_photos_post_payload(
-                wp_admin_auth.default_status,
+                general_config_factory().default_status,
                 title,
                 partner_name,
                 tag_list,
-                reverse_slug=gallery_sel_conf.reverse_slug,
+                reverse_slug=False,
             )
 
             logging.info(f"Generated payload: {payload}")
@@ -219,7 +215,7 @@ def gallery_upload_pilot(
                 extract_zip(temp_dir.name, thumbnails_dir.name)
 
                 upload_image_set(
-                    gallery_sel_conf.pic_fallback, thumbnails_dir.name, title
+                    image_config_factory().pic_fallback, thumbnails_dir.name, title, wp_photos_site
                 )
 
                 # Env variable set at make_photos_post_payload() in workflows_api.py
@@ -230,7 +226,7 @@ def gallery_upload_pilot(
                     "--> Creating set on WordPress", style=user_program_action
                 )
 
-                push_post = wordpress_api.wp_post_create([wp_endpoints.photos], payload)
+                push_post = wp_photos_site.post_create(payload)
                 logging.info(wp_push_msg := f"WordPress post push status: {push_post}")
                 console.print(wp_push_msg, style=user_program_action)
 
@@ -242,7 +238,7 @@ def gallery_upload_pilot(
                     "--> Check the set and paste your focus phrase on WP.",
                     style=user_program_special_style,
                 )
-                social_sharing_controller(console, title, wp_slug, gallery_sel_conf)
+                social_sharing_controller(console, title, wp_slug, gallery_sel_conf, wp_photos_site)
                 galleries_uploaded += 1
             except (SSLError, ConnectionError) as e:
                 logging.warning(f"Caught exception {e!r} - Prompting user")
@@ -278,7 +274,7 @@ def gallery_upload_pilot(
                     temp_dir.cleanup()
                     thumbnails_dir.cleanup()
                     time_end = time.time()
-                    h, mins, secs = helpers.get_duration(time_end - time_start)
+                    h, mins, secs = get_duration(time_end - time_start)
                     terminate_loop_logging(
                         console,
                         num,
@@ -295,7 +291,7 @@ def gallery_upload_pilot(
                     temp_dir.cleanup()
                     thumbnails_dir.cleanup()
                     time_end = time.time()
-                    h, mins, secs = helpers.get_duration(time_end - time_start)
+                    h, mins, secs = get_duration(time_end - time_start)
                     terminate_loop_logging(
                         console,
                         num,
@@ -314,7 +310,7 @@ def gallery_upload_pilot(
                 temp_dir.cleanup()
                 thumbnails_dir.cleanup()
                 time_end = time.time()
-                h, mins, secs = helpers.get_duration(time_end - time_start)
+                h, mins, secs = get_duration(time_end - time_start)
                 terminate_loop_logging(
                     console,
                     num,
@@ -327,7 +323,7 @@ def gallery_upload_pilot(
             temp_dir.cleanup()
             thumbnails_dir.cleanup()
             time_end = time.time()
-            h, mins, secs = helpers.get_duration(time_end - time_start)
+            h, mins, secs = get_duration(time_end - time_start)
             terminate_loop_logging(
                 console,
                 num,

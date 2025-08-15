@@ -43,40 +43,40 @@ from pathlib import Path
 import pyclip
 from requests.exceptions import SSLError, ConnectionError
 
-import core.utils.system_shell
-
 # Local implementations
-from core import (
-    get_duration,
-    content_select_conf,
-    helpers,
-    wp_auth,
-    clean_filename,
-    split_char,
+from core.utils.helpers import get_duration
+from core.config.config_factories import (
+    mcash_content_bot_conf_factory,
+    image_config_factory,
+    general_config_factory,
 )
-
-from integrations import (
-    wordpress_api,
-    WPEndpoints,
-)
-
-# Imported for typing purposes
-from core.config_mgr import (
-    WPAuth,
-    ContentSelectConf,
-)
+from core.models.config_model import MCashContentBotConf
+from core.utils.system_shell import clean_console
+from core.utils.file_system import clean_filename
+from core.utils.strings import split_char
 
 from ai_core.ai_workflows import ai_video_attrs
 from ai_core.ai_client_mgr import load_llm_model
 from ai_core.config import ai_config as ai
-from tools import workflows_api as workflows
-from tools.workflows_api import ConsoleStyle
+from tooling.workflows_api import (
+    ConsoleStyle,
+    pilot_warm_up,
+    asset_parser,
+    iter_session_print,
+    terminate_loop_logging,
+    fetch_thumbnail_file,
+    tag_checker_print,
+    model_checker,
+    get_tag_ids,
+    social_sharing_controller,
+    fetch_thumbnail,
+    clean_partner_tag,
+    make_payload,
+    make_img_payload,
+)
 
 
 def video_upload_pilot(
-    wp_auth: WPAuth = wp_auth(),
-    wp_endpoints: WPEndpoints = WPEndpoints(),
-    cs_config: ContentSelectConf = content_select_conf(),
     parent: bool = False,
 ) -> None:
     """Coordinate execution of all functions that interact with the video upload process.
@@ -84,21 +84,19 @@ def video_upload_pilot(
     the data processing and normalisation. Of course, that is just one way to put it since all other
     members in the module undertake a fraction of work, thus, each output is received and made meaningful here.
 
-    :param wp_auth: ``WPAuth`` element provided by the ``core.config_mgr`` module. Set by default and bound to change based on the config file.
-    :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
-    :param cs_config: ``ContentSelectConf`` Object that contains configuration options for this module.
     :param parent: ``True`` if you want to locate relevant files in the parent directory. Default False
     :return: ``None``
     """
     time_start = time.time()
-    console, partner, not_published, wp_posts_f, thumbnails_dir = (
-        workflows.pilot_warm_up(cs_config, wp_auth, parent=parent)
+    cs_config: MCashContentBotConf = mcash_content_bot_conf_factory()
+    console, partner, not_published, wp_site, thumbnails_dir = pilot_warm_up(
+        cs_config, parent=parent
     )
 
-    core.utils.system_shell.clean_console()
+    clean_console()
 
     with console.status(
-        f"Loading Large Language Model... ᕙ(▀̿ĺ̯▀̿ ̿)ᕗ",
+        "Loading Large Language Model... ᕙ(▀̿ĺ̯▀̿ ̿)ᕗ",
         spinner="bouncingBall",
         spinner_style=ConsoleStyle.TEXT_STYLE_ACTION.value,
     ):
@@ -107,7 +105,7 @@ def video_upload_pilot(
     logging.info(f"Loaded LLM: {ai.MODEL_ID} Successfully")
     # Prints out at the end of the uploading session.
     videos_uploaded = 0
-    banners = workflows.asset_parser(cs_config, partner)
+    banners = asset_parser(cs_config, partner)
 
     not_published_yet: list[tuple[str, ...]] = not_published
 
@@ -115,9 +113,9 @@ def video_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published for {partner}")
 
-    core.utils.system_shell.clean_console()
+    clean_console()
 
-    workflows.iter_session_print(console, total_elems, partner=partner)
+    iter_session_print(console, total_elems, partner=partner)
     time.sleep(2)
 
     for num, vid in enumerate(not_published_yet):
@@ -133,10 +131,10 @@ def video_upload_pilot(
         tracking_url = fields[7]
         partner_name = partner
 
-        core.utils.system_shell.clean_console()
-        workflows.iter_session_print(console, videos_uploaded, elem_num=num)
+        clean_console()
+        iter_session_print(console, videos_uploaded, elem_num=num)
 
-        style_fields = workflows.ConsoleStyle.TEXT_STYLE_DEFAULT.value
+        style_fields = ConsoleStyle.TEXT_STYLE_DEFAULT.value
         console.print(title, style=style_fields)
         console.print(description, style=style_fields)
         console.print(f"Duration: {duration}", style=style_fields)
@@ -146,7 +144,7 @@ def video_upload_pilot(
         console.print(f"Thumbnail URL: {thumbnail_url}", style=style_fields)
         console.print(f"Source URL: {source_url}", style=style_fields)
 
-        prompt_style: str = workflows.ConsoleStyle.TEXT_STYLE_PROMPT.value
+        prompt_style: str = ConsoleStyle.TEXT_STYLE_PROMPT.value
         add_post = console.input(
             f"\n[{prompt_style}]Add post to WP? -> Y/N/ENTER to review next post: [/{prompt_style}]\n",
         ).lower()
@@ -158,7 +156,7 @@ def video_upload_pilot(
             thumbnails_dir.cleanup()
             time_end = time.time()
             h, mins, secs = get_duration(time_end - time_start)
-            workflows.terminate_loop_logging(
+            terminate_loop_logging(
                 console,
                 num,
                 total_elems,
@@ -179,7 +177,7 @@ def video_upload_pilot(
                 thumbnails_dir.cleanup()
                 time_end = time.time()
                 h, mins, secs = get_duration(time_end - time_start)
-                workflows.terminate_loop_logging(
+                terminate_loop_logging(
                     console,
                     num,
                     total_elems,
@@ -193,7 +191,7 @@ def video_upload_pilot(
         if not tags:
             tags, models = models, tags
 
-        thumbnail_path, thumb_fetch_status = workflows.fetch_thumbnail_file(
+        thumbnail_path, thumb_fetch_status = fetch_thumbnail_file(
             thumbnails_dir.name, thumbnail_url
         )
 
@@ -220,8 +218,8 @@ def video_upload_pilot(
                 tag_prep.append(ai_tag)
 
             # Making sure that the partner tag does not have apostrophes
-            tag_prep.append(workflows.clean_partner_tag(partner.lower()))
-            tag_ints = workflows.tag_checker_print(console, wp_posts_f, tag_prep)
+            tag_prep.append(clean_partner_tag(partner.lower()))
+            tag_ints = tag_checker_print(console, wp_site, tag_prep)
 
             try:
                 model_delim = models.split(
@@ -231,23 +229,23 @@ def video_upload_pilot(
             except AttributeError:
                 model_prep = []
 
-            calling_models: list[int] = workflows.model_checker(wp_posts_f, model_prep)
+            calling_models: list[int] = model_checker(wp_site, model_prep)
 
             # NaiveBayes/MaxEnt classification for titles, descriptions, and tags
-            categ_ids: list[int] = workflows.get_tag_ids(
-                wp_posts_f, [category_ai], preset="categories"
+            categ_ids: list[int] = get_tag_ids(
+                wp_site, [category_ai], preset="categories"
             )
             logging.info(
                 f"WordPress API matched category ID: {categ_ids} for category: {category_ai}"
             )
 
-            program_action_style: str = workflows.ConsoleStyle.TEXT_STYLE_ACTION.value
-            program_warning_style: str = workflows.ConsoleStyle.TEXT_STYLE_WARN.value
+            program_action_style: str = ConsoleStyle.TEXT_STYLE_ACTION.value
+            program_warning_style: str = ConsoleStyle.TEXT_STYLE_WARN.value
 
             console.print("\n--> Making payload...", style=program_action_style)
-            payload = workflows.make_payload(
+            payload = make_payload(
                 wp_slug,
-                wp_auth.default_status,
+                general_config_factory().default_status,
                 title,
                 description if not description_ai else description_ai,
                 tracking_url,
@@ -260,17 +258,18 @@ def video_upload_pilot(
             logging.info(f"Generated payload: {payload}")
             console.print("--> Fetching thumbnail...", style=program_action_style)
 
+            image_config = image_config_factory()
             # Check whether ImageMagick conversion has been enabled in config.
             pic_format = (
-                cs_config.pic_format
-                if core.utils.system_shell.imagick
-                else cs_config.pic_fallback
+                image_config.pic_format
+                if image_config.imagick
+                else image_config.pic_fallback
             )
             thumbnail = clean_filename(wp_slug, pic_format)
             logging.info(f"Thumbnail name: {thumbnail}")
 
             try:
-                workflows.fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
+                fetch_thumbnail(thumbnails_dir.name, wp_slug, thumbnail_url)
                 console.print(
                     f"--> Stored thumbnail {thumbnail} in cache folder {os.path.relpath(thumbnails_dir.name)}",
                     style=program_action_style,
@@ -283,14 +282,12 @@ def video_upload_pilot(
                     "--> Adding image attributes on WordPress...",
                     style=program_action_style,
                 )
-                img_attrs: dict[str, str] = workflows.make_img_payload(
+                img_attrs: dict[str, str] = make_img_payload(
                     title,
                     description,
                     flat_payload=(alt_text_ai, caption_ai, description_ai),
                 )
-                upload_img: int = wordpress_api.upload_thumbnail(
-                    wp_auth.api_base_url,
-                    [wp_endpoints.media],
+                upload_img: int = wp_site.upload_image(
                     os.path.join(thumbnails_dir.name, thumbnail),
                     img_attrs,
                 )
@@ -325,9 +322,7 @@ def video_upload_pilot(
                     "--> Creating post on WordPress", style=program_action_style
                 )
 
-                push_post: int = wordpress_api.wp_post_create(
-                    [wp_endpoints.posts], payload
-                )
+                push_post: int = wp_site.post_create(payload)
                 logging.info(f"WordPress post push status: {push_post}")
                 console.print(
                     f"--> WordPress status code: {push_post}",
@@ -341,8 +336,8 @@ def video_upload_pilot(
                     "--> Check the post and paste all you need from your clipboard.",
                     style=program_action_style,
                 )
-                workflows.social_sharing_controller(
-                    console, description, wp_slug, cs_config
+                social_sharing_controller(
+                    console, description, wp_slug, cs_config, wp_site
                 )
                 videos_uploaded += 1
             except (SSLError, ConnectionError) as e:
@@ -378,8 +373,8 @@ def video_upload_pilot(
 
                     thumbnails_dir.cleanup()
                     time_end = time.time()
-                    h, mins, secs = helpers.get_duration(time_end - time_start)
-                    workflows.terminate_loop_logging(
+                    h, mins, secs = get_duration(time_end - time_start)
+                    terminate_loop_logging(
                         console,
                         num,
                         total_elems,
@@ -397,7 +392,7 @@ def video_upload_pilot(
                     thumbnails_dir.cleanup()
                     time_end = time.time()
                     h, mins, secs = get_duration(time_end - time_start)
-                    workflows.terminate_loop_logging(
+                    terminate_loop_logging(
                         console,
                         num,
                         total_elems,
@@ -412,11 +407,10 @@ def video_upload_pilot(
                     )
                     pyclip.detect_clipboard()
                     pyclip.clear()
-                    continue
             else:
                 time_end = time.time()
                 h, mins, secs = get_duration(time_end - time_start)
-                workflows.terminate_loop_logging(
+                terminate_loop_logging(
                     console,
                     num,
                     total_elems,
