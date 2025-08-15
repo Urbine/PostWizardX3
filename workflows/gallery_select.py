@@ -215,7 +215,10 @@ def gallery_upload_pilot(
                 extract_zip(temp_dir.name, thumbnails_dir.name)
 
                 upload_image_set(
-                    image_config_factory().pic_fallback, thumbnails_dir.name, title, wp_photos_site
+                    image_config_factory().pic_fallback,
+                    thumbnails_dir.name,
+                    title,
+                    wp_photos_site,
                 )
 
                 # Env variable set at make_photos_post_payload() in workflows_api.py
@@ -238,7 +241,9 @@ def gallery_upload_pilot(
                     "--> Check the set and paste your focus phrase on WP.",
                     style=user_program_special_style,
                 )
-                social_sharing_controller(console, title, wp_slug, gallery_sel_conf, wp_photos_site)
+                social_sharing_controller(
+                    console, title, wp_slug, gallery_sel_conf, wp_photos_site
+                )
                 galleries_uploaded += 1
             except (SSLError, ConnectionError) as e:
                 logging.warning(f"Caught exception {e!r} - Prompting user")
