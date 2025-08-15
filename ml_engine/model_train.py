@@ -46,9 +46,23 @@ import core.utils.file_system
 
 # Local module implementations
 from core import helpers, wp_auth
-from integrations import wordpress_api
+
+from core.config.config_factories import general_config_factory
+from core.models.secret_model import SecretType
+from core.controllers.secrets_controller import SecretHandler
+from wordpress.wordpress_api import WordPress
+from wordpress.taxonomies import WPTaxonomyMarker
 
 ML_ENGINE_PKG = "ml_engine.ml_models"
+
+WP_AUTH = SecretHandler().get_secret(SecretType.WP_APP_PASSWORD)[0]
+WP_CACHE_PATH = f"cache/wp-posts.json"
+WP_SITE_INSTANCE = WordPress(
+    general_config_factory().fq_domain_name,
+    WP_AUTH.user,
+    WP_AUTH.app_password,
+    WP_CACHE_PATH,
+)
 
 
 def clean_descriptions(desc_lst: list[str]):
@@ -130,12 +144,11 @@ def wp_get_training_data() -> tuple[list[tuple[str, str, str]], list[tuple[str, 
     First element contains the structure ``(title, description, category)``
     Second element contains the structure ``(tags_str, category)``
     """
-    import_wp_cache = core.utils.file_system.load_json_ctx(wp_auth().wp_posts_file)
-    title = wordpress_api.get_post_titles_local(import_wp_cache, yoast=True)
-    raw_descriptions = wordpress_api.get_post_descriptions(import_wp_cache, yoast=True)
-    categories = wordpress_api.get_post_category(import_wp_cache)
-    data_tag_categ = wordpress_api.map_wp_class_id_many(
-        import_wp_cache, "tag", "category"
+    title = WP_SITE_INSTANCE.get_post_titles_local(yoast_support=True)
+    raw_descriptions = WP_SITE_INSTANCE.get_post_descriptions(yoast_support=True)
+    categories = WP_SITE_INSTANCE.get_post_category()
+    data_tag_categ = WP_SITE_INSTANCE.map_wp_class_id_many(
+        WPTaxonomyMarker.TAG, WPTaxonomyMarker.CATEGORY
     )
 
     return (
