@@ -40,7 +40,6 @@ import tooling.interfaces.embeds_multi_schema
 
 # Local implementations
 from core import helpers, embed_assist_conf, wp_auth, clean_filename
-from integrations import wordpress_api, WPEndpoints
 
 from tools import workflows_api as workflows
 
@@ -61,7 +60,7 @@ def embedding_pilot(
     """
     time_start = time.time()
 
-    console, partner, not_published, wp_posts_f, thumbnails_dir, cur_dump = (
+    console, partner, not_published, wp_site, thumbnails_dir, cur_dump = (
         workflows.pilot_warm_up(embed_ast_conf, wpauths)
     )
 
@@ -272,9 +271,7 @@ def embedding_pilot(
                     title, db_interface.get_description()
                 )
                 logging.info(f"Image Attrs: {img_attrs}")
-                upload_img = wordpress_api.upload_thumbnail(
-                    wpauths.api_base_url,
-                    [wp_endpoints.media],
+                upload_img = wp_site.upload_image(
                     f"{os.path.join(thumbnails_dir.name, thumbnail)}",
                     img_attrs,
                 )
@@ -304,7 +301,7 @@ def embedding_pilot(
                 )
                 console.print("--> Creating post on WordPress", style=user_default_bold)
 
-                push_post = wordpress_api.wp_post_create([wp_endpoints.posts], payload)
+                push_post = wp_site.post_create(payload)
                 logging.info(f"WordPress post push status: {push_post}")
                 console.print(
                     f"--> WordPress status code: {push_post}", style=user_default_bold
