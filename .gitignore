@@ -185,3 +185,4 @@ Dockerfile
 # Individual files
 !requirements.txt
 !ai_core/config/ai_config.py
+!core/config/templates/workflows_config_template.ini
