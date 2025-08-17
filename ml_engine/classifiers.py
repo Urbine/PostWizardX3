@@ -31,7 +31,7 @@ from nltk.tokenize import word_tokenize
 import joblib
 
 # Local modules
-from core import load_file_path
+from core.utils.file_system import load_file_path
 from ml_engine.model_train import (
     vocabulary_titles,
     vocabulary_descriptions,
