@@ -137,7 +137,7 @@ def combine_vid_elems(bs4_obj: BeautifulSoup) -> list[tuple[str, str, str, str, 
         extract_source(bs4_obj),
         extract_thumbnail(bs4_obj),
     )
-    return [vid_elem_lst for vid_elem_lst in page_vids]
+    return list(page_vids)
 
 
 def get_xml_link(bs4_obj: BeautifulSoup) -> list[str]:
