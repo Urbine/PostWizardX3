@@ -20,12 +20,12 @@ import urllib.parse
 from dataclasses import dataclass
 
 # Local implementations
-import core
-import core.utils.data_access
-import core.utils.file_system
-import core.utils.strings
+from core.utils.data_access import access_url_bs4
+from core.utils.file_system import write_to_file, remove_if_exists, exists_ok
+from core.models.file_system import ApplicationPath
+from core.utils.strings import clean_filename
+from core.config.config_factories import tube_corp_feed_conf_factory
 from .url_builder import CSVColumns, URLEncode
-from core.helpers import remove_if_exists, parse_client_config
 
 
 @dataclass(frozen=True)
@@ -134,9 +134,11 @@ def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
     # ID|Title|Description|Website link|Duration|Rating|Publish date,
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
-    c_filename = core.utils.strings.clean_filename(filename, "csv")
+    c_filename = clean_filename(filename, "csv")
     path = os.path.join(os.path.abspath(dirname), c_filename)
-    db_name = os.path.join(os.getcwd(), f"{filename}-{datetime.date.today()}.db")
+    db_name = os.path.join(
+        exists_ok(ApplicationPath.ARTIFACTS), f"{filename}-{datetime.date.today()}.db"
+    )
     remove_if_exists(db_name)
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
@@ -205,8 +207,8 @@ def tube_dump_parse(filename: str, dirname: str, partner: str, sep: str) -> str:
 
 
 def main(*args, **kwargs):
-    task_conf = parse_client_config("tasks_config", "core.config")
-    source_id = task_conf["tubecorp_feeds"]["source_id"]
+    workflow_conf = tube_corp_feed_conf_factory()
+    source_id = workflow_conf.source_id
     vjav_url = f"{TubeCorpUrl.vjav_base_url}{source_id}"
     desi_url = f"{TubeCorpUrl.desi_t_url}{source_id}"
 
@@ -214,11 +216,11 @@ def main(*args, **kwargs):
 
     temp_dir = tempfile.TemporaryDirectory(dir=".")
 
-    core.utils.file_system.write_to_file(
+    write_to_file(
         "vjav-dump",
         temp_dir.name,
         "csv",
-        core.utils.data_acess.access_url_bs4(main_url),
+        str(access_url_bs4(main_url)),
     )
 
     result = tube_dump_parse("vjav-dump", temp_dir.name, "jav", URLEncode.PIPE)
@@ -227,11 +229,11 @@ def main(*args, **kwargs):
 
     main_url = construct_tube_dump_url(desi_url, *args, **kwargs)
 
-    core.utils.file_system.write_to_file(
+    write_to_file(
         "desi-tube-dump",
         temp_dir.name,
         "csv",
-        core.utils.data_acess.access_url_bs4(main_url),
+        str(access_url_bs4(main_url)),
     )
 
     result = tube_dump_parse("desi-tube-dump", temp_dir.name, "", URLEncode.PIPE)

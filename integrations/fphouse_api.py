@@ -19,13 +19,11 @@ import urllib.parse
 from dataclasses import dataclass
 
 # Local implementations
-from core import (
-    access_url_bs4,
-    write_to_file,
-    remove_if_exists,
-    clean_filename,
-    parse_client_config,
-)
+from core.config.config_factories import fhouse_feed_conf_factory
+from core.models.file_system import ApplicationPath
+from core.utils.strings import clean_filename
+from core.utils.data_access import access_url_bs4
+from core.utils.file_system import remove_if_exists, write_to_file, exists_ok
 from integrations.exceptions.integration_exceptions import NoFieldsException
 from integrations.url_builder import (
     URLEncode,
@@ -38,8 +36,8 @@ class FHouseBaseUrl:
     """
 
     def __init__(self, campaign: str = "") -> None:
-        task_conf = parse_client_config("tasks_config", "core.config")
-        campaign_utm = "=".join(task_conf["fhouse_api"]["fhouse_camp_utm"].split("."))
+        workflow_conf = fhouse_feed_conf_factory()
+        campaign_utm = "=".join(workflow_conf.campaign_utm.split("."))
         if campaign:
             self.__campaign = campaign
             self.__fhouse_base_url = (
@@ -256,7 +254,9 @@ def fhouse_parse(
     """
     c_filename = clean_filename(filename, extension)
     path = os.path.join(os.path.abspath(dirname), c_filename)
-    db_name = os.path.join(os.getcwd(), f"{filename}-{datetime.date.today()}.db")
+    db_name = os.path.join(
+        exists_ok(ApplicationPath.ARTIFACTS), f"{filename}-{datetime.date.today()}.db"
+    )
     remove_if_exists(db_name)
 
     db_conn = sqlite3.connect(db_name)
@@ -319,7 +319,7 @@ def main(*args, **kwargs):
         (fname := "fap-house-dump"),
         temp_store.name,
         file_extension,
-        access_url_bs4(f_house_full_addr),
+        str(access_url_bs4(f_house_full_addr)),
     )
     fhouse_parse(
         fname, file_extension, temp_store.name, f_house_url.get_delim(), log_res=True

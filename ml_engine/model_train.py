@@ -42,26 +42,23 @@ from sklearn.naive_bayes import MultinomialNB
 import nltk.corpus
 import joblib
 
-import core.utils.file_system
-
 # Local module implementations
-from core import helpers, wp_auth
-
 from core.config.config_factories import general_config_factory
 from core.models.secret_model import SecretType
+from core.models.file_system import ApplicationPath
 from core.controllers.secrets_controller import SecretHandler
+from core.utils.helpers import get_duration
+from core.utils.file_system import load_file_path
 from wordpress.wordpress_api import WordPress
 from wordpress.taxonomies import WPTaxonomyMarker
 
-ML_ENGINE_PKG = "ml_engine.ml_models"
 
 WP_AUTH = SecretHandler().get_secret(SecretType.WP_APP_PASSWORD)[0]
-WP_CACHE_PATH = f"cache/wp-posts.json"
 WP_SITE_INSTANCE = WordPress(
     general_config_factory().fq_domain_name,
     WP_AUTH.user,
     WP_AUTH.app_password,
-    WP_CACHE_PATH,
+    ApplicationPath.WP_POSTS_CACHE.value,
 )
 
 
@@ -138,16 +135,20 @@ def get_testing_set(
     ]
 
 
-def wp_get_training_data() -> tuple[list[tuple[str, str, str]], list[tuple[str, str]]]:
+def wp_get_training_data(
+    wordpress_site: WordPress,
+) -> tuple[list[tuple[str, str, str]], list[tuple[str, str]]]:
     """Combine the available data for models' training.
+
+    :param wordpress_site: ``WordPress`` -> WordPress class instance
     :return: ``tuple[list[tuple[str, str, str]], list[tuple[str, str]]]``
     First element contains the structure ``(title, description, category)``
     Second element contains the structure ``(tags_str, category)``
     """
-    title = WP_SITE_INSTANCE.get_post_titles_local(yoast_support=True)
-    raw_descriptions = WP_SITE_INSTANCE.get_post_descriptions(yoast_support=True)
-    categories = WP_SITE_INSTANCE.get_post_category()
-    data_tag_categ = WP_SITE_INSTANCE.map_wp_class_id_many(
+    title = wordpress_site.get_post_titles_local(yoast_support=True)
+    raw_descriptions = wordpress_site.get_post_descriptions(yoast_support=True)
+    categories = wordpress_site.get_post_category()
+    data_tag_categ = wordpress_site.map_wp_class_id_many(
         WPTaxonomyMarker.TAG, WPTaxonomyMarker.CATEGORY
     )
 
@@ -163,7 +164,7 @@ def wp_get_training_data() -> tuple[list[tuple[str, str, str]], list[tuple[str, 
 
 
 # Start by creating our training set
-all_training_data = wp_get_training_data()
+all_training_data = wp_get_training_data(WP_SITE_INSTANCE)
 
 # Index 0 contains the (title, description and category) data
 title_desc_training_data = all_training_data[0]
@@ -280,16 +281,16 @@ if __name__ == "__main__":
     sk_class_tags = sklearn_classifier.train(word_list_tags)
 
     # NLTK NaiveBayes Classifier Model
-    nbc_titles = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "NaiveBayesTitles.joblib.pkl"
+    nbc_titles = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "NaiveBayesTitles.joblib.pkl"
     )
 
-    nbc_descriptions = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "NaiveBayesDescriptions.joblib.pkl"
+    nbc_descriptions = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "NaiveBayesDescriptions.joblib.pkl"
     )
 
-    nbc_tags = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "NaiveBayesTags.joblib.pkl"
+    nbc_tags = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "NaiveBayesTags.joblib.pkl"
     )
     save_nbc_titles = joblib.dump(NaiveBClassifier_titles, nbc_titles, compress=9)
     save_nbc_descriptions = joblib.dump(
@@ -298,16 +299,16 @@ if __name__ == "__main__":
     save_nbc_tags = joblib.dump(NaiveBClassifier_tags, nbc_tags, compress=9)
 
     # NLTK Maxent Classifier
-    maxent_titles = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "MaxentClassifierTitles.joblib.pkl"
+    maxent_titles = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "MaxentClassifierTitles.joblib.pkl"
     )
 
-    maxent_descriptions = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "MaxentClassifierDescriptions.joblib.pkl"
+    maxent_descriptions = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "MaxentClassifierDescriptions.joblib.pkl"
     )
 
-    maxent_tags = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "MaxentClassifierTags.joblib.pkl"
+    maxent_tags = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "MaxentClassifierTags.joblib.pkl"
     )
 
     save_maxent_titles = joblib.dump(maxent_cl_titles, maxent_titles, compress=9)
@@ -317,16 +318,16 @@ if __name__ == "__main__":
     save_maxent_tags = joblib.dump(maxent_cl_tags, maxent_tags, compress=9)
 
     # SciKit-Learn Classifier (Multinomial Naive Bayes)
-    multinb_titles = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "MultiNBClassifierTitles.joblib.pkl"
+    multinb_titles = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "MultiNBClassifierTitles.joblib.pkl"
     )
 
-    multinb_descriptions = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "MultiNBClassifierDescriptions.joblib.pkl"
+    multinb_descriptions = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "MultiNBClassifierDescriptions.joblib.pkl"
     )
 
-    multinb_tags = core.utils.file_system.load_file_path(
-        ML_ENGINE_PKG, "MultiNBClassifierTags.joblib.pkl"
+    multinb_tags = load_file_path(
+        ApplicationPath.ML_ENGINE_PKG.value, "MultiNBClassifierTags.joblib.pkl"
     )
     save_multi_titles = joblib.dump(sk_class_titles, multinb_titles, compress=9)
     save_multi_descriptions = joblib.dump(
@@ -335,7 +336,7 @@ if __name__ == "__main__":
     save_multi_tags = joblib.dump(sk_class_tags, multinb_tags, compress=9)
 
     end_time = time.time()
-    hours, minutes, seconds = helpers.get_duration(end_time - start_time)
+    hours, minutes, seconds = get_duration(end_time - start_time)
     print(
         f"\nTraining took {int(hours)} hours, {int(minutes)} minutes and {int(seconds)} seconds.\n"
     )

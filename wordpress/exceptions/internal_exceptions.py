@@ -48,3 +48,20 @@ class YoastSEOUnsupported(Exception):
         self.help = "If you want, install the plugin in order to use the built-in support and delete the cache files."
         self.warning = "This plugin is not required to use this wrapper."
         super().__init__(f"{self.message}\n{self.help}\n{self.warning}")
+
+
+class CacheCreationAuthError(Exception):
+    """
+    Alert users when the application fails to create a cache file due to a connection error or lack of permissions.
+    This is determined when access-controlled headers are missing.
+    """
+
+    def __init__(self):
+        self.message = (
+            "WordPress cache creation failed. Check your credentials and try again."
+        )
+        self.help = "If you are getting this error, it is probably because you did not provide an app password for the site."
+        self.link = "https://wordpress.com/support/security/two-step-authentication/application-specific-passwords/"
+        super().__init__(
+            f"{self.message}\n{self.help}\nFind more information here:\n{self.link}"
+        )

@@ -23,9 +23,6 @@ from selenium import webdriver
 # Local imports
 from core.utils.file_system import is_parent_dir_required, filename_select
 
-# This way OAuthlib won't enforce HTTPS connections.
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
 
 def access_url_bs4(url_to_bs4: str) -> BeautifulSoup:
     """Accesses a URL and returns a BeautifulSoup object that's ready to parse.
@@ -88,6 +85,9 @@ def get_token_oauth(
     :param token_url_: ``str``
     :return: ``JSON`` object
     """
+    # This way OAuthlib won't enforce HTTPS connections (Optional)
+    # os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
     oauth_session = OAuth2Session(
         client_id_,
         redirect_uri=uri_callback_,

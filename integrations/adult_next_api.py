@@ -19,11 +19,11 @@ import urllib.parse
 from dataclasses import dataclass
 
 # Local implementations
-import core
-import core.utils.data_access
-import core.utils.file_system
-import core.utils.strings
-from core import remove_if_exists, parse_client_config
+from core.config.config_factories import adult_next_conf_factory
+from core.models.file_system import ApplicationPath
+from core.utils.data_access import access_url_bs4
+from core.utils.strings import clean_filename
+from core.utils.file_system import remove_if_exists, write_to_file, exists_ok
 from .url_builder import CSVColumns, URLEncode
 
 
@@ -138,9 +138,11 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
     # time|Categories|Tags|Models|Embed code|Thumbnail prefix|Main
     # thumbnail|Thumbnails|Preview URL
 
-    c_filename = core.utils.strings.clean_filename(filename, "csv")
+    c_filename = clean_filename(filename, "csv")
     path = os.path.join(os.path.abspath(dirname), c_filename)
-    db_name = os.path.join(os.getcwd(), f"{filename}-{datetime.date.today()}.db")
+    db_name = os.path.join(
+        exists_ok(ApplicationPath.ARTIFACTS), f"{filename}-{datetime.date.today()}.db"
+    )
     remove_if_exists(db_name)
     db_conn = sqlite3.connect(db_name)
     db_cur = db_conn.cursor()
@@ -207,20 +209,20 @@ def adult_next_dump_parse(filename: str, dirname: str, partner: str, sep: str) -
 
 
 def main(*args, **kwargs):
-    task_conf = parse_client_config("tasks_config", "core.config")
-    campaign_id = task_conf["adult_next"]["abjav_campaign_id"]
+    workflow_conf = adult_next_conf_factory()
+    campaign_id = workflow_conf.campaign_id
     main_url = construct_api_dump_url(
         campaign_id,
         *args,
         **kwargs,
     )
-    temp_dir = tempfile.TemporaryDirectory(dir=".")
+    temp_dir = tempfile.TemporaryDirectory(dir=exists_ok(ApplicationPath.TEMPORARY))
 
-    core.utils.file_system.write_to_file(
+    write_to_file(
         "abjav-dump",
         temp_dir.name,
         "csv",
-        core.utils.data_acess.access_url_bs4(main_url),
+        str(access_url_bs4(main_url)),
     )
 
     result = adult_next_dump_parse("abjav-dump", temp_dir.name, "jav", URLEncode.PIPE)

@@ -36,10 +36,12 @@ import sqlite3
 from bs4 import BeautifulSoup
 
 # Local implementation
+from core.models.file_system import ApplicationPath
 from core.utils.file_system import (
     is_parent_dir_required,
     filename_creation_helper,
     remove_if_exists,
+    exists_ok,
 )
 from core.utils.parsers import parse_date_to_iso
 from core.utils.strings import clean_filename
@@ -111,7 +113,7 @@ def db_generate(
     else:
         d_name = clean_filename(db_suggest, "db")
 
-    db_path = os.path.join(is_parent_dir_required(parent), d_name)
+    db_path = os.path.join(exists_ok(ApplicationPath.ARTIFACTS), d_name)
     remove_if_exists(db_path)
     db_conn = sqlite3.connect(db_path)
     cursor = db_conn.cursor()
@@ -133,7 +135,5 @@ def db_generate(
     finally:
         cursor.close()
         db_conn.close()
-
-    db_path = os.path.join(is_parent_dir_required(parent), d_name)
 
     return db_path, total_photosets

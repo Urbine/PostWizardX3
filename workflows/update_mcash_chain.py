@@ -43,24 +43,24 @@ from tempfile import TemporaryDirectory
 from rich.console import Console
 
 # Local implementations
-from core import (
+from core.models.file_system import ApplicationPath
+from core.utils.file_system import (
     is_parent_dir_required,
-    get_webdriver,
-    get_duration,
-    load_from_file,
-    clean_filename,
     remove_if_exists,
-    update_mcash_conf,
+    load_from_file,
+    exists_ok,
 )
-
-from tools.workflows_api import logging_setup, ConsoleStyle
+from core.utils.data_access import get_webdriver
+from core.utils.helpers import get_duration
+from core.utils.strings import clean_filename
+from tooling.workflows_api import logging_setup, ConsoleStyle
 from tasks.mcash_dump_create import get_vid_dump_flow
 from tasks.mcash_scrape import get_set_source_flow
 from tasks.parse_txt_dump import parse_txt_dump_chain
 from tasks.sets_source_parse import db_generate
 
 
-def cli_arg_updater():
+def cli_arg_updater() -> argparse.ArgumentParser:
     """
     Process and handle command line arguments for the MongerCash update wizard.
     """
@@ -93,12 +93,12 @@ def cli_arg_updater():
         "--silent", action="store_true", help="Ignore user warnings"
     )
 
-    return arg_parser.parse_args()
+    return arg_parser
 
 
 if __name__ == "__main__":
     start_time = time.time()
-    logging_setup(update_mcash_conf(), __file__)
+    logging_setup("logs", __file__)
     logging.info(f"Started Session ID: {os.environ.get('SESSION_ID')}\n")
 
     console = Console()
@@ -114,17 +114,17 @@ if __name__ == "__main__":
         justify="center",
     )
 
-    args = cli_arg_updater()
+    args = cli_arg_updater().parse_args()
 
     logging.info(f"Passed in {args.__dict__}")
 
     if args.silent:
         warnings.filterwarnings("ignore")
 
-    temp_dir = tempfile.TemporaryDirectory(dir=".")
+    temp_dir = tempfile.TemporaryDirectory(dir=exists_ok(ApplicationPath.TEMPORARY))
 
     # All webdriver instances have been optimised by the parameter ``no_img``
-    # in their ``core.get_webdriver()`` configuration, which means that browser instances
+    # in their ``core.utils.data_access.get_webdriver()`` configuration, which means that browser instances
     # won't load images in the web scraping process. In testing, this has shown to
     # generate a performance gain of approximately 50% to 60%.
     # Headless mode tends to be slower and this performance gain does not seem evident,
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         load_d_file = load_dump_f(temp_dir, dump_f)
 
     db_name = clean_filename(dump_f, "db")
-    db_path = os.path.join(is_parent_dir_required(parent=args.parent), db_name)
+    db_path = os.path.join(exists_ok(ApplicationPath.ARTIFACTS), db_name)
     remove_if_exists(db_path)
     db_conn = sqlite3.connect(db_path)
     cursor = db_conn.cursor()
@@ -252,7 +252,7 @@ if __name__ == "__main__":
 
     logging.info(
         vid_result
-        := f"{parsing[1]} video entries have been processed from {dump_f} and inserted into\n{parsing[0]}\n"
+        := f"{parsing[1]} video entries have been processed from {dump_f} and inserted into\n{db_path}\n"
     )
     console.print(
         vid_result, style=ConsoleStyle.TEXT_STYLE_ATTENTION.value, justify="left"

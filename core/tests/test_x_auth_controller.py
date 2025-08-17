@@ -3,7 +3,7 @@
 import os
 import unittest
 
-from core.secrets import VAULT_DIR, LOCAL_TEST_VAULT_NAME
+from core.models.config_model import VAULT_DIR, LOCAL_TEST_VAULT_NAME
 from core.tests.x_auth_test_suite import (
     TestStoreClientIDSecret,
     TestStoreAPISecrets,

@@ -27,16 +27,13 @@ from core.utils.file_system import is_parent_dir_required, remove_if_exists
 from core.utils.strings import clean_filename
 from core.controllers.secrets_controller import SecretHandler
 from core.models.secret_model import SecretType, WPSecrets
+from core.models.file_system import ApplicationPath, ProjectFile
 from core.exceptions.util_exceptions import NoSuitableArgument
 
 from wordpress_api import WordPress
 from taxonomies import WPTaxonomyMarker, WPTaxonomyValues
 
 from core.config.config_factories import general_config_factory
-
-# Global constants
-WP_CACHE_PATH = "/cache/wp-posts.json"
-WP_CACHE_PHOTOS = "/cache/wp-photos.json"
 
 
 def unpack_tpl_excel(tupled_list: tuple[tuple[str]]) -> Generator[str, None, None]:
@@ -123,10 +120,10 @@ def create_tag_report_excel(
     )
     model_count.write_column("A2", tuple(model_wp_class_count.keys()))
     model_count.write_column(
-        "B2", tuple([count[0][0] for count in model_wp_class_count.values()])
+        "B2", (count[0][0] for count in model_wp_class_count.values())
     )
     model_count.write_column(
-        "C2", tuple([partner[0][1] for partner in model_wp_class_count.values()])
+        "C2", (partner[0][1] for partner in model_wp_class_count.values())
     )
     par_strip = lambda tp: str(tp).strip(")").strip("(")
     t_comma_out = lambda tp: par_strip(tp) if len(tp) > 1 else par_strip(tp).strip(",")
@@ -200,7 +197,7 @@ def get_site() -> WordPress:
         general_config.fq_domain_name,
         wp_auth.user,
         wp_auth.app_password,
-        WP_CACHE_PATH,
+        ApplicationPath.WP_POSTS_CACHE.value,
     )
     return wordpress_site
 
@@ -245,7 +242,7 @@ def main():
     args = parse_args().parse_args()
     if args.excel:
         create_tag_report_excel(
-            get_site(), "tag-report-excel-{datetime.date.today()}", parent=args.parent
+            get_site(), ProjectFile.EXCEL_REPORT.value, parent=args.parent
         )
     elif args.photos:
         update_published_titles_db(

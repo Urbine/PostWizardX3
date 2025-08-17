@@ -56,7 +56,7 @@ import zipfile
 
 from enum import Enum
 from sqlite3 import Connection, Cursor, OperationalError
-from typing import Optional, List, Tuple, Dict, Any, Literal
+from typing import Optional, List, Tuple, Dict, Any, Literal, Union
 
 # Third-party modules
 import pyclip
@@ -74,6 +74,7 @@ from core.utils.file_system import (
     search_files_by_ext,
     is_parent_dir_required,
     logging_setup,
+    exists_ok,
 )
 from core.utils.parsers import parse_client_config
 from core.utils.strings import (
@@ -116,14 +117,11 @@ from core.models.config_model import (
 )
 
 from core.models.secret_model import MongerCashAuth, SecretType, WPSecrets
+from core.models.file_system import ApplicationPath
 
 from tooling.interfaces.embeds_multi_schema import EmbedsMultiSchema
 from wordpress import WordPress
 from wordpress.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
-
-# Global constants
-WP_CACHE_PATH = "/cache/wp-posts.json"
-WP_CACHE_PHOTOS = "/cache/wp-photos.json"
 
 
 class ConsoleStyle(Enum):
@@ -244,7 +242,7 @@ def published_json(title: str, wordpress_site: WordPress) -> bool:
                              WordPress site data.
     :return: ``bool`` True if one or more matches is found, False if the result is None.
     """
-    post_titles: List[str] = wordpress_site.get_post_titles_local(yoast=True)
+    post_titles: List[str] = wordpress_site.get_post_titles_local(yoast_support=True)
 
     comp_title: re.Pattern = re.compile(rf"({title})")
 
@@ -320,17 +318,19 @@ def get_tag_ids(
     """
     match preset:
         case "models":
-            preset = (WPTaxonomyMarker.MODELS, WPTaxonomyValues.MODELS)
+            taxonomies = (WPTaxonomyMarker.MODELS, WPTaxonomyValues.MODELS)
         case "tags":
-            preset = (WPTaxonomyMarker.TAGS, WPTaxonomyValues.TAGS)
+            taxonomies = (WPTaxonomyMarker.TAG, WPTaxonomyValues.TAGS)
         case "photos":
-            preset = (WPTaxonomyMarker.PHOTOS, WPTaxonomyValues.PHOTOS)
+            taxonomies = (WPTaxonomyMarker.PHOTOS, WPTaxonomyValues.PHOTOS)
         case "categories":
-            preset = (WPTaxonomyMarker.CATEGORY, WPTaxonomyValues.CATEGORIES)
+            taxonomies = (WPTaxonomyMarker.CATEGORY, WPTaxonomyValues.CATEGORIES)
         case _ as err:
             raise UnsupportedParameter(err)
 
-    tag_tracking: Dict[str, int] = wordpress_site.map_wp_class_id(preset[0], preset[1])
+    tag_tracking: Dict[str, int] = wordpress_site.map_wp_class_id(
+        taxonomies[0], taxonomies[1]
+    )
 
     clean_tag = lambda tag: " ".join(tag.split(split_char(tag)))
     tag_join = lambda tag: "".join(map(clean_tag, tag))
@@ -376,7 +376,7 @@ def get_model_ids(wordpress_site: WordPress, model_lst: List[str]) -> List[int]:
 
 
 def identify_missing(
-    wp_data_dic: Dict[str, str | int],
+    wp_data_dic: Dict[str, Union[str, int]],
     data_lst: List[str],
     data_ids: List[int],
     ignore_case: bool = False,
@@ -482,7 +482,7 @@ def make_payload(
     tag_int_lst: List[int],
     model_int_lst: List[int],
     categs: Optional[List[int]] = None,
-) -> Dict[str, str | int]:
+) -> Dict[str, Union[str, int]]:
     """Make WordPress ``JSON`` payload with the supplied values.
     This function also injects ``HTML`` code into the payload to display the banner, add ``ALT`` text to it
     and other parameters for the WordPress editor's (Gutenberg) rendering.
@@ -534,7 +534,7 @@ def make_payload_simple(
     tag_int_lst: List[int],
     model_int_lst: Optional[List[int]] = None,
     categs: Optional[List[int]] = None,
-) -> Dict[str, str | int]:
+) -> Dict[str, Union[str, int]]:
     """Makes a simple WordPress JSON payload with the supplied values.
 
     :param vid_slug: ``str`` slug optimized by the job control function and database parsing algo ( ``tasks`` package).
@@ -568,7 +568,7 @@ def make_payload_simple(
 def make_img_payload(
     vid_title: str,
     vid_description: str,
-    flat_payload: bool | Tuple[str, str, str] = False,
+    flat_payload: Union[bool, Tuple[str, str, str]] = False,
 ) -> Dict[str, str]:
     """Similar to the make_payload function, this one makes the payload for the video thumbnails,
     it gives them the video description and focus key phrase, which is the video title plus a call to
@@ -773,12 +773,12 @@ def select_guard(db_name: str, partner: str) -> None:
 def content_select_db_match(
     hint_lst: List[str],
     content_hint: str,
-    folder: str = "",
+    dir: str = "",
     prompt_db: bool = False,
     parent: bool = False,
 ) -> Tuple[Connection, Cursor, str, int]:
     """Give a list of databases, match them with multiple hints, and retrieves the most up-to-date filename.
-    This is a specialised implementation based on the ``filename_select`` function in the ``core.helpers`` module.
+    This is a specialised implementation based on the ``filename_select`` function in the ``core.utils.file_system`` module.
 
     ``content_select_db_match`` finds a common index where the correct partner offer and database are located
     within two separate lists: the available ``.db`` file list and a list of partner offers.
@@ -787,12 +787,12 @@ def content_select_db_match(
     that matches strings found in a lookup list.
 
     For more information on how this matching works and the algorithm behind it, refer to the documentation for
-    ``match_list_mult`` and ``match_list_elem_date`` in the ``core.helpers`` module.
+    ``match_list_mult`` and ``match_list_elem_date`` in the ``core.utils.strings`` module.
 
     **Note: As part of the above-mentioned naming convention, the files include a content type hint.
     This allows the algorithm to identify video or photo databases, depending on the module
     calling the function. However, this hint can be any word that you use consistently in your filenames.
-    Also, if you want to access the file from a parent dir, either let the destination function handle it for you
+    Also, if you want to access the file in the parent dir, either let the destination function handle it for you
     or specify it yourself. Everytime Python runs the file as a module or runs it on an interpreter outside your
     virtual environment, relative paths prove inefficient. However, this issue has been largely solved by using
     package notation with standard library and local implementations.**
@@ -800,14 +800,14 @@ def content_select_db_match(
     :param hint_lst: ``list[str]`` words/patterns to match.
     :param content_hint: ``str`` type of content, typically ``vids`` or ``photos``
     :param prompt_db: ``True`` if you want to prompt the user to select db. Default ``False``.
-    :param folder: ``str`` where you want to look for files
+    :param dir: ``str`` where you want to look for relevant files
     :param parent: ``True`` to search in parent dir, default set to ``False``.
     :return: ``tuple[Connection, Cursor, str, int]`` (database connection, database cursor, database name, common index int)
     """
 
     console = Console()
 
-    available_files: List[str] = search_files_by_ext("db", folder=folder, parent=parent)
+    available_files: List[str] = search_files_by_ext("db", folder=dir, parent=parent)
     filtered_files: List[str] = match_list_elem_date(
         hint_lst,
         available_files,
@@ -863,7 +863,7 @@ def content_select_db_match(
                 continue
 
         is_parent: str = (
-            is_parent_dir_required(parent) if folder == "" else os.path.abspath(folder)
+            is_parent_dir_required(parent) if dir == "" else os.path.abspath(dir)
         )
         db_path: str = os.path.join(is_parent, relevant_content[int(select_file)])
 
@@ -1000,7 +1000,7 @@ def social_sharing_controller(
     console_obj: rich.console.Console,
     description: str,
     wp_slug: str,
-    cs_config: MCashContentBotConf | MCashGalleryBotConf | EmbedAssistBotConf,
+    cs_config: Union[MCashContentBotConf, MCashGalleryBotConf, EmbedAssistBotConf],
     wordpress_site: WordPress,
 ) -> None:
     """Share WordPress posts to social media platforms based on the settings in the workflow config.
@@ -1149,7 +1149,7 @@ def terminate_loop_logging(
     iter_num: int,
     total_elems: int,
     done_count: int,
-    time_elapsed: Tuple[int | float, int | float, int | float],
+    time_elapsed: Tuple[Union[int, float], Union[int, float], Union[int, float]],
     exhausted: bool,
     sets: bool = False,
 ) -> None:
@@ -1198,7 +1198,7 @@ def terminate_loop_logging(
 
 
 def pilot_warm_up(
-    cs_config: MCashContentBotConf | MCashGalleryBotConf | EmbedAssistBotConf,
+    cs_config: Union[MCashContentBotConf, MCashGalleryBotConf, EmbedAssistBotConf],
     parent: bool = False,
 ):
     """
@@ -1226,10 +1226,9 @@ def pilot_warm_up(
 
         status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         with console.status(
-            f"[{status_style}] Warming up... [blink]┌(◎ _ ◎)┘[/blink] [/{status_style}]\n",
+            f"[{status_style}] Warming up... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
             spinner="aesthetic",
         ):
-            wordpress_site.cache_sync()
             if social_config_factory().x_posting:
                 x_api.refresh_flow(
                     SecretHandler().get_secret(SecretType.X_REFRESH_TOKEN)[0],
@@ -1250,29 +1249,45 @@ def pilot_warm_up(
         wp_auth: WPSecrets = SecretHandler().get_secret(SecretType.WP_APP_PASSWORD)[0]
 
         logging.info(f"Loaded WP Auth: {wp_auth}")
-        if isinstance(cs_config, (MCashContentBotConf, EmbedAssistBotConf)):
-            logging.info(f"Reading WordPress Post cache: {WP_CACHE_PATH}")
-            wp_site: WordPress = WordPress(
-                general_config.fq_domain_name,
-                wp_auth.user,
-                wp_auth.app_password,
-                WP_CACHE_PATH,
-            )
-        else:
-            logging.info(f"Reading WordPress Photos Post cache: {WP_CACHE_PHOTOS}")
-            wp_site: WordPress = WordPress(
-                general_config.fq_domain_name,
-                wp_auth.user,
-                wp_auth.app_password,
-                WP_CACHE_PHOTOS,
-                use_photo_support=True,
-            )
+        with console.status(
+            f"[{status_style}] Loading WordPress Engine... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+            spinner="aesthetic",
+        ):
+            if isinstance(cs_config, (MCashContentBotConf, EmbedAssistBotConf)):
+                logging.info(
+                    f"Reading WordPress Post cache: {ApplicationPath.WP_POSTS_CACHE.value}"
+                )
+                wp_site: WordPress = WordPress(
+                    general_config.fq_domain_name,
+                    wp_auth.user,
+                    wp_auth.app_password,
+                    ApplicationPath.WP_POSTS_CACHE.value,
+                )
+            else:
+                logging.info(
+                    f"Reading WordPress Photos Post cache: {ApplicationPath.WP_PHOTOS_CACHE.value}"
+                )
+                wp_site: WordPress = WordPress(
+                    general_config.fq_domain_name,
+                    wp_auth.user,
+                    wp_auth.app_password,
+                    ApplicationPath.WP_PHOTOS_CACHE.value,
+                    use_photo_support=True,
+                )
 
-        wp_base_url: str = wordpress_site.api_base_url
+        wp_base_url: str = wp_site.api_base_url
         logging.info(f"Using {wp_base_url} as WordPress API base url")
+        with console.status(
+            f"[{status_style}] Updating WordPress Cache... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+            spinner="bouncingBall",
+        ):
+            wp_site.cache_sync()
 
         _, cur_dump, partner_db_name, partner_indx = content_select_db_match(
-            partners, cs_config.content_hint, parent=parent
+            partners,
+            cs_config.content_hint,
+            dir=ApplicationPath.ARTIFACTS.value,
+            parent=parent,
         )
 
         partner = partners[partner_indx]
@@ -1294,26 +1309,26 @@ def pilot_warm_up(
         logging.info(f"{len(all_vals)} elements found in database {partner_db_name}")
 
         thumbnails_dir = tempfile.TemporaryDirectory(
-            prefix="thumbs", dir="../workflows"
+            prefix="thumbs", dir=exists_ok(ApplicationPath.TEMPORARY)
         )
         logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
 
         not_published: List[Tuple[str, ...]] = filter_published(all_vals, wp_site)
 
-        if cs_config.__class__.__name__ == "EmbedAssistConf":
+        if cs_config.__class__.__name__ == "EmbedAssistBotConf":
             return console, partner, not_published, wp_site, thumbnails_dir, cur_dump
-        elif cs_config.__class__.__name__ == "ContentSelectConf":
+        elif cs_config.__class__.__name__ == "MCashContentBotConf":
             return console, partner, not_published, wp_site, thumbnails_dir
         else:
             wp_photos_site: WordPress = WordPress(
                 general_config.fq_domain_name,
                 wp_auth.user,
                 wp_auth.app_password,
-                WP_CACHE_PATH,
+                ApplicationPath.WP_PHOTOS_CACHE.value,
                 use_photo_support=True,
             )
             logging.info(
-                f"Reading WordPress Photo Posts cache: {cs_config.wp_json_posts}"
+                f"Reading WordPress Photo Posts cache: {ApplicationPath.WP_PHOTOS_CACHE.value}"
             )
             return (
                 console,
@@ -1830,7 +1845,7 @@ def make_photos_post_payload(
     partner_name: str,
     tags: List[int],
     reverse_slug: bool = False,
-) -> Dict[str, str | int]:
+) -> Dict[str, Union[str, int]]:
     """Construct the photos payload that will be sent with all the parameters for the
     WordPress REST API request to create a ``photos`` post.
     In addition, this function makes the permalink that I will be using for the post.
@@ -1874,7 +1889,7 @@ def make_photos_post_payload(
     # Setting Env variable since the slug is needed outside this function.
     os.environ["SET_SLUG"] = final_slug
 
-    payload_post: Dict[str, str | int] = {
+    payload_post: Dict[str, Union[str, int]] = {
         "slug": final_slug,
         "status": f"{status_wp}",
         "type": "photos",

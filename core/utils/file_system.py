@@ -24,6 +24,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Any, AnyStr, List, Dict
 
+from core.models.file_system import ApplicationPath
+
 # Local imports
 from core.utils.parsers import parse_client_config
 from core.utils.strings import match_list_single, generate_random_str, clean_filename
@@ -447,16 +449,21 @@ def goto_project_root(project_root: str, source_path: str) -> Optional[str]:
     as individual script or as a module in a package. If the function cannot identify a matching
     ``project_root`` string in the file path, the current working directory does not change.
 
+    If the function finds a matching ``project_root`` string in the file path, the current working
+    directory is changed to the directory containing the project root and returns the path for further
+    processing.
+
     :param project_root: ``str`` -> directory name where this project is located
     :param source_path: ``str`` -> Path of the file where the function is called, typically the ``__file__`` variable.
     :return: ``str`` if the path exists else ``None``
     """
     file_path = source_path.split(os.sep)
-    p_dir_indx = match_list_single(project_root, file_path)
+    p_dir_indx = match_list_single(project_root, file_path, ignore_case=True)
     if p_dir_indx:
         project_dir = os.sep.join(file_path[: p_dir_indx + 1])
         if os.path.exists(project_dir):
             os.chdir(project_dir)
+            return project_dir
     return None
 
 
@@ -597,3 +604,15 @@ def create_secure_path(path: str | Path, make_dir: bool = True) -> None:
         raise RuntimeError(f"Unsupported OS: {os.name}")
 
     os.chmod(client_path, mode)
+
+
+def exists_ok(app_path: ApplicationPath) -> str:
+    """
+    Create an application directory if it does not exist.
+
+    :param app_path: ``ApplicationPath`` -> Directory to create
+    :return: ``str`` -> Directory path
+    """
+    if not os.path.exists(app_path.value):
+        os.makedirs(app_path.value, exist_ok=True)
+    return app_path.value

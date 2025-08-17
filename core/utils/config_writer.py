@@ -9,15 +9,13 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from typing import Iterable, Callable, Any, get_type_hints
+from typing import Callable, get_type_hints
 
 # Local implementation
+from core.models.file_system import ApplicationPath, ProjectFile
 from core.utils.file_system import write_config_file
 from core.exceptions.util_exceptions import UnsupportedConfigArgument
 from core.models.config_model import ConfigOption, ConfigSection
-
-CONFIG_FILE = "workflows_config.ini"
-CONFIG_PKG = "core.config"
 
 
 class ConfigWriter:
@@ -26,7 +24,7 @@ class ConfigWriter:
     """
 
     def __new__(cls):
-        raise TypeError(f"Class {cls.__name__} cannot be instantiated.")
+        raise TypeError(f"Utility class {cls.__name__} cannot be instantiated.")
 
     @staticmethod
     def write_entry(
@@ -41,15 +39,15 @@ class ConfigWriter:
         :return: ``bool`` -> ``True`` if the write operation was successful, ``False`` otherwise.
         """
         return write_config_file(
-            CONFIG_FILE,
-            CONFIG_PKG,
+            ProjectFile.WORKFLOWS_CONFIG.value,
+            ApplicationPath.CONFIG_PKG.value,
             section.value,
             option.value,
             value,
         )
 
     @staticmethod
-    def config_validate(writer_func: Callable, /, *args: Iterable[Any]) -> None:
+    def config_validate(writer_func: Callable, /, *args) -> None:
         """
         Validate the arguments passed to a configuration writing function.
         The function checks if the number of arguments matches the number of arguments in the function signature,

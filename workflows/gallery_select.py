@@ -38,8 +38,10 @@ import time
 import pyclip
 from requests.exceptions import ConnectionError, SSLError
 
-from core import general_config_factory, image_config_factory
+from core.config.config_factories import general_config_factory, image_config_factory
 from core.models.config_model import MCashGalleryBotConf
+from core.models.file_system import ApplicationPath
+from core.utils.file_system import exists_ok
 from core.utils.system_shell import clean_console
 from core.utils.helpers import get_duration
 
@@ -127,9 +129,11 @@ def gallery_upload_pilot(
 
     iter_session_print(console, total_elems, partner=partner)
     time.sleep(2)
-    temp_dir = tempfile.TemporaryDirectory(dir=".")
+    temp_dir = tempfile.TemporaryDirectory(dir=exists_ok(ApplicationPath.TEMPORARY))
     logging.info(f"Created {temp_dir.name} for temporary file download & extraction")
-    thumbnails_dir = tempfile.TemporaryDirectory(prefix="thumbs", dir=".")
+    thumbnails_dir = tempfile.TemporaryDirectory(
+        prefix="thumbs", dir=exists_ok(ApplicationPath.TEMPORARY)
+    )
     logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
 
     user_default_style = ConsoleStyle.TEXT_STYLE_DEFAULT.value
@@ -380,7 +384,7 @@ def cli_args_group():
     return arg_parser.parse_args()
 
 
-def main(*args, **kwargs):
+def main(*args):
     try:
         args_cli = cli_args_group()
         relevancy_on = args_cli.relevancy

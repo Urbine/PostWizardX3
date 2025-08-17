@@ -16,14 +16,11 @@ import os
 from typing import Optional
 
 # Locally implemented modules
+from core.models.file_system import ApplicationPath, ProjectFile
 from core.utils.file_system import remove_if_exists, write_to_file, goto_project_root
 
 # Path to the directory containing config templates
-goto_project_root("PostDirector", __file__)
-
-# Path to the directory containing config templates
-TEMPLATES_DIR = os.path.join(os.getcwd(), "core", "config", "templates")
-WORKFLOWS_CONFIG_TEMPLATE = os.path.join(TEMPLATES_DIR, "workflows_config_template.ini")
+goto_project_root("PostDirectorX3", __file__)
 
 
 def read_template(template_path):
@@ -34,12 +31,14 @@ def read_template(template_path):
 
 def create_workflows_config(repair_from_template: bool = False) -> Optional[bool]:
     """Create the workflows configuration file using a template."""
-    config_path = os.path.join(os.getcwd(), "core", "config")
-    new_filename = "workflows_config.ini"
+    config_path = ApplicationPath.CONFIG.value
+    new_filename = ProjectFile.WORKFLOWS_CONFIG.value
     if repair_from_template:
         return remove_if_exists(os.path.join(config_path, new_filename))
 
-    workflows_config_content = read_template(WORKFLOWS_CONFIG_TEMPLATE)
+    workflows_config_content = read_template(
+        ProjectFile.WORKFLOWS_CONFIG_TEMPLATE.value
+    )
     write_to_file(
         new_filename,
         config_path,

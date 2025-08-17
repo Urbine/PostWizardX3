@@ -9,6 +9,7 @@ except LookupError:
 
     nltk.download("stopwords")
     nltk.download("punkt_tab")
+
     from ml_engine.classifiers import (
         classify_title,
         classify_description,
