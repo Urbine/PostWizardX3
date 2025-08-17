@@ -40,6 +40,7 @@ import os
 from core.utils.parsers import parse_client_config
 from core.exceptions.config_exceptions import ConfigFileNotFound, InvalidConfiguration
 from core.config import create_workflows_config
+from core.models.file_system import ApplicationPath, ProjectFile
 from core.models.config_model import (
     AIServices,
     ConfigSection,
@@ -56,23 +57,22 @@ from core.models.config_model import (
     WebSourcesConf,
 )
 
-CONFIG_PKG = "core.config"
-
 try:
-    WORKFLOWS_CONFIG_INI = parse_client_config("workflows_config", CONFIG_PKG)
+    WORKFLOWS_CONFIG_INI = parse_client_config(
+        ProjectFile.WORKFLOWS_CONFIG.value, ApplicationPath.CONFIG_PKG.value
+    )
 except ConfigFileNotFound:
     # If the file doesn't exist, create it
     create_workflows_config()
-
-# Environment variable set the in parse_client_config() function in the helpers.py file.
-CONFIG_PATH = os.environ.get("CONFIG_PATH")
 
 
 # --- Utilities ---
 def reload_config() -> None:
     """Reload the configuration file and clear the garbage collector."""
     global WORKFLOWS_CONFIG_INI
-    WORKFLOWS_CONFIG_INI = parse_client_config("workflows_config", CONFIG_PKG)
+    WORKFLOWS_CONFIG_INI = parse_client_config(
+        ProjectFile.WORKFLOWS_CONFIG.value, ApplicationPath.CONFIG_PKG.value
+    )
     return None
 
 
