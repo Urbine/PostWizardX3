@@ -6,10 +6,10 @@ from pathlib import Path
 from re import Pattern
 
 # Local implementations
-import core
-import core.exceptions.data_access_exceptions
-import core.utils.data_access
-import core.utils.strings
+
+from core.exceptions.data_access_exceptions import InvalidDB
+from core.utils.strings import match_list_single
+from core.utils.data_access import fetch_data_sql
 
 T = TypeVar("T")
 
@@ -58,7 +58,7 @@ class SchemaInterface(Generic[T]):
             logging.critical(
                 f"db file was not found at {db_path}. Raising InvalidDB exception and quitting..."
             )
-            raise core.exceptions.data_exceptions.InvalidDB(db_path)
+            raise InvalidDB(db_path)
         self.__cursor: sqlite3.Cursor = self.__conn.cursor()
         self.__schema = SchemaInterface.get_schema(
             self.__cursor, table_number=table_number
@@ -111,9 +111,7 @@ class SchemaInterface(Generic[T]):
         """
         query = "SELECT sql FROM sqlite_master"
         try:
-            schema: list[tuple[int | str, ...]] = core.utils.data_acess.fetch_data_sql(
-                query, db_cur
-            )
+            schema: list[tuple[int | str, ...]] = fetch_data_sql(query, db_cur)
             fst_table, *others = schema
 
             target_table = fst_table
@@ -125,7 +123,7 @@ class SchemaInterface(Generic[T]):
                 )
             table_name: str = str(target_table).split(" ")[2].split("(")[0]
             query: str = "PRAGMA table_info({})".format(table_name)
-            schema = core.utils.data_acess.fetch_data_sql(query, db_cur)
+            schema = fetch_data_sql(query, db_cur)
             fields_ord = list(map(lambda lstpl: lstpl[0:2], schema))
 
             return table_name, fields_ord
@@ -134,7 +132,7 @@ class SchemaInterface(Generic[T]):
             logging.critical(
                 "db file was not found. Raising InvalidDB exception and quitting..."
             )
-            raise core.exceptions.data_exceptions.InvalidDB
+            raise InvalidDB
 
     def load_data_row(self, data_instance: T) -> None:
         """
@@ -174,7 +172,7 @@ class SchemaInterface(Generic[T]):
         :param re_pattern: ``Pattern[str]`` - Regular Expression pattern (from local dataclass ``SchemaRegEx``)
         :return: ``T`` | None - Generic type object
         """
-        match = core.utils.strings.match_list_single(re_pattern, self.__fields)
+        match = match_list_single(re_pattern, self.__fields)
         if self.__data:
             try:
                 return self.__data[match]

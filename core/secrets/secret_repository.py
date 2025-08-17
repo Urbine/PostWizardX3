@@ -1,17 +1,19 @@
 import logging
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from re import Pattern
 from typing import Optional
 
+# Third-party imports
 from cryptography.fernet import Fernet
 
 # Local imports
-from core import singleton
+from core.utils.decorators import singleton
 from core.models.interfaces.schema_interface import SchemaInterface
 from core.models.secret_model import SecretType
-from . import KEY_DIR, KEY_NAME
+from ..models.file_system import ApplicationPath, ProjectFile
 
 
 @singleton
@@ -43,8 +45,15 @@ class SecretsDBInterface(SchemaInterface):
         """
         super().__init__(db_path, **kwargs)
 
-        with open(Path(KEY_DIR, KEY_NAME), "rb") as key:
-            self.__key: Fernet = Fernet(key.read())
+        if not os.path.exists(
+            KEY_LOCATION := Path(
+                ApplicationPath.KEY_DIR.value, ProjectFile.KEY_NAME.value
+            )
+        ):
+            raise FileNotFoundError(f"Key file not found at {KEY_LOCATION}")
+        else:
+            with open(KEY_LOCATION, "rb") as key:
+                self.__key: Fernet = Fernet(key.read())
 
     def get_id(self) -> Optional[str | int]:
         """
@@ -114,7 +123,7 @@ class SecretsDBInterface(SchemaInterface):
         """
         return self._safe_select(predicate, args)
 
-    def __secret_update(self, predicate: str, /, *args) -> bool:
+    def __secret_update(self, predicate: str, **kwargs) -> bool:
         """
         Updates secret entries in the database based on a predicate.
 
@@ -122,7 +131,7 @@ class SecretsDBInterface(SchemaInterface):
         :param args: ``tuple`` -> Arguments to be passed to the SQL query
         :return: ``bool`` -> ``True`` if the update was successful, ``False`` otherwise
         """
-        return self._safe_update(predicate, args)
+        return self._safe_update(predicate, kwargs)
 
     def __secret_insert(self, *args) -> bool:
         """
@@ -278,7 +287,7 @@ class SecretsDBInterface(SchemaInterface):
 
         :return: ``list[tuple[str | int]]`` -> A list of tuples containing secret entries
         """
-        secrets = self._safe_select("id", "name", "secret_type", "metadata")
+        secrets = self._safe_select("id", "name", "secret_type", "secret", "metadata")
         return secrets
 
     def get_entries_by_secret_type(

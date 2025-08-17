@@ -9,7 +9,7 @@ from core.tests.wordpress_auth_test_suite import TestWPStoreSecrets
 from core.tests.wordpress_auth_test_suite import TestWPUpdateSecrets
 from core.tests.wordpress_auth_test_suite import TestWPDeleteSecrets
 from core.secrets.secrets_factory import secrets_factory
-from core.secrets import VAULT_DIR, LOCAL_TEST_VAULT_NAME
+from core.models.config_model import VAULT_DIR, LOCAL_TEST_VAULT_NAME
 
 SECRETS_DB_INTERFACE = secrets_factory(in_memory=True)
 

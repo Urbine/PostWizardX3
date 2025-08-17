@@ -13,6 +13,7 @@ __version__ = "1.0.0"
 
 # Callback Server `callback_server.py`
 from integrations.callback_server import run_callback_server, callback_server_sub
+from .x_api import XEndpoints
 
 
-__all__ = ["XEndpoints", "WPEndpoints", "run_callback_server", "callback_server_sub"]
+__all__ = ["XEndpoints", "run_callback_server", "callback_server_sub"]
