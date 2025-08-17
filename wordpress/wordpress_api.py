@@ -38,6 +38,7 @@ from core.utils.helpers import get_duration
 from wordpress.exceptions.internal_exceptions import (
     MissingCacheError,
     YoastSEOUnsupported,
+    CacheCreationAuthError,
 )
 from wordpress.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
 from wordpress.endpoints import WPEndpoints
@@ -197,8 +198,11 @@ class WordPress:
         http = urllib3.PoolManager()
         curl_wp = self.curl_wp_self_concat(http, list(end_param_posts))
         headers = curl_wp.headers
-        x_wp_total += int(headers["x-wp-total"])
-        x_wp_totalpages += int(headers["x-wp-totalpages"])
+        try:
+            x_wp_total += int(headers["x-wp-total"])
+            x_wp_totalpages += int(headers["x-wp-totalpages"])
+        except KeyError:
+            raise CacheCreationAuthError
         end_param_posts.append(WPEndpoints.PAGE.value)
 
         wp_pages = []
