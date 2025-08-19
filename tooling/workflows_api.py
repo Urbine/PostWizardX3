@@ -939,7 +939,6 @@ def x_post_creator(
 def telegram_send_message(
     description: str,
     post_url: str,
-    bot_config,
     msg_text: str = "",
 ) -> int:
     """Set up a message template for the Telegram BotFather function ``send_message()``
@@ -948,10 +947,11 @@ def telegram_send_message(
     :param description: ``str``
     :param msg_text: ``str``
     :param post_url: ``str``
-    :param bot_config: ``ContentSelectConf`` | ``EmbedAssistConf`` | ``GallerySelectConf``
     :return: ``int``
     """
-    site_name = bot_config.site_name
+    general_config = general_config_factory()
+    social_config = social_config_factory()
+    site_name = general_config.site_name
     calls_to_action = [
         f"Watch more on {site_name}:",
         f"Take a quick look on {site_name}:",
@@ -976,7 +976,7 @@ def telegram_send_message(
         "Watch free:Click to watch full video:",
         "Don't miss out:",
     ]
-    auto_mode = bot_config.telegram_sharing_auto
+    auto_mode = social_config.telegram_sharing_auto
     if auto_mode:
         msg_text = random.choice(calls_to_action)
 
@@ -1070,7 +1070,6 @@ def social_sharing_controller(
                     telegram_msg = telegram_send_message(
                         description,
                         os.environ.get("LATEST_POST"),
-                        cs_config,
                     )
                 else:
                     post_text = console_obj.input(
@@ -1079,7 +1078,6 @@ def social_sharing_controller(
                     telegram_msg = telegram_send_message(
                         description,
                         os.environ.get("LATEST_POST"),
-                        cs_config,
                         msg_text=post_text,
                     )
 
@@ -1224,6 +1222,15 @@ def pilot_warm_up(
 
         clean_console()
 
+        partners: List[str] = [
+            partner.strip() for partner in cs_config.partners.split(",")
+        ]
+
+        # Replacing this with the above line
+        # partners: list[str] = list(
+        #     map(lambda p: p.strip(), cs_config.partners.split(","))
+        # )
+
         status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         with console.status(
             f"[{status_style}] Warming up... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
@@ -1235,20 +1242,12 @@ def pilot_warm_up(
                     XEndpoints(),
                 )
 
-        partners: List[str] = [
-            partner.strip() for partner in cs_config.partners.split(",")
-        ]
-
-        # Replacing this with the above line
-        # partners: list[str] = list(
-        #     map(lambda p: p.strip(), cs_config.partners.split(","))
-        # )
-
         logging.info(f"Loading partners variable: {partners}")
 
         wp_auth: WPSecrets = SecretHandler().get_secret(SecretType.WP_APP_PASSWORD)[0]
 
         logging.info(f"Loaded WP Auth: {wp_auth}")
+
         with console.status(
             f"[{status_style}] Loading WordPress Engine... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
             spinner="aesthetic",
@@ -1275,8 +1274,6 @@ def pilot_warm_up(
                     use_photo_support=True,
                 )
 
-        wp_base_url: str = wp_site.api_base_url
-        logging.info(f"Using {wp_base_url} as WordPress API base url")
         with console.status(
             f"[{status_style}] Updating WordPress Cache... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
             spinner="bouncingBall",

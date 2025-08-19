@@ -15,6 +15,8 @@ class SecretType(Enum):
     MONGERCASH_PASSWORD = "mongercash_password"
     YANDEX_CLIENT_SECRET = "yandex_client_secret"
     TELEGRAM_ACCESS_TOKEN = "telegram_access_token"
+    PDSAPI_PASSWORD = "pdsapi_password"
+    PDSAPI_TOKEN = "pdsapi_token"
     WP_APP_PASSWORD = "wp_app_password"
     X_CLIENT_SECRET = "x_client_secret"
     X_ACCESS_TOKEN = "x_access_token"
@@ -176,7 +178,6 @@ class GoogleSearch:
         return "GoogleSearch()"
 
 
-@singleton
 @dataclass(frozen=True, kw_only=True)
 class MongerCashAuth:
     """
@@ -190,7 +191,6 @@ class MongerCashAuth:
         return "MongerCash(username, password)"
 
 
-@singleton
 @dataclass(frozen=True, kw_only=True)
 class YandexAuth:
     """
@@ -202,3 +202,31 @@ class YandexAuth:
 
     def __repr__(self):
         return "YandexAuth(client_id, client_secret)"
+
+
+@dataclass(frozen=True, kw_only=True)
+class PostDirectorAPILogin:
+    """
+    Immutable dataclass responsible for holding PostDirector API secrets.
+    It stores the API key and API secret for the PostDirector API.
+
+    :param api_key: ``str`` -> The API key for the PostDirector API.
+    :param api_secret: ``str`` -> The API secret for the PostDirector API.
+    """
+
+    api_user: str
+    api_secret: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class PostDirectorAPIToken:
+    """
+    Immutable dataclass responsible for holding PostDirector API tokens.
+    It stores the access token and refresh token for the PostDirector API.
+
+    :param access_token: ``str`` -> The access token for the PostDirector API.
+    :param refresh_token: ``str`` -> The refresh token for the PostDirector API.
+    """
+
+    api_user: str
+    access_token: str

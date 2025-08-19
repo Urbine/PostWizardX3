@@ -21,12 +21,13 @@ import shutil
 import sqlite3
 import stat
 import subprocess
+from collections import deque
 from pathlib import Path
-from typing import Optional, Any, AnyStr, List, Dict
+from typing import Optional, Any, AnyStr, List, Dict, Deque
 
-from core.models.file_system import ApplicationPath
 
 # Local imports
+from core.models.file_system import ApplicationPath
 from core.utils.parsers import parse_client_config
 from core.utils.strings import match_list_single, generate_random_str, clean_filename
 from core.exceptions.config_exceptions import ConfigFileNotFound
@@ -263,12 +264,13 @@ def load_file_path(package: str, filename: str) -> Optional[Path]:
 
 
 def load_json_ctx(
-    filename_or_path: str | Path, log_err: bool = False
-) -> Optional[List[Dict[str, Any]]]:
+    filename_or_path: str | Path, log_err: bool = False, thread_safe: bool = False
+) -> Optional[List[Dict[str, Any]], Deque[Dict[str, Any]]]:
     """This function makes it possible to assign a JSON file from storage to a variable.
 
-    :param log_err: ``True`` if you want to print error information, default ``False``.
     :param filename_or_path: ``str`` -> Filename or path
+    :param log_err: ``True`` if you want to print error information, default ``False``.
+    :param thread_safe: ``True`` if you want to return a ``deque`` object, default ``False``
     :return: ``JSON`` object
     """
     if isinstance(filename_or_path, Path):
@@ -285,6 +287,10 @@ def load_json_ctx(
     try:
         with open(json_file_path, "r", encoding="utf-8") as f:
             imp_json = json.load(f)
+
+        if thread_safe:
+            return deque(imp_json)
+
         return imp_json
     except FileNotFoundError:
         logging.critical(f"Raised FileNotFoundError: {json_file} not found!")
