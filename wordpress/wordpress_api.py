@@ -26,7 +26,7 @@ import time
 from collections import namedtuple, deque
 from pathlib import Path
 from requests.auth import HTTPBasicAuth
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Deque, Union
 
 # Third-party modules
 import urllib3
@@ -103,14 +103,17 @@ class WordPress:
             f"{os.path.split(self.cache_path)[1].split('.')[0]}_metadata.json"
         )
         self.cache_metadata_path = self.cache_path if self.cache_path else None
-        self.__cache_metadata: Optional[dict | list[dict]] = (
-            load_json_ctx(Path(self.cache_dir, self.cache_metadata_file))
+        self.__cache_metadata: Optional[Deque[dict]] = (
+            load_json_ctx(
+                Path(self.cache_dir, self.cache_metadata_file), thread_safe=True
+            )
             if os.path.exists(self.cache_path)
             else None
         )
         self.cached_pages: Optional[int] = None
         self.total_posts: Optional[int] = None
         self.last_updated: Optional[str] = None
+        logging.info(f"Using {self.api_base_url} as WordPress API base url")
 
         # Set up cache dir, if it does not exist.
         if not os.path.exists(self.cache_dir):
@@ -129,7 +132,9 @@ class WordPress:
                 self.create_export_local_cache()
         except requests.ConnectionError:
             if os.path.exists(self.cache_path):
-                self.cache_data: list[dict] = load_json_ctx(Path(self.cache_path))
+                self.cache_data: Deque[dict] = load_json_ctx(
+                    Path(self.cache_path), thread_safe=True
+                )
             else:
                 raise MissingCacheError(self.cache_path)
 
@@ -282,10 +287,6 @@ class WordPress:
             maxsize=10,
             retries=urllib3.Retry(total=2, backoff_factor=0.5),
         )
-        try:
-            cache_details = load_json_ctx(Path(self.cache_path))
-        except FileNotFoundError:
-            raise MissingCacheError(self.cache_name)
 
         params_posts: list[str] = (
             [WPEndpoints.POSTS.value]
@@ -296,7 +297,7 @@ class WordPress:
         x_wp_totalpages = 0
         # The loop will add 1 to page num when the first request is successful.
         page_num = self.cached_pages - 2
-        result_dict: List[Dict[str, Any]] = load_json_ctx(Path(self.cache_path))
+        result_dict: List[Dict[str, Any]] | Deque[Dict[str, Any]] = self.cache_data
         total_elems = len(result_dict)
         recent_posts: list[dict] = []
         page_num_param: bool = False
@@ -313,7 +314,7 @@ class WordPress:
                 return result_dict
             else:
                 page_num += 1
-                if page_num_param is False:
+                if not page_num_param:
                     headers = curl_json.headers
                     x_wp_total += int(headers["x-wp-total"])
                     x_wp_totalpages = int(headers["x-wp-totalpages"])
