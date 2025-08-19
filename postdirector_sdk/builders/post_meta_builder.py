@@ -12,7 +12,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from typing import Union, Mapping, Optional, Self
+from typing import Self
 
 # Local imports
 from postdirector_sdk.models.client_schema import PostMetaKey
@@ -22,19 +22,6 @@ from postdirector_sdk.builders.payload_builder import PayloadBuilder
 class PostMetaPayload(PayloadBuilder):
     def __init__(self):
         super().__init__()
-
-    def _plus(self, key: PostMetaKey, value: Union[str, int]) -> Self:
-        if key.value in self._payload:
-            self._payload[key.value].update(value)
-        else:
-            self._payload[key.value] = value
-        return self
-
-    def build(self) -> Optional[Mapping[str, Union[str, int, bool]]]:
-        return super().build()
-
-    def clear(self) -> None:
-        return super().clear()
 
     def post_id(self, post_id: int) -> Self:
         return self._plus(PostMetaKey.ID, post_id)
