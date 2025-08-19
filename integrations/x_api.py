@@ -33,21 +33,19 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 
 # Local implementations
-import core
-import core.utils.file_system
-import core.utils.strings
-from core import (
-    get_webdriver,
-    generate_random_str,
-)
+from core.utils.config_writer import ConfigWriter
+from core.utils.data_access import get_webdriver
+from core.utils.file_system import search_files_by_ext, load_json_ctx
+from core.utils.strings import match_list_single, generate_random_str
+
 from integrations.exceptions.integration_exceptions import (
     RefreshTokenError,
     AccessTokenRetrievalError,
 )
 
 from core.utils.secret_handler import SecretHandler
-from core.models.secret_model import SecretType
-from core.models.secret_model import XAuth
+from core.models.secret_model import SecretType, XAuth, XTokens
+from core.controllers.secrets_controller import SecretHandler
 from tasks import clean_outdated
 
 
@@ -319,13 +317,11 @@ def load_tokens_json(folder: str) -> Optional[tuple[str, str]]:
     :param folder: ``str`` Location of your ``JSON`` file containing the tokens.
     :return: ``tuple[str, str]`` (access_token, refresh_token)
     """
-    local_files = core.utils.file_system.search_files_by_ext("json", folder)
+    local_files = search_files_by_ext("json", folder)
     # In case there are outdated files
     clean_outdated(["token-x"], local_files, folder, silent=True)
-    if token_file := core.utils.strings.match_list_single(
-        "token-x", local_files, ignore_case=True
-    ):
-        tokens = core.utils.file_system.load_json_ctx(local_files[token_file])
+    if token_file := match_list_single("token-x", local_files, ignore_case=True):
+        tokens = load_json_ctx(local_files[token_file])
         return tokens["access_token"], tokens["refresh_token"]
     else:
         return None
@@ -339,16 +335,19 @@ def write_tokens_cinfo(new_bearer_token: str, new_refresh_token: str) -> None:
     :param new_refresh_token: ``str`` self-explanatory
     :return: ``None`` (Writes in client_info.ini config)
     """
-    core.update_config_file(
-        "client_info", "core.config", "x_api", "access_token", new_bearer_token
-    )
-    core.update_config_file(
-        "client_info", "core.config", "x_api", "refresh_token", new_refresh_token
+    secret_handler = SecretHandler()
+    secret_handler.delete_secret(SecretType.X_API_KEY, cascade_secret_type=True)
+    secret_handler.delete_secret(SecretType.X_API_SECRET, cascade_secret_type=True)
+    secret_handler.store_secret(
+        SecretType.X_REFRESH_TOKEN,
+        new_bearer_token,
+        new_refresh_token,
+        cascade_secret_type=True,
     )
     return None
 
 
-def refresh_flow(xauth: XAuth, x_endpoints: XEndpoints) -> None:
+def refresh_flow(xauth: XTokens, x_endpoints: XEndpoints) -> None:
     """Guide the token refresh process and call the relevant functions to
     make the necessary changes (token refresh and config update) to ensure
     that successive authentication flows are satisfactory.
