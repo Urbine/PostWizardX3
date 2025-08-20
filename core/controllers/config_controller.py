@@ -32,6 +32,7 @@ from core.config.config_factories import (
     vid_embed_bot_conf_factory,
     content_bot_conf_factory,
     gallery_bot_conf_factory,
+    web_sources_conf_factory,
 )
 
 
@@ -46,6 +47,7 @@ from core.utils.config_writer import (
     ContentBotConfig,
     GalleryBotConfig,
     VidEmbedAssistBotConfig,
+    WebSourcesConfig,
 )
 
 
@@ -121,6 +123,7 @@ def save_config(conf_values: ConfigModelDict) -> None:
             conf_values["vid_embed_telegram_sharing_auto"]
         ),
         VidEmbedAssistBotConfig.write_partner_names(conf_values["vid_embed_partners"]),
+        WebSourcesConfig.write_api_url(conf_values["pw_api_base_url"]),
     ]
     success = all(config_results)
     if success:
@@ -173,6 +176,7 @@ def collect_config_state(
     mc_gallery_telegram_sharing: bool,
     mc_gallery_telegram_sharing_auto: bool,
     mc_gallery_partners: str,
+    pw_api_url: str,
 ) -> None:
     config_states: ConfigModelDict = {
         "website_name": site_name,
@@ -216,6 +220,7 @@ def collect_config_state(
         "vid_embed_telegram_sharing": vid_embed_telegram_sharing,
         "vid_embed_telegram_sharing_auto": vid_embed_telegram_sharing_auto,
         "vid_embed_partners": vid_embed_partners,
+        "pw_api_base_url": pw_api_url,
     }
     save_config(config_states)
     return None
@@ -265,6 +270,7 @@ def load_config_fields() -> List[Any]:
         media_source_gallery_telegram_sharing=gallery_bot_conf_factory().telegram_sharing_enabled,
         media_source_gallery_telegram_sharing_auto=gallery_bot_conf_factory().telegram_sharing_auto,
         media_source_gallery_partners=gallery_bot_conf_factory().partners,
+        pw_api_base_url=web_sources_conf_factory().pw_api_base_url,
     )
     return list(config.values())
 
