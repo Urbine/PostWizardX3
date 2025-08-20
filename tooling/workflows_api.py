@@ -121,7 +121,7 @@ from core.models.file_system import ApplicationPath
 
 from tooling.interfaces.embeds_multi_schema import EmbedsMultiSchema
 from wordpress import WordPress
-from wordpress.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
+from wordpress.models.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
 
 
 class ConsoleStyle(Enum):
@@ -503,8 +503,8 @@ def make_payload(
     :param categs: ``list[int]`` category numbers to be passed with the post information
     :return: ``dict[str, str | int]``
     """
-    general_conf: GeneralConfigs = (general_config_factory(),)
-    image_conf: ImageConfig = (image_config_factory(),)
+    general_conf: GeneralConfigs = general_config_factory()
+    image_conf: ImageConfig = image_config_factory()
     img_attrs: bool = image_conf.img_seo_attrs
     payload_post: Dict = {
         "slug": f"{vid_slug}",
@@ -581,8 +581,8 @@ def make_img_payload(
         If a tuple of (`alt_text`, `caption`, `description`) is provided, it is used to create the payload.
     :return: ``Dict[str, str]`` A dictionary with the image payload.
     """
-    general_config: GeneralConfigs = (general_config_factory(),)
-    image_conf: ImageConfig = (image_config_factory(),)
+    general_config: GeneralConfigs = general_config_factory()
+    image_conf: ImageConfig = image_config_factory()
 
     # In case that the description is the same as the title, the program will send
     # a different payload to avoid keyword over-optimization.
@@ -1102,7 +1102,7 @@ def model_checker(
     Share missing model checking behaviour accross modules.
     Console logging is expected with this function.
 
-    :param wp_posts_f: ``list[dict[str, ...]]`` - WP Posts file, typically provided by the pilot function.
+    :param wordpress_site: ``WordPress`` class instance
     :param model_prep: ``list[str]`` - Model tag list without delimiters
     :return: ``list[int]`` - List of model integer ids in the WordPress site.
     """
@@ -1453,7 +1453,7 @@ def tag_checker_print(
     messages for missing tags as necessary and copying those to the system clipboard.
 
     :param console_obj: ``rich.console.Console`` The console object used for styled text output
-    :param wp_posts_f: ``list[dict]`` A list of WordPress post data, where each post is a dictionary
+    :param wordpress_site: ``WordPress`` An instance of the WordPress class
     :param tag_prep: ``list[str]`` A list of prepared tags to be checked
     :return: ``list[int]`` A list of tag IDs corresponding to the provided tags
     """
@@ -1488,7 +1488,7 @@ def tag_checker_print(
 
 def pick_classifier(
     console_obj: rich.console.Console,
-    wp_posts_f: List[Dict],
+    wordpress_site: WordPress,
     title: str,
     description: str,
     tags: str,
@@ -1498,7 +1498,7 @@ def pick_classifier(
 
     :raises ValueError: If an invalid option is chosen by the user.
     :param console_obj: The rich.console.Console object to print output.
-    :param wp_posts_f: A list of dictionaries representing WordPress posts.
+    :param wordpress_site: An instance of the WordPress class.
     :param title: The title of the content being selected.
     :param description: A short description of the content.
     :param tags: The relevant tags for the content.
@@ -1533,6 +1533,7 @@ def pick_classifier(
     print_options(classifier_str_lst)
     peek = re.compile("peek", re.IGNORECASE)
     rand = re.compile(r"rando?m?", re.IGNORECASE)
+    number = re.compile(r"\d+")
     while not option:
         match console_obj.input(
             f"\n[{prompt_style}]Pick your classifier:  (Type in the 'peek' to open all classifiers or 'random' to let me choose for you)[/{prompt_style}]\n"
@@ -1545,12 +1546,17 @@ def pick_classifier(
                 )
             case str() as r if rand.findall(r):
                 option = random.choice(classifier_options)
+            case str() as n if number.findall(n):
+                if option_number := int(n) <= len(classifier_str_lst) + 1:
+                    option = option_number
             case _:
                 continue
     try:
         # Here ``option`` can be either ``str`` or ``set[str]``
         categories = (
-            list(classifiers[int(option) - 1]) if isinstance(option, str) else option
+            list(classifiers[int(option) - 1])
+            if isinstance(option, (str, int))
+            else option
         )
     except (IndexError, ValueError):
         console_obj.print(
@@ -1567,7 +1573,7 @@ def pick_classifier(
     )
     print_options(consolidate_categs)
 
-    categ_num = re.compile(r"\d")
+    categ_num = re.compile(r"\d+")
     match console_obj.input(
         f"[{prompt_style}]\nEnter the category number or type in to look for another category within the site: [{prompt_style}]\n"
     ):
@@ -1584,7 +1590,7 @@ def pick_classifier(
             sel_categ = misc
             logging.info(f"User typed in category: {misc}")
 
-    categ_ids: List[int] = get_tag_ids(wp_posts_f, [sel_categ], preset="categories")
+    categ_ids: List[int] = get_tag_ids(wordpress_site, [sel_categ], preset="categories")
     logging.info(
         f"WordPress API matched category ID: {categ_ids} for category: {sel_categ}"
     )
@@ -1635,7 +1641,8 @@ def filter_published_embeds(
     titles.
 
     :param videos: ``list[tuple[str, ...]]`` usually resulting from the SQL database query values.
-    :param wp_posts_f: ``list[dict[str, ...]]`` WordPress Post Information case file (previously loaded and ready to process)
+    :param wordpress_site: ``WordPress`` instance responsible for managing all the
+                             WordPress site data.
     :param db_cur: ``sqlite3`` - Active database cursor
     :return: ``list[tuple[str, ...]]`` with the new filtered values.
     """
@@ -1990,8 +1997,8 @@ def filter_relevant(
     I do not believe it is a critical feature.
 
     :param all_galleries: ``list[tuple[str, ...]`` typically returned by a database query response.
-    :param wp_posts_f: ``list[dict[...]]`` WordPress Posts data structure
-    :param wp_photos_f:  ``list[dict[...]]`` WordPress Photos data structure
+    :param wordpress_posts_site: ``WordPress`` instance
+    :param wordpress_photos_site: ``WordPress`` instance
     :return: ``list[tuple[str, ...]]`` Image sets related to models present in the WP site.
     """
     models_set: set[str] = set(
