@@ -31,7 +31,7 @@ from core.models.file_system import ApplicationPath, ProjectFile
 from core.exceptions.util_exceptions import NoSuitableArgument
 
 from wordpress_api import WordPress
-from taxonomies import WPTaxonomyMarker, WPTaxonomyValues
+from wordpress.models.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
 
 from core.config.config_factories import general_config_factory
 

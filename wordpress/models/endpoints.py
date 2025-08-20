@@ -14,15 +14,18 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
 from enum import Enum
+from datetime import datetime
 
 
 class WPEndpoints(Enum):
     """
-    Enum class for the WordPress API Endpoints constants.
+    Enum class for the WordPress API Endpoints constants. Assume the endpoint is provided
+    with a leading slash and the implementation will add any trailing slashes if needed.
     """
 
     USERS = "/users?"
     POSTS = "/posts"
+    STATUS = "?status="
     PER_PAGE = "?per_page="
     PAGE = "?page="
     PHOTOS = "/photos"
@@ -37,3 +40,6 @@ class WPEndpoints(Enum):
     CATEGORIES = "/categories"
     MEDIA = "/media"
     TAGS = "/tags"
+    CONTENT_UPLOADS = (
+        f"/wp-content/uploads/{datetime.today().year}/{datetime.today().month:02d}"
+    )
