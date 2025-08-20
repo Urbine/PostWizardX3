@@ -1,3 +1,3 @@
-from . import schema_interface
+from .schema_interface import SchemaInterface
 
-__all__ = ["schema_interface"]
+__all__ = ["SchemaInterface"]

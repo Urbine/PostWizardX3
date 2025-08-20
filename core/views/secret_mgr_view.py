@@ -1,5 +1,5 @@
 """
-PostDirector - Secrets Manager view
+PostWizard - Secrets Manager view
 
 This module defines the Gradio interface for managing secrets for various platforms and services.
 It allows users to input their credentials and interact with the backend to store or remove them.
@@ -35,16 +35,18 @@ from core.controllers.secrets_controller import (
     x_update_credentials,
     x_client_update_secrets,
     x_client_remove_secrets,
+    pw_api_update_credentials,
+    pw_api_remove_credentials,
 )
 
 # Local imports
 from core.views.themes import elegant_theme
-from core import logging_setup
+from core.utils.file_system import logging_setup
 
 with gr.Blocks(
-    theme=elegant_theme, title="PostDirector - Secrets Manager"
+    theme=elegant_theme, title="PostWizard - Secrets Manager"
 ) as secret_mgr_view:
-    gr.Markdown("# PostDirector - Secrets Manager")
+    gr.Markdown("# PostWizard - Secrets Manager")
     with gr.Row():
         with gr.Column():
             with gr.Tab("WordPress"):
@@ -139,10 +141,10 @@ with gr.Blocks(
             with gr.Tab("X (Twitter)"):
                 gr.Markdown("## X Credentials")
                 # Non-visible session username box to populate the secrets database and identify the system user.
-                session_username_box = gr.Textbox(value="postdirector", visible=False)
+                session_username_box = gr.Textbox(value="postwizard", visible=False)
                 x_username = gr.Textbox(
                     label="X Username",
-                    info="The username for your X account, e.g. @postdirector",
+                    info="The username for your X account, e.g. @postwizard",
                 )
                 x_email = gr.Textbox(
                     label="X Email Address",
@@ -234,6 +236,32 @@ with gr.Blocks(
                 delete_mcash_secrets = gr.Button("Delete MongerCash Credentials")
                 delete_mcash_secrets.click(
                     fn=monger_cash_remove_credentials, inputs=[], outputs=[]
+                )
+            with gr.Tab("PostWizard API"):
+                pw_api_username = gr.Textbox(
+                    label="PostWizard API Username",
+                    info="The username for your PostWizard API account",
+                )
+                pw_api_password = gr.Textbox(
+                    label="PostWizard API Password",
+                    type="password",
+                    info="The password for your PostWizard API account",
+                )
+
+                update_pw_api_credentials = gr.Button(
+                    "Update PostWizard API Credentials"
+                )
+                update_pw_api_credentials.click(
+                    fn=pw_api_update_credentials,
+                    inputs=[pw_api_username, pw_api_password],
+                    outputs=[],
+                )
+
+                delete_pw_api_credentials = gr.Button(
+                    "Delete PostWizard API Credentials"
+                )
+                delete_pw_api_credentials.click(
+                    fn=pw_api_remove_credentials, inputs=[], outputs=[]
                 )
 
 

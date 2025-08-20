@@ -1,8 +1,8 @@
 """
-PostDirector - Workflow Tweaks View
+PostWizard - Workflow Tweaks View
 
 This module defines the Gradio interface for managing workflow tweaks.
-It allows users to set up various tweaks and configurations for workflows present in PostDirector.
+It allows users to set up various tweaks and configurations for workflows present in PostWizard.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -26,12 +26,10 @@ from core.controllers.config_controller import (
 # Local imports
 
 from core.views.themes import elegant_theme
-from core import logging_setup
+from core.utils.file_system import logging_setup
 
-with gr.Blocks(
-    theme=elegant_theme, title=" PostDirector - Workflow Tweaks"
-) as conf_mgr:
-    gr.Markdown("# PostDirector - Workflow Settings")
+with gr.Blocks(theme=elegant_theme, title="PostWizard - Workflow Tweaks") as conf_mgr:
+    gr.Markdown("# PostWizard - Workflow Settings")
     with gr.Row():
         with gr.Column():
             with gr.Tab("Basic Settings"):
@@ -246,6 +244,11 @@ with gr.Blocks(
                     label="Partner(s)",
                     info="The name of your partner or comma separated list of partners.",
                 )
+            with gr.Tab("PostWizard API"):
+                pw_api_base = gr.Textbox(
+                    label="PostWizard API Base URL",
+                    info="Base URL of your PostWizard Server instance",
+                )
 
             gr.Markdown("## Save Config")
             save_button = gr.Button(value="Save config")
@@ -293,6 +296,7 @@ with gr.Blocks(
                 mcash_image_gallery_bot_telegram_sharing,
                 mcash_image_gallery_bot_telegram_sharing_auto,
                 mcash_image_gallery_bot_partner,
+                pw_api_base,
             ]
 
             save_button.click(

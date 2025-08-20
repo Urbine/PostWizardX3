@@ -3,7 +3,7 @@ PostMetaPayload Builder
 
 This module defines the PostMetaPayload class, which is a subclass of PayloadBuilder.
 It is used to build a payload for a WordPress PostMeta request, which is a type of Post request
-that is consumed in JSON format by the PostDirector Server API.
+that is consumed in JSON format by the PostWizard Server API.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -15,8 +15,8 @@ __author_email__ = "yohamg@programmer.net"
 from typing import Self
 
 # Local imports
-from postdirector_sdk.models.client_schema import PostMetaKey
-from postdirector_sdk.builders.payload_builder import PayloadBuilder
+from postwizard_sdk.models import PostMetaKey
+from postwizard_sdk.builders.interfaces import PayloadBuilder
 
 
 class PostMetaPayload(PayloadBuilder):
@@ -60,10 +60,10 @@ class PostMetaPayload(PayloadBuilder):
         return self._plus(PostMetaKey.ORIENTATION, orientation)
 
     def ethnicity(self, ethnicity: str) -> Self:
-        return self._plus(PostMetaKey.ETHNICITY, ethnicity)
+        return self._plus(PostMetaKey.ETHNICITY, ethnicity.title())
 
     def hair_color(self, hair_color: str) -> Self:
-        return self._plus(PostMetaKey.HAIRCOLOR, hair_color)
+        return self._plus(PostMetaKey.HAIRCOLOR, hair_color.title())
 
     def partner(self, partner: str) -> Self:
         return self._plus(PostMetaKey.PARTNER, partner)

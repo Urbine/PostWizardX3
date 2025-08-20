@@ -15,8 +15,8 @@ class SecretType(Enum):
     MONGERCASH_PASSWORD = "mongercash_password"
     YANDEX_CLIENT_SECRET = "yandex_client_secret"
     TELEGRAM_ACCESS_TOKEN = "telegram_access_token"
-    PDSAPI_PASSWORD = "pdsapi_password"
-    PDSAPI_TOKEN = "pdsapi_token"
+    PWAPI_PASSWORD = "pwapi_password"
+    PWAPI_TOKEN = "pwapi_token"
     WP_APP_PASSWORD = "wp_app_password"
     X_CLIENT_SECRET = "x_client_secret"
     X_ACCESS_TOKEN = "x_access_token"
@@ -205,13 +205,13 @@ class YandexAuth:
 
 
 @dataclass(frozen=True, kw_only=True)
-class PostDirectorAPILogin:
+class PostWizardAPILogin:
     """
-    Immutable dataclass responsible for holding PostDirector API secrets.
-    It stores the API key and API secret for the PostDirector API.
+    Immutable dataclass responsible for holding PostWizard API secrets.
+    It stores the API key and API secret for the PostWizard API.
 
-    :param api_key: ``str`` -> The API key for the PostDirector API.
-    :param api_secret: ``str`` -> The API secret for the PostDirector API.
+    :param api_key: ``str`` -> The API key for the PostWizard API.
+    :param api_secret: ``str`` -> The API secret for the PostWizard API.
     """
 
     api_user: str
@@ -219,7 +219,7 @@ class PostDirectorAPILogin:
 
 
 @dataclass(frozen=True, kw_only=True)
-class PostDirectorAPIToken:
+class PostWizardAPIToken:
     """
     Immutable dataclass responsible for holding PostDirector API tokens.
     It stores the access token and refresh token for the PostDirector API.

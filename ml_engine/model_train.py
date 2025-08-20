@@ -50,7 +50,7 @@ from core.controllers.secrets_controller import SecretHandler
 from core.utils.helpers import get_duration
 from core.utils.file_system import load_file_path
 from wordpress.wordpress_api import WordPress
-from wordpress.taxonomies import WPTaxonomyMarker
+from wordpress.models.taxonomies import WPTaxonomyMarker
 
 
 WP_AUTH = SecretHandler().get_secret(SecretType.WP_APP_PASSWORD)[0]

@@ -23,7 +23,7 @@ import stat
 import subprocess
 from collections import deque
 from pathlib import Path
-from typing import Optional, Any, AnyStr, List, Dict, Deque
+from typing import Optional, Any, AnyStr, List, Dict, Deque, Union
 
 
 # Local imports
@@ -265,7 +265,7 @@ def load_file_path(package: str, filename: str) -> Optional[Path]:
 
 def load_json_ctx(
     filename_or_path: str | Path, log_err: bool = False, thread_safe: bool = False
-) -> Optional[List[Dict[str, Any]], Deque[Dict[str, Any]]]:
+) -> Optional[Union[List[Dict[str, Any]], Deque[Dict[str, Any]]]]:
     """This function makes it possible to assign a JSON file from storage to a variable.
 
     :param filename_or_path: ``str`` -> Filename or path

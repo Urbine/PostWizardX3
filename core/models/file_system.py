@@ -22,6 +22,7 @@ from pathlib import Path
 class ApplicationPath(Enum):
     """Enum for application paths and directories in the project."""
 
+    PROJECT_ROOT = "PostWizardX3"
     ARTIFACTS = Path("artifacts")
     CONFIG = Path("config")
     CACHE = Path("cache")
@@ -35,6 +36,7 @@ class ApplicationPath(Enum):
     VAULT_DIR = os.path.join("core", "secrets", "vault")
     ML_ENGINE_PKG = "ml_engine.ml_models"
     CONFIG_PKG = "core.config"
+    CORE_PKG = "core"
     LOGGING = "logs"
 
 

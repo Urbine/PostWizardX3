@@ -48,6 +48,7 @@ class ConfigOption(Enum):
     MCASH_SET_URL = "mcash_set_url"
     ASSETS_ENABLED = "assets_enabled"
     SOCIAL_CONFIG_OVERRIDE = "social_config_override"
+    API_BASE_URL = "api_base_url"
 
 
 class ConfigSection(Enum):
@@ -64,6 +65,7 @@ class ConfigSection(Enum):
     TUBECORP_FEED = "tubecorp_feed"
     FHOUSE_FEED = "fhouse_feed"
     WEB_SOURCES = "web_sources"
+    POST_WIZARD_API = "postwizard_api"
 
 
 class ConfigModelDict(TypedDict):
@@ -118,6 +120,8 @@ class ConfigModelDict(TypedDict):
     vid_embed_telegram_sharing: bool
     vid_embed_telegram_sharing_auto: bool
     vid_embed_partners: str
+    # ---- PostWizard API
+    pw_api_base_url: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -252,6 +256,7 @@ class WebSourcesConf:
 
     mcash_dump_url: str
     mcash_set_url: str
+    pw_api_base_url: str
 
     def __repr__(self):
         return "TasksConf()"

@@ -96,7 +96,7 @@ def general_config_factory() -> GeneralConfigs:
             ),
             default_status=WORKFLOWS_CONFIG_INI.get(
                 section, ConfigOption.DEFAULT_STATUS.value
-            ),
+            ).lower(),
         )
     except ValueError:
         raise InvalidConfiguration
@@ -346,6 +346,9 @@ def web_sources_conf_factory() -> WebSourcesConf:
             ),
             mcash_set_url=WORKFLOWS_CONFIG_INI.get(
                 ConfigSection.WEB_SOURCES.value, ConfigOption.MCASH_SET_URL.value
+            ),
+            pw_api_base_url=WORKFLOWS_CONFIG_INI.get(
+                ConfigSection.POST_WIZARD_API.value, ConfigOption.API_BASE_URL.value
             ),
         )
     except ValueError:

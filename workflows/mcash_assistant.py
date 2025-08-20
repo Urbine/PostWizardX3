@@ -32,27 +32,29 @@ import argparse
 import logging
 import os
 import random
+import re
 import time
-from argparse import Namespace
-
+from argparse import Namespace, ArgumentParser
 
 # Third-party modules
 import pyclip
 from requests.exceptions import SSLError, ConnectionError
-
-import core.utils.system_shell
-from core import general_config_factory
 
 # Local implementations
 from core.utils.helpers import get_duration
 from core.config.config_factories import (
     mcash_content_bot_conf_factory,
     image_config_factory,
+    general_config_factory,
 )
 from core.models.config_model import MCashContentBotConf
 from core.utils.system_shell import clean_console
 from core.utils.file_system import clean_filename
 from core.utils.strings import split_char
+
+from postwizard_sdk.builders import PostMetaPayload
+from postwizard_sdk.utils.operations import update_post_meta
+from wordpress.models.endpoints import WPEndpoints
 
 from tooling.workflows_api import (
     ConsoleStyle,
@@ -99,7 +101,7 @@ def video_upload_pilot(
     total_elems: int = len(not_published_yet)
     logging.info(f"Detected {total_elems} to be published for {partner}")
 
-    core.utils.system_shell.clean_console()
+    clean_console()
 
     iter_session_print(console, total_elems, partner=partner)
     time.sleep(2)
@@ -210,9 +212,10 @@ def video_upload_pilot(
             program_warning_style: str = ConsoleStyle.TEXT_STYLE_WARN.value
 
             console.print("\n--> Making payload...", style=program_action_style)
+            general_config = general_config_factory()
             payload = make_payload(
                 wp_slug,
-                general_config_factory().default_status,
+                general_config.default_status,
                 title,
                 description,
                 tracking_url,
@@ -287,6 +290,26 @@ def video_upload_pilot(
 
                 push_post: int = wp_site.post_create(payload)
                 logging.info(f"WordPress post push status: {push_post}")
+                if push_post == 201:
+                    digits = re.compile(r"\d+")
+                    last_post = wp_site.get_last_post()
+                    attachment_link = f"https://{general_config.fq_domain_name.strip('/')}{WPEndpoints.CONTENT_UPLOADS.value}/{clean_filename(wp_slug, image_config.pic_format)}"
+                    post_meta_builder = (
+                        PostMetaPayload()
+                        .ethnicity("asian")
+                        .video_url(source_url)
+                        .hd(True)
+                        .hair_color("black")
+                        .minutes(int(digits.findall(duration)[0]))
+                        .thumbnail(attachment_link)
+                    )
+                    pw_meta_update = update_post_meta(
+                        post_meta_builder, last_post.post_id
+                    )
+                    logging.info(
+                        f"Sent payload to PostWizard: {post_meta_builder.build()}"
+                    )
+                    logging.info(f"Post meta update status: {pw_meta_update}")
                 console.print(
                     f"--> WordPress status code: {push_post}",
                     style=program_action_style,
@@ -381,7 +404,7 @@ def video_upload_pilot(
                 )
 
 
-def bot_cli_args() -> Namespace:
+def bot_cli_args() -> ArgumentParser:
     arg_parser = argparse.ArgumentParser(
         description="Content Select Assistant - Behaviour Tweaks"
     )
@@ -398,14 +421,14 @@ def bot_cli_args() -> Namespace:
                                         you may not want to enable it because this is treated as a package.""",
     )
 
-    return arg_parser.parse_args()
+    return arg_parser
 
 
 def main():
     try:
         if os.name == "posix":
             import readline
-        cli_args = bot_cli_args()
+        cli_args = bot_cli_args().parse_args()
         video_upload_pilot(parent=cli_args.parent)
     except KeyboardInterrupt:
         logging.critical("KeyboardInterrupt exception detected")

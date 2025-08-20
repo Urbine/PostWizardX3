@@ -9,7 +9,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from typing import Callable, get_type_hints
+from typing import Callable, Union, get_type_hints
 
 # Local implementation
 from core.models.file_system import ApplicationPath, ProjectFile
@@ -28,7 +28,7 @@ class ConfigWriter:
 
     @staticmethod
     def write_entry(
-        section: ConfigSection, option: ConfigOption, value: str | bool | int
+        section: ConfigSection, option: ConfigOption, value: Union[str, bool, int]
     ) -> bool:
         """
         Generic function to write a configuration option to the ``workflows_config.ini`` file.
@@ -623,4 +623,27 @@ class FHouseFeedConfig:
         ConfigWriter.config_validate(FHouseFeedConfig.write_campaign_utm, campaign_utm)
         return ConfigWriter.write_entry(
             ConfigSection.FHOUSE_FEED, ConfigOption.CAMPAIGN_UTM, campaign_utm
+        )
+
+
+class WebSourcesConfig:
+    """
+    Class for writing configuration options related to the web sources like proprietary
+    rest integrations.
+    """
+
+    def __new__(cls):
+        raise TypeError(f"Class {cls.__name__} cannot be instantiated.")
+
+    @staticmethod
+    def write_api_url(api_base_url: str) -> bool:
+        """
+        Write the API base URL to the configuration file.
+
+        :param api_base_url: ``str`` -> The API base URL to write.
+        :return: ``bool`` -> ``True`` if the write operation was successful, ``False`` otherwise.
+        """
+        ConfigWriter.config_validate(WebSourcesConfig.write_api_url, api_base_url)
+        return ConfigWriter.write_entry(
+            ConfigSection.POST_WIZARD_API, ConfigOption.API_BASE_URL, api_base_url
         )

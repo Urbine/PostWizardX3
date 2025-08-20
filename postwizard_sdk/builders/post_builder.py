@@ -3,7 +3,7 @@ Post Builder
 
 This module defines the PostInfoPayload class, which is a subclass of PayloadBuilder.
 It is used to build a payload for a WordPress Post request, which is a type of Post request
-that is consumed in JSON format by the PostDirector Server API.
+that is consumed in JSON format by the PostWizard Server API.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -13,8 +13,8 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 from typing import Self
-from .payload_builder import PayloadBuilder
-from postdirector_sdk.models.client_schema import PostKey
+from postwizard_sdk.builders.interfaces import PayloadBuilder
+from postwizard_sdk.models import PostKey
 
 
 class PostInfoPayload(PayloadBuilder):

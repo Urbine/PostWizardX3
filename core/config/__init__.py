@@ -1,7 +1,7 @@
 """
 Core configuration module for the project.
 
-This module provides the functionality to create and manage configuration files for the PostDirector project.
+This module provides the functionality to create and manage configuration files for the PostWizard project.
 It includes functions to read configuration templates and create initial configuration files.
 
 author: Yoham Gabriel Urbine@GitHub
@@ -20,7 +20,7 @@ from core.models.file_system import ApplicationPath, ProjectFile
 from core.utils.file_system import remove_if_exists, write_to_file, goto_project_root
 
 # Path to the directory containing config templates
-goto_project_root("PostDirectorX3", __file__)
+goto_project_root("PostWizardX3", __file__)
 
 
 def read_template(template_path):

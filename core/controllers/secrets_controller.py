@@ -30,7 +30,7 @@ def info_store_secret(store_update_output: bool) -> None:
     """
     if store_update_output:
         logging.info("Secrets have been stored")
-        gr.Info(message="Your secrets have been updated")
+        gr.Success(message="Your secrets have been updated")
     else:
         logging.error("Failed to store secrets")
         gr.Error(
@@ -49,7 +49,7 @@ def info_delete_secret(delete_output: bool, toggle_notification: bool = False) -
     """
     if toggle_notification:
         if delete_output:
-            gr.Info(message="Your secrets have been deleted")
+            gr.Success(message="Your secrets have been deleted")
         else:
             gr.Error(message="Failed to delete your platform secrets.")
     return None
@@ -295,6 +295,36 @@ def monger_cash_update_credentials(*args) -> None:
     if secrets:
         monger_cash_remove_credentials(toggle_notification=False)
     return store_secrets(SecretType.MONGERCASH_PASSWORD, *args)
+
+
+def pw_api_remove_credentials(toggle_notification: bool = True) -> None:
+    """
+    This function removes the PostWizard API credentials from the secret vault.
+
+    :param toggle_notification: A boolean value indicating whether to toggle the notification or not.
+    :return: ``None``
+    """
+    return info_delete_secret(
+        SECRET_HANDLER.delete_secret(
+            SecretType.PWAPI_PASSWORD, cascade_secret_type=True
+        ),
+        toggle_notification=toggle_notification,
+    )
+
+
+def pw_api_update_credentials(*args) -> None:
+    """
+    This function updates and stores the PostWizard API credentials in the secret vault.
+
+    :param args: Additional arguments to pass to the secret handler.
+    :return: ``None``
+    """
+    secrets = SECRET_HANDLER.get_secret(
+        SecretType.PWAPI_PASSWORD, cascade_secret_type=True
+    )
+    if secrets:
+        pw_api_remove_credentials(toggle_notification=False)
+    return store_secrets(SecretType.PWAPI_PASSWORD, *args, cascade_secret_type=True)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ from .wp_auth_controller import WPAuthController
 from .x_auth_controller import XAuthController
 from .mongercash_auth_controller import MongerCashAuthController
 from .yandex_auth_controller import YandexAuthController
+from .pwsecret_controller import PWSecretsController
 
 __all__ = [
     "BraveAuthSecretController",
@@ -31,4 +32,5 @@ __all__ = [
     "XAuthController",
     "MongerCashAuthController",
     "YandexAuthController",
+    "PWSecretsController",
 ]

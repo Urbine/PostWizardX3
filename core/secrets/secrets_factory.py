@@ -13,7 +13,7 @@ from core.utils.file_system import (
     create_store,
     search_files_by_ext,
 )
-from core.utils.file_system import clean_filename
+from core.utils.file_system import clean_filename, goto_project_root
 from .secret_repository import SecretsDBInterface
 from ..models.file_system import ApplicationPath, ProjectFile
 
@@ -101,6 +101,7 @@ def secrets_factory(
     :param test_mode: ``bool`` -> If True, the function will create a temporary vault directory
     :return: ``SecretsDBInterface`` -> An instance of the SecretsDBInterface class.
     """
+    goto_project_root(ApplicationPath.PROJECT_ROOT.value, __file__)
     initialize_key_file()
     initialize_vault(test_mode=test_mode)
     return SecretsDBInterface(

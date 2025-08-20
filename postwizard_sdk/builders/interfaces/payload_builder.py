@@ -52,8 +52,9 @@ class PayloadBuilder(ABC, Generic[K, V]):
         communicate to the caller that the payload is ready to be consumed.
 
         **The payload is immutable and cannot be modified after it is built.
-        any mutations take place on the internal representation by specialised methods
-        defined by the concrete builder class.**
+        Any mutations take place on the internal representation by specialised methods
+        defined by the concrete builder class. In case this payload is going to be serialized to JSON,
+        it is recommended to cast it to a ``Dict`` type to avoid tracebacks in the caller.**
 
         :return: The built payload.
         """
@@ -63,7 +64,7 @@ class PayloadBuilder(ABC, Generic[K, V]):
 
     def clear(self) -> None:
         """
-        Clear the payload.
+        Clear the payload and return the builder for reusing.
 
         :return: ``None``
         """

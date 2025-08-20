@@ -2,7 +2,7 @@
 SecretHandler module for managing secrets and authentication.
 
 This module provides the SecretHandler class, which centralizes logic for secret management,
-authentication, and integration with various controllers and secret factories in PostDirector.
+authentication, and integration with various controllers and secret factories in PostWizard.
 It benefits from implementations of the ``UniversalSecretController`` interface for controller discovery and operation handling.
 """
 
@@ -12,7 +12,8 @@ from typing import Optional, Literal, Generic, TypeVar, Union, List
 from core.controllers.interfaces import UniversalSecretController
 from core.secrets.secrets_factory import secrets_factory
 from core.models.secret_model import SecretType
-from core import InvalidOperationMode, singleton
+from core.utils.decorators import singleton
+from core.exceptions.util_exceptions import InvalidOperationMode
 
 # Imported for controller discovery
 from core.controllers.auth import *

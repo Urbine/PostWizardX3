@@ -1,4 +1,4 @@
-# PostDirectorX3 
+# PostWizardX3
 
 A comprehensive Python-based SEO toolset featuring machine learning classification, content optimization, and workflow
 automation for WordPress-based adult websites.
