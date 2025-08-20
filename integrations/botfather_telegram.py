@@ -20,7 +20,7 @@ from requests import Response  # Imported for typing purposes.
 from core.utils.secret_handler import SecretHandler
 from core.models.secret_model import SecretType
 from core.models.secret_model import BotAuth
-from core import ClientSecretsNotFound
+from core.exceptions.config_exceptions import ClientSecretsNotFound
 
 
 @dataclass(frozen=True)
