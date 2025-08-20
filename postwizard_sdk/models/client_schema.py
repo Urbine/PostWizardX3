@@ -2,7 +2,7 @@
 Client Schema
 
 This module defines the PostMetaKey and PostKey classes, which are used to represent
-the keys of the PostMeta and Post objects in the PostDirector Server API.
+the keys of the PostMeta and Post objects in the PostWizard Server API.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
