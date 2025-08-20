@@ -13,6 +13,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
+
 import aiohttp
 import asyncio
 import datetime
@@ -25,8 +26,9 @@ import time
 
 from collections import namedtuple, deque
 from pathlib import Path
+
 from requests.auth import HTTPBasicAuth
-from typing import Optional, List, Any, Dict, Deque, Union
+from typing import Optional, List, Any, Dict, Deque
 
 # Third-party modules
 import urllib3
@@ -40,8 +42,9 @@ from wordpress.exceptions.internal_exceptions import (
     YoastSEOUnsupported,
     CacheCreationAuthError,
 )
-from wordpress.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
-from wordpress.endpoints import WPEndpoints
+from wordpress.models.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
+from wordpress.models.endpoints import WPEndpoints
+from wordpress.models.wpost import WPost
 
 
 class WordPress:
@@ -103,9 +106,9 @@ class WordPress:
             f"{os.path.split(self.cache_path)[1].split('.')[0]}_metadata.json"
         )
         self.cache_metadata_path = self.cache_path if self.cache_path else None
-        self.__cache_metadata: Optional[Deque[dict]] = (
+        self.__cache_metadata: Optional[List[dict]] = (
             load_json_ctx(
-                Path(self.cache_dir, self.cache_metadata_file), thread_safe=True
+                Path(self.cache_dir, self.cache_metadata_file), thread_safe=False
             )
             if os.path.exists(self.cache_path)
             else None
@@ -113,6 +116,8 @@ class WordPress:
         self.cached_pages: Optional[int] = None
         self.total_posts: Optional[int] = None
         self.last_updated: Optional[str] = None
+        self.created_posts: List[WPost] = []
+        self.cache_page_num = 0
         logging.info(f"Using {self.api_base_url} as WordPress API base url")
 
         # Set up cache dir, if it does not exist.
@@ -127,13 +132,16 @@ class WordPress:
 
         try:
             if os.path.exists(self.cache_path):
+                self.cache_data: List[dict] = load_json_ctx(
+                    Path(self.cache_path), thread_safe=False, log_err=True
+                )
                 self.cache_sync()
             else:
                 self.create_export_local_cache()
         except requests.ConnectionError:
             if os.path.exists(self.cache_path):
-                self.cache_data: Deque[dict] = load_json_ctx(
-                    Path(self.cache_path), thread_safe=True
+                self.cache_data: List[dict] = load_json_ctx(
+                    Path(self.cache_path), thread_safe=False
                 )
             else:
                 raise MissingCacheError(self.cache_path)
@@ -160,6 +168,18 @@ class WordPress:
         )
         wp_self: str = wp_self + "".join(param_lst)
         return http.request("GET", wp_self, headers=headers)
+
+    def setup_basic_auth(self):
+        """
+        Sets up basic authentication boilerplate for the WordPress API to promote code reuse.
+
+        :return: ``tuple[str, HTTPBasicAuth]`` -> A tuple containing the base URL and the HTTPBasicAuth object.
+        """
+        wp_self: str = self.api_base_url
+        username_: str = self.username
+        app_pass_: str = self.app_password
+        auth_wp = HTTPBasicAuth(username_, app_pass_)
+        return wp_self, auth_wp
 
     def create_local_cache(self, wp_cache_fname: str) -> list[dict]:
         """
@@ -297,7 +317,7 @@ class WordPress:
         x_wp_totalpages = 0
         # The loop will add 1 to page num when the first request is successful.
         page_num = self.cached_pages - 2
-        result_dict: List[Dict[str, Any]] | Deque[Dict[str, Any]] = self.cache_data
+        result_dict: List[Dict[str, Any]] = self.cache_data
         total_elems = len(result_dict)
         recent_posts: list[dict] = []
         page_num_param: bool = False
@@ -328,6 +348,102 @@ class WordPress:
                         recent_posts.append(item)
                     else:
                         continue
+
+    def async_update_json_cache(self) -> List[Dict[str, Any]]:
+        """
+        Updates the local WordPress cache file by fetching new posts.
+
+        :return: ``list[dict]`` -> Updated list of post dictionaries.
+        """
+        self.cache_page_num = self.cached_pages - 2
+        x_wp_total = 0
+        x_wp_totalpages = 0
+
+        http = urllib3.PoolManager(
+            num_pools=10,
+            maxsize=10,
+            retries=urllib3.Retry(total=2, backoff_factor=0.5),
+        )
+        params_posts: Deque[str] = deque(
+            [WPEndpoints.POSTS.value]
+            if not self.use_photo_cache
+            else [WPEndpoints.PHOTOS.value]
+        )
+        # Get headers
+        curl_json = self.curl_wp_self_concat(http, list(params_posts))
+        headers = curl_json.headers
+        x_wp_total += int(headers["x-wp-total"])
+        x_wp_totalpages = int(headers["x-wp-totalpages"])
+        http.clear()
+
+        def generate_params(total_pages):
+            params_list = []
+            while self.cache_page_num <= total_pages:
+                self.cache_page_num += 1
+                params_posts.append(str(self.cache_page_num))
+                params_list.append("".join(params_posts))
+                params_posts.pop()
+                if WPEndpoints.PAGE.value not in params_posts:
+                    params_posts.append(WPEndpoints.PAGE.value)
+            return params_list
+
+        result_dict: List[Dict[str, Any]] = self.cache_data
+        total_elems = len(result_dict)
+        recent_posts: Deque[dict] = Deque()
+
+        recent_posts_lock = threading.Lock()
+        client_semaphore = asyncio.Semaphore(value=5)
+
+        def add_recent_posts(elem):
+            try:
+                if recent_posts_lock.acquire(timeout=5):
+                    recent_posts.append(elem)
+            finally:
+                recent_posts_lock.release()
+
+        async def get_recent_loop(semaphore, client_session, params_req):
+            wp_self: str = self.api_base_url
+            username_: str = self.username
+            app_pass_: str = self.app_password
+            basic_auth = aiohttp.BasicAuth(username_, app_pass_)
+            headers_aiohttp = {"keep_alive": "true", "accept_encoding": "true"}
+            wp_self: str = wp_self + "".join(params_req)
+            async with semaphore:
+                async with client_session.get(
+                    wp_self, auth=basic_auth, headers=headers_aiohttp
+                ) as resp:
+                    resp_status = resp.status
+                    if resp_status != 400:
+                        resp_json = await resp.json()
+                        for item in resp_json:
+                            if item not in result_dict:
+                                add_recent_posts(item)
+
+        async def main():
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(30),
+                connector=aiohttp.TCPConnector(
+                    ssl_shutdown_timeout=10.0, force_close=True
+                ),
+                connector_owner=False,
+            ) as session:
+                tasks = [
+                    get_recent_loop(client_semaphore, session, params)
+                    for params in generate_params(x_wp_totalpages)
+                ]
+                await asyncio.gather(*tasks)
+
+        asyncio.run(main())
+
+        diff = x_wp_total - total_elems
+        if diff != 0:
+            add_list = recent_posts[:diff]
+            add_list.reverse()
+            for recent in add_list:
+                result_dict.insert(0, recent)
+
+        self.local_cache_config(self.cache_page_num, x_wp_total)
+        return result_dict
 
     def local_cache_config(self, wp_curr_page: int, total_posts: int) -> None:
         """
@@ -382,7 +498,7 @@ class WordPress:
         :raises HotFileSyncIntegrityError: If validation fails.
         :return: ``Optional[bool]`` -> True if sync is successful, otherwise None.
         """
-        sync_changes: List[Dict[str, Any]] = self.update_json_cache()
+        sync_changes: List[Dict[str, Any]] = self.async_update_json_cache()
         # Reload config
         if len(sync_changes) == self.total_posts:
             export_request_json(
@@ -413,12 +529,58 @@ class WordPress:
         :param payload: ``dict`` -> Dictionary containing post information.
         :return: ``int`` -> HTTP status code of the request.
         """
-        wp_self: str = self.api_base_url
-        username_: str = self.username
-        app_pass_: str = self.app_password
-        auth_wp = HTTPBasicAuth(username_, app_pass_)
+        wp_self, auth_wp = self.setup_basic_auth()
         wp_self: str = wp_self + WPEndpoints.POSTS.value
-        return requests.post(wp_self, json=payload, auth=auth_wp).status_code
+        request_info = requests.post(wp_self, json=payload, auth=auth_wp)
+        request_json = request_info.json()
+        self.created_posts.append(
+            WPost(
+                post_id=request_json["id"],
+                title=request_json["title"]["rendered"],
+                slug=request_json["slug"],
+                content=request_json["content"]["rendered"],
+                ptype=request_json["type"],
+                author=request_json["author"],
+            )
+        )
+        return request_info.status_code
+
+    def post_delete(self, post_id: int) -> int:
+        """
+        Deletes a post on the WordPress site via a DELETE request.
+
+        :param post_id: ``int`` -> ID of the post to be deleted.
+        :return: ``int`` -> HTTP status code of the request.
+        """
+        wp_self, auth_wp = self.setup_basic_auth()
+        wp_self: str = wp_self + WPEndpoints.POSTS.value + "/" + str(post_id)
+        request_info = requests.delete(wp_self, auth=auth_wp)
+        return request_info.status_code
+
+    def publish_post(self, post_id: int) -> int:
+        """
+        Publishes a post on the WordPress site via a POST request.
+
+        :param post_id: ``int`` -> ID of the post to be published.
+        :return: ``int`` -> HTTP status code of the request.
+        """
+        wp_self, auth_wp = self.setup_basic_auth()
+        wp_self: str = wp_self + WPEndpoints.POSTS.value + "/" + str(post_id)
+        payload = {"status": "publish"}
+        request_info = requests.post(wp_self, auth=auth_wp, json=payload)
+        return request_info.status_code
+
+    def get_last_post(self) -> Optional[WPost]:
+        """
+        Returns the last post created on the WordPress site only once,
+        then it will be removed from the instance.
+
+        :return: ``WPost`` or ``None`` -> Last post created on the WordPress site.
+        """
+        try:
+            return self.created_posts.pop()
+        except IndexError:
+            return None
 
     def tag_create(
         self,
@@ -442,10 +604,7 @@ class WordPress:
         }
         if description:
             payload_schema["description"] = description
-        wp_self: str = self.api_base_url
-        username_: str = self.username
-        app_pass_: str = self.app_password
-        auth_wp = HTTPBasicAuth(username_, app_pass_)
+        wp_self, auth_wp = self.setup_basic_auth()
         wp_self: str = wp_self + WPEndpoints.TAGS.value
         status_code = requests.post(
             wp_self, json=payload_schema, auth=auth_wp
@@ -510,17 +669,15 @@ class WordPress:
         :param payload: ``dict[str, str | int]`` -> Image attributes (ALT text, description, caption).
         :return: ``int`` -> HTTP status code of the request.
         """
-        username_: str = self.username
-        app_pass_: str = self.app_password
-        auth_wp = HTTPBasicAuth(username_, app_pass_)
+        wp_self, auth_wp = self.setup_basic_auth()
         # headers = {"Content-Disposition": f"attachment; filename={file_path}"}
-        wp_self: str = self.fq_domain_name + WPEndpoints.MEDIA.value
+        wp_self: str = self.api_base_url + WPEndpoints.MEDIA.value
         with open(file_path, "rb") as thumb:
             request = requests.post(wp_self, files={"file": thumb}, auth=auth_wp)
         try:
             image_json = request.json()
             return requests.post(
-                self.fq_domain_name + "/" + str(image_json["id"]),
+                wp_self + "/" + str(image_json["id"]),
                 json=payload,
                 auth=auth_wp,
             ).status_code
