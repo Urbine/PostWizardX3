@@ -10,4 +10,4 @@ else
 fi
 
 # Cleans outdated files with list of space-separated hints.
-python3 -m tasks.clean_outdated_files --folder "$targetdir" --ext '.db' --hints partner_c partnerone partnerfour partnertwo partnerseven wp partnereight partnernine partnerten
+python3 -m workflows.tasks.clean_outdated_files --folder "$targetdir" --ext '.db' --hints partner_c partnerone partnerfour partnertwo partnerseven wp partnereight partnernine partnerten

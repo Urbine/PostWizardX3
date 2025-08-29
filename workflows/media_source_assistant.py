@@ -34,7 +34,7 @@ import os
 import random
 import re
 import time
-from argparse import Namespace, ArgumentParser
+from argparse import ArgumentParser
 
 # Third-party modules
 import pyclip
@@ -56,22 +56,18 @@ from postwizard_sdk.builders import PostMetaPayload
 from postwizard_sdk.utils.operations import update_post_meta
 from wordpress.models.endpoints import WPEndpoints
 
-from tooling.workflows_api import (
+from workflows.utils.checkers import model_checker, tag_checker_print
+from workflows.utils.selectors import slug_getter, pick_classifier
+from workflows.utils.parsing import asset_parser
+from workflows.utils.social import social_sharing_controller
+from workflows.utils.builders import make_payload, make_img_payload, make_slug
+from workflows.utils.strings import clean_partner_tag
+from workflows.utils.file_handling import fetch_thumbnail
+from workflows.utils.initialise import pilot_warm_up
+from workflows.utils.logging import (
     ConsoleStyle,
-    pilot_warm_up,
-    asset_parser,
-    iter_session_print,
     terminate_loop_logging,
-    make_slug,
-    slug_getter,
-    clean_partner_tag,
-    tag_checker_print,
-    model_checker,
-    pick_classifier,
-    make_payload,
-    fetch_thumbnail,
-    make_img_payload,
-    social_sharing_controller,
+    iter_session_print,
 )
 
 
