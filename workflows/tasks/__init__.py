@@ -10,19 +10,19 @@ __email__ = "yohamg@programmer.net"
 __version__ = "1.0.0"
 
 # ** MongerCash Dump Creation `mcash_dump_create.py` **
-from tasks.mcash_dump_create import parse_partner_name, get_vid_dump_flow
+from workflows.tasks.mcash_dump_create import parse_partner_name, get_vid_dump_flow
 
 # ** MongerCash Photo Set Scrape `m_cash_scrape.py` **
-from tasks.mcash_scrape import get_set_source_flow
+from workflows.tasks.mcash_scrape import get_set_source_flow
 
 # ** MongerCash TXT dump parser
-from tasks.parse_txt_dump import parse_txt_dump_chain
+from workflows.tasks.parse_txt_dump import parse_txt_dump_chain
 
 # ** MongerCash HTML photoset dump parser
-from tasks.sets_source_parse import db_generate
+from workflows.tasks.sets_source_parse import db_generate
 
 # ** Clean outdated files
-from tasks.clean_outdated_files import clean_outdated
+from workflows.tasks.clean_outdated_files import clean_outdated
 
 __all__ = [
     "parse_partner_name",

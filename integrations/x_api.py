@@ -33,7 +33,6 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 
 # Local implementations
-from core.utils.config_writer import ConfigWriter
 from core.utils.data_access import get_webdriver
 from core.utils.file_system import search_files_by_ext, load_json_ctx
 from core.utils.strings import match_list_single, generate_random_str
@@ -43,10 +42,9 @@ from integrations.exceptions.integration_exceptions import (
     AccessTokenRetrievalError,
 )
 
-from core.utils.secret_handler import SecretHandler
 from core.models.secret_model import SecretType, XAuth, XTokens
 from core.controllers.secrets_controller import SecretHandler
-from tasks import clean_outdated
+from workflows.tasks import clean_outdated
 
 
 @dataclass(frozen=True)

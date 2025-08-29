@@ -36,7 +36,9 @@ import pyclip
 from requests.exceptions import SSLError, ConnectionError
 
 import core.utils.system_shell
-import tooling.interfaces.embeds_multi_schema
+import workflows.interfaces.embeds_multi_schema
+import workflows.utils.initialise
+import workflows.utils.logging
 
 # Local implementations
 from core import helpers, embed_assist_conf, wp_auth, clean_filename
@@ -61,10 +63,10 @@ def embedding_pilot(
     time_start = time.time()
 
     console, partner, not_published, wp_site, thumbnails_dir, cur_dump = (
-        workflows.pilot_warm_up(embed_ast_conf, wpauths)
+        workflows.utils.initialise.pilot_warm_up(embed_ast_conf, wpauths)
     )
 
-    db_interface = tooling.interfaces.embeds_multi_schema.EmbedsMultiSchema(cur_dump)
+    db_interface = workflows.interfaces.embeds_multi_schema.EmbedsMultiSchema(cur_dump)
     videos_uploaded: int = 0
 
     # You can keep on getting posts until this variable is equal to one.
@@ -74,11 +76,11 @@ def embedding_pilot(
     core.utils.system_shell.clean_console()
 
     # Styles
-    user_default = workflows.ConsoleStyle.TEXT_STYLE_DEFAULT.value
-    user_default_bold = workflows.ConsoleStyle.TEXT_STYLE_ACTION.value
-    user_attention = workflows.ConsoleStyle.TEXT_STYLE_ATTENTION.value
-    user_warning = workflows.ConsoleStyle.TEXT_STYLE_WARN.value
-    user_prompt = workflows.ConsoleStyle.TEXT_STYLE_PROMPT.value
+    user_default = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_DEFAULT.value
+    user_default_bold = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_ACTION.value
+    user_attention = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_ATTENTION.value
+    user_warning = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_WARN.value
+    user_prompt = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_PROMPT.value
 
     workflows.iter_session_print(console, total_elems, partner=partner)
     time.sleep(2)
