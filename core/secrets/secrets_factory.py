@@ -1,7 +1,5 @@
 import logging
 import os
-import platform
-import socket
 import sqlite3
 from pathlib import Path
 

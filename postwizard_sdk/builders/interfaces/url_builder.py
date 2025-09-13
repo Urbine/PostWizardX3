@@ -11,7 +11,7 @@ __author_email__ = "yohamg@programmer.net"
 import re
 from abc import ABC
 from enum import Enum
-from typing import Generic, TypeVar, Optional, Self, Union, AnyStr
+from typing import Generic, TypeVar, Optional, Self, Union
 
 K = TypeVar("K", str, Enum)
 V = TypeVar("V", bound=Union[str, int])
@@ -65,10 +65,10 @@ class URLBuilder(ABC, Generic[K, V]):
         real_query_value = (
             query_value.value if hasattr(query_value, "value") else query_param
         )
-        if not re.findall(r"[?]\w+=+\w+", self._url):
-            self._url += f"?{query_param.value}={real_query_value}"
-        else:
+        if re.findall(r"[?]+", self._url):
             self._url += f"&{query_param.value}={real_query_value}"
+        else:
+            self._url += f"?{query_param.value}={real_query_value}"
         return self
 
     def build(self) -> Optional[str]:

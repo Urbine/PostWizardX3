@@ -2,7 +2,6 @@
 # focused specifically in its keyword and impression analysis capabilities.
 import core.utils.data_access
 import core.utils.file_system
-from core import helpers
 import requests
 
 from core.config_mgr import YANDEX_INFO

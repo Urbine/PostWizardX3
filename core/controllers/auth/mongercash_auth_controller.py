@@ -51,6 +51,7 @@ class MongerCashAuthController(UniversalSecretController):
         update_secret = self._universal_db.generic_update_secret(
             username, SecretType.MONGERCASH_PASSWORD, new_password
         )
+        return update_secret
 
     def get_secrets(self) -> Optional[List[MongerCashAuth]]:
         """

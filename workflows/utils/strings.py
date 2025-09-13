@@ -67,19 +67,22 @@ def filter_tags(
     return list(new_set)
 
 
-def transform_mcash_hosted_link(link: str) -> str:
+def transform_mcash_hosted_link(link: str) -> Optional[str]:
     """
     Transform MCash hosted link to video link slug
 
     :param link: ``str`` -> MCash hosted link
     :return: ``str`` -> video link slug
     """
-    partners = ["asd", "ttp", "toticos", "pgfs", "esd"]
-    decompose = link.split("/")
-    slug = decompose[-1]
-    partner_id = partner if (partner := decompose[-3]) in partners else ""
-    new_slug = slug.split("_")
-    if partner_id:
-        new_slug.insert(-1, partner_id)
-    slugify = "-".join(new_slug)
-    return slugify
+    try:
+        partners = ["asd", "ttp", "toticos", "pgfs", "esd"]
+        decompose = link.split("/")
+        slug = decompose[-1]
+        partner_id = partner if (partner := decompose[-3]) in partners else ""
+        new_slug = slug.split("_")
+        if partner_id:
+            new_slug.insert(-1, partner_id)
+        slugify = "-".join(new_slug)
+        return slugify
+    except IndexError:
+        return None

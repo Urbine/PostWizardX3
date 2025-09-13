@@ -1,4 +1,4 @@
-from core import helpers, WP_CLIENT_INFO
+from core import WP_CLIENT_INFO
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By

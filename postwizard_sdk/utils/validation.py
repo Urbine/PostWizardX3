@@ -18,7 +18,6 @@ from types import MappingProxyType
 
 # Third-party imports
 import aiohttp
-import requests
 
 # Local imports
 from postwizard_sdk.models import PostMetaKey
@@ -51,7 +50,7 @@ def bulk_test_video_url(
         else:
             async with semaphore:
                 async with session.get(video_url) as response:
-                    if response.status != requests.codes.ok:
+                    if response.status != 200:
                         await mutate_failed_urls_deque(post)
 
     async def run_all():

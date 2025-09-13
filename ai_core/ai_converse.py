@@ -2,15 +2,13 @@ from pathlib import Path
 from typing import Optional
 
 # Third Party Libraries
-import ollama
 from langchain_ollama import ChatOllama
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import StructuredOutputParser, ResponseSchema
-from langchain_community.utilities import GoogleSearchAPIWrapper
 from PIL import Image
 
 # Local implementations
-from ai_core.config.ai_config import ai_services_config, get_ollama_load_config
+from ai_core.config.ai_config import get_ollama_load_config
 from ai_core.ai_workflows import get_captions_list
 from integrations import google_search
 from ml_engine import classify_title, classify_description, classify_tags
@@ -142,7 +140,6 @@ if __name__ == "__main__":
     # Testing code
     from core import get_duration
     import time
-    import os
 
     time_start = time.time()
     ai_act = ai_video_attrs(Path(""), "", "", "", prompt_example_1)

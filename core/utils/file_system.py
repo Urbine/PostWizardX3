@@ -136,19 +136,15 @@ def export_request_json(
     :param parent: (bool) Place file in parent directory if True. Default False.
     :return: (None) print statement for console logging.
     """
-    if not target_dir:
-        is_parent: str = is_parent_dir_required(parent, relpath=True)
-        f_name: str = clean_filename(filename, ".json")
-        dest_dir = (
-            os.path.join(is_parent, target_dir) if target_dir != "" else is_parent
-        )
+    f_name: str = clean_filename(filename, ".json")
 
-        cwd_or_par = is_parent_dir_required(parent)
-        f_path = (
-            os.path.join(cwd_or_par, target_dir) if target_dir != "" else cwd_or_par
-        )
-    else:
-        f_path = os.path.join(target_dir, filename)
+    cwd_or_par: str = is_parent_dir_required(parent, relpath=True)
+
+    f_path = (
+        os.path.join(cwd_or_par, target_dir)
+        if not target_dir
+        else os.path.join(target_dir, f_name)
+    )
 
     with open(f_path, "w", encoding="utf-8") as t:
         json.dump(stream, t, ensure_ascii=False, indent=indent)

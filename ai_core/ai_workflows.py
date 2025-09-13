@@ -31,7 +31,6 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import asyncio
-import os
 import threading
 
 from collections import deque
