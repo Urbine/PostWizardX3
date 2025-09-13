@@ -38,7 +38,6 @@ from bs4 import BeautifulSoup
 # Local implementation
 from core.models.file_system import ApplicationPath
 from core.utils.file_system import (
-    is_parent_dir_required,
     filename_creation_helper,
     remove_if_exists,
     exists_ok,
