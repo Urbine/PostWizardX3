@@ -8,9 +8,10 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+import re
 from abc import ABC
 from enum import Enum
-from typing import Generic, TypeVar, Optional, Self, Union
+from typing import Generic, TypeVar, Optional, Self, Union, AnyStr
 
 K = TypeVar("K", str, Enum)
 V = TypeVar("V", bound=Union[str, int])
@@ -29,10 +30,13 @@ class URLBuilder(ABC, Generic[K, V]):
         # Back-up URL in case the builder needs to be reused.
         self._bck_url: str = base_url.strip("/")
 
-    def _plus_path(self, endpoint: K, value: V) -> Self:
+    def _plus_path(self, endpoint: K, value: Union[V, K]) -> Self:
         """
         Add an endpoint-value pair to the internal URL field and return the builder for chaining.
         The caller can also provide an integer to be concatenated to the final URL string.
+
+        The leading endpoint parameter has to be an enum defined by the sdk, however, the value parameter
+        can be either a string or another enum, so that endpoints can be joined.
 
         If you need to join an endpoint with the one that follows, you can skip the value by passing an
         empty string, so that there is no trailing slash after it.
@@ -41,11 +45,30 @@ class URLBuilder(ABC, Generic[K, V]):
         :param key: The key to be added to the payload.
         :param value: The value to be associated with the key.
         """
-        # normalize key to string when using Enum keys in child classes
+        # normalize key and values to string when using Enum keys in child classes
         real_endpoint = endpoint.value if hasattr(endpoint, "value") else endpoint
-        value_chunk = f"{value}" if not value else f"/{value}"
+        real_value = value.value if hasattr(value, "value") else value
+        value_chunk = f"{real_value}" if not real_value else f"/{real_value}"
 
         self._url += f"/{real_endpoint}{value_chunk}"
+        return self
+
+    def _plus_query_param(self, query_param: K, query_value: Union[K, V]) -> Self:
+        """
+        Add a query parameter to the internal URL field and return the builder for chaining.
+        If the URL already has a query parameter, the new one will be appended with an ampersand.
+
+        :param query_param: ``K`` -> The query parameter to be added.
+        :param query_value: ``Union[K, V]`` -> The value of the query parameter to be added.
+        :return: ``Self`` -> The current builder instance.
+        """
+        real_query_value = (
+            query_value.value if hasattr(query_value, "value") else query_param
+        )
+        if not re.findall(r"[?]\w+=+\w+", self._url):
+            self._url += f"?{query_param.value}={real_query_value}"
+        else:
+            self._url += f"&{query_param.value}={real_query_value}"
         return self
 
     def build(self) -> Optional[str]:

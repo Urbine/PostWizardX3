@@ -16,7 +16,7 @@ from typing import Self
 
 # Local imports
 from core.config.config_factories import web_sources_conf_factory
-from postwizard_sdk.models import APIUrl
+from postwizard_sdk.models import APIUrl, PostType, QueryParams
 from postwizard_sdk.builders.interfaces import URLBuilder
 
 
@@ -27,8 +27,26 @@ class APIUrlBuilder(URLBuilder):
     def posts(self, post_id: int) -> Self:
         return self._plus_path(APIUrl.POSTS, post_id)
 
+    def posts_dump_by_type(self, post_type: PostType) -> Self:
+        return self._plus_path(APIUrl.POSTS, APIUrl.DUMP)._plus_query_param(
+            QueryParams.TYPE, post_type
+        )
+
+    def post_batch(self) -> Self:
+        return self._plus_path(APIUrl.POSTS, APIUrl.BATCH)
+
     def posts_meta(self, post_id: int) -> Self:
         return self._plus_path(APIUrl.POSTS, "")._plus_path(APIUrl.POSTS_META, post_id)
+
+    def post_meta_dump(self):
+        return self._plus_path(APIUrl.POSTS, "")._plus_path(
+            APIUrl.POSTS_META, APIUrl.DUMP
+        )
+
+    def post_meta_batch(self):
+        return self._plus_path(APIUrl.POSTS, "")._plus_path(
+            APIUrl.POSTS_META, APIUrl.BATCH
+        )
 
     def login(self) -> Self:
         return self._plus_path(APIUrl.LOGIN, "")

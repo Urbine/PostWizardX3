@@ -54,7 +54,7 @@ class PayloadBuilder(ABC, Generic[K, V]):
         **The payload is immutable and cannot be modified after it is built.
         Any mutations take place on the internal representation by specialised methods
         defined by the concrete builder class. In case this payload is going to be serialized to JSON,
-        it is recommended to cast it to a ``Dict`` type to avoid tracebacks in the caller.**
+        it is recommended to cast it to a ``dict`` type to avoid tracebacks in the caller.**
 
         :return: The built payload.
         """

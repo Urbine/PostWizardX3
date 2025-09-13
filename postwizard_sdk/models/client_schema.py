@@ -41,3 +41,10 @@ class PostKey(Enum):
     SLUG = "slug"
     STATUS = "status"
     TYPE = "type"
+
+
+class PostType(Enum):
+    POST = "post"
+    ATTACHMENT = "attachment"
+    PHOTOS = "photos"
+    ALL = "all"

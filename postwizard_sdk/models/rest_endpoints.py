@@ -18,4 +18,10 @@ class APIUrl(Enum):
     API_VERSION = "v1"
     POSTS = "posts"
     POSTS_META = "meta"
+    DUMP = "dump"
+    BATCH = "batch"
     LOGIN = "auth/login"
+
+
+class QueryParams(Enum):
+    TYPE = "type"
