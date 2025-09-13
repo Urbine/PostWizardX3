@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
 
-from core.utils.decorators import singleton
-
 
 class SecretType(Enum):
     """

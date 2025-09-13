@@ -1,9 +1,7 @@
 """Test suite for the XAuthController class."""
 
-import os
 import unittest
 
-from core.models.config_model import VAULT_DIR, LOCAL_TEST_VAULT_NAME
 from core.tests.x_auth_test_suite import (
     TestStoreClientIDSecret,
     TestStoreAPISecrets,

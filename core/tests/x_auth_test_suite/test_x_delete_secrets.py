@@ -1,5 +1,4 @@
 import unittest
-from core.models.secret_model import SecretType
 from core.controllers.auth import XAuthController
 from core.secrets.secrets_factory import secrets_factory
 

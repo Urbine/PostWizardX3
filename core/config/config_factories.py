@@ -33,8 +33,6 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-import os
-
 
 # Local implementations
 from core.utils.parsers import parse_client_config
