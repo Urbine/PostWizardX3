@@ -52,6 +52,6 @@ def transform_payload_value(
         return None
     transformed_value = transform_func(post_instance[post_key.value])
     post_instance[post_key.value] = result_func(new_value, transformed_value)
-    payload_builder.post_id(post_instance[post_key.ID.value])
+    payload_builder.post_id(post_instance[post_key.__class__.ID.value])
     payload_builder.add(post_key, post_instance[post_key.value])
     return payload_builder

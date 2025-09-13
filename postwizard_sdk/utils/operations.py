@@ -9,7 +9,7 @@ email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union
 
 # Third-party imports
 import requests
@@ -81,7 +81,7 @@ def send_batch_payload(
     :return: ``Dict[str, Union[str, int, List[int]]]`` -> The response from the PostWizard API.
     """
     token_headers = PostWizardAuth.bearer_auth_flow()
-    payload = [dict(builder.build()) for builder in payloads]
+    payload = [dict(builder.build()) for builder in payloads if builder is not None]
     request_info = requests.post(api_addr.build(), headers=token_headers, json=payload)
     return request_info.json()
 
