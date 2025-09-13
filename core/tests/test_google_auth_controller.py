@@ -1,6 +1,5 @@
 """Test suite for the Google Auth Controller."""
 
-import os
 import unittest
 
 # Import the test modules from the test suite
@@ -8,7 +7,6 @@ from core.tests.google_auth_test_suite import TestGetSecrets
 from core.tests.google_auth_test_suite import TestStoreSecrets
 from core.tests.google_auth_test_suite import TestUpdateSecrets
 from core.secrets.secrets_factory import secrets_factory
-from core.models.config_model import VAULT_DIR, LOCAL_TEST_VAULT_NAME
 
 SECRETS_DB_INTERFACE = secrets_factory(in_memory=True)
 

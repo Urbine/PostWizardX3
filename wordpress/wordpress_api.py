@@ -337,7 +337,7 @@ class WordPress:
                 if not page_num_param:
                     headers = curl_json.headers
                     x_wp_total += int(headers["x-wp-total"])
-                    x_wp_totalpages = int(headers["x-wp-totalpages"])
+                    x_wp_totalpages = int(headers["x-wp-totalpages"]) # noqa: F841
                     params_posts.append(WPEndpoints.PAGE.value)
                     params_posts.append(str(page_num))
                     page_num_param = True

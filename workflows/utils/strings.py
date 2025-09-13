@@ -67,19 +67,22 @@ def filter_tags(
     return list(new_set)
 
 
-def transform_media_source_hosted_link(link: str) -> str:
+def transform_media_source_hosted_link(link: str) -> Optional[str]:
     """
     Transform MediaSource hosted link to video link slug
 
     :param link: ``str`` -> MediaSource hosted link
     :return: ``str`` -> video link slug
     """
-    partners = ["pa", "pb", "pe", "pf", "pd"]
-    decompose = link.split("/")
-    slug = decompose[-1]
-    partner_id = partner if (partner := decompose[-3]) in partners else ""
-    new_slug = slug.split("_")
-    if partner_id:
-        new_slug.insert(-1, partner_id)
-    slugify = "-".join(new_slug)
-    return slugify
+    try:
+        partners = ["pa", "pb", "pe", "pf", "pd"]
+        decompose = link.split("/")
+        slug = decompose[-1]
+        partner_id = partner if (partner := decompose[-3]) in partners else ""
+        new_slug = slug.split("_")
+        if partner_id:
+            new_slug.insert(-1, partner_id)
+        slugify = "-".join(new_slug)
+        return slugify
+    except IndexError:
+        return None

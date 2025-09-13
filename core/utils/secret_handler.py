@@ -16,7 +16,7 @@ from core.utils.decorators import singleton
 from core.exceptions.util_exceptions import InvalidOperationMode
 
 # Imported for controller discovery
-from core.controllers.auth import *
+from core.controllers.auth import *  # noqa: F403
 
 T = TypeVar("T")
 
