@@ -20,7 +20,6 @@ from typing import Dict, Union, Optional
 
 # Third-party imports
 import requests
-from huggingface_hub import get_token
 from requests.auth import HTTPBasicAuth
 
 # Local imports
