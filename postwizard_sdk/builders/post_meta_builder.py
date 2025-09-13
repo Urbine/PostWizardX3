@@ -12,7 +12,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from typing import Self
+from typing import Self, Union
 
 # Local imports
 from postwizard_sdk.models import PostMetaKey
@@ -70,3 +70,6 @@ class PostMetaPayload(PayloadBuilder):
 
     def hd(self, hd: bool) -> Self:
         return self._plus(PostMetaKey.HD, hd)
+
+    def add(self, key: PostMetaKey, value: Union[str, int, bool]) -> Self:
+        return self._plus(key, value)

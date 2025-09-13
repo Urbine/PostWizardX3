@@ -1,8 +1,4 @@
-from .rest_endpoints import APIUrl
-from .client_schema import PostKey, PostMetaKey
+from .rest_endpoints import APIUrl, QueryParams
+from .client_schema import PostKey, PostMetaKey, PostType
 
-__all__ = [
-    "APIUrl",
-    "PostKey",
-    "PostMetaKey",
-]
+__all__ = ["APIUrl", "PostKey", "PostMetaKey", "PostType", "QueryParams"]

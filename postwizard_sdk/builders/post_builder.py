@@ -12,7 +12,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from typing import Self
+from typing import Self, Union
 from postwizard_sdk.builders.interfaces import PayloadBuilder
 from postwizard_sdk.models import PostKey
 
@@ -41,3 +41,6 @@ class PostInfoPayload(PayloadBuilder):
 
     def post_type(self, post_type: str) -> Self:
         return self._plus(PostKey.TYPE, post_type)
+
+    def add(self, key: PostKey, value: Union[str, int, bool]) -> Self:
+        return self._plus(key, value)
