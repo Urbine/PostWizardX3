@@ -193,7 +193,7 @@ class XAuthController(UniversalSecretController):
         :param username: ``str`` -> The username for which to retrieve the X platform secrets.
         :return: ``XAuth`` -> An instance of XAuth containing the retrieved secrets.
         """
-        x_user_secrets = self._universal_db.retrieve_like_entry("secret_type", f"x_%")
+        x_user_secrets = self._universal_db.retrieve_like_entry("secret_type", "x_%")
         decrypt = lambda secret: self._universal_db.decrypt_secret(secret)
 
         instances = []
@@ -260,7 +260,7 @@ class XAuthController(UniversalSecretController):
                     case _:
                         continue
         else:
-            logging.info(f"X platform secrets were not found")
+            logging.info("X platform secrets were not found")
             return None
 
         try:
