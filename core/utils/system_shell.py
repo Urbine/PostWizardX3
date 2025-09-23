@@ -35,7 +35,7 @@ def imagick(img_path: Path | str, quality: int, target: str) -> None:
     """
     if os.path.exists(img_path):
         img = os.path.split(img_path)
-        get_file = lambda dirpath: clean_filename(dirpath[1], target)
+        get_file = lambda dirpath: clean_filename(dirpath[1], target)  # noqa: E731
         subprocess.Popen(
             f"magick {img} -quality {quality} {os.path.join(img[0], get_file(img))}",
             shell=True,
