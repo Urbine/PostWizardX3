@@ -11,9 +11,13 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+import asyncio
 import logging
 import re
+from collections import deque
 from typing import List, Dict, Optional, Literal
+
+import aiohttp
 
 # Third-party imports
 import pyclip
@@ -45,7 +49,7 @@ def get_model_ids(wordpress_site: WordPress, model_lst: List[str]) -> List[int]:
     model_tracking: Dict[str, int] = wordpress_site.map_wp_class_id(
         WPTaxonomyMarker.MODELS, WPTaxonomyValues.MODELS
     )
-    title_strip = lambda model: model.title().strip()
+    title_strip = lambda model: model.title().strip()  # noqa: E731
     return list(
         {
             model_tracking[title_strip(model)]
@@ -192,8 +196,8 @@ def get_tag_ids(
         taxonomies[0], taxonomies[1]
     )
 
-    clean_tag = lambda tag: " ".join(tag.split(split_char(tag)))
-    tag_join = lambda tag: "".join(map(clean_tag, tag))
+    clean_tag = lambda tag: " ".join(tag.split(split_char(tag)))  # noqa: E731
+    tag_join = lambda tag: "".join(map(clean_tag, tag))  # noqa: E731
     # Result must be: colourful-skies/great -> colourful skies great
     cl_tags = list(map(tag_join, tag_lst))
 
@@ -206,3 +210,41 @@ def get_tag_ids(
         if re.fullmatch(tag, wptag, flags=re.IGNORECASE)
     ]
     return list({tag_tracking[tag] for tag in matched_keys})
+
+
+def link_testing_massive(post_links):
+    failed_links = deque()
+    semaphore = asyncio.Semaphore(10)
+    d_lock = asyncio.Lock()
+
+    async def mutate_deque(item):
+        async with d_lock:
+            failed_links.append(item)
+
+    async def test_link(session, link):
+        async with semaphore:
+            try:
+                async with session.get(link) as response:
+                    if response.status >= 400:
+                        await mutate_deque(link)
+            except Exception as e:
+                print(f"Got Exceptions: {e!r}")
+
+    async def run_all():
+        async with aiohttp.ClientSession(
+            headers={
+                "keep-alive": "True",
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.94 Chrome/37.0.2062.94 Safari/537.36",
+            },
+            timeout=aiohttp.ClientTimeout(30),
+            connector=aiohttp.TCPConnector(
+                ssl=False, ssl_shutdown_timeout=10.0, force_close=True
+            ),
+        ) as session:
+            tasks = [
+                test_link(session, link) for link in post_links if link is not None
+            ]
+            await asyncio.gather(*tasks)
+
+    asyncio.run(run_all())
+    return list(failed_links)
