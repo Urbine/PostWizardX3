@@ -282,7 +282,7 @@ def authorise_app_x(
         login_btn.click()
         time.sleep(5)
 
-        get_code = lambda callback: callback.split("=")[-1]
+        get_code = lambda callback: callback.split("=")[-1]  # noqa: E731
 
         # This process is likely to fail due to suspicious activity detected by X.
         try:
