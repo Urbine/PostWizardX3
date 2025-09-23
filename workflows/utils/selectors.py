@@ -14,7 +14,7 @@ __author_email__ = "yohamg@programmer.net"
 import logging
 import random
 import re
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 # Third-party imports
 from rich.console import Console
@@ -52,7 +52,7 @@ def partner_select(
     return partner, banners
 
 
-def slug_getter(console_obj: Console, slugs: List[str]) -> str:
+def slug_getter(console_obj: Console, slugs: List[str]) -> Optional[str]:
     """
     Retrieve a slug based on user input from provided options or get a custom one.
     Handles edge cases when no slugs are available or user input is invalid.
@@ -65,47 +65,55 @@ def slug_getter(console_obj: Console, slugs: List[str]) -> str:
     user_attention_style = ConsoleStyle.TEXT_STYLE_ATTENTION.value
     slug_entry_style = ConsoleStyle.TEXT_STYLE_ACTION.value
 
-    def slug_getter_persist() -> str:
+    def print_slugs(slug_list: List[str]):
+        console_obj.print("\n--> Available slugs:\n", style=user_attention_style)
+
+        for n, slug in enumerate(slug_list, start=1):
+            console_obj.print(f"{n}. -> {slug}", style=slug_entry_style)
+        console_obj.print(
+            "--> Provide a custom slug or pick a slug number",
+            style=user_attention_style,
+        )
+
+        slug_option = console_obj.input(
+            f"[{prompt_style}]\nSelect your slug: [/{prompt_style}]\n"
+        )
+        return slug_option
+
+    def slug_getter_persist(slug_list: List[str]) -> str:
         user_slug = ""
-        while not slug:
-            console_obj.print(
-                "Provide a new slug for your post now: ", style=prompt_style
-            )
-            user_slug: str = input()
-        return user_slug
+        while not user_slug:
+            if len(slug_list) != 0:
+                user_slug = print_slugs(slug_list)
+                if re.match(r"^\d+$", user_slug):
+                    try:
+                        return slug_list[int(user_slug) - 1]
+                    except (IndexError, ValueError):
+                        console_obj.print(
+                            "Invalid option! Choosing random slug...",
+                            style=ConsoleStyle.TEXT_STYLE_WARN.value,
+                        )
+                        user_slug = random.choice(slug_list)
+                        logging.info(f"Chose random slug: {user_slug} automatically")
+                        return user_slug
+                elif re.match(r"^\w+", user_slug):
+                    logging.info(f"User-provided slug: {user_slug} used")
+                    console_obj.print(
+                        f"Using custom slug: {user_slug}", style=user_attention_style
+                    )
+                    return user_slug
+            else:
+                logging.critical("No slugs were provided in controlling function.")
+                console_obj.print(
+                    " -> Provide a custom slug for the post now: \n", style=prompt_style
+                )
+                user_slug = input()
+                if user_slug:
+                    return user_slug
+                else:
+                    continue
 
-    if not slugs:
-        logging.critical("No slugs were provided in controlling function.")
-        new_slug = slug_getter_persist()
-        return new_slug
-
-    console_obj.print("\n--> Available slugs:\n", style=user_attention_style)
-
-    for n, slug in enumerate(slugs, start=1):
-        console_obj.print(f"{n}. -> {slug}", style=slug_entry_style)
-    console_obj.print(
-        "--> Press ENTER to provide a custom slug", style=user_attention_style
-    )
-
-    slug_option = console_obj.input(
-        f"[{prompt_style}]\nSelect your slug: [/{prompt_style}]\n"
-    )
-
-    if slug_option != "":
-        try:
-            return slugs[int(slug_option) - 1]
-        except (IndexError, ValueError):
-            console_obj.print(
-                "Invalid option! Choosing random slug...",
-                style=ConsoleStyle.TEXT_STYLE_WARN.value,
-            )
-            new_slug = random.choice(slugs)
-            logging.info(f"Chose random slug: {new_slug} automatically")
-            return new_slug
-    else:
-        custom_slug = slug_getter_persist()
-        logging.info(f"User provided slug: {custom_slug} automatically")
-        return custom_slug
+    return slug_getter_persist(slugs)
 
 
 def pick_classifier(
@@ -170,7 +178,7 @@ def pick_classifier(
                 option = random.choice(classifier_options)
             case str() as n if number.findall(n):
                 if option_number := int(n) <= len(classifier_str_lst) + 1:
-                    option = option_number
+                    option = option_number + 1
             case _:
                 continue
     try:

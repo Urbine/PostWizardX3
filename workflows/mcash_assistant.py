@@ -38,6 +38,7 @@ from argparse import ArgumentParser
 
 # Third-party modules
 import pyclip
+import requests
 from requests.exceptions import SSLError, ConnectionError
 
 # Local implementations
@@ -52,7 +53,15 @@ from core.utils.system_shell import clean_console
 from core.utils.file_system import clean_filename
 from core.utils.strings import split_char
 
+from postwizard_sdk.models.client_schema import (
+    Ethnicity,
+    ToggleField,
+    Orientation,
+    Production,
+    HairColor,
+)
 from postwizard_sdk.builders import PostMetaPayload
+from postwizard_sdk.utils.auth import PostWizardAuth
 from postwizard_sdk.utils.operations import update_post_meta
 from wordpress.models.endpoints import WPEndpoints
 
@@ -61,7 +70,11 @@ from workflows.utils.selectors import slug_getter, pick_classifier
 from workflows.utils.parsing import asset_parser
 from workflows.utils.social import social_sharing_controller
 from workflows.utils.builders import make_payload, make_img_payload, make_slug
-from workflows.utils.strings import clean_partner_tag
+from workflows.utils.strings import (
+    clean_partner_tag,
+    mask_mcash_tracking_link,
+    transform_mcash_hosted_link,
+)
 from workflows.utils.file_handling import fetch_thumbnail
 from workflows.utils.initialise import pilot_warm_up
 from workflows.utils.logging import (
@@ -113,7 +126,6 @@ def video_upload_pilot(
         source_url = fields[5]
         thumbnail_url = fields[6]
         tracking_url = fields[7]
-        partner_name = partner
 
         clean_console()
         iter_session_print(console, videos_uploaded, elem_num=num)
@@ -214,9 +226,10 @@ def video_upload_pilot(
                 general_config.default_status,
                 title,
                 description,
-                tracking_url,
+                mask_mcash_tracking_link(tracking_url, "https://join.whoresmen.com"),
                 random.choice(banners),
-                partner_name,
+                # Not the partner name, but a phrase that will be used in the post content payload.
+                "Enjoy free porn now",
                 tag_ints,
                 calling_models,
                 categs=categ_ids,
@@ -280,42 +293,80 @@ def video_upload_pilot(
                     f"--> WordPress Media upload status code: {upload_img}",
                     style=program_action_style,
                 )
-                console.print(
-                    "--> Creating post on WordPress", style=program_action_style
-                )
 
-                push_post: int = wp_site.post_create(payload)
-                logging.info(f"WordPress post push status: {push_post}")
-                if push_post == 201:
-                    digits = re.compile(r"\d+")
-                    last_post = wp_site.get_last_post()
-                    attachment_link = f"https://{general_config.fq_domain_name.strip('/')}{WPEndpoints.CONTENT_UPLOADS.value}/{clean_filename(wp_slug, image_config.pic_format)}"
-                    post_meta_builder = (
-                        PostMetaPayload()
-                        .ethnicity("asian")
-                        .video_url(source_url)
-                        .hd(True)
-                        .hair_color("black")
-                        .minutes(int(digits.findall(duration)[0]))
-                        .thumbnail(attachment_link)
-                    )
-                    pw_meta_update = update_post_meta(
-                        post_meta_builder, last_post.post_id
-                    )
-                    logging.info(
-                        f"Sent payload to PostWizard: {post_meta_builder.build()}"
-                    )
-                    logging.info(f"Post meta update status: {pw_meta_update}")
+                status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
+                with console.status(
+                    f"[{status_style}] Creating post on WordPress... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+                    spinner="bouncingBall",
+                ):
+                    push_post: int = wp_site.post_create(payload)
+                    logging.info(f"WordPress post push status: {push_post}")
+                    if push_post == 201:
+                        digits = re.compile(r"\d+")
+                        last_post = wp_site.get_last_post()
+                        attachment_link = f"https://{general_config.fq_domain_name.strip('/')}{WPEndpoints.CONTENT_UPLOADS.value}/{clean_filename(wp_slug, image_config.pic_format)}"
+                        target_video_base_url = "https://video.whoresmen.com/stream/"
+                        post_meta_builder = (
+                            PostMetaPayload()
+                            .ethnicity(Ethnicity.ASIAN)
+                            .production(Production.PROFESSIONAL)
+                            .orientation(Orientation.STRAIGHT)
+                            .video_url(
+                                f"{target_video_base_url}{transform_mcash_hosted_link(source_url)}"
+                            )
+                            .hd(ToggleField.ON)
+                            .hair_color(HairColor.BLACK)
+                            .minutes(int(digits.findall(duration)[0]))
+                            .thumbnail(attachment_link)
+                        )
+
+                        wp_site.publish_post(last_post.post_id)
+                        pw_meta_update = update_post_meta(
+                            post_meta_builder, last_post.post_id
+                        )
+                        logging.info(
+                            f"Sent payload to PostWizard: {post_meta_builder.build()}"
+                        )
+                        retries = 0
+                        while pw_meta_update != requests.codes.ok:
+                            logging.warning(
+                                f"Post meta update status: {pw_meta_update}. Retrying..."
+                            )
+                            PostWizardAuth.reset_auth()
+                            pw_meta_update = update_post_meta(
+                                post_meta_builder, last_post.post_id
+                            )
+                            if pw_meta_update == requests.codes.ok:
+                                logging.info(
+                                    f"Post meta update status: {pw_meta_update} -> Success!"
+                                )
+                                break
+                            retries += 1
+                            time.sleep(5)
+                            if retries == 3:
+                                logging.warning(
+                                    f"Post meta update status: {pw_meta_update}. Max retries reached."
+                                )
+                                console.print(
+                                    "* There an error while injecting the post meta fields, likely an authentication issue. Check the session logs for more details...*",
+                                    style=program_warning_style,
+                                )
+                                console.print(
+                                    "--> Rolling back and exiting...\n",
+                                    style=program_warning_style,
+                                )
+                                wp_site.post_delete(last_post.post_id)
+                                raise KeyboardInterrupt
+
+                logging.info(f"Post meta update status: {pw_meta_update}")
+                post_meta_builder.clear()
+
                 console.print(
                     f"--> WordPress status code: {push_post}",
                     style=program_action_style,
                 )
-
-                pyclip.detect_clipboard()
-                pyclip.copy(source_url)
-                pyclip.copy(title)
                 console.print(
-                    "--> Check the post and paste all you need from your clipboard.",
+                    "--> Post published successfully.",
                     style=program_action_style,
                 )
                 social_sharing_controller(
@@ -385,6 +436,16 @@ def video_upload_pilot(
                     logging.info(
                         "User accepted to continue after successful post creation."
                     )
+                    logging.info(
+                        "Refreshing WordPress Local Cache and reloading site data to memory..."
+                    )
+                    clean_console()
+                    status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
+                    with console.status(
+                        f"[{status_style}] Refreshing WordPress Local Cache... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+                        spinner="bouncingBall",
+                    ):
+                        wp_site.cache_sync()
                     pyclip.detect_clipboard()
                     pyclip.clear()
             else:
@@ -423,7 +484,7 @@ def bot_cli_args() -> ArgumentParser:
 def main():
     try:
         if os.name == "posix":
-            import readline
+            import readline  # noqa: F401
         cli_args = bot_cli_args().parse_args()
         video_upload_pilot(parent=cli_args.parent)
     except KeyboardInterrupt:

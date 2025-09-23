@@ -30,5 +30,5 @@ __all__ = [
     "get_set_source_flow",
     "db_generate",
     "parse_txt_dump_chain",
-    "clean_outdated"
+    "clean_outdated",
 ]

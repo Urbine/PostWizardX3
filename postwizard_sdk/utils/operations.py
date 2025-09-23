@@ -18,6 +18,7 @@ import requests
 from postwizard_sdk.builders.api_url_builder import APIUrlBuilder
 from postwizard_sdk.builders import PostMetaPayload, PostInfoPayload
 from postwizard_sdk.builders.interfaces import PayloadBuilder
+from postwizard_sdk.models import PostType
 from postwizard_sdk.utils.auth import PostWizardAuth
 
 
@@ -56,6 +57,20 @@ def update_post_bypass(payload: PostInfoPayload, post_id: int) -> int:
     return request_info.status_code
 
 
+def get_all_payload(
+    api_addr: APIUrlBuilder,
+) -> List[Dict[str, Union[str, int, bool, None]]]:
+    """
+    Retrieves all post metadata from the PostWizard API.
+    This function sends a GET request to the PostWizard API to retrieve all post metadata.
+    :param api_addr: ``APIUrlBuilder`` -> The API URL builder object.
+    :return: ``List[Dict[str, Union[str, int, bool, None]]]`` -> List of dictionaries containing post metadata.
+    """
+    token_headers = PostWizardAuth.bearer_auth_flow()
+    request_info = requests.get(api_addr.build(), headers=token_headers)
+    return request_info.json()
+
+
 def get_all_post_meta() -> List[Dict[str, Union[str, int, bool, None]]]:
     """
     Retrieves all post metadata from the PostWizard API.
@@ -64,9 +79,14 @@ def get_all_post_meta() -> List[Dict[str, Union[str, int, bool, None]]]:
     :return: ``List[Dict[str, Union[Optional[str, int, bool]]]]`` -> List of dictionaries containing post metadata.
     """
     api_addr = APIUrlBuilder().post_meta_dump()
-    token_headers = PostWizardAuth.bearer_auth_flow()
-    request_info = requests.get(api_addr.build(), headers=token_headers)
-    return request_info.json()
+    return get_all_payload(api_addr)
+
+
+def get_all_post_by_type(
+    post_type: PostType,
+) -> List[Dict[str, Union[str, int, bool, None]]]:
+    api_addr = APIUrlBuilder().posts_dump_by_type(post_type)
+    return get_all_payload(api_addr)
 
 
 def send_batch_payload(

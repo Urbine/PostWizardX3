@@ -15,6 +15,13 @@ __author_email__ = "yohamg@programmer.net"
 from typing import Self, Union
 
 # Local imports
+from postwizard_sdk.models.client_schema import (
+    Ethnicity,
+    HairColor,
+    ToggleField,
+    Production,
+    Orientation,
+)
 from postwizard_sdk.models import PostMetaKey
 from postwizard_sdk.builders.interfaces import PayloadBuilder
 
@@ -38,8 +45,8 @@ class PostMetaPayload(PayloadBuilder):
     def seconds(self, seconds: int) -> Self:
         return self._plus(PostMetaKey.SECONDS, seconds)
 
-    def production(self, production: bool) -> Self:
-        return self._plus(PostMetaKey.PRODUCTION, production)
+    def production(self, production: Production) -> Self:
+        return self._plus(PostMetaKey.PRODUCTION, production.value)
 
     def video_url(self, video_url: str) -> Self:
         return self._plus(PostMetaKey.VIDEOURL, video_url)
@@ -56,20 +63,20 @@ class PostMetaPayload(PayloadBuilder):
     def thumbnail(self, thumbnail: str) -> Self:
         return self._plus(PostMetaKey.THUMBNAIL, thumbnail)
 
-    def orientation(self, orientation: str) -> Self:
-        return self._plus(PostMetaKey.ORIENTATION, orientation)
+    def orientation(self, orientation: Orientation) -> Self:
+        return self._plus(PostMetaKey.ORIENTATION, orientation.value)
 
-    def ethnicity(self, ethnicity: str) -> Self:
-        return self._plus(PostMetaKey.ETHNICITY, ethnicity.title())
+    def ethnicity(self, ethnicity: Ethnicity) -> Self:
+        return self._plus(PostMetaKey.ETHNICITY, ethnicity.value)
 
-    def hair_color(self, hair_color: str) -> Self:
-        return self._plus(PostMetaKey.HAIRCOLOR, hair_color.title())
+    def hair_color(self, hair_color: HairColor) -> Self:
+        return self._plus(PostMetaKey.HAIRCOLOR, hair_color.value)
 
     def partner(self, partner: str) -> Self:
         return self._plus(PostMetaKey.PARTNER, partner)
 
-    def hd(self, hd: bool) -> Self:
-        return self._plus(PostMetaKey.HD, hd)
+    def hd(self, hd: ToggleField) -> Self:
+        return self._plus(PostMetaKey.HD, True if hd == ToggleField.ON else False)
 
     def add(self, key: PostMetaKey, value: Union[str, int, bool]) -> Self:
         return self._plus(key, value)

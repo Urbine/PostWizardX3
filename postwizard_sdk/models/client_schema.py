@@ -4,6 +4,10 @@ Client Schema
 This module defines the PostMetaKey and PostKey classes, which are used to represent
 the keys of the PostMeta and Post objects in the PostWizard Server API.
 
+This module also defines the PostType, Ethnicity, Orientation, and HairColor classes,
+which are used to represent the values of the PostMetaKey and PostKey objects in a
+consistent manner, although all values provided are validated in the server side.
+
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
 """
@@ -48,3 +52,36 @@ class PostType(Enum):
     ATTACHMENT = "attachment"
     PHOTOS = "photos"
     ALL = "all"
+
+
+class Ethnicity(Enum):
+    ASIAN = "asian"
+    MIXED = "mixed"
+    MIDDLE_EASTERN = "middle eastern"
+    EBONY = "ebony"
+    LATINO = "latino"
+    WHITE = "white"
+    INDIAN = "indian"
+
+
+class Orientation(Enum):
+    STRAIGHT = "straight"
+    TRANS = "trans"
+
+
+class HairColor(Enum):
+    BLONDE = "blonde"
+    BROWN = "brown"
+    BLACK = "black"
+    RED = "red"
+    OTHER = "other"
+
+
+class Production(Enum):
+    PROFESSIONAL = "professional"
+    HOMEMADE = "homemade"
+
+
+class ToggleField(Enum):
+    ON = "on"
+    OFF = "off"

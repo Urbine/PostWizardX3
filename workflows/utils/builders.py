@@ -191,8 +191,8 @@ def make_slug(
     :param partner_out: ``bool`` ``True`` if you want to build slugs without the partner name. Default ``False``.
     :return: ``str`` formatted string of a WordPress-ready URL slug.
     """
-    join_wrds = lambda wrd: "-".join(map(lambda w: w.lower(), re.findall(r"\w+", wrd)))
-    build_slug = lambda lst: "-".join(filter(lambda e_str: e_str != "", lst))
+    join_wrds = lambda wrd: "-".join(map(lambda w: w.lower(), re.findall(r"\w+", wrd)))  # noqa: E731
+    build_slug = lambda lst: "-".join(filter(lambda e_str: e_str != "", lst))  # noqa: E731
 
     # Punctuation marks are filtered in ``title_cleaned``.
     # TODO: Add a list of corpus stopwords from the NLTK library.
@@ -369,7 +369,7 @@ def upload_image_set(
         logging.info("Thumbnails contained in directory - Running recursive search")
         files: List[str] = search_files_by_ext(".jpg", recursive=True, folder=folder)
 
-        get_parent_dir = lambda dr: os.path.split(os.path.split(dr)[-2:][0])[1]
+        get_parent_dir = lambda dr: os.path.split(os.path.split(dr)[-2:][0])[1]  # noqa: E731
 
         thumbnails: List[str] = [
             os.path.join(get_parent_dir(path), os.path.basename(path)) for path in files
@@ -386,7 +386,7 @@ def upload_image_set(
 
     # Prepare the image new name so that separators are replaced by hyphens.
     # E.g. this_is_a_cool_pic.jpg => this-is-a-cool-pic.jpg
-    new_name_img = lambda name: "-".join(
+    new_name_img = lambda name: "-".join(  # noqa: E731
         f"{os.path.basename(name)!s}".split(split_char(name))
     )
 

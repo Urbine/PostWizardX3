@@ -125,8 +125,8 @@ def create_tag_report_excel(
     model_count.write_column(
         "C2", (partner[0][1] for partner in model_wp_class_count.values())
     )
-    par_strip = lambda tp: str(tp).strip(")").strip("(")
-    t_comma_out = lambda tp: par_strip(tp) if len(tp) > 1 else par_strip(tp).strip(",")
+    par_strip = lambda tp: str(tp).strip(")").strip("(")  # noqa: E731
+    t_comma_out = lambda tp: par_strip(tp) if len(tp) > 1 else par_strip(tp).strip(",")  # noqa: E731
     model_count.write_column(
         "D2",
         tuple(map(t_comma_out, map(lambda tp: tp[1:], model_wp_class_count.values()))),

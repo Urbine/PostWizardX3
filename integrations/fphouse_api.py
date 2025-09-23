@@ -266,8 +266,8 @@ def fhouse_parse(
     with open(path, "r", encoding="utf-8") as dump_file:
         try:
             for line in dump_file.readlines():
-                line_spl = lambda ln: ln.split(urllib.parse.unquote(sep))
-                integer_type_match = (
+                line_spl = lambda ln: ln.split(urllib.parse.unquote(sep))  # noqa: E731
+                integer_type_match = (  # noqa: E731
                     lambda column: f"{column.strip('#')} INTEGER"
                     if (
                         re.match("ids?", column.strip("#"), flags=re.IGNORECASE)

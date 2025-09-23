@@ -38,14 +38,18 @@ import time
 import pyclip
 from requests.exceptions import ConnectionError, SSLError
 
-from core.config.config_factories import general_config_factory, image_config_factory
+# Local implementations
+from core.config.config_factories import (
+    general_config_factory,
+    image_config_factory,
+    mcash_gallery_bot_conf_factory,
+)
 from core.models.config_model import MCashGalleryBotConf
 from core.models.file_system import ApplicationPath
 from core.utils.file_system import exists_ok
 from core.utils.system_shell import clean_console
 from core.utils.helpers import get_duration
 
-# Local implementations
 from workflows.utils.social import social_sharing_controller
 from workflows.utils.builders import make_photos_post_payload, upload_image_set
 from workflows.utils.file_handling import fetch_zip, extract_zip
@@ -57,8 +61,6 @@ from workflows.utils.logging import (
     terminate_loop_logging,
     iter_session_print,
 )
-
-from core.config.config_factories import mcash_gallery_bot_conf_factory
 
 
 def gallery_upload_pilot(

@@ -53,11 +53,10 @@ def pilot_warm_up(
 ):
     """
     Performs initialization operations for processing content selection, database operations,
-    and WordPress post-handling with the provided configuration and authentication.
+    and WordPress post handling with the provided configuration and authentication.
 
     :param cs_config: ``MCashContentBotConf | MCashGalleryBotConf | EmbedAssistBotConf`` Object
                       representing the configuration for the content selection process.
-    :param wordpress_site: ``WordPress`` Object representing the WordPress site to be accessed.
     :param parent: ``bool`` optional. Flag indicating whether to use parent-level matching for
                   database content selection. Defaults to False.
     :return: ``None``
@@ -127,7 +126,7 @@ def pilot_warm_up(
                 )
 
         with console.status(
-            f"[{status_style}] Updating WordPress Cache... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+            f"[{status_style}] Updating WordPress Local Cache... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
             spinner="bouncingBall",
         ):
             wp_site.cache_sync()
@@ -162,7 +161,11 @@ def pilot_warm_up(
         )
         logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
 
-        not_published: List[Tuple[str, ...]] = filter_published(all_vals, wp_site)
+        with console.status(
+            f"[{status_style}] Filtering ... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+            spinner="bouncingBall",
+        ):
+            not_published: List[Tuple[str, ...]] = filter_published(all_vals, wp_site)
 
         if cs_config.__class__.__name__ == "EmbedAssistBotConf":
             return console, partner, not_published, wp_site, thumbnails_dir, cur_dump

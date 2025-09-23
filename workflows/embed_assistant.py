@@ -33,69 +33,97 @@ from typing import Optional
 
 # Third-party modules
 import pyclip
+import requests
 from requests.exceptions import SSLError, ConnectionError
 
-import core.utils.system_shell
-import workflows.interfaces.embeds_multi_schema
-import workflows.utils.initialise
-import workflows.utils.logging
-
 # Local implementations
-from core import helpers, embed_assist_conf, wp_auth, clean_filename
 
-from tools import workflows_api as workflows
+from workflows.interfaces import EmbedsMultiSchema
+from workflows.utils.strings import transform_partner_iframe
+from workflows.utils.file_handling import fetch_thumbnail
+from workflows.utils.initialise import pilot_warm_up
+from workflows.utils.builders import make_slug, make_payload_simple, make_img_payload
+from workflows.utils.selectors import slug_getter, pick_classifier
+from workflows.utils.strings import filter_tags
+from workflows.utils.checkers import tag_checker_print, model_checker
+from workflows.utils.social import social_sharing_controller
+from workflows.utils.logging import (
+    ConsoleStyle,
+    iter_session_print,
+    terminate_loop_logging,
+)
+
+from core.utils.system_shell import clean_console
+from core.utils.helpers import get_duration
+from core.utils.file_system import clean_filename
+from core.config.config_factories import (
+    vid_embed_bot_conf_factory,
+    general_config_factory,
+    image_config_factory,
+)
+
+from postwizard_sdk.models.client_schema import (
+    Ethnicity,
+    ToggleField,
+    Orientation,
+    Production,
+    HairColor,
+)
+from postwizard_sdk.builders import PostMetaPayload
+from postwizard_sdk.utils.operations import update_post_meta
+from postwizard_sdk.utils.auth import PostWizardAuth
+
+from wordpress.models.endpoints import WPEndpoints
 
 
-def embedding_pilot(
-    embed_ast_conf=embed_assist_conf(),
-    wpauths=wp_auth(),
-    wp_endpoints: WPEndpoints = WPEndpoints(),
-) -> None:
+def embedding_pilot() -> None:
     """
-    Assist the user in video embedding from the information originated from local
+    Assist the user in video embedding based on information originated from local
     implementations of Japanese adult content providers in the ``integrations`` package.
 
-    :param embed_ast_conf: ``EmbedAssistConf`` Object with configuration info for this bot.
-    :param wpauths: ``WPAuth`` object that contains configuration of your site.
-    :param wp_endpoints: ``WPEndpoints`` object with the integration endpoints for WordPress.
     :return: ``None``
     """
     time_start = time.time()
 
-    console, partner, not_published, wp_site, thumbnails_dir, cur_dump = (
-        workflows.utils.initialise.pilot_warm_up(embed_ast_conf, wpauths)
+    embed_ast_conf = vid_embed_bot_conf_factory()
+    general_config = general_config_factory()
+    image_config = image_config_factory()
+
+    console, partner, not_published, wp_site, thumbnails_dir, cur_dump = pilot_warm_up(
+        embed_ast_conf
     )
 
-    db_interface = workflows.interfaces.embeds_multi_schema.EmbedsMultiSchema(cur_dump)
+    db_interface = EmbedsMultiSchema(cur_dump)
     videos_uploaded: int = 0
 
     # You can keep on getting posts until this variable is equal to one.
     total_elems: int = len(not_published)
     logging.info(f"Detected {total_elems} to be published for {partner}")
 
-    core.utils.system_shell.clean_console()
+    clean_console()
 
     # Styles
-    user_default = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_DEFAULT.value
-    user_default_bold = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_ACTION.value
-    user_attention = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_ATTENTION.value
-    user_warning = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_WARN.value
-    user_prompt = workflows.utils.logging.ConsoleStyle.TEXT_STYLE_PROMPT.value
+    user_default = ConsoleStyle.TEXT_STYLE_DEFAULT.value
+    user_default_bold = ConsoleStyle.TEXT_STYLE_ACTION.value
+    user_attention = ConsoleStyle.TEXT_STYLE_ATTENTION.value
+    user_warning = ConsoleStyle.TEXT_STYLE_WARN.value
+    user_prompt = ConsoleStyle.TEXT_STYLE_PROMPT.value
 
-    workflows.iter_session_print(console, total_elems, partner=partner)
+    iter_session_print(console, total_elems, partner=partner)
     time.sleep(2)
     for num, vid in enumerate(not_published):
         db_interface.load_data_instance(vid)
-        logging.info(f"Displaying on iteration {num} data: {vid}")
+        iteration = num
+        logging.info(f"Displaying on iteration {iteration} data: {vid}")
 
-        core.utils.system_shell.clean_console()
+        clean_console()
 
-        workflows.iter_session_print(console, videos_uploaded, elem_num=num + 1)
+        iter_session_print(console, videos_uploaded, elem_num=num + 1)
 
         for field in db_interface.get_fields(keep_indx=True):
             num, fld = field
             if re.match(db_interface.SchemaRegEx.pat_duration, fld):
-                hs, mins, secs = helpers.get_duration(int(db_interface.get_duration()))
+                hs, mins, secs = get_duration(int(db_interface.get_duration()))
                 console.print(
                     f"{num + 1}. Duration: \n\tHours: [bold red]{hs}[/bold red] \n\tMinutes: [bold red]{mins}[/bold red] \n\tSeconds: [bold red]{secs}[/bold red]",
                     style=user_default_bold,
@@ -107,46 +135,50 @@ def embedding_pilot(
             f"[{user_prompt}]\nAdd post to WP? -> Y/N/ENTER to review next post: [/{user_prompt}]\n"
         ).lower()
         if add_post == ("y" or "yes"):
-            logging.info(f"User accepted video element {num} for processing")
+            logging.info(f"User accepted video element {iteration} for processing")
             add_post = True
         elif add_post == ("n" or "no"):
             logging.info("User declined further activity with the bot")
             cur_dump.close()
             thumbnails_dir.cleanup()
             time_end = time.time()
-            h, mins, secs = helpers.get_duration(time_end - time_start)
-            workflows.terminate_loop_logging(
+            h, mins, secs = get_duration(time_end - time_start)
+            terminate_loop_logging(
                 console,
-                num,
+                iteration,
                 total_elems,
                 videos_uploaded,
                 (h, mins, secs),
                 exhausted=False,
             )
         else:
-            if num < total_elems - 1:
+            if iteration < total_elems - 1:
                 logging.info(
-                    f"Moving forward - ENTER action detected. State: num={num} total_elems={total_elems}"
+                    f"Moving forward - ENTER action detected. State: num={iteration} total_elems={total_elems}"
                 )
                 pyclip.detect_clipboard()
                 pyclip.clear()
                 continue
             else:
                 logging.info(
-                    f"List exhausted. State: num={num} total_elems={total_elems}"
+                    f"List exhausted. State: num={iteration} total_elems={total_elems}"
                 )
                 thumbnails_dir.cleanup()
                 time_end = time.time()
-                h, mins, secs = helpers.get_duration(time_end - time_start)
-                workflows.terminate_loop_logging(
+                h, mins, secs = get_duration(time_end - time_start)
+                terminate_loop_logging(
                     console,
-                    num,
+                    iteration,
                     total_elems,
                     videos_uploaded,
                     (h, mins, secs),
                     exhausted=True,
                 )
         if add_post:
+            # TODO: Introduce a config field in the config file and UI for this.
+            transformed_iframe = transform_partner_iframe(
+                db_interface.get_embed(), "https://video.whoresmen.com"
+            )
             models = (
                 girl
                 if (girl := db_interface.get_models())
@@ -155,14 +187,14 @@ def embedding_pilot(
 
             slugs = [
                 f"{slug}" if (slug := db_interface.get_slug()) else "",
-                workflows.make_slug(
+                make_slug(
                     partner, models, (title := db_interface.get_title()), "video"
                 ),
-                workflows.make_slug(partner, models, title, "video", reverse=True),
-                workflows.make_slug(
+                make_slug(partner, models, title, "video", reverse=True),
+                make_slug(
                     partner, models, title, "video", studio=db_interface.get_studio()
                 ),
-                workflows.make_slug(
+                make_slug(
                     partner,
                     models,
                     title,
@@ -170,7 +202,7 @@ def embedding_pilot(
                     studio=db_interface.get_studio(),
                     partner_out=True,
                 ),
-                workflows.make_slug(
+                make_slug(
                     partner,
                     None,
                     title,
@@ -182,26 +214,20 @@ def embedding_pilot(
 
             clean_slugs = list(filter(lambda sl: sl != "", slugs))
 
-            wp_slug = workflows.slug_getter(console, clean_slugs)
+            wp_slug = slug_getter(console, clean_slugs)
 
             logging.info(f"WP Slug - Selected: {wp_slug}")
 
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make them more general.
-            tag_prep = workflows.filter_tags(
+            tag_prep = filter_tags(
                 categories
                 if (categories := db_interface.get_categories())
                 else db_interface.get_tags(),
                 ["asian", "japanese"],
             )
-            # Default tag per partner
-            # TODO: Allow tag per partner config from config file, maybe a tuple. Refactor!!
-            if partner == "abjav" or partner == "vjav":
-                tag_prep.append("japanese")
-            elif partner == "Desi Tube":
-                tag_prep.append("indian")
 
-            tag_ints = workflows.tag_checker_print(console, wp_posts_f, tag_prep)
+            tag_ints = tag_checker_print(console, wp_site, tag_prep)
 
             models_field = (
                 pornstars
@@ -210,17 +236,15 @@ def embedding_pilot(
             )
 
             if models_field:
-                models_prep = workflows.filter_tags(models_field)
-                model_ints: Optional[list[int]] = workflows.model_checker(
-                    wp_posts_f, models_prep
-                )
+                models_prep = filter_tags(models_field)
+                model_ints: Optional[list[int]] = model_checker(wp_site, models_prep)
             else:
                 model_ints = None
 
             # Video category NaiveBayes/MaxEnt Classifiers
-            categ_ids = workflows.pick_classifier(
+            categ_ids = pick_classifier(
                 console,
-                wp_posts_f,
+                wp_site,
                 db_interface.get_title(),
                 db_interface.get_description(),
                 db_interface.get_tags()
@@ -230,9 +254,9 @@ def embedding_pilot(
             category = categ_ids
 
             console.print("\n--> Making payload...", style=user_default_bold)
-            payload = workflows.make_payload_simple(
+            payload = make_payload_simple(
                 wp_slug,
-                wpauths.default_status,
+                general_config.default_status,
                 title,
                 db_interface.get_description(),
                 tag_ints,
@@ -244,15 +268,15 @@ def embedding_pilot(
             console.print("--> Fetching thumbnail...", style=user_default_bold)
 
             pic_format = (
-                embed_ast_conf.pic_format
-                if core.utils.system_shell.imagick
-                else embed_ast_conf.pic_fallback
+                image_config.pic_format
+                if image_config.imagick
+                else image_config.pic_fallback
             )
             thumbnail = clean_filename(wp_slug, pic_format)
             logging.info(f"Thumbnail name: {thumbnail}")
 
             try:
-                workflows.fetch_thumbnail(
+                fetch_thumbnail(
                     thumbnails_dir.name,
                     wp_slug,
                     db_interface.get_thumbnail(),
@@ -269,9 +293,7 @@ def embedding_pilot(
                     "--> Adding image attributes on WordPress...",
                     style=user_default_bold,
                 )
-                img_attrs = workflows.make_img_payload(
-                    title, db_interface.get_description()
-                )
+                img_attrs = make_img_payload(title, db_interface.get_description())
                 logging.info(f"Image Attrs: {img_attrs}")
                 upload_img = wp_site.upload_image(
                     f"{os.path.join(thumbnails_dir.name, thumbnail)}",
@@ -309,15 +331,84 @@ def embedding_pilot(
                     f"--> WordPress status code: {push_post}", style=user_default_bold
                 )
 
-                pyclip.detect_clipboard()
-                pyclip.copy(db_interface.get_embed())
-                pyclip.copy(title)
+                attachment_link = f"https://{general_config.fq_domain_name.strip('/')}{WPEndpoints.CONTENT_UPLOADS.value}/{clean_filename(wp_slug, image_config.pic_format)}"
+                logging.info(f"Build attachment link: {attachment_link}")
+                h, mins, secs = get_duration(int(db_interface.get_duration()))
+                new_post_id = wp_site.get_last_post()
+
+                status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
+                with console.status(
+                    f"[{status_style}] Creating post on WordPress... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+                    spinner="bouncingBall",
+                ):
+                    wp_site.publish_post(new_post_id.post_id)
+
+                    post_meta_payload = (
+                        PostMetaPayload()
+                        .ethnicity(
+                            Ethnicity.INDIAN
+                            if partner.startswith("Desi")
+                            else Ethnicity.ASIAN
+                        )
+                        .hd(ToggleField.ON)
+                        .orientation(Orientation.STRAIGHT)
+                        .production(Production.PROFESSIONAL)
+                        .hair_color(HairColor.BLACK)
+                        .embed_code(transformed_iframe)
+                        .thumbnail(attachment_link)
+                        .hours(int(h))
+                        .minutes(int(mins))
+                        .seconds(int(secs))
+                    )
+
+                    update_post_embed = update_post_meta(
+                        post_meta_payload, new_post_id.post_id
+                    )
+
+                    retries = 0
+                    while update_post_embed != requests.codes.ok:
+                        logging.warning(
+                            f"Post meta update status: {update_post_embed}. Retrying..."
+                        )
+                        PostWizardAuth.reset_auth()
+                        update_post_embed = update_post_meta(
+                            post_meta_payload, new_post_id.post_id
+                        )
+                        if update_post_embed == requests.codes.ok:
+                            logging.info(
+                                f"Post meta update status: {update_post_embed} -> Success!"
+                            )
+                            break
+                        retries += 1
+                        time.sleep(5)
+                        if retries == 3:
+                            logging.warning(
+                                f"Post meta update status: {update_post_embed}. Max retries reached."
+                            )
+                            console.print(
+                                "* There an error while injecting the post meta fields, likely an authentication issue. Check the session logs for more details...*",
+                                style=user_warning,
+                            )
+                            console.print(
+                                "--> Rolling back and exiting...\n", style=user_warning
+                            )
+                            wp_site.post_delete(new_post_id.post_id)
+                            raise KeyboardInterrupt
+
+                logging.info(f"Sent payload to PostWizard: {post_meta_payload.build()}")
+                logging.info(f"Post meta update status: {update_post_embed}")
+
                 console.print(
-                    "--> Check the post and paste all you need from your clipboard.",
-                    style=user_default_bold,
+                    "--> Post published successfully.",
+                    style=user_attention,
                 )
-                workflows.social_sharing_controller(
-                    console, db_interface.get_description(), wp_slug, embed_ast_conf
+                post_meta_payload.clear()
+                social_sharing_controller(
+                    console,
+                    db_interface.get_description(),
+                    wp_slug,
+                    embed_ast_conf,
+                    wp_site,
                 )
                 videos_uploaded += 1
             except (SSLError, ConnectionError) as e:
@@ -342,8 +433,8 @@ def embedding_pilot(
 
                     if is_published:
                         videos_uploaded += 1
-
                     continue
+
                 else:
                     logging.info(f"User declined after catching {e!r}")
 
@@ -357,10 +448,10 @@ def embedding_pilot(
                     cur_dump.close()
                     thumbnails_dir.cleanup()
                     time_end = time.time()
-                    h, mins, secs = helpers.get_duration(time_end - time_start)
-                    workflows.terminate_loop_logging(
+                    h, mins, secs = get_duration(time_end - time_start)
+                    terminate_loop_logging(
                         console,
-                        num,
+                        iteration,
                         total_elems,
                         videos_uploaded,
                         (h, mins, secs),
@@ -368,7 +459,7 @@ def embedding_pilot(
                     )
                     logging.shutdown()
                     break
-            if num < total_elems - 1:
+            if iteration < total_elems - 1:
                 next_post = console.input(
                     f"[{user_prompt}]\nNext post? -> N/ENTER to review next post: [/{user_prompt}]\n"
                 ).lower()
@@ -377,10 +468,10 @@ def embedding_pilot(
                     cur_dump.close()
                     thumbnails_dir.cleanup()
                     time_end = time.time()
-                    h, mins, secs = helpers.get_duration(time_end - time_start)
-                    workflows.terminate_loop_logging(
+                    h, mins, secs = get_duration(time_end - time_start)
+                    terminate_loop_logging(
                         console,
-                        num,
+                        iteration,
                         total_elems,
                         videos_uploaded,
                         (h, mins, secs),
@@ -390,16 +481,26 @@ def embedding_pilot(
                     logging.info(
                         "User accepted to continue after successful post creation."
                     )
+                    logging.info(
+                        "Refreshing WordPress Local Cache and reloading site data to memory..."
+                    )
+                    clean_console()
+                    status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
+                    with console.status(
+                        f"[{status_style}] Refreshing WordPress Local Cache... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+                        spinner="bouncingBall",
+                    ):
+                        wp_site.cache_sync()
                     pyclip.detect_clipboard()
                     pyclip.clear()
             else:
                 cur_dump.close()
                 thumbnails_dir.cleanup()
                 time_end = time.time()
-                h, mins, secs = helpers.get_duration(time_end - time_start)
-                workflows.terminate_loop_logging(
+                h, mins, secs = get_duration(time_end - time_start)
+                terminate_loop_logging(
                     console,
-                    num,
+                    iteration,
                     total_elems,
                     videos_uploaded,
                     (h, mins, secs),
@@ -408,10 +509,10 @@ def embedding_pilot(
         else:
             thumbnails_dir.cleanup()
             time_end = time.time()
-            h, mins, secs = helpers.get_duration(time_end - time_start)
-            workflows.terminate_loop_logging(
+            h, mins, secs = get_duration(time_end - time_start)
+            terminate_loop_logging(
                 console,
-                num,
+                iteration,
                 total_elems,
                 videos_uploaded,
                 (h, mins, secs),
@@ -422,7 +523,7 @@ def embedding_pilot(
 def main():
     try:
         if os.name == "posix":
-            import readline
+            import readline  # noqa: F401
 
         embedding_pilot()
     except KeyboardInterrupt:

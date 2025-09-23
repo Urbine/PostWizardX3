@@ -120,7 +120,7 @@ def ai_video_attrs(
         format_instructions=format_instructions,
     )
 
-    chat_messages = [
+    chat_messages = [  # noqa: F841
         (
             "system",
             "You are a specialised and professional SEO expert in the adult industry \

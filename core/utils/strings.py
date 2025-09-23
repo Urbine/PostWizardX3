@@ -42,7 +42,7 @@ def clean_filename(filename: str, extension: str = "") -> str:
     elif not isinstance(extension, str):
         raise TypeError(f"Extension must be a string, not {type(filename)}!")
 
-    no_dot = lambda fname: re.findall(r"\w+", fname)[0]
+    no_dot = lambda fname: re.findall(r"\w+", fname)[0]  # noqa: E731
 
     if "." in split_char(filename, char_lst=True):
         return (
@@ -227,8 +227,8 @@ def split_char(
 ) -> str | list[str]:
     """
     Identify the split character dynamically in order that str.split() knows what
-    the correct separator is. In this project, the most relevant separators are ``, `` and
-    ``;``, in contrast, whitespaces are not as important. That said, if the only non-alphanumeric character of
+    the correct separator is. In this project, the most relevant separators are commas and
+    semicolons, in contrast, whitespaces are not as important. That said, if the only non-alphanumeric character of
     the string is whitespace, the function has to return it. Additional parameters
     help with complementary logic and graceful error handling across modules.
 
@@ -250,7 +250,7 @@ def split_char(
     except TypeError:  # if ``spl_str`` is ``None``
         return placeholder
 
-    lst_strip = lambda chls: list(map(lambda s: s.strip(), chls))
+    lst_strip = lambda chls: list(map(lambda s: s.strip(), chls))  # noqa: E731
 
     if chars:
         if len(chars) == 1:

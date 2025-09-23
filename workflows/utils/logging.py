@@ -13,6 +13,7 @@ __author_email__ = "yohamg@programmer.net"
 
 import logging
 import os
+import time
 from enum import Enum
 from typing import Tuple, Union, Optional
 
@@ -82,9 +83,10 @@ def terminate_loop_logging(
     logging.info(
         f"User created {done_count} {'posts' if not sets else 'sets'} in hours: {h} mins: {mins} secs: {secs}"
     )
-    logging.info("Cleaning clipboard and temporary directories. Quitting...")
+    logging.info("Cleaning system clipboard and temporary directories. Quitting...")
     logging.shutdown()
-    exit(0)
+    time.sleep(0.5)
+    raise KeyboardInterrupt
 
 
 def iter_session_print(
@@ -119,7 +121,7 @@ def iter_session_print(
         )
     else:
         console_obj.print(
-            f"Element #{elem_num + 1}",
+            f"Element #{elem_num}",
             style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
             justify="left",
         )

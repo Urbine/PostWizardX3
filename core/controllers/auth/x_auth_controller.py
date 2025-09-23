@@ -194,7 +194,7 @@ class XAuthController(UniversalSecretController):
         :return: ``XAuth`` -> An instance of XAuth containing the retrieved secrets.
         """
         x_user_secrets = self._universal_db.retrieve_like_entry("secret_type", "x_%")
-        decrypt = lambda secret: self._universal_db.decrypt_secret(secret)
+        decrypt = lambda secret: self._universal_db.decrypt_secret(secret)  # noqa: E731
 
         instances = []
         api_secrets = {}

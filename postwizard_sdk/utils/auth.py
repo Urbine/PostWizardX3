@@ -7,6 +7,7 @@ Functions:
 - get_token() -> Optional[PostWizardAPIToken]: Retrieve the PostWizard API token from the secrets vault.
 - basic_auth_flow() -> int: Handles basic authentication flow for the PostWizard API.
 - bearer_auth_flow() -> Dict[str, str]: Return the bearer token for subsequent requests to the PostWizard API.
+- reset_auth() -> bool: Reset the authentication flow.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -24,6 +25,7 @@ from requests.auth import HTTPBasicAuth
 
 # Local imports
 from postwizard_sdk.builders.api_url_builder import APIUrlBuilder
+from postwizard_sdk.exceptions import AuthenticationError
 from core.controllers.secrets_controller import SecretHandler
 from core.models.secret_model import SecretType, PostWizardAPILogin, PostWizardAPIToken
 
@@ -61,14 +63,35 @@ class PostWizardAuth:
                 cascade_secret_type=True,
             )
             os.environ[SecretType.PWAPI_TOKEN.value] = "yes"
+        else:
+            raise AuthenticationError(response_obj.reason, response_obj.status_code)
         return response_obj.status_code
 
     @staticmethod
-    def bearer_auth_flow() -> Dict[str, str]:
+    def bearer_auth_flow() -> Optional[Dict[str, str]]:
         token: Union[PostWizardAPIToken, str] = ""
         if os.environ.get(SecretType.PWAPI_TOKEN.value):
             token = PostWizardAuth.get_token()
         else:
             if PostWizardAuth.basic_auth_flow() == requests.codes.ok:
                 token = PostWizardAuth.get_token()
-        return {"Authorization": "Bearer {}".format(token.access_token)}
+        try:
+            token_header = {"Authorization": "Bearer {}".format(token.access_token)}
+        except AttributeError:
+            return None
+        return token_header
+
+    @staticmethod
+    def reset_auth() -> bool:
+        """
+        Reset the authentication flow.
+        This function resets the authentication flow by deleting the marker variable from the environment,
+        causing that the authentication methods carry out a new basic authentication flow.
+
+        :return: ``bool`` -> True if the marker variable exists and was deleted, False otherwise.
+        """
+        try:
+            os.environ[SecretType.PWAPI_TOKEN.value] = ""
+        except KeyError:
+            return False
+        return True

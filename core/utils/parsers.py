@@ -110,7 +110,7 @@ def config_section_parser(config_filename: str, target_hint: str):
         split_char(target_hint, placeholder=" ")
     )
 
-    find_me = (
+    find_me = (  # noqa: E731
         lambda word, section: matchs[0]
         if (matchs := re.findall(word, section, flags=re.IGNORECASE))
         else matchs

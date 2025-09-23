@@ -64,7 +64,7 @@ class PayloadBuilder(ABC, Generic[K, V]):
 
     def clear(self) -> None:
         """
-        Clear the payload and return the builder for reusing.
+        Clear the payload and return the builder to its initial state for reuse.
 
         :return: ``None``
         """

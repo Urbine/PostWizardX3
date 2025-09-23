@@ -26,12 +26,11 @@ import time
 
 from collections import namedtuple, deque
 from pathlib import Path
-
-from requests.auth import HTTPBasicAuth
 from typing import Optional, List, Any, Dict, Deque
 
 # Third-party modules
 import urllib3
+from requests.auth import HTTPBasicAuth
 
 # Local implementations
 from core.utils.file_system import load_json_ctx, export_request_json, logging_setup
@@ -337,7 +336,7 @@ class WordPress:
                 if not page_num_param:
                     headers = curl_json.headers
                     x_wp_total += int(headers["x-wp-total"])
-                    x_wp_totalpages = int(headers["x-wp-totalpages"]) # noqa: F841
+                    x_wp_totalpages = int(headers["x-wp-totalpages"])  # noqa: F841
                     params_posts.append(WPEndpoints.PAGE.value)
                     params_posts.append(str(page_num))
                     page_num_param = True
@@ -352,6 +351,7 @@ class WordPress:
     def async_update_json_cache(self) -> List[Dict[str, Any]]:
         """
         Updates the local WordPress cache file by fetching new posts.
+        Use update_json_cache instead, this one needs more testing.
 
         :return: ``list[dict]`` -> Updated list of post dictionaries.
         """
@@ -437,10 +437,11 @@ class WordPress:
 
         diff = x_wp_total - total_elems
         if diff != 0:
-            add_list = recent_posts[:diff]
+            add_list = list(recent_posts)[:diff]
             add_list.reverse()
             for recent in add_list:
-                result_dict.insert(0, recent)
+                if isinstance(recent, dict):
+                    result_dict.insert(0, recent)
 
         self.local_cache_config(self.cache_page_num, x_wp_total)
         return result_dict
@@ -498,7 +499,7 @@ class WordPress:
         :raises HotFileSyncIntegrityError: If validation fails.
         :return: ``Optional[bool]`` -> True if sync is successful, otherwise None.
         """
-        sync_changes: List[Dict[str, Any]] = self.async_update_json_cache()
+        sync_changes: List[Dict[str, Any]] = self.update_json_cache()
         # Reload config
         if len(sync_changes) == self.total_posts:
             export_request_json(
@@ -764,7 +765,7 @@ class WordPress:
         :param unique_str: ``bool`` -> Return unique results.
         :return: ``list[str]`` -> Cleaned keywords.
         """
-        double_join = lambda tag: "".join(" ".join(tag).title())
+        double_join = lambda tag: "".join(" ".join(tag).title())  # noqa: E731
         class_list = [
             [
                 double_join(cls_lst.split("-")[1:])
@@ -806,7 +807,7 @@ class WordPress:
         :param tags_key: ``bool`` -> If True, returns a dictionary with the keyword as key and list of ids as value.
         :return: ``dict[str, list[str | int]] | list[dict[str | int, str]]`` -> Grouping keywords and IDs.
         """
-        double_join = lambda tag: "".join(" ".join(tag).title())
+        double_join = lambda tag: "".join(" ".join(tag).title())  # noqa: E731
         class_list = [
             {
                 elem["id"]: [
@@ -933,10 +934,10 @@ class WordPress:
         for post in self.cache_data:
             if yoast_support:
                 all_titles.append(
-                    " ".join(post["yoast_head_json"]["title"].split(" ")[:-2])
+                    " ".join(post["yoast_head_json"]["title"].split(" ")[:-2]).strip()
                 )
             else:
-                all_titles.append(post["title"]["rendered"])
+                all_titles.append(post["title"]["rendered"].strip())
         return all_titles
 
     def map_posts_by_id(self, include_host_name: bool = False) -> dict[str, int]:
@@ -967,7 +968,7 @@ class WordPress:
         mapped_ids = self.map_posts_by_id(include_host_name=include_host_name)
         unique_tags = self.get_tag_count().keys()
         tags_c = {kw: [] for kw in unique_tags}
-        clean_kw = lambda tag: " ".join(tag.split("-")[1:]).title()
+        clean_kw = lambda tag: " ".join(tag.split("-")[1:]).title()  # noqa: E731
         for dic in self.cache_data:
             for kw in dic["class_list"]:
                 if (kw := clean_kw(kw)) in tags_c.keys():

@@ -35,7 +35,7 @@ def asset_parser(bot_config: MCashContentBotConf, partner: str):
 
     wrd_list = clean_partner_tag(partner).split(split_char(partner, placeholder=" "))
 
-    find_me = (
+    find_me = (  # noqa: E731
         lambda word, section: matchs[0]
         if (matchs := re.findall(word, section, flags=re.IGNORECASE))
         else matchs
