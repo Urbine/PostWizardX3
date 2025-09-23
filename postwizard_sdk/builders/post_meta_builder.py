@@ -15,6 +15,13 @@ __author_email__ = "yohamg@programmer.net"
 from typing import Self, Union
 
 # Local imports
+from postwizard_sdk.models.client_schema import (
+    ContentRegion,
+    VisualAttribute,
+    ToggleField,
+    CreatorTier,
+    ContentFormat,
+)
 from postwizard_sdk.models import PostMetaKey
 from postwizard_sdk.builders.interfaces import PayloadBuilder
 
@@ -38,8 +45,8 @@ class PostMetaPayload(PayloadBuilder):
     def seconds(self, seconds: int) -> Self:
         return self._plus(PostMetaKey.SECONDS, seconds)
 
-    def production(self, production: bool) -> Self:
-        return self._plus(PostMetaKey.CREATOR_TIER, production)
+    def creator_tier(self, creator_tier: CreatorTier) -> Self:
+        return self._plus(PostMetaKey.CREATOR_TIER, production.value)
 
     def video_url(self, video_url: str) -> Self:
         return self._plus(PostMetaKey.VIDEOURL, video_url)
@@ -56,20 +63,20 @@ class PostMetaPayload(PayloadBuilder):
     def thumbnail(self, thumbnail: str) -> Self:
         return self._plus(PostMetaKey.THUMBNAIL, thumbnail)
 
-    def orientation(self, orientation: str) -> Self:
-        return self._plus(PostMetaKey.CONTENT_FORMAT, orientation)
+    def content_format(self, content_format: ContentFormat) -> Self:
+        return self._plus(PostMetaKey.CONTENT_FORMAT, orientation.value)
 
-    def ethnicity(self, ethnicity: str) -> Self:
-        return self._plus(PostMetaKey.CONTENT_REGION, ethnicity.title())
+    def content_region(self, content_region: ContentRegion) -> Self:
+        return self._plus(PostMetaKey.CONTENT_REGION, ethnicity.value)
 
-    def hair_color(self, hair_color: str) -> Self:
-        return self._plus(PostMetaKey.VISUAL_ATTRIBUTE, hair_color.title())
+    def visual_attribute(self, visual_attribute: VisualAttribute) -> Self:
+        return self._plus(PostMetaKey.VISUAL_ATTRIBUTE, hair_color.value)
 
     def partner(self, partner: str) -> Self:
         return self._plus(PostMetaKey.PARTNER, partner)
 
-    def hd(self, hd: bool) -> Self:
-        return self._plus(PostMetaKey.HD, hd)
+    def hd(self, hd: ToggleField) -> Self:
+        return self._plus(PostMetaKey.HD, True if hd == ToggleField.ON else False)
 
     def add(self, key: PostMetaKey, value: Union[str, int, bool]) -> Self:
         return self._plus(key, value)

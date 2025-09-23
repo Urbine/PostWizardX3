@@ -440,7 +440,7 @@ def bot_cli_args() -> Namespace:
 def main():
     try:
         if os.name == "posix":
-            import readline
+            import readline  # noqa: F401
         cli_args = bot_cli_args()
         video_upload_pilot(parent=cli_args.parent)
     except KeyboardInterrupt:

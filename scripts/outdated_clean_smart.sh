@@ -2,10 +2,8 @@
 set -euo pipefail
 
 targetdir="$1"
-if [ "$targetdir" != "" ]; then
-  cd "$targetdir"
-else
-  echo "Please provide the directory containing the files you want to clean as an argument for this script."
+if [ "$targetdir" = "" ]; then
+  echo "Please provide the directory you need cleaned as an argument for this script."
   exit
 fi
 

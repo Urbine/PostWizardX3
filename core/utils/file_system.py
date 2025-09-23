@@ -479,7 +479,7 @@ def logging_setup(
     :param path_to_this: ``str`` - Equivalent to __file__ but passed in as a parameter.
     :return: ``None``
     """
-    get_filename = lambda f: os.path.basename(f).split(".")[0]
+    get_filename = lambda f: os.path.basename(f).split(".")[0]  # noqa: E731
     sample_size = 5
     random_int_id = "".join(
         random.choices([str(num) for num in range(1, 10)], k=sample_size)

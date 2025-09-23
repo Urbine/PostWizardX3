@@ -14,7 +14,7 @@ __author_email__ = "yohamg@programmer.net"
 import logging
 import re
 
-from typing import List, Tuple, Any, Dict, Union
+from typing import List, Tuple, Dict, Union
 
 # Local imports
 from core.utils.strings import split_char
@@ -23,7 +23,9 @@ from wordpress.models.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
 from workflows.interfaces import EmbedsMultiSchema
 
 
-def published_json(title: str, wordpress_site: WordPress) -> bool:
+def published_json(
+    title: str, wordpress_site: WordPress, yoast_support: bool = False
+) -> bool:
     """This function leverages the power of a local implementation that specialises
     in getting, manipulating and filtering WordPress API post information in JSON format.
     After getting the posts from the local cache, the function filters each element using
@@ -38,15 +40,14 @@ def published_json(title: str, wordpress_site: WordPress) -> bool:
     :param title: ``str`` lookup term, in this case a ``title``
     :param wordpress_site: ``WordPress`` class instance responsible for managing all the
                              WordPress site data.
+    :param yoast_support: ``bool`` Enable Yoast SEO support for parsing.
     :return: ``bool`` True if one or more matches is found, False if the result is None.
     """
-    post_titles: List[str] = wordpress_site.get_post_titles_local(yoast_support=True)
+    post_titles: List[str] = wordpress_site.get_post_titles_local(
+        yoast_support=yoast_support
+    )
 
-    comp_title: re.Pattern = re.compile(rf"({title})")
-
-    results: List[str] = [
-        vid_name for vid_name in post_titles if re.match(comp_title, vid_name)
-    ]
+    results: List[str] = [vid_name for vid_name in post_titles if title in post_titles]
     if len(results) >= 1:
         return True
     else:
@@ -54,8 +55,8 @@ def published_json(title: str, wordpress_site: WordPress) -> bool:
 
 
 def filter_published(
-    all_videos: List[Tuple[Any]], wordpress_site: WordPress
-) -> List[Tuple[str]]:
+    all_videos: List[Tuple[str, ...]], wordpress_site: WordPress
+) -> List[Tuple[str, ...]]:
     """``filter_published`` does its filtering work based on the ``published_json`` function.
     Actually, the ``published_json`` is the brain behind this function and the reason why I decided to
     separate brain and body, as it were, is modularity. I want to be able to modify the classification rationale
@@ -71,13 +72,19 @@ def filter_published(
                              WordPress site data.
     :return: ``list[tuple]`` with the new filtered values.
     """
-    not_published: List[Tuple[str]] = []
+    not_published: List[Tuple[str, ...]] = []
+    word_regex = re.compile(r"^(?!https?)\w+\b")
     for elem in all_videos:
-        (title, *fields) = elem
-        if published_json(title, wordpress_site):
-            continue
-        else:
-            not_published.append(elem)
+        for item in elem:
+            try:
+                if word_regex.match(item):
+                    if published_json(item, wordpress_site):
+                        break
+                    else:
+                        not_published.append(elem)
+                        break
+            except TypeError:
+                continue
     return not_published
 
 
@@ -102,7 +109,7 @@ def select_guard(db_name: str, partner: str) -> None:
     # Find the split character as I just need to get the first word of the name
     # to match it with partner selected by the user
     # match_regex = re.findall(r"[\W_]+", db_name)[0]
-    spl_dbname = lambda db: db.strip().split(split_char(db))
+    spl_dbname = lambda db: db.strip().split(split_char(db))  # noqa: E731
     try:
         assert re.match(spl_dbname(db_name)[0], partner, flags=re.IGNORECASE)
     except AssertionError:
@@ -220,7 +227,7 @@ def filter_relevant(
                 model_in_set = True
                 break
 
-        if not published_json(title, wordpress_photos_site) and model_in_set:
+        if not published_json(title, wordpress_photos_site, False) and model_in_set:
             not_published_yet.append(elem)
         else:
             continue
