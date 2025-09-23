@@ -4,6 +4,10 @@ Client Schema
 This module defines the PostMetaKey and PostKey classes, which are used to represent
 the keys of the PostMeta and Post objects in the PostWizard Server API.
 
+This module also defines the PostType, ContentRegion, ContentFormat, VisualAttribute, and CreatorTier classes,
+which are used to represent the values of the PostMetaKey and PostKey objects in a
+consistent manner, although all values provided are validated in the server side.
+
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
 """
@@ -48,3 +52,30 @@ class PostType(Enum):
     ATTACHMENT = "attachment"
     PHOTOS = "photos"
     ALL = "all"
+
+
+class ContentRegion(Enum):
+    ASIA = "asia"
+    MIXED = "mixed"
+    MIDDLE_EASTERN = "middle_eastern"
+    LATIN_AMERICAN = "latin_american"
+    EUROPEAN = "european"
+    SOUTH_ASIAN = "south_asian"
+
+class ContentFormat(Enum):
+    SINGLE = "single"
+    MULTI = "multi"
+
+class VisualAttribute(Enum):
+    LIGHT = "light"
+    DARK = "dark"
+    RED = "red"
+    OTHER = "other"
+
+class CreatorTier(Enum):
+    PROFESSIONAL = "professional"
+    COMMUNITY = "community"
+
+class ToggleField(Enum):
+    ON = "on"
+    OFF = "off"
