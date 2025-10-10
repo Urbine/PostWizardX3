@@ -201,7 +201,7 @@ def video_upload_pilot(
             # Making sure that the partner tag does not have apostrophes
             partner_tag: str = clean_partner_tag(partner.lower())
             tag_prep.append(partner_tag)
-            tag_ints = tag_checker_print(console, wp_site, tag_prep)
+            tag_ints = tag_checker_print(console, wp_site, tag_prep, add_missing=True)
 
             try:
                 model_delim = models.split(
@@ -211,7 +211,9 @@ def video_upload_pilot(
             except AttributeError:
                 model_prep = []
 
-            calling_models: list[int] = model_checker(wp_site, model_prep)
+            calling_models: list[int] = model_checker(
+                wp_site, model_prep, add_missing=True
+            )
 
             # NaiveBayes/MaxEnt classification for titles, descriptions, and tags
             categ_ids = pick_classifier(console, wp_site, title, description, tags)

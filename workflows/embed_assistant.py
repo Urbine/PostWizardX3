@@ -237,7 +237,9 @@ def embedding_pilot() -> None:
 
             if models_field:
                 models_prep = filter_tags(models_field)
-                model_ints: Optional[list[int]] = model_checker(wp_site, models_prep)
+                model_ints: Optional[list[int]] = model_checker(
+                    wp_site, models_prep, add_missing=True
+                )
             else:
                 model_ints = None
 

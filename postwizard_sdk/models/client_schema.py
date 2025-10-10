@@ -85,3 +85,20 @@ class Production(Enum):
 class ToggleField(Enum):
     ON = "on"
     OFF = "off"
+
+
+class Taxonomy(Enum):
+    MODEL = "pornstars"
+    TAG = "post_tag"
+    CATEGORY = "category"
+
+
+class TaxonomyMeta(Enum):
+    TAXONOMY = "taxonomy"
+    TAXONOMY_NAME = "taxonomy_name"
+    TAXONOMY_DESCRIPTION = "taxonomy_description"
+
+
+class TaxonomyInfo(Enum):
+    TERM = "term"
+    SLUG = "slug"

@@ -26,7 +26,7 @@ class PayloadBuilder(ABC, Generic[K, V]):
         Initialize the PayloadBuilder with a blank payload.
 
         """
-        self._payload: Dict[K, V] = {}
+        self._payload: Dict[K, Dict[K, V] | V] = {}
 
     def _plus(self, key: K, value: V) -> Self:
         """
@@ -45,6 +45,28 @@ class PayloadBuilder(ABC, Generic[K, V]):
 
         return self
 
+    def _nest(self, key: K, nested_key: K, value: V):
+        """
+        Add a nested key-value pair to the payload field and return the builder for chaining.
+
+        :param key: The key to be added to the payload.
+        :param nested_key: The nested key to be added to the payload.
+        :param value: The value to be associated with the nested key.
+        """
+        # normalize key to string when using Enum keys in child classes
+        real_key = key.value if hasattr(key, "value") else key
+        real_nested_key = (
+            nested_key.value if hasattr(nested_key, "value") else nested_key
+        )
+
+        existing = self._payload.get(real_key)
+        # If neither existing nor value are dict-like, just set/overwrite
+        if existing is None:
+            self._payload[real_key] = {real_nested_key: value}
+        else:
+            self._payload[real_key][real_nested_key] = value
+        return self
+
     def build(self) -> Optional[Mapping[K, V]]:
         """
         Return the final payload back to the caller.
@@ -61,6 +83,16 @@ class PayloadBuilder(ABC, Generic[K, V]):
         if not self._payload:
             return None
         return MappingProxyType(self._payload)
+
+    def build_to_dict(self) -> Optional[Mapping[K, V]]:
+        """
+        Return the final payload back to the caller as a dictionary.
+
+        :return: The built payload.
+        """
+        if not self._payload:
+            return None
+        return dict(self.build())
 
     def clear(self) -> None:
         """

@@ -24,6 +24,29 @@ class APIUrlBuilder(URLBuilder):
     def __init__(self):
         super().__init__(web_sources_conf_factory().pw_api_base_url.strip("/"))
 
+    def taxonomies_add(self) -> Self:
+        return self._plus_path(APIUrl.TAXONOMIES, APIUrl.TAXONOMIES_ADD)
+
+    def taxonomies_check(self) -> Self:
+        return self._plus_path(APIUrl.TAXONOMIES, APIUrl.TAXONOMIES_CHECK)
+
+    def taxonomies_link(self, post_id: int) -> Self:
+        return (
+            self._plus_path(APIUrl.TAXONOMIES, APIUrl.TAXONOMIES_CHECK)
+            ._plus_query_param(QueryParams.POST_ID, post_id)
+            ._plus_query_param(QueryParams.LINK, str(True).lower())
+        )
+
+    def taxonomies_unlink(self, post_id: int) -> Self:
+        return (
+            self._plus_path(APIUrl.TAXONOMIES, APIUrl.TAXONOMIES_CHECK)
+            ._plus_query_param(QueryParams.POST_ID, post_id)
+            ._plus_query_param(QueryParams.UNLINK, str(True).lower())
+        )
+
+    def taxonomies_remove(self) -> Self:
+        return self._plus_path(APIUrl.TAXONOMIES, APIUrl.TAXONOMY_REMOVE)
+
     def posts(self, post_id: int) -> Self:
         return self._plus_path(APIUrl.POSTS, post_id)
 

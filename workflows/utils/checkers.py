@@ -26,10 +26,13 @@ from rich.console import Console
 # Local imports
 from core.exceptions.util_exceptions import UnsupportedParameter
 from core.utils.strings import split_char
+from postwizard_sdk.builders.taxonomy_builder import TaxonomyPayload
+from postwizard_sdk.models.client_schema import Taxonomy
 from wordpress import WordPress
 from wordpress.models.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
 from workflows.utils.filtering import identify_missing
 from workflows.utils.logging import ConsoleStyle
+from postwizard_sdk.utils.operations import add_taxonomy
 
 
 def get_model_ids(wordpress_site: WordPress, model_lst: List[str]) -> List[int]:
@@ -60,7 +63,7 @@ def get_model_ids(wordpress_site: WordPress, model_lst: List[str]) -> List[int]:
 
 
 def model_checker(
-    wordpress_site: WordPress, model_prep: List[str]
+    wordpress_site: WordPress, model_prep: List[str], add_missing: bool = False
 ) -> Optional[List[int]]:
     """
     Share missing model checking behaviour accross modules.
@@ -68,6 +71,7 @@ def model_checker(
 
     :param wordpress_site: ``WordPress`` class instance
     :param model_prep: ``list[str]`` - Model tag list without delimiters
+    :param add_missing: ``bool`` - Whether to add missing models to the WordPress site via PostWizard
     :return: ``list[int]`` - List of model integer ids in the WordPress site.
     """
     if not model_prep:
@@ -87,27 +91,45 @@ def model_checker(
         return calling_models
     else:
         for girl in new_models:
-            console.print(
-                f"ATTENTION! --> Model: {girl} not on WordPress.",
-                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-            )
-            console.print(
-                "--> Copying missing model name to your system clipboard.",
-                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-            )
-            console.print(
-                "Paste it into the Pornstars field as soon as possible...\n",
-                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-            )
-            logging.warning(f"Missing model: {girl}")
-            pyclip.detect_clipboard()
-            pyclip.copy(girl)
-
+            if not add_missing:
+                console.print(
+                    f"ATTENTION! --> Model: {girl} not on WordPress.",
+                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                )
+                console.print(
+                    "--> Copying missing model name to your system clipboard.",
+                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                )
+                console.print(
+                    "Paste it into the Pornstars field as soon as possible...\n",
+                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                )
+                logging.warning(f"Missing model: {girl}")
+                pyclip.detect_clipboard()
+                pyclip.copy(girl)
+            else:
+                new_model = TaxonomyPayload()
+                if girl:
+                    console.print(
+                        f'Adding new model: "{girl}" to WordPress...',
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
+                    new_model.term(girl).taxonomy_name(Taxonomy.MODEL)
+                resulting_term_id = add_taxonomy(new_model)
+                if resulting_term_id != -1:
+                    calling_models.append(resulting_term_id)
+                new_model.clear()
+                logging.info(
+                    f'Called PostWizard to add model: "{girl}" - Resulting in {resulting_term_id}'
+                )
     return calling_models
 
 
 def tag_checker_print(
-    console_obj: Console, wordpress_site: WordPress, tag_prep: List[str]
+    console_obj: Console,
+    wordpress_site: WordPress,
+    tag_prep: List[str],
+    add_missing: bool = False,
 ) -> List[int]:
     """
     Checks the tags in the given WordPress posts and identifies any missing tags, printing
@@ -116,6 +138,7 @@ def tag_checker_print(
     :param console_obj: ``rich.console.Console`` The console object used for styled text output
     :param wordpress_site: ``WordPress`` An instance of the WordPress class
     :param tag_prep: ``list[str]`` A list of prepared tags to be checked
+    :param add_missing: ``bool`` - Whether to add missing tags to the WordPress site via PostWizard
     :return: ``list[int]`` A list of tag IDs corresponding to the provided tags
     """
     tag_ints: List[int] = get_tag_ids(wordpress_site, tag_prep, "tags")
@@ -129,21 +152,37 @@ def tag_checker_print(
         pass
     else:
         for tag in tag_check:
-            console_obj.print(
-                f"ATTENTION --> Tag: {tag} not on WordPress.",
-                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-            )
-            console_obj.print(
-                "--> Copying missing tag to your system clipboard.",
-                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-            )
-            console_obj.print(
-                "Paste it into the tags field as soon as possible...\n",
-                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-            )
-            logging.warning(f"Missing tag detected: {tag}")
-            pyclip.detect_clipboard()
-            pyclip.copy(tag)
+            if not add_missing:
+                console_obj.print(
+                    f"ATTENTION --> Tag: {tag} not on WordPress.",
+                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                )
+                console_obj.print(
+                    "--> Copying missing tag to your system clipboard.",
+                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                )
+                console_obj.print(
+                    "Paste it into the tags field as soon as possible...\n",
+                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                )
+                logging.warning(f"Missing tag detected: {tag}")
+                pyclip.detect_clipboard()
+                pyclip.copy(tag)
+            else:
+                new_tag = TaxonomyPayload()
+                if tag:
+                    console_obj.print(
+                        f'Adding new tag: "{tag}" to WordPress...',
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
+                    new_tag.term(tag).taxonomy_name(Taxonomy.TAG)
+                resulting_term_id = add_taxonomy(new_tag)
+                if resulting_term_id != -1:
+                    tag_ints.append(resulting_term_id)
+                new_tag.clear()
+                logging.info(
+                    f'Called PostWizard to add tag: "{tag}" - Resulting in {resulting_term_id}'
+                )
     return tag_ints
 
 
