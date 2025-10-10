@@ -65,7 +65,7 @@ def slug_getter(console_obj: Console, slugs: List[str]) -> Optional[str]:
     user_attention_style = ConsoleStyle.TEXT_STYLE_ATTENTION.value
     slug_entry_style = ConsoleStyle.TEXT_STYLE_ACTION.value
 
-    def print_slugs(slug_list: List[str]):
+    def print_slugs(slug_list: List[str]) -> str:
         console_obj.print("\n--> Available slugs:\n", style=user_attention_style)
 
         for n, slug in enumerate(slug_list, start=1):
@@ -80,7 +80,7 @@ def slug_getter(console_obj: Console, slugs: List[str]) -> Optional[str]:
         )
         return slug_option
 
-    def slug_getter_persist(slug_list: List[str]) -> str:
+    def slug_getter_persist(slug_list: List[str]) -> Optional[str]:
         user_slug = ""
         while not user_slug:
             if len(slug_list) != 0:
@@ -112,6 +112,7 @@ def slug_getter(console_obj: Console, slugs: List[str]) -> Optional[str]:
                     return user_slug
                 else:
                     continue
+        return None
 
     return slug_getter_persist(slugs)
 
@@ -146,9 +147,9 @@ def pick_classifier(
 
     prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
     classifiers = [
-        classify_title(title),
-        classify_description(description),
-        classify_tags(tags),
+        classify_title(title if title is not None else ""),
+        classify_description(description if description is not None else ""),
+        classify_tags(tags if tags is not None else ""),
     ]
 
     classifier_str_lst: List[str] = list(locals().keys())[2:5]
