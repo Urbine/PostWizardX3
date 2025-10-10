@@ -63,7 +63,7 @@ class URLBuilder(ABC, Generic[K, V]):
         :return: ``Self`` -> The current builder instance.
         """
         real_query_value = (
-            query_value.value if hasattr(query_value, "value") else query_param
+            query_value.value if hasattr(query_value, "value") else query_value
         )
         if re.findall(r"[?]+", self._url):
             self._url += f"&{query_param.value}={real_query_value}"

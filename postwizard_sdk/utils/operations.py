@@ -9,6 +9,7 @@ email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+import logging
 from typing import Dict, List, Union
 
 # Third-party imports
@@ -18,6 +19,7 @@ import requests
 from postwizard_sdk.builders.api_url_builder import APIUrlBuilder
 from postwizard_sdk.builders import PostMetaPayload, PostInfoPayload
 from postwizard_sdk.builders.interfaces import PayloadBuilder
+from postwizard_sdk.builders.taxonomy_builder import TaxonomyPayload
 from postwizard_sdk.models import PostType
 from postwizard_sdk.utils.auth import PostWizardAuth
 
@@ -130,3 +132,66 @@ def send_post_batch_job(
     """
     api_addr = APIUrlBuilder().post_batch()
     return send_batch_payload(api_addr, payload)
+
+
+def add_taxonomy(payload: TaxonomyPayload, post_id: int = 0, link: bool = False) -> int:
+    """
+    Adds a taxonomy to a post.
+    This function sends a POST request to the PostWizard API to add a taxonomy to a post.
+
+    If the taxonomy exists, PostWizard will look for it and return the term id;
+    otherwise, it will create a new taxonomy and also return the term id.
+    If the request is not successful, it returns ``-1``.
+
+    :param payload: ``TaxonomyPayload`` -> The payload containing the taxonomy to add.
+    :param post_id: ``int`` -> The ID of the post to add the taxonomy to.
+    :param link: ``bool`` -> Whether to link the taxonomy to the post.
+    :return: ``int`` -> The term id of the taxonomy
+    """
+    if link:
+        api_addr = APIUrlBuilder().taxonomies_link(post_id)
+    else:
+        api_addr = APIUrlBuilder().taxonomies_add()
+    token_headers = PostWizardAuth.bearer_auth_flow()
+    request_info = requests.post(
+        api_addr.build(), headers=token_headers, json=payload.build_to_dict()
+    )
+    if request_info.status_code == requests.codes.ok:
+        request_json = request_info.json()
+        logging.info(f"PostWizard Server Result: {request_json}")
+        return request_json["data"][0]["term_id"]
+    return -1
+
+
+def taxonomy_unlink(post_id: int) -> int:
+    """
+    Unlinks a taxonomy from a post.
+    This function sends a POST request to the PostWizard API to unlink a taxonomy from a post.
+    It can be used to unlink a taxonomy from the WordPress site or, if a post is added, to unlink the taxonomy from the post.
+
+    :param post_id: ``int`` -> The ID of the post to unlink the taxonomy from.
+    :return: ``int`` -> The HTTP status code of the response.
+    """
+    api_addr = APIUrlBuilder().taxonomies_unlink(post_id)
+    token_headers = PostWizardAuth.bearer_auth_flow()
+    request_info = requests.post(api_addr.build(), headers=token_headers)
+    return request_info.status_code
+
+
+def remove_taxonomy(
+    payload: TaxonomyPayload,
+) -> Dict[str, Union[str, int, bool, None, List[Dict[str, Union[str, int]]]]]:
+    """
+    Removes a taxonomy from a post.
+    This function sends a POST request to the PostWizard API to remove a taxonomy from a post.
+    It can be used to remove a taxonomy from the WordPress site or, if a post is added, to remove the taxonomy from the post.
+
+    :param payload: ``TaxonomyPayload`` -> The payload containing the taxonomy to remove.
+    :return: ``Dict[str, Union[str, int, bool, None, List[Dict[str, Union[str, int]]]]]`` -> The response from the PostWizard API.
+    """
+    api_addr = APIUrlBuilder().taxonomies_remove()
+    token_headers = PostWizardAuth.bearer_auth_flow()
+    request_info = requests.delete(
+        api_addr.build(), headers=token_headers, json=payload.build_to_dict()
+    )
+    return request_info.json()

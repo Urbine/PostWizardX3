@@ -21,7 +21,14 @@ class APIUrl(Enum):
     DUMP = "dump"
     BATCH = "batch"
     LOGIN = "auth/login"
+    TAXONOMIES = "taxonomies"
+    TAXONOMIES_CHECK = "check"
+    TAXONOMIES_ADD = "add"
+    TAXONOMY_REMOVE = "remove"
 
 
 class QueryParams(Enum):
     TYPE = "type"
+    LINK = "link"
+    UNLINK = "unlink"
+    POST_ID = "id"
