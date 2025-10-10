@@ -13,6 +13,7 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
+import warnings
 
 import aiohttp
 import asyncio
@@ -1263,7 +1264,7 @@ class WordPress:
         ]
         return [",".join(model) if len(model) != 0 else None for model in models]
 
-    def get_post_category(self) -> list[str]:
+    def get_post_category(self) -> Optional[list[str]]:
         """It assumes that each post has only one category, so that's why I am not joining
         them with commas within the return list comprehension.
         This is a domain specific implementation for categories.
@@ -1281,7 +1282,13 @@ class WordPress:
             ]
             for elem in self.cache_data
         ]
-        return [category[0] for category in categories]
+        try:
+            return [category[0] for category in categories]
+        except IndexError:
+            warnings.warn(
+                "WordPress API detected uncategorized posts in the cache. It is recommended that you locate, categorize them and rebuild your cache in case of issues"
+            )
+            return None
 
 
 if __name__ == "__main__":
