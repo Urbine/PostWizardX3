@@ -46,7 +46,7 @@ from core.utils.config_writer import (
     FeedDeltaConfig,
     ContentBotConfig,
     GalleryBotConfig,
-    VidEmbedAssistBotConfig,
+    EmbedAssistBotConfig,
     WebSourcesConfig,
 )
 
@@ -78,7 +78,7 @@ def save_config(conf_values: ConfigModelDict) -> None:
         FeedAlphaConfig.write_campaign_id(conf_values["feed_alpha_campaign_id"]),
         FeedBetaConfig.write_source_id(conf_values["feed_beta_source_id"]),
         FeedDeltaConfig.write_campaign_utm(conf_values["feed_delta_campaign_utm"]),
-        ContentBotConfig.write_media_source_db_query(conf_values["media_source_sql_query"]),
+        ContentBotConfig.write_db_query(conf_values["media_source_sql_query"]),
         ContentBotConfig.write_assets_enabled(conf_values["media_source_assets_enabled"]),
         ContentBotConfig.write_x_social_posting(conf_values["media_source_x_posting"]),
         ContentBotConfig.write_x_posting_auto(conf_values["media_source_x_posting_auto"]),
@@ -89,9 +89,7 @@ def save_config(conf_values: ConfigModelDict) -> None:
             conf_values["media_source_telegram_sharing_auto"]
         ),
         ContentBotConfig.write_partner_names(conf_values["media_source_partners"]),
-        GalleryBotConfig.write_media_source_db_query(
-            conf_values["media_source_gallery_sql_query"]
-        ),
+        GalleryBotConfig.write_db_query(conf_values["media_source_gallery_sql_query"]),
         GalleryBotConfig.write_x_social_posting(
             conf_values["media_source_gallery_x_posting"]
         ),
@@ -107,22 +105,18 @@ def save_config(conf_values: ConfigModelDict) -> None:
         GalleryBotConfig.write_partner_names(
             conf_values["media_source_gallery_partners"]
         ),
-        VidEmbedAssistBotConfig.write_media_source_db_query(
-            conf_values["vid_embed_sql_query"]
-        ),
-        VidEmbedAssistBotConfig.write_x_social_posting(
-            conf_values["vid_embed_x_posting"]
-        ),
-        VidEmbedAssistBotConfig.write_x_posting_auto(
+        EmbedAssistBotConfig.write_db_query(conf_values["vid_embed_sql_query"]),
+        EmbedAssistBotConfig.write_x_social_posting(conf_values["vid_embed_x_posting"]),
+        EmbedAssistBotConfig.write_x_posting_auto(
             conf_values["vid_embed_x_posting_auto"]
         ),
-        VidEmbedAssistBotConfig.write_telegram_sharing(
+        EmbedAssistBotConfig.write_telegram_sharing(
             conf_values["vid_embed_telegram_sharing"]
         ),
-        VidEmbedAssistBotConfig.write_telegram_sharing_auto(
+        EmbedAssistBotConfig.write_telegram_sharing_auto(
             conf_values["vid_embed_telegram_sharing_auto"]
         ),
-        VidEmbedAssistBotConfig.write_partner_names(conf_values["vid_embed_partners"]),
+        EmbedAssistBotConfig.write_partner_names(conf_values["vid_embed_partners"]),
         WebSourcesConfig.write_api_url(conf_values["pw_api_base_url"]),
     ]
     success = all(config_results)
