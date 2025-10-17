@@ -55,7 +55,7 @@ def published_json(
 
 
 def filter_published(
-    all_videos: List[Tuple[str, ...]], wordpress_site: WordPress
+    all_videos: List[Tuple[str, ...]], wordpress_site: WordPress, yoast_support=False
 ) -> List[Tuple[str, ...]]:
     """``filter_published`` does its filtering work based on the ``published_json`` function.
     Actually, the ``published_json`` is the brain behind this function and the reason why I decided to
@@ -70,6 +70,7 @@ def filter_published(
     :param all_videos: ``List[tuple]`` usually resulting from the SQL database query values.
     :param wordpress_site: ``WordPress`` class instance responsible for managing all the
                              WordPress site data.
+    :param yoast_support: ``bool`` Enable Yoast SEO support for parsing. Default ``False``.
     :return: ``list[tuple]`` with the new filtered values.
     """
     not_published: List[Tuple[str, ...]] = []
@@ -78,7 +79,9 @@ def filter_published(
         for item in elem:
             try:
                 if word_regex.match(item):
-                    if published_json(item, wordpress_site):
+                    if published_json(
+                        item, wordpress_site, yoast_support=yoast_support
+                    ):
                         break
                     else:
                         not_published.append(elem)

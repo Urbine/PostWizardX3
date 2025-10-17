@@ -10,6 +10,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 import logging
+from json import JSONDecodeError
 from typing import Dict, List, Union
 
 # Third-party imports
@@ -24,16 +25,27 @@ from postwizard_sdk.models import PostType
 from postwizard_sdk.utils.auth import PostWizardAuth
 
 
-def update_post_meta(payload: PostMetaPayload, post_id: int) -> int:
+def update_post_meta(
+    payload: PostMetaPayload,
+    post_id: int,
+    auto_thumb: bool = False,
+    retries: int = 5,
+    timeout: int = 1,
+) -> int:
     """
     Updates the meta fields of a post.
     This function sends a POST request to the PostWizard API to update the metadata of a post.
 
     :param payload: ``PostMetaPayload`` -> The payload containing the metadata to update.
     :param post_id: ``int`` -> The ID of the post to update.
+    :param auto_thumb: ``bool`` -> Whether to allow PostWizard to locate the thumbnail in the server and link it to the post.
+    :param retries: ``int`` -> Number of retries to attempt before giving up.
+    :param timeout: ``int`` -> Timeout in seconds for the request.
     :return: ``int`` -> The HTTP status code of the response.
     """
-    api_addr = APIUrlBuilder().posts_meta(post_id)
+    api_addr = APIUrlBuilder().posts_meta(
+        post_id, auto_thumb=auto_thumb, retries=retries, timeout=timeout
+    )
     token_headers = PostWizardAuth.bearer_auth_flow()
     request_info = requests.post(
         api_addr.build(), headers=token_headers, json=dict(payload.build())
@@ -156,11 +168,16 @@ def add_taxonomy(payload: TaxonomyPayload, post_id: int = 0, link: bool = False)
     request_info = requests.post(
         api_addr.build(), headers=token_headers, json=payload.build_to_dict()
     )
-    if request_info.status_code == requests.codes.ok:
-        request_json = request_info.json()
-        logging.info(f"PostWizard Server Result: {request_json}")
-        return request_json["data"][0]["term_id"]
-    return -1
+    try:
+        logging.info(f"PostWizard Server Result: {request_info.json()}")
+        if request_info.status_code == 200 or request_info.status_code == 201:
+            request_json = request_info.json()
+            return request_json["data"][0]["term_id"]
+        return -1
+    except JSONDecodeError as json_error:
+        logging.error(
+            f"Raised {json_error!r} while decoding JSON response: Status code {request_info.status_code}"
+        )
 
 
 def taxonomy_unlink(post_id: int) -> int:
