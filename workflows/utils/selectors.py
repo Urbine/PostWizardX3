@@ -123,9 +123,15 @@ def pick_classifier(
     title: str,
     description: str,
     tags: str,
+    interactive=False,
 ) -> List[int]:
     """
     Picks a classifier for content selection based on user input and automatically assigns relevant categories.
+
+    If interactive mode is enabled, the user can choose a classifier from the list of available classifiers.
+    If interactive mode is disabled, the function will automatically aggregate all classifiers and return a
+    set of unique categories to choose from. In both cases, the user will be able to provide a custom category
+    by typing it in the console.
 
     :raises ValueError: If an invalid option is chosen by the user.
     :param console_obj: The rich.console.Console object to print output.
@@ -133,6 +139,7 @@ def pick_classifier(
     :param title: The title of the content being selected.
     :param description: A short description of the content.
     :param tags: The relevant tags for the content.
+    :param interactive: Whether to use interactive mode or not.
     :return: None
     """
 
@@ -152,50 +159,55 @@ def pick_classifier(
         classify_tags(tags if tags is not None else ""),
     ]
 
-    classifier_str_lst: List[str] = list(locals().keys())[2:5]
-    classifier_options = [categs for categs in classifiers if categs]
+    if interactive:
+        classifier_str_lst: List[str] = list(locals().keys())[2:5]
+        classifier_options = [categs for categs in classifiers if categs]
 
-    option = ""
-    console_obj.print(
-        "\nAvailable Machine Learning classifiers: \n",
-        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-    )
-
-    print_options(classifier_str_lst)
-    peek = re.compile("peek", re.IGNORECASE)
-    rand = re.compile(r"rando?m?", re.IGNORECASE)
-    number = re.compile(r"\d+")
-    while not option:
-        match console_obj.input(
-            f"\n[{prompt_style}]Pick your classifier:  (Type in the 'peek' to open all classifiers or 'random' to let me choose for you)[/{prompt_style}]\n"
-        ):
-            case str() as p if peek.findall(p):
-                print_options(classifier_options, print_delim=True)
-                print_options(classifier_str_lst)
-                option = console_obj.input(
-                    f"\n[{prompt_style}]Your choice:[/{prompt_style}]\n"
-                )
-            case str() as r if rand.findall(r):
-                option = random.choice(classifier_options)
-            case str() as n if number.findall(n):
-                if option_number := int(n) <= len(classifier_str_lst) + 1:
-                    option = option_number + 1
-            case _:
-                continue
-    try:
-        # Here ``option`` can be either ``str`` or ``set[str]``
-        categories = (
-            list(classifiers[int(option) - 1])
-            if isinstance(option, (str, int))
-            else option
-        )
-    except (IndexError, ValueError):
+        option = ""
         console_obj.print(
-            "Invalid option! Picking randomly", style=ConsoleStyle.TEXT_STYLE_WARN.value
+            "\nAvailable Machine Learning classifiers: \n",
+            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
         )
-        categories = list(random.choice(classifiers))
 
-    consolidate_categs = list(categories)
+        print_options(classifier_str_lst)
+        peek = re.compile("peek", re.IGNORECASE)
+        rand = re.compile(r"rando?m?", re.IGNORECASE)
+        number = re.compile(r"\d+")
+        while not option:
+            match console_obj.input(
+                f"\n[{prompt_style}]Pick your classifier:  (Type in the 'peek' to open all classifiers or 'random' to let me choose for you)[/{prompt_style}]\n"
+            ):
+                case str() as p if peek.findall(p):
+                    print_options(classifier_options, print_delim=True)
+                    print_options(classifier_str_lst)
+                    option = console_obj.input(
+                        f"\n[{prompt_style}]Your choice:[/{prompt_style}]\n"
+                    )
+                case str() as r if rand.findall(r):
+                    option = random.choice(classifier_options)
+                case str() as n if number.findall(n):
+                    if option_number := int(n) <= len(classifier_str_lst) + 1:
+                        option = option_number + 1
+                case _:
+                    continue
+        try:
+            # Here ``option`` can be either ``str`` or ``set[str]``
+            categories = (
+                list(classifiers[int(option) - 1])
+                if isinstance(option, (str, int))
+                else option
+            )
+        except (IndexError, ValueError):
+            console_obj.print(
+                "Invalid option! Picking randomly",
+                style=ConsoleStyle.TEXT_STYLE_WARN.value,
+            )
+            categories = list(random.choice(classifiers))
+
+        consolidate_categs = list(categories)
+    else:
+        consolidate_categs = {categ for categs in classifiers for categ in categs}
+
     logging.info(f"Suggested categories ML: {consolidate_categs}")
 
     console_obj.print(
@@ -210,7 +222,7 @@ def pick_classifier(
     ):
         case str() as num if categ_num.match(num):
             try:
-                sel_categ = consolidate_categs[int(num) - 1]
+                sel_categ = list(consolidate_categs)[int(num) - 1]
                 logging.info(f"User selected category: {sel_categ}")
             except (ValueError, IndexError):
                 sel_categ = random.choice(consolidate_categs)

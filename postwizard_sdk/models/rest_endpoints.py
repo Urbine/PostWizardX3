@@ -32,3 +32,6 @@ class QueryParams(Enum):
     LINK = "link"
     UNLINK = "unlink"
     POST_ID = "id"
+    AUTO_THUMB = "autothumb"
+    RETRIES = "retries"
+    TIMEOUT = "timeout"

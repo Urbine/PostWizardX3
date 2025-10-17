@@ -46,7 +46,7 @@ from core.utils.config_writer import (
     FHouseFeedConfig,
     MCashContentBotConfig,
     MCashGalleryBotConfig,
-    VidEmbedAssistBotConfig,
+    EmbedAssistBotConfig,
     WebSourcesConfig,
 )
 
@@ -78,7 +78,7 @@ def save_config(conf_values: ConfigModelDict) -> None:
         AdultNextFeedConfig.write_campaign_id(conf_values["anxt_campaign_id"]),
         TubeCorpFeedConfig.write_source_id(conf_values["tubecorp_source_id"]),
         FHouseFeedConfig.write_campaign_utm(conf_values["fp_house_campaign_utm"]),
-        MCashContentBotConfig.write_mcash_db_query(conf_values["mcash_sql_query"]),
+        MCashContentBotConfig.write_db_query(conf_values["mcash_sql_query"]),
         MCashContentBotConfig.write_assets_enabled(conf_values["mcash_assets_enabled"]),
         MCashContentBotConfig.write_x_social_posting(conf_values["mcash_x_posting"]),
         MCashContentBotConfig.write_x_posting_auto(conf_values["mcash_x_posting_auto"]),
@@ -89,9 +89,7 @@ def save_config(conf_values: ConfigModelDict) -> None:
             conf_values["mcash_telegram_sharing_auto"]
         ),
         MCashContentBotConfig.write_partner_names(conf_values["mcash_partners"]),
-        MCashGalleryBotConfig.write_mcash_db_query(
-            conf_values["mcash_gallery_sql_query"]
-        ),
+        MCashGalleryBotConfig.write_db_query(conf_values["mcash_gallery_sql_query"]),
         MCashGalleryBotConfig.write_x_social_posting(
             conf_values["mcash_gallery_x_posting"]
         ),
@@ -107,22 +105,18 @@ def save_config(conf_values: ConfigModelDict) -> None:
         MCashGalleryBotConfig.write_partner_names(
             conf_values["mcash_gallery_partners"]
         ),
-        VidEmbedAssistBotConfig.write_mcash_db_query(
-            conf_values["vid_embed_sql_query"]
-        ),
-        VidEmbedAssistBotConfig.write_x_social_posting(
-            conf_values["vid_embed_x_posting"]
-        ),
-        VidEmbedAssistBotConfig.write_x_posting_auto(
+        EmbedAssistBotConfig.write_db_query(conf_values["vid_embed_sql_query"]),
+        EmbedAssistBotConfig.write_x_social_posting(conf_values["vid_embed_x_posting"]),
+        EmbedAssistBotConfig.write_x_posting_auto(
             conf_values["vid_embed_x_posting_auto"]
         ),
-        VidEmbedAssistBotConfig.write_telegram_sharing(
+        EmbedAssistBotConfig.write_telegram_sharing(
             conf_values["vid_embed_telegram_sharing"]
         ),
-        VidEmbedAssistBotConfig.write_telegram_sharing_auto(
+        EmbedAssistBotConfig.write_telegram_sharing_auto(
             conf_values["vid_embed_telegram_sharing_auto"]
         ),
-        VidEmbedAssistBotConfig.write_partner_names(conf_values["vid_embed_partners"]),
+        EmbedAssistBotConfig.write_partner_names(conf_values["vid_embed_partners"]),
         WebSourcesConfig.write_api_url(conf_values["pw_api_base_url"]),
     ]
     success = all(config_results)

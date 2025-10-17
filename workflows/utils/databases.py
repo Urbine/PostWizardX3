@@ -15,7 +15,7 @@ import os
 import re
 import sqlite3
 from sqlite3 import OperationalError, Connection, Cursor
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 # Third-party imports
 from rich.console import Console
@@ -23,6 +23,16 @@ from rich.console import Console
 # Local imports
 from core.exceptions.util_exceptions import InvalidInput
 from core.utils.file_system import search_files_by_ext, is_parent_dir_required
+from core.utils.config_writer import (
+    MCashContentBotConfig,
+    MCashGalleryBotConfig,
+    EmbedAssistBotConfig,
+)
+from core.models.config_model import (
+    MCashContentBotConf,
+    EmbedAssistBotConf,
+    MCashGalleryBotConf,
+)
 from core.utils.strings import (
     match_list_elem_date,
     match_list_mult,
@@ -32,7 +42,7 @@ from core.utils.strings import (
 
 
 def search_db_like(
-    cur: sqlite3, table: str, field: str, query: str
+    cur: sqlite3.Cursor, table: str, field: str, query: str
 ) -> Optional[List[Tuple[...]]]:
     """Perform a ``SQL`` database search with the ``like``  parameter in a SQLite3 database.
 
@@ -46,7 +56,9 @@ def search_db_like(
     return cur.execute(qry).fetchall()
 
 
-def get_from_db(cur: sqlite3, field: str, table: str) -> Optional[List[Tuple[...]]]:
+def get_from_db(
+    cur: sqlite3.Cursor, field: str, table: str
+) -> Optional[List[Tuple[...]]]:
     """Get a specific field or all ( ``*`` ) from a SQLite3 database.
 
     :param cur: ``sqlite3`` database cursor
@@ -138,8 +150,9 @@ def content_select_db_match(
         select_partner: str = console.input(
             "[bold yellow]\nSelect your partner now: [bold yellow]\n",
         )
-        spl_char = split_char(hint_lst[(int(select_partner) - 1)])
-        clean_hint: List[str] = hint_lst[(int(select_partner) - 1)].split(spl_char)
+        clean_hint: List[str] = re.split(
+            "(?=\W)\S", hint_lst[(int(select_partner) - 1)]
+        )[0]
 
         select_file: int = 0
         for hint in clean_hint:
@@ -158,8 +171,8 @@ def content_select_db_match(
         )
         db_path: str = os.path.join(is_parent, relevant_content[int(select_file)])
 
-        db_new_conn: sqlite3 = sqlite3.connect(db_path)
-        db_new_cur: sqlite3 = db_new_conn.cursor()
+        db_new_conn = sqlite3.connect(db_path)
+        db_new_cur = db_new_conn.cursor()
         return (
             db_new_conn,
             db_new_cur,
@@ -171,7 +184,7 @@ def content_select_db_match(
         raise InvalidInput
 
 
-def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
+def published(table: str, title: str, field: str, db_cursor: sqlite3.Cursor) -> bool:
     """In order to come up with a way to know if a certain title has been published,
     I need to try a request and see whether there is any results. This is what the function
     published does, it returns True if there is any result or False if there isn't any.
@@ -193,7 +206,7 @@ def published(table: str, title: str, field: str, db_cursor: sqlite3) -> bool:
         return False
 
 
-def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
+def get_model_set(db_cursor: sqlite3.Cursor, table: str) -> set[str]:
     """Query the database and isolate the values of a single column to aggregate them
     in a set of str. In this case, the function isolates the ``models`` field from a
     table that the user specifies.
@@ -211,3 +224,23 @@ def get_model_set(db_cursor: sqlite3, table: str) -> set[str]:
         for model in new_lst
         for elem in (model.split(",") if re.findall(r",+", model) else [model])
     }
+
+
+def query_modifier(
+    sql_query: str,
+    bot_config: Union[MCashContentBotConf, MCashGalleryBotConf, EmbedAssistBotConf],
+):
+    """
+    Write a SQL query to the configuration file.
+
+    :param sql_query: ``str`` -> The SQL query to set.
+    :param bot_config: ``Union[MCashContentBotConf, MCashGalleryBotConf, EmbedAssistBotConf]`` -> The bot configuration object.
+    :return: ``bool`` -> ``True`` if the write operation was successful, ``False`` otherwise.
+    """
+    if isinstance(bot_config, MCashContentBotConf):
+        return MCashContentBotConfig.write_db_query(sql_query)
+    elif isinstance(bot_config, MCashGalleryBotConf):
+        return MCashGalleryBotConfig.write_db_query(sql_query)
+    elif isinstance(bot_config, EmbedAssistBotConf):
+        return EmbedAssistBotConfig.write_db_query(sql_query)
+    return False

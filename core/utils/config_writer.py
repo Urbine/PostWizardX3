@@ -374,16 +374,14 @@ class MCashContentBotConfig(SocialConfig):
         )
 
     @staticmethod
-    def write_mcash_db_query(sql_query: str) -> bool:
+    def write_db_query(sql_query: str) -> bool:
         """
         Write the MongerCash video database query to the configuration file.
 
         :param sql_query: ``str`` -> The SQL query to set.
         :return: ``bool`` -> ``True`` if the write operation was successful, ``False`` otherwise.
         """
-        ConfigWriter.config_validate(
-            MCashContentBotConfig.write_mcash_db_query, sql_query
-        )
+        ConfigWriter.config_validate(MCashContentBotConfig.write_db_query, sql_query)
         return ConfigWriter.write_entry(
             ConfigSection.MCASH_CONTENT_BOT, ConfigOption.SQL_QUERY, sql_query
         )
@@ -454,10 +452,8 @@ class MCashGalleryBotConfig(MCashContentBotConfig):
         )
 
     @staticmethod
-    def write_mcash_db_query(sql_query: str) -> bool:
-        ConfigWriter.config_validate(
-            MCashGalleryBotConfig.write_mcash_db_query, sql_query
-        )
+    def write_db_query(sql_query: str) -> bool:
+        ConfigWriter.config_validate(MCashGalleryBotConfig.write_db_query, sql_query)
         return ConfigWriter.write_entry(
             ConfigSection.MCASH_GALLERY_BOT, ConfigOption.SQL_QUERY, sql_query
         )
@@ -497,7 +493,7 @@ class MCashGalleryBotConfig(MCashContentBotConfig):
         )
 
 
-class VidEmbedAssistBotConfig(MCashContentBotConfig):
+class EmbedAssistBotConfig(MCashContentBotConfig):
     """
     Class for writing the Embed Assist Bot configuration options to the ``workflows_config.ini`` file.
     """
@@ -507,36 +503,28 @@ class VidEmbedAssistBotConfig(MCashContentBotConfig):
 
     @staticmethod
     def write_partner_names(partners: str) -> bool:
-        ConfigWriter.config_validate(
-            VidEmbedAssistBotConfig.write_partner_names, partners
-        )
+        ConfigWriter.config_validate(EmbedAssistBotConfig.write_partner_names, partners)
         return ConfigWriter.write_entry(
             ConfigSection.EMBED_ASSIST_BOT, ConfigOption.PARTNERS, partners
         )
 
     @staticmethod
-    def write_mcash_db_query(sql_query: str) -> bool:
-        ConfigWriter.config_validate(
-            VidEmbedAssistBotConfig.write_mcash_db_query, sql_query
-        )
+    def write_db_query(sql_query: str) -> bool:
+        ConfigWriter.config_validate(EmbedAssistBotConfig.write_db_query, sql_query)
         return ConfigWriter.write_entry(
             ConfigSection.EMBED_ASSIST_BOT, ConfigOption.SQL_QUERY, sql_query
         )
 
     @staticmethod
     def write_telegram_sharing(value: bool) -> bool:
-        ConfigWriter.config_validate(
-            VidEmbedAssistBotConfig.write_telegram_sharing, value
-        )
+        ConfigWriter.config_validate(EmbedAssistBotConfig.write_telegram_sharing, value)
         return ConfigWriter.write_entry(
             ConfigSection.EMBED_ASSIST_BOT, ConfigOption.TELEGRAM_SHARING, value
         )
 
     @staticmethod
     def write_x_posting_auto(value: bool) -> bool:
-        ConfigWriter.config_validate(
-            VidEmbedAssistBotConfig.write_x_posting_auto, value
-        )
+        ConfigWriter.config_validate(EmbedAssistBotConfig.write_x_posting_auto, value)
         return ConfigWriter.write_entry(
             ConfigSection.EMBED_ASSIST_BOT, ConfigOption.X_POSTING_AUTO, value
         )
@@ -544,7 +532,7 @@ class VidEmbedAssistBotConfig(MCashContentBotConfig):
     @staticmethod
     def write_telegram_sharing_auto(value: bool) -> bool:
         ConfigWriter.config_validate(
-            VidEmbedAssistBotConfig.write_telegram_sharing_auto, value
+            EmbedAssistBotConfig.write_telegram_sharing_auto, value
         )
         return ConfigWriter.write_entry(
             ConfigSection.EMBED_ASSIST_BOT, ConfigOption.TELEGRAM_SHARING_AUTO, value
@@ -552,9 +540,7 @@ class VidEmbedAssistBotConfig(MCashContentBotConfig):
 
     @staticmethod
     def write_x_social_posting(value: bool) -> bool:
-        ConfigWriter.config_validate(
-            VidEmbedAssistBotConfig.write_x_social_posting, value
-        )
+        ConfigWriter.config_validate(EmbedAssistBotConfig.write_x_social_posting, value)
         return ConfigWriter.write_entry(
             ConfigSection.EMBED_ASSIST_BOT, ConfigOption.X_POSTING, value
         )

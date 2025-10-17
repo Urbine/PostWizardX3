@@ -265,13 +265,13 @@ if __name__ == "__main__":
 
     # Maxent Classifier with hyperparameters
     maxent_cl_titles = MaxentClassifier.train(
-        word_list_titles, trace=1, max_iter=50, min_lldelta=0.01
+        word_list_titles, trace=1, max_iter=1000, min_lldelta=0.1
     )
     maxent_cl_descriptions = MaxentClassifier.train(
-        word_list_descriptions, trace=1, max_iter=50, min_lldelta=0.01
+        word_list_descriptions, trace=1, max_iter=1000, min_lldelta=0.1
     )
     maxent_cl_tags = MaxentClassifier.train(
-        word_list_tags, trace=1, max_iter=50, min_lldelta=0.01
+        word_list_tags, trace=1, max_iter=1000, min_lldelta=0.1
     )
 
     # Multinomial NaiveBayes from Scikit-learn

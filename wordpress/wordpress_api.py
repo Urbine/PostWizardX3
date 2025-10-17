@@ -27,7 +27,7 @@ import time
 
 from collections import namedtuple, deque
 from pathlib import Path
-from typing import Optional, List, Any, Dict, Deque
+from typing import Optional, List, Any, Dict, Deque, Union
 
 # Third-party modules
 import urllib3
@@ -663,13 +663,16 @@ class WordPress:
         self,
         file_path: str | Path,
         payload: dict[str, str | int],
-    ) -> int:
+        return_source_url: bool = False,
+    ) -> Union[int, str]:
         """
         Uploads an image as a WordPress media attachment.
 
         :param file_path: ``str | Path`` -> Path to the image file.
         :param payload: ``dict[str, str | int]`` -> Image attributes (ALT text, description, caption).
-        :return: ``int`` -> HTTP status code of the request.
+        :param return_source_url: ``str`` -> Source URL of the image
+        :return: ``int`` -> HTTP status code of the request or ``source_url`` of the attachment file in the server
+                    if ``return_source_url`` is set to True.
         """
         wp_self, auth_wp = self.setup_basic_auth()
         # headers = {"Content-Disposition": f"attachment; filename={file_path}"}
@@ -678,11 +681,19 @@ class WordPress:
             request = requests.post(wp_self, files={"file": thumb}, auth=auth_wp)
         try:
             image_json = request.json()
-            return requests.post(
+            upload_request = requests.post(
                 wp_self + "/" + str(image_json["id"]),
                 json=payload,
                 auth=auth_wp,
-            ).status_code
+            )
+            if upload_request == requests.codes.ok:
+                return (
+                    image_json["source_url"]
+                    if return_source_url
+                    else upload_request.status_code
+                )
+            else:
+                return upload_request.status_code
         except (KeyError, requests.exceptions.JSONDecodeError):
             return request.status_code
 

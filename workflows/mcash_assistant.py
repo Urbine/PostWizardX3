@@ -265,8 +265,7 @@ def video_upload_pilot(
                 )
                 img_attrs: dict[str, str] = make_img_payload(title, description)
                 upload_img: int = wp_site.upload_image(
-                    os.path.join(thumbnails_dir.name, thumbnail),
-                    img_attrs,
+                    os.path.join(thumbnails_dir.name, thumbnail), img_attrs
                 )
                 logging.info(f"Image Attrs: {img_attrs}")
 
@@ -285,7 +284,7 @@ def video_upload_pilot(
                         style=program_action_style,
                     )
                     continue
-                elif upload_img == (200 or 201):
+                elif upload_img == 200 or upload_img == 201:
                     os.remove(
                         removed_img := os.path.join(thumbnails_dir.name, thumbnail)
                     )
@@ -306,7 +305,6 @@ def video_upload_pilot(
                     if push_post == 201:
                         digits = re.compile(r"\d+")
                         last_post = wp_site.get_last_post()
-                        attachment_link = f"https://{general_config.fq_domain_name.strip('/')}{WPEndpoints.CONTENT_UPLOADS.value}/{clean_filename(wp_slug, image_config.pic_format)}"
                         target_video_base_url = "https://video.whoresmen.com/stream/"
                         post_meta_builder = (
                             PostMetaPayload()
@@ -319,12 +317,11 @@ def video_upload_pilot(
                             .hd(ToggleField.ON)
                             .hair_color(HairColor.BLACK)
                             .minutes(int(digits.findall(duration)[0]))
-                            .thumbnail(attachment_link)
                         )
 
                         wp_site.publish_post(last_post.post_id)
                         pw_meta_update = update_post_meta(
-                            post_meta_builder, last_post.post_id
+                            post_meta_builder, last_post.post_id, auto_thumb=True
                         )
                         logging.info(
                             f"Sent payload to PostWizard: {post_meta_builder.build()}"

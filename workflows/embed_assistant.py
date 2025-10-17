@@ -73,8 +73,6 @@ from postwizard_sdk.builders import PostMetaPayload
 from postwizard_sdk.utils.operations import update_post_meta
 from postwizard_sdk.utils.auth import PostWizardAuth
 
-from wordpress.models.endpoints import WPEndpoints
-
 
 def embedding_pilot() -> None:
     """
@@ -227,7 +225,7 @@ def embedding_pilot() -> None:
                 ["asian", "japanese"],
             )
 
-            tag_ints = tag_checker_print(console, wp_site, tag_prep)
+            tag_ints = tag_checker_print(console, wp_site, tag_prep, add_missing=True)
 
             models_field = (
                 pornstars
@@ -236,7 +234,7 @@ def embedding_pilot() -> None:
             )
 
             if models_field:
-                models_prep = filter_tags(models_field)
+                models_prep = re.split(r"(?=\W)\S", models_field)
                 model_ints: Optional[list[int]] = model_checker(
                     wp_site, models_prep, add_missing=True
                 )
@@ -298,8 +296,7 @@ def embedding_pilot() -> None:
                 img_attrs = make_img_payload(title, db_interface.get_description())
                 logging.info(f"Image Attrs: {img_attrs}")
                 upload_img = wp_site.upload_image(
-                    f"{os.path.join(thumbnails_dir.name, thumbnail)}",
-                    img_attrs,
+                    f"{os.path.join(thumbnails_dir.name, thumbnail)}", img_attrs
                 )
 
                 # Sometimes, the function fetch image will fetch an element that is not a thumbnail.
@@ -315,7 +312,7 @@ def embedding_pilot() -> None:
                         "--> Proceeding to the next post...\n", style=user_default_bold
                     )
                     continue
-                elif upload_img == (200 or 201):
+                elif upload_img == 200 or upload_img == 201:
                     os.remove(
                         removed_img := f"{os.path.join(thumbnails_dir.name, thumbnail)}"
                     )
@@ -333,8 +330,7 @@ def embedding_pilot() -> None:
                     f"--> WordPress status code: {push_post}", style=user_default_bold
                 )
 
-                attachment_link = f"https://{general_config.fq_domain_name.strip('/')}{WPEndpoints.CONTENT_UPLOADS.value}/{clean_filename(wp_slug, image_config.pic_format)}"
-                logging.info(f"Build attachment link: {attachment_link}")
+                logging.info(f"Detected media upload status: {upload_img}")
                 h, mins, secs = get_duration(int(db_interface.get_duration()))
                 new_post_id = wp_site.get_last_post()
 
@@ -357,14 +353,13 @@ def embedding_pilot() -> None:
                         .production(Production.PROFESSIONAL)
                         .hair_color(HairColor.BLACK)
                         .embed_code(transformed_iframe)
-                        .thumbnail(attachment_link)
                         .hours(int(h))
                         .minutes(int(mins))
                         .seconds(int(secs))
                     )
 
                     update_post_embed = update_post_meta(
-                        post_meta_payload, new_post_id.post_id
+                        post_meta_payload, new_post_id.post_id, auto_thumb=True
                     )
 
                     retries = 0
@@ -374,7 +369,7 @@ def embedding_pilot() -> None:
                         )
                         PostWizardAuth.reset_auth()
                         update_post_embed = update_post_meta(
-                            post_meta_payload, new_post_id.post_id
+                            post_meta_payload, new_post_id.post_id, auto_thumb=True
                         )
                         if update_post_embed == requests.codes.ok:
                             logging.info(

@@ -58,8 +58,23 @@ class APIUrlBuilder(URLBuilder):
     def post_batch(self) -> Self:
         return self._plus_path(APIUrl.POSTS, APIUrl.BATCH)
 
-    def posts_meta(self, post_id: int) -> Self:
-        return self._plus_path(APIUrl.POSTS, "")._plus_path(APIUrl.POSTS_META, post_id)
+    def posts_meta(
+        self,
+        post_id: int,
+        auto_thumb: bool = False,
+        retries: int = 5,
+        timeout: int = 1,
+    ) -> Self:
+        builder = self._plus_path(APIUrl.POSTS, "")._plus_path(
+            APIUrl.POSTS_META, post_id
+        )
+        return (
+            builder._plus_query_param(QueryParams.AUTO_THUMB, str(auto_thumb).lower())
+            ._plus_query_param(QueryParams.RETRIES, retries)
+            ._plus_query_param(QueryParams.TIMEOUT, timeout)
+            if auto_thumb
+            else builder
+        )
 
     def post_meta_dump(self):
         return self._plus_path(APIUrl.POSTS, "")._plus_path(

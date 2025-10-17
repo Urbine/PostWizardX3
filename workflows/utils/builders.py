@@ -113,7 +113,8 @@ def make_payload_simple(
 
     if categs:
         payload_post["categories"] = categs
-    elif model_int_lst:
+
+    if model_int_lst:
         payload_post["pornstars"] = model_int_lst
 
     return payload_post

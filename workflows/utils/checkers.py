@@ -14,6 +14,7 @@ __author_email__ = "yohamg@programmer.net"
 import asyncio
 import logging
 import re
+import time
 from collections import deque
 from typing import List, Dict, Optional, Literal
 
@@ -28,6 +29,7 @@ from core.exceptions.util_exceptions import UnsupportedParameter
 from core.utils.strings import split_char
 from postwizard_sdk.builders.taxonomy_builder import TaxonomyPayload
 from postwizard_sdk.models.client_schema import Taxonomy
+from postwizard_sdk.utils.auth import PostWizardAuth
 from wordpress import WordPress
 from wordpress.models.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
 from workflows.utils.filtering import identify_missing
@@ -63,7 +65,10 @@ def get_model_ids(wordpress_site: WordPress, model_lst: List[str]) -> List[int]:
 
 
 def model_checker(
-    wordpress_site: WordPress, model_prep: List[str], add_missing: bool = False
+    wordpress_site: WordPress,
+    model_prep: List[str],
+    add_missing: bool = False,
+    retries: int = 3,
 ) -> Optional[List[int]]:
     """
     Share missing model checking behaviour accross modules.
@@ -72,6 +77,7 @@ def model_checker(
     :param wordpress_site: ``WordPress`` class instance
     :param model_prep: ``list[str]`` - Model tag list without delimiters
     :param add_missing: ``bool`` - Whether to add missing models to the WordPress site via PostWizard
+    :param retries: ``int`` - Number of retries to attempt when adding a missing model via PostWizard
     :return: ``list[int]`` - List of model integer ids in the WordPress site.
     """
     if not model_prep:
@@ -115,13 +121,29 @@ def model_checker(
                         style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
                     )
                     new_model.term(girl).taxonomy_name(Taxonomy.MODEL)
-                resulting_term_id = add_taxonomy(new_model)
-                if resulting_term_id != -1:
-                    calling_models.append(resulting_term_id)
-                new_model.clear()
-                logging.info(
-                    f'Called PostWizard to add model: "{girl}" - Resulting in {resulting_term_id}'
-                )
+                    retry_count = 0
+                    while True:
+                        resulting_term_id = add_taxonomy(new_model)
+                        if resulting_term_id != -1:
+                            calling_models.append(resulting_term_id)
+                            logging.info(
+                                f'Called PostWizard to add model: "{girl}" - Resulting in {resulting_term_id} - Success...'
+                            )
+                            break
+                        else:
+                            time.sleep(1)
+                            PostWizardAuth.reset_auth()
+                            retry_count += 1
+                            logging.warning(
+                                f"Failed to add model: {girl} - Retrying ({retry_count}/{retries})..."
+                            )
+                            if retry_count >= retries:
+                                console.print(
+                                    f"Failed to add model: {girl} - Max retries reached ({retry_count}/{retries})...",
+                                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                                )
+                                break
+                    new_model.clear()
     return calling_models
 
 
@@ -176,13 +198,14 @@ def tag_checker_print(
                         style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
                     )
                     new_tag.term(tag).taxonomy_name(Taxonomy.TAG)
-                resulting_term_id = add_taxonomy(new_tag)
-                if resulting_term_id != -1:
-                    tag_ints.append(resulting_term_id)
-                new_tag.clear()
-                logging.info(
-                    f'Called PostWizard to add tag: "{tag}" - Resulting in {resulting_term_id}'
-                )
+                    resulting_term_id = add_taxonomy(new_tag)
+                    if resulting_term_id != -1:
+                        tag_ints.append(resulting_term_id)
+                    logging.info(
+                        f'Called PostWizard to add tag: "{tag}" - Resulting in {resulting_term_id}'
+                    )
+                    new_tag.clear()
+
     return tag_ints
 
 

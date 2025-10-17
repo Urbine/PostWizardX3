@@ -22,6 +22,7 @@ from typing import List, Tuple, Union
 # Third-party imports
 import urllib3.exceptions
 from rich.console import Console
+from rich.prompt import Confirm, Prompt
 
 # Local imports
 from core.config.config_factories import general_config_factory, social_config_factory
@@ -42,8 +43,12 @@ from core.utils.secret_handler import SecretHandler
 from core.utils.system_shell import clean_console
 from integrations import x_api, XEndpoints
 from wordpress import WordPress
-from workflows.utils.databases import content_select_db_match
-from workflows.utils.filtering import filter_published, select_guard
+from workflows.utils.databases import content_select_db_match, query_modifier
+from workflows.utils.filtering import (
+    filter_published,
+    filter_published_embeds,
+    select_guard,
+)
 from workflows.utils.logging import ConsoleStyle
 
 
@@ -144,10 +149,29 @@ def pilot_warm_up(
 
         logging.info(f"Matched {partner_db_name} for {partner} index {partner_indx}")
 
-        try:
-            all_vals: List[Tuple[str, ...]] = fetch_data_sql(
-                cs_config.sql_query, cur_dump
+        user_attention_style = ConsoleStyle.TEXT_STYLE_ATTENTION.value
+        user_prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
+        if Confirm.ask(
+            f"[{user_attention_style}]Use stored database query?[/{user_attention_style}]"
+        ):
+            session_query = cs_config.sql_query
+            logging.info(f"Using stored database query {cs_config.sql_query}")
+        else:
+            session_query = Prompt.ask(
+                f"[{user_prompt_style}]Enter database query[/{user_prompt_style}]"
             )
+            if Confirm.ask(
+                f"[{user_attention_style}]Store this query for future sessions?[/{user_attention_style}]"
+            ):
+                modified = query_modifier(session_query, cs_config)
+                if modified:
+                    logging.info(f"Stored custom query {session_query}")
+                else:
+                    logging.info("Query not modified/stored")
+            else:
+                logging.info(f"Using custom database query {session_query}")
+        try:
+            all_vals: List[Tuple[str, ...]] = fetch_data_sql(session_query, cur_dump)
         except OperationalError as oerr:
             logging.error(
                 f"Error while fetching data from SQL: {oerr!r} likely a configuration issue for partner {partner}."
@@ -161,15 +185,23 @@ def pilot_warm_up(
         )
         logging.info(f"Created {thumbnails_dir.name} for thumbnail temporary storage")
 
-        with console.status(
-            f"[{status_style}] Filtering ... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
-            spinner="bouncingBall",
-        ):
-            not_published: List[Tuple[str, ...]] = filter_published(all_vals, wp_site)
-
         if cs_config.__class__.__name__ == "EmbedAssistBotConf":
-            return console, partner, not_published, wp_site, thumbnails_dir, cur_dump
+            return (
+                console,
+                partner,
+                filter_published_embeds(wp_site, all_vals, cur_dump),
+                wp_site,
+                thumbnails_dir,
+                cur_dump,
+            )
         elif cs_config.__class__.__name__ == "MCashContentBotConf":
+            with console.status(
+                f"[{status_style}] Filtering ... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+                spinner="bouncingBall",
+            ):
+                not_published: List[Tuple[str, ...]] = filter_published(
+                    all_vals, wp_site
+                )
             return console, partner, not_published, wp_site, thumbnails_dir
         else:
             wp_photos_site: WordPress = WordPress(
