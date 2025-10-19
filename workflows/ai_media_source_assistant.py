@@ -58,11 +58,11 @@ from core.utils.strings import split_char
 from ai_core.ai_workflows import ai_video_attrs
 from ai_core.ai_client_mgr import load_llm_model
 from ai_core.config import ai_config as ai
+from workflows.interfaces import WordFilter
 from workflows.utils.checkers import model_checker, tag_checker_print, get_tag_ids
 from workflows.utils.parsing import asset_parser
 from workflows.utils.social import social_sharing_controller
 from workflows.utils.builders import make_payload, make_img_payload
-from workflows.utils.strings import clean_partner_tag
 from workflows.utils.file_handling import fetch_thumbnail, fetch_thumbnail_file
 from workflows.utils.initialise import pilot_warm_up
 from workflows.utils.logging import (
@@ -214,7 +214,11 @@ def video_upload_pilot(
                 tag_prep.append(ai_tag)
 
             # Making sure that the partner tag does not have apostrophes
-            tag_prep.append(clean_partner_tag(partner.lower()))
+            tag_prep.append(
+                WordFilter(delimiter="", filter_pattern=r"(?=\W)\S")
+                .add_word(partner.lower())
+                .filter()
+            )
             tag_ints = tag_checker_print(console, wp_site, tag_prep)
 
             try:
