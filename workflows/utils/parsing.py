@@ -18,8 +18,7 @@ import re
 from core.exceptions.config_exceptions import AssetsNotFoundError
 from core.models.config_model import MCashContentBotConf
 from core.utils.parsers import parse_client_config
-from core.utils.strings import split_char
-from workflows.utils.strings import clean_partner_tag
+from workflows.interfaces import WordFilter
 
 
 def asset_parser(bot_config: MCashContentBotConf, partner: str):
@@ -33,7 +32,9 @@ def asset_parser(bot_config: MCashContentBotConf, partner: str):
     assets = parse_client_config(bot_config.assets_conf, "core.config")
     sections = assets.sections()
 
-    wrd_list = clean_partner_tag(partner).split(split_char(partner, placeholder=" "))
+    wrd_list = (
+        WordFilter(delimiter=" ", filter_pattern=r"(?=\W)\S").add_word(partner).split()
+    )
 
     find_me = (  # noqa: E731
         lambda word, section: matchs[0]

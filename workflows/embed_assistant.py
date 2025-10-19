@@ -29,7 +29,7 @@ import os
 import re
 import time
 
-from typing import Optional
+from typing import Optional, List
 
 # Third-party modules
 import pyclip
@@ -39,12 +39,12 @@ from requests.exceptions import SSLError, ConnectionError
 # Local implementations
 
 from workflows.interfaces import EmbedsMultiSchema
+from workflows.builders import WorkflowSlugBuilder
 from workflows.utils.strings import transform_partner_iframe
 from workflows.utils.file_handling import fetch_thumbnail
 from workflows.utils.initialise import pilot_warm_up
-from workflows.utils.builders import make_slug, make_payload_simple, make_img_payload
+from workflows.utils.builders import make_payload_simple, make_img_payload
 from workflows.utils.selectors import slug_getter, pick_classifier
-from workflows.utils.strings import filter_tags
 from workflows.utils.checkers import tag_checker_print, model_checker
 from workflows.utils.social import social_sharing_controller
 from workflows.utils.logging import (
@@ -183,46 +183,67 @@ def embedding_pilot() -> None:
                 else db_interface.get_pornstars()
             )
 
+            slug_builder = WorkflowSlugBuilder(filter_words=["amp"])
             slugs = [
                 f"{slug}" if (slug := db_interface.get_slug()) else "",
-                make_slug(
-                    partner, models, (title := db_interface.get_title()), "video"
-                ),
-                make_slug(partner, models, title, "video", reverse=True),
-                make_slug(
-                    partner, models, title, "video", studio=db_interface.get_studio()
-                ),
-                make_slug(
-                    partner,
-                    models,
-                    title,
-                    "video",
-                    studio=db_interface.get_studio(),
-                    partner_out=True,
-                ),
-                make_slug(
-                    partner,
-                    None,
-                    title,
-                    "video",
-                    studio=db_interface.get_studio(),
-                    partner_out=True,
-                ),
+                slug_builder.title(db_interface.get_title()).build(),
+                slug_builder.title(db_interface.get_title()).model(models).build(),
+                slug_builder.title(db_interface.get_title())
+                .studio(db_interface.get_studio())
+                .build(),
+                slug_builder.title(db_interface.get_title())
+                .model(models)
+                .partner(partner)
+                .build(),
+                slug_builder.title(db_interface.get_title())
+                .model(models)
+                .studio(db_interface.get_studio())
+                .build(),
+                slug_builder.title(db_interface.get_title())
+                .model(models)
+                .partner(partner)
+                .content_type("video")
+                .build(),
+                slug_builder.title(db_interface.get_title())
+                .model(models)
+                .studio(db_interface.get_studio())
+                .content_type("video")
+                .build(),
+                slug_builder.title(db_interface.get_title())
+                .model(models)
+                .content_type("video")
+                .partner(partner)
+                .build(),
+                slug_builder.title(db_interface.get_title())
+                .model(models)
+                .content_type("video")
+                .studio(db_interface.get_studio())
+                .build(),
+                slug_builder.partner(partner)
+                .model(models)
+                .title(db_interface.get_title())
+                .content_type("video")
+                .studio(db_interface.get_studio())
+                .build(),
+                slug_builder.model(models)
+                .title(db_interface.get_title())
+                .studio(db_interface.get_studio())
+                .build(),
             ]
 
-            clean_slugs = list(filter(lambda sl: sl != "", slugs))
-
-            wp_slug = slug_getter(console, clean_slugs)
+            wp_slug = slug_getter(
+                console, list(dict.fromkeys([slug for slug in slugs if slug]))
+            )
 
             logging.info(f"WP Slug - Selected: {wp_slug}")
 
             # Making sure there aren't spaces in tags and exclude the word
             # `asian` and `japanese` from tags since I want to make them more general.
-            tag_prep = filter_tags(
+            tag_prep: List[str] = re.split(
+                "(?=\W)\S",
                 categories
                 if (categories := db_interface.get_categories())
                 else db_interface.get_tags(),
-                ["asian", "japanese"],
             )
 
             tag_ints = tag_checker_print(console, wp_site, tag_prep, add_missing=True)
@@ -257,7 +278,7 @@ def embedding_pilot() -> None:
             payload = make_payload_simple(
                 wp_slug,
                 general_config.default_status,
-                title,
+                db_interface.get_title(),
                 db_interface.get_description(),
                 tag_ints,
                 model_int_lst=model_ints,
@@ -293,7 +314,9 @@ def embedding_pilot() -> None:
                     "--> Adding image attributes on WordPress...",
                     style=user_default_bold,
                 )
-                img_attrs = make_img_payload(title, db_interface.get_description())
+                img_attrs = make_img_payload(
+                    db_interface.get_title(), db_interface.get_description()
+                )
                 logging.info(f"Image Attrs: {img_attrs}")
                 upload_img = wp_site.upload_image(
                     f"{os.path.join(thumbnails_dir.name, thumbnail)}", img_attrs

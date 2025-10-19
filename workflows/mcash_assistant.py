@@ -63,15 +63,15 @@ from postwizard_sdk.models.client_schema import (
 from postwizard_sdk.builders import PostMetaPayload
 from postwizard_sdk.utils.auth import PostWizardAuth
 from postwizard_sdk.utils.operations import update_post_meta
-from wordpress.models.endpoints import WPEndpoints
+from workflows.builders import WorkflowSlugBuilder
+from workflows.interfaces import WordFilter
 
 from workflows.utils.checkers import model_checker, tag_checker_print
 from workflows.utils.selectors import slug_getter, pick_classifier
 from workflows.utils.parsing import asset_parser
 from workflows.utils.social import social_sharing_controller
-from workflows.utils.builders import make_payload, make_img_payload, make_slug
+from workflows.utils.builders import make_payload, make_img_payload
 from workflows.utils.strings import (
-    clean_partner_tag,
     mask_mcash_tracking_link,
     transform_mcash_hosted_link,
 )
@@ -187,11 +187,16 @@ def video_upload_pilot(
             tags, models = models, tags
 
         if add_post:
-            slugs: list[str] = [
+            slug_builder = WorkflowSlugBuilder()
+            slugs = [
                 f"{fields[8]}-video",
-                make_slug(partner, models, title, "video"),
-                make_slug(partner, models, title, "video", reverse=True),
-                make_slug(partner, models, title, "video", partner_out=True),
+                slug_builder.title(title).build(),
+                slug_builder.title(title).model(models).build(),
+                slug_builder.title(title).model(models).partner(partner).build(),
+                slug_builder.partner(partner).model(models).title(title).build(),
+                slug_builder.model(models).partner(partner).title(title).build(),
+                slug_builder.title(title).model(models).content_type("video").build(),
+                slug_builder.model(models).title(title).content_type("video").build(),
             ]
 
             wp_slug = slug_getter(console, slugs)
@@ -199,7 +204,11 @@ def video_upload_pilot(
             tag_prep: list[str] = [tag.strip() for tag in tags.split(",")]
 
             # Making sure that the partner tag does not have apostrophes
-            partner_tag: str = clean_partner_tag(partner.lower())
+            partner_tag: str = (
+                WordFilter(delimiter="", filter_pattern=r"(?=\W)\S")
+                .add_word(partner.lower())
+                .filter()
+            )
             tag_prep.append(partner_tag)
             tag_ints = tag_checker_print(console, wp_site, tag_prep, add_missing=True)
 

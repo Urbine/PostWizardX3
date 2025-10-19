@@ -56,13 +56,17 @@ def clean_filename(filename: str, extension: str = "") -> str:
 
 
 def match_list_single(
-    hint: str | Pattern[str], items: list, ignore_case: bool = False
+    hint: str | Pattern[str],
+    items: list,
+    ignore_case: bool = False,
+    re_match: bool = False,
 ) -> Optional[int]:
     """Matches a single occurrence of a ``hint`` and returns its ``index`` position.
 
     :param hint: ``str`` pattern or word
     :param items: where to look for occurrences (list of ``str`` or ``WebElement``)
     :param ignore_case: ``True`` to disable the ``re.IGNORECASE`` flag in the Python Regex match. Default ``False``.
+    :param re_match: ``True`` to enable the ``re.match`` operation for matches. Default ``False``
     :return: ``int`` or ``None`` if there is no match.
     """
     ignore_case = re.IGNORECASE if ignore_case else 0
@@ -76,7 +80,11 @@ def match_list_single(
             # in case I am passing a list of WebElement items.
             inter = item.text
 
-        if re.findall(hint, inter, flags=ignore_case):
+        if (
+            re.findall(hint, inter, flags=ignore_case)
+            if not re_match
+            else re.match(hint, inter, flags=ignore_case)
+        ):
             return items.index(item)
         else:
             continue
