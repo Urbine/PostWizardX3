@@ -79,7 +79,7 @@ class EmbedsMultiSchema(Generic[T]):
                 yield getattr(self, field.name)
 
     @staticmethod
-    def get_schema(db_cur: sqlite3) -> tuple[str, list[tuple[int, str]]]:
+    def get_schema(db_cur: sqlite3.Cursor) -> tuple[str, list[tuple[int, str]]]:
         """
         Get a tuple with the table and its field names.
 
@@ -109,7 +109,7 @@ class EmbedsMultiSchema(Generic[T]):
             )
             raise InvalidDB
 
-    def __init__(self, db_cur: sqlite3):
+    def __init__(self, db_cur: sqlite3.Cursor):
         """Initialisation logic for ``EmbedsMultiSchema`` instances.
             Supports data field handling that can carry out error handling without
             explicit logic in the main control flow or functionality using this class.
