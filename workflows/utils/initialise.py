@@ -89,7 +89,7 @@ def pilot_warm_up(
 
         status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         with console.status(
-            f"[{status_style}] Warming up... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
+            f"[{status_style}] Preparing components... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
             spinner="aesthetic",
         ):
             if social_config_factory().x_posting:
@@ -214,6 +214,7 @@ def pilot_warm_up(
             logging.info(
                 f"Reading WordPress Photo Posts cache: {ApplicationPath.WP_PHOTOS_CACHE.value}"
             )
+            not_published: List[Tuple[str, ...]] = filter_published(all_vals, wp_site)
             return (
                 console,
                 partner,
