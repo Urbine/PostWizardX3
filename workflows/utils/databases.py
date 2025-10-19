@@ -36,7 +36,6 @@ from core.models.config_model import (
 from core.utils.strings import (
     match_list_elem_date,
     match_list_mult,
-    split_char,
     match_list_single,
 )
 
@@ -157,7 +156,7 @@ def content_select_db_match(
         select_file: int = 0
         for hint in clean_hint:
             rel_content: int = match_list_single(
-                hint, relevant_content, ignore_case=True
+                hint, relevant_content, ignore_case=True, re_match=True
             )
             if hint:
                 if rel_content:

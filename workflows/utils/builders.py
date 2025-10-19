@@ -22,7 +22,6 @@ from core.models.config_model import GeneralConfigs, ImageConfig
 from core.utils.file_system import search_files_by_ext
 from core.utils.strings import split_char
 from wordpress import WordPress
-from workflows.utils.strings import clean_partner_tag
 
 
 def make_payload(
@@ -168,102 +167,6 @@ def make_img_payload(
         img_payload = flat_attrs_dict
 
     return img_payload
-
-
-def make_slug(
-    partner: str,
-    model: Optional[str],
-    title: str,
-    content: str,
-    studio: Optional[str] = "",
-    reverse: bool = False,
-    partner_out: bool = False,
-) -> str:
-    """This function is a new approach to the generation of slugs inspired by the slug-making
-    mechanism from gallery_select.py. It takes in strings that will be transformed into URL slugs
-    that will help us optimise the permalinks for SEO purposes.
-
-    :param partner: ``str`` video partner
-    :param model:  ``str`` video model
-    :param title: ``str`` Video title
-    :param content: ``str`` type of content, in this file it is simply `video` but it could be `pics` this parameter tells Google about the main content of the page.
-    :param studio: ``str`` - Optional component in slugs for compatible schemas.
-    :param reverse: ``bool``  ``True`` if you want to place the video title in front of the permalink. Default ``False``
-    :param partner_out: ``bool`` ``True`` if you want to build slugs without the partner name. Default ``False``.
-    :return: ``str`` formatted string of a WordPress-ready URL slug.
-    """
-    join_wrds = lambda wrd: "-".join(map(lambda w: w.lower(), re.findall(r"\w+", wrd)))  # noqa: E731
-    build_slug = lambda lst: "-".join(filter(lambda e_str: e_str != "", lst))  # noqa: E731
-
-    # Punctuation marks are filtered in ``title_cleaned``.
-    # TODO: Add a list of corpus stopwords from the NLTK library.
-    filter_words: List[str] = [
-        "at",
-        "&",
-        "and",
-        "but",
-        "it",
-        "so",
-        "very",
-        "amp;",
-        "",
-        "&amp",
-    ]
-
-    title_cleaned: List[str] = [
-        "".join(wrd).lower()
-        for word in title.lower().split()
-        if (wrd := re.findall(r"\w+", word, flags=re.IGNORECASE))
-    ]
-
-    title_sl: str = "-".join(
-        list(filter(lambda w: w not in filter_words, title_cleaned))
-    )
-
-    partner_sl: str = "-".join(clean_partner_tag(partner.lower()).split())
-    content_sl: str = join_wrds(content)
-    studio_sl: str = join_wrds(studio) if studio is not None else ""
-
-    model_sl: str = ""
-    if model:
-        model_delim = split_char(model, placeholder=" ")
-        model_sl = "-".join(
-            "-".join(map(join_wrds, name.split(" ")))
-            for name in map(
-                lambda m: m.lower().strip(),
-                model.split(model_delim if model_delim != " " else "."),
-            )
-        )
-
-    # Build slug segments according to flags
-    segments: List[str]
-    if reverse:
-        # reverse has precedence over every other flag
-        segments = [title_sl, partner_sl]
-        if model_sl:
-            segments.append(model_sl)
-        if studio_sl:
-            segments.append(studio_sl)
-        segments.append(content_sl)
-    elif partner_out:
-        # partner name omitted
-        segments = [title_sl]
-        if model_sl:
-            segments.append(model_sl)
-        elif studio_sl:
-            segments.append(studio_sl)
-        segments.append(content_sl)
-    else:
-        # default behaviour
-        segments = [partner_sl]
-        if model_sl:
-            segments.append(model_sl)
-        segments.append(title_sl)
-        if studio_sl:
-            segments.append(studio_sl)
-        segments.append(content_sl)
-
-    return build_slug(segments)
 
 
 def make_gallery_payload(
