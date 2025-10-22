@@ -1,5 +1,5 @@
-from .post_meta_builder import PostMetaPayload
+from .post_meta_builder import PostMetaNestedPayload
 from .api_url_builder import APIUrlBuilder
-from .post_builder import PostInfoPayload
+from .post_builder import PostInfoNestedPayload
 
-__all__ = ["PostMetaPayload", "APIUrlBuilder", "PostInfoPayload"]
+__all__ = ["PostMetaNestedPayload", "APIUrlBuilder", "PostInfoNestedPayload"]

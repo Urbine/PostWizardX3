@@ -18,15 +18,15 @@ import requests
 
 # Local imports
 from postwizard_sdk.builders.api_url_builder import APIUrlBuilder
-from postwizard_sdk.builders import PostMetaPayload, PostInfoPayload
-from postwizard_sdk.builders.interfaces import PayloadBuilder
-from postwizard_sdk.builders.taxonomy_builder import TaxonomyPayload
+from postwizard_sdk.builders import PostMetaNestedPayload, PostInfoNestedPayload
+from postwizard_sdk.builders.interfaces import NestedPayloadBuilder
+from postwizard_sdk.builders.taxonomy_builder import TaxonomyNestedPayload
 from postwizard_sdk.models import PostType
 from postwizard_sdk.utils.auth import PostWizardAuth
 
 
 def update_post_meta(
-    payload: PostMetaPayload,
+    payload: PostMetaNestedPayload,
     post_id: int,
     auto_thumb: bool = False,
     retries: int = 5,
@@ -53,7 +53,7 @@ def update_post_meta(
     return request_info.status_code
 
 
-def update_post_bypass(payload: PostInfoPayload, post_id: int) -> int:
+def update_post_bypass(payload: PostInfoNestedPayload, post_id: int) -> int:
     """
     Updates the fields of a post.
     This function sends a POST request to the PostWizard API to update the details of a post.
@@ -104,7 +104,7 @@ def get_all_post_by_type(
 
 
 def send_batch_payload(
-    api_addr: APIUrlBuilder, payloads: List[PayloadBuilder]
+    api_addr: APIUrlBuilder, payloads: List[NestedPayloadBuilder]
 ) -> Dict[str, Union[str, int, List[int]]]:
     """
     Sends a batch of payloads to the PostWizard API.
@@ -121,7 +121,7 @@ def send_batch_payload(
 
 
 def send_meta_batch_job(
-    payload: List[PostMetaPayload],
+    payload: List[PostMetaNestedPayload],
 ) -> Dict[str, Union[str, int, List[int]]]:
     """
     Specialised method that sends a batch of metadata updates to the PostWizard API.
@@ -134,7 +134,7 @@ def send_meta_batch_job(
 
 
 def send_post_batch_job(
-    payload: List[PostInfoPayload],
+    payload: List[PostInfoNestedPayload],
 ) -> Dict[str, Union[str, int, List[int]]]:
     """
     Specialised method that sends a batch of post updates to the PostWizard API.
@@ -146,7 +146,9 @@ def send_post_batch_job(
     return send_batch_payload(api_addr, payload)
 
 
-def add_taxonomy(payload: TaxonomyPayload, post_id: int = 0, link: bool = False) -> int:
+def add_taxonomy(
+    payload: TaxonomyNestedPayload, post_id: int = 0, link: bool = False
+) -> int:
     """
     Adds a taxonomy to a post.
     This function sends a POST request to the PostWizard API to add a taxonomy to a post.
@@ -196,7 +198,7 @@ def taxonomy_unlink(post_id: int) -> int:
 
 
 def remove_taxonomy(
-    payload: TaxonomyPayload,
+    payload: TaxonomyNestedPayload,
 ) -> Dict[str, Union[str, int, bool, None, List[Dict[str, Union[str, int]]]]]:
     """
     Removes a taxonomy from a post.
