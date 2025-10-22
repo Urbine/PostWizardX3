@@ -17,7 +17,7 @@ import re
 from typing import List, Tuple, Dict, Union
 
 # Local imports
-from core.utils.strings import split_char
+from core.utils.interfaces import WordFilter
 from wordpress import WordPress
 from wordpress.models.taxonomies import WPTaxonomyMarker, WPTaxonomyValues
 from workflows.interfaces import EmbedsMultiSchema
@@ -112,12 +112,13 @@ def select_guard(db_name: str, partner: str) -> None:
     # Find the split character as I just need to get the first word of the name
     # to match it with partner selected by the user
     # match_regex = re.findall(r"[\W_]+", db_name)[0]
-    spl_dbname = lambda db: db.strip().split(split_char(db))  # noqa: E731
+
+    spl_dbname = WordFilter(delimiter=" ").add_word(db_name).split()
     try:
-        assert re.match(spl_dbname(db_name)[0], partner, flags=re.IGNORECASE)
+        assert re.match(spl_dbname[0], partner, flags=re.IGNORECASE)
     except AssertionError:
         logging.critical(
-            f"Select guard detected issues for db_name: {db_name} partner: {partner} split: {spl_dbname(db_name)}"
+            f"Select guard detected issues for db_name: {db_name} partner: {partner} split: {spl_dbname}"
         )
         print("\nBe careful! Partner and database must match. Re-run...")
         print(f"The program selected {db_name} for partner {partner}.")
