@@ -1,4 +1,4 @@
-from .payload_builder import PayloadBuilder
+from .nested_payload_builder import NestedPayloadBuilder
 from .url_builder import URLBuilder
 
-__all__ = ["PayloadBuilder", "URLBuilder"]
+__all__ = ["NestedPayloadBuilder", "URLBuilder"]

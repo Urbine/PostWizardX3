@@ -21,11 +21,12 @@ import aiohttp
 
 # Local imports
 from postwizard_sdk.models import PostMetaKey
-from postwizard_sdk.builders import PostMetaPayload
+from postwizard_sdk.builders import PostMetaNestedPayload
 
 
 def bulk_test_video_url(
-    post_list: List[PostMetaPayload] | List[Dict[str, Union[str, int, bool, None]]],
+    post_list: List[PostMetaNestedPayload]
+    | List[Dict[str, Union[str, int, bool, None]]],
 ) -> List[MappingProxyType[str, Union[str, int, bool, None]]]:
     """
     Bulk tests video URLs for validity.
@@ -62,7 +63,7 @@ def bulk_test_video_url(
             tasks = [
                 test_link(
                     main_session,
-                    post.build() if isinstance(post, PostMetaPayload) else post,
+                    post.build() if isinstance(post, PostMetaNestedPayload) else post,
                 )
                 for post in post_list
             ]

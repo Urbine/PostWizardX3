@@ -19,7 +19,7 @@ import regex as re
 from nltk.corpus import stopwords
 
 # Local imports
-from workflows.interfaces import NaiveSlugBuilder
+from core.utils.interfaces import NaiveSlugBuilder
 
 
 class WordFilter(NaiveSlugBuilder):

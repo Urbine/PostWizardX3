@@ -1,5 +1,7 @@
 import argparse
 import datetime
+import re
+
 import urllib3
 
 from dataclasses import dataclass, asdict
@@ -173,15 +175,12 @@ class BraveSearchAPI:
                 raise BraveAPIInvalidCountryCode
         elif search_lang:
             search_lang = search_lang.strip().lower()
-            if (
-                len(search_lang) != 2
-                and core.utils.strings.split_char(search_lang) != "-"
-            ):
+            if len(search_lang) != 2 and not re.findall("-", search_lang):
                 raise BraveAPIInvalidLanguageCode
         elif ui_lang:
             # ui_lang is indeed case-sensitive.
             ui_lang = ui_lang.strip()
-            if core.utils.strings.split_char(ui_lang) != "-":
+            if re.findall("-", ui_lang):
                 raise BraveAPIInvalidLanguageCode
 
         fields = self.QParams.__dict__
@@ -257,11 +256,7 @@ class BraveSearchAPI:
         }
 
         if not raw_query:
-            query_prep = (
-                "+".join(query.split())
-                if core.utils.strings.split_char(query) == " "
-                else query
-            )
+            query_prep = "+".join(query.split()) if re.findall(" ", query) else query
         else:
             query_prep = query
 

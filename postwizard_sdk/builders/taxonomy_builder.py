@@ -14,11 +14,13 @@ __author_email__ = "yohamg@programmer.net"
 
 from typing import Self
 
-from postwizard_sdk.builders.interfaces.payload_builder import PayloadBuilder
+from postwizard_sdk.builders.interfaces.nested_payload_builder import (
+    NestedPayloadBuilder,
+)
 from postwizard_sdk.models.client_schema import Taxonomy, TaxonomyMeta, TaxonomyInfo
 
 
-class TaxonomyPayload(PayloadBuilder):
+class TaxonomyNestedPayload(NestedPayloadBuilder):
     def __init__(self):
         super().__init__()
 
