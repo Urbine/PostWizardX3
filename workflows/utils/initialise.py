@@ -82,11 +82,6 @@ def pilot_warm_up(
             partner.strip() for partner in cs_config.partners.split(",")
         ]
 
-        # Replacing this with the above line
-        # partners: list[str] = list(
-        #     map(lambda p: p.strip(), cs_config.partners.split(","))
-        # )
-
         status_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         with console.status(
             f"[{status_style}] Preparing components... [blink]┌(◎_◎)┘[/blink] [/{status_style}]\n",
@@ -151,25 +146,32 @@ def pilot_warm_up(
 
         user_attention_style = ConsoleStyle.TEXT_STYLE_ATTENTION.value
         user_prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
-        if Confirm.ask(
-            f"[{user_attention_style}]Use stored database query?[/{user_attention_style}]"
+        if (
+            cs_config.__class__.__name__ != "MCashContentBotConf"
+            and cs_config.__class__.__name__ != "MCashGalleryBotConf"
         ):
+            if Confirm.ask(
+                f"[{user_attention_style}]Use stored database query?[/{user_attention_style}]"
+            ):
+                session_query = cs_config.sql_query
+                logging.info(f"Using stored database query {cs_config.sql_query}")
+            else:
+                session_query = Prompt.ask(
+                    f"[{user_prompt_style}]Enter database query[/{user_prompt_style}]"
+                )
+                if Confirm.ask(
+                    f"[{user_attention_style}]Store this query for future sessions?[/{user_attention_style}]"
+                ):
+                    modified = query_modifier(session_query, cs_config)
+                    if modified:
+                        logging.info(f"Stored custom query {session_query}")
+                    else:
+                        logging.info("Query not modified/stored")
+                else:
+                    logging.info(f"Using custom database query {session_query}")
+        else:
             session_query = cs_config.sql_query
             logging.info(f"Using stored database query {cs_config.sql_query}")
-        else:
-            session_query = Prompt.ask(
-                f"[{user_prompt_style}]Enter database query[/{user_prompt_style}]"
-            )
-            if Confirm.ask(
-                f"[{user_attention_style}]Store this query for future sessions?[/{user_attention_style}]"
-            ):
-                modified = query_modifier(session_query, cs_config)
-                if modified:
-                    logging.info(f"Stored custom query {session_query}")
-                else:
-                    logging.info("Query not modified/stored")
-            else:
-                logging.info(f"Using custom database query {session_query}")
         try:
             all_vals: List[Tuple[str, ...]] = fetch_data_sql(session_query, cur_dump)
         except OperationalError as oerr:

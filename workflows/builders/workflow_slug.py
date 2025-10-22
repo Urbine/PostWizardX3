@@ -15,7 +15,7 @@ __author_email__ = "yohamg@programmer.net"
 
 from typing import Self, Iterable, Optional
 
-from workflows.interfaces.word_filter import WordFilter
+from core.utils.interfaces import WordFilter
 
 
 class WorkflowSlugBuilder(WordFilter):

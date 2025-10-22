@@ -17,7 +17,8 @@ from calendar import month_abbr, month_name
 from configparser import ConfigParser
 from datetime import date
 
-from core.utils.strings import clean_filename, split_char, filter_apostrophe
+from core.utils.strings import clean_filename
+from core.utils.interfaces import WordFilter
 from core.exceptions.config_exceptions import ConfigFileNotFound, SectionsNotFoundError
 
 
@@ -106,9 +107,7 @@ def config_section_parser(config_filename: str, target_hint: str):
     config = parse_client_config(config_filename, "core.config")
     sections = config.sections()
 
-    wrd_list = filter_apostrophe(target_hint).split(
-        split_char(target_hint, placeholder=" ")
-    )
+    wrd_list = WordFilter(delimiter=" ").add_word(target_hint).split()
 
     find_me = (  # noqa: E731
         lambda word, section: matchs[0]

@@ -39,11 +39,14 @@ from requests.exceptions import SSLError, ConnectionError
 # Local implementations
 
 from workflows.interfaces import EmbedsMultiSchema
-from workflows.builders import WorkflowSlugBuilder
+from workflows.builders import (
+    WorkflowSlugBuilder,
+    WorkflowPostPayloadBuilder,
+    WorkflowMediaPayload,
+)
 from workflows.utils.strings import transform_partner_iframe
 from workflows.utils.file_handling import fetch_thumbnail
 from workflows.utils.initialise import pilot_warm_up
-from workflows.utils.builders import make_payload_simple, make_img_payload
 from workflows.utils.selectors import slug_getter, pick_classifier
 from workflows.utils.checkers import tag_checker_print, model_checker
 from workflows.utils.social import social_sharing_controller
@@ -69,7 +72,7 @@ from postwizard_sdk.models.client_schema import (
     Production,
     HairColor,
 )
-from postwizard_sdk.builders import PostMetaPayload
+from postwizard_sdk.builders import PostMetaNestedPayload
 from postwizard_sdk.utils.operations import update_post_meta
 from postwizard_sdk.utils.auth import PostWizardAuth
 
@@ -275,7 +278,7 @@ def embedding_pilot() -> None:
             category = categ_ids
 
             console.print("\n--> Making payload...", style=user_default_bold)
-            payload = make_payload_simple(
+            payload = WorkflowPostPayloadBuilder().payload_factory_simple(
                 wp_slug,
                 general_config.default_status,
                 db_interface.get_title(),
@@ -314,7 +317,7 @@ def embedding_pilot() -> None:
                     "--> Adding image attributes on WordPress...",
                     style=user_default_bold,
                 )
-                img_attrs = make_img_payload(
+                img_attrs = WorkflowMediaPayload().payload_factory(
                     db_interface.get_title(), db_interface.get_description()
                 )
                 logging.info(f"Image Attrs: {img_attrs}")
@@ -365,7 +368,7 @@ def embedding_pilot() -> None:
                     wp_site.publish_post(new_post_id.post_id)
 
                     post_meta_payload = (
-                        PostMetaPayload()
+                        PostMetaNestedPayload()
                         .ethnicity(
                             Ethnicity.INDIAN
                             if partner.startswith("Desi")

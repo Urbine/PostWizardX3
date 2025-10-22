@@ -44,7 +44,7 @@ def clean_filename(filename: str, extension: str = "") -> str:
 
     no_dot = lambda fname: re.findall(r"\w+", fname)[0]  # noqa: E731
 
-    if "." in split_char(filename, char_lst=True):
+    if "." in list(filename):
         return (
             ".".join(
                 filter(lambda lst: no_dot(extension) not in lst, filename.split("."))
@@ -225,67 +225,3 @@ def generate_random_str(k: int) -> str:
     letters = string.ascii_letters
     random_string = "".join(random.choices(letters, k=k))
     return random_string
-
-
-def split_char(
-    spl_str: Optional[str],
-    placeholder: str = "-1",
-    char_lst: bool = False,
-    char_lst_raw: bool = False,
-) -> str | list[str]:
-    """
-    Identify the split character dynamically in order that str.split() knows what
-    the correct separator is. In this project, the most relevant separators are commas and
-    semicolons, in contrast, whitespaces are not as important. That said, if the only non-alphanumeric character of
-    the string is whitespace, the function has to return it. Additional parameters
-    help with complementary logic and graceful error handling across modules.
-
-    By design, this implementation assumes that, if there are multiple separators or the first one
-    in the match list is whitespace, the former may repeat itself or the latter may not be relevant for the purpose;
-    therefore, the logic discards all whitespaces and focuses on other special characters that occur the most if there
-    are more multiple matches. This is so because it is common to separate words with a whitespace at first and then
-    use another separator, one that is really meant to be a separator; for example, in the case
-    ``colorful skies; great landscape; ...`` whitespace is not the real separator.
-
-    :param spl_str: ``str`` with or without separators
-    :param placeholder: ``str`` - Return this character if there is no separator as it can't be empty. Default: ``"-1"``
-    :param char_lst: ``bool`` - Return a list of unique separators instead of a single one or ``raw_str`` in a ``list[str]``.
-    :param char_lst_raw: ``bool`` - If active, the function will return the char_lst without any modifications for debugging.
-    :return: ``str`` | ``list[str]``
-    """
-    try:
-        chars = re.findall(r"[^0-9a-z]", spl_str, re.IGNORECASE)
-    except TypeError:  # if ``spl_str`` is ``None``
-        return placeholder
-
-    lst_strip = lambda chls: list(map(lambda s: s.strip(), chls))  # noqa: E731
-
-    if chars:
-        if len(chars) == 1:
-            return chars[0]
-        else:
-            ch_lst = lst_strip(chars)
-            if char_lst:
-                return ch_lst
-            elif char_lst_raw:
-                return chars
-            else:
-                try:
-                    filtered = list(filter(lambda ch: ch != " " and ch != "", ch_lst))
-                    # It makes sense to identify which character occurs more frequently.
-                    return max(filtered, key=filtered.count)
-                except ValueError:
-                    return placeholder
-    elif char_lst:
-        return list(spl_str)
-    else:
-        return placeholder
-
-
-def filter_apostrophe(apost_str: str) -> str:
-    """Clean words that could contain apostrophes in them.
-
-    :param apost_str: ``str`` the conflicting text
-    :return: ``str`` -> ``apost_str`` without apostrophe
-    """
-    return "".join(apost_str.split(split_char(apost_str)))

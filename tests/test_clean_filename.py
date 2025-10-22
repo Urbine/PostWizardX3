@@ -21,7 +21,7 @@ Email: yohamg@programmer.net
 import unittest
 
 # Local implementation to be tested
-from core import clean_filename
+from core.utils.strings import clean_filename
 
 
 class TestCleanFilename(unittest.TestCase):

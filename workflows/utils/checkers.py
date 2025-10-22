@@ -26,8 +26,8 @@ from rich.console import Console
 
 # Local imports
 from core.exceptions.util_exceptions import UnsupportedParameter
-from core.utils.strings import split_char
-from postwizard_sdk.builders.taxonomy_builder import TaxonomyPayload
+from core.utils.interfaces import WordFilter
+from postwizard_sdk.builders.taxonomy_builder import TaxonomyNestedPayload
 from postwizard_sdk.models.client_schema import Taxonomy
 from postwizard_sdk.utils.auth import PostWizardAuth
 from wordpress import WordPress
@@ -114,7 +114,7 @@ def model_checker(
                 pyclip.detect_clipboard()
                 pyclip.copy(girl)
             else:
-                new_model = TaxonomyPayload()
+                new_model = TaxonomyNestedPayload()
                 if girl:
                     console.print(
                         f'Adding new model: "{girl}" to WordPress...',
@@ -191,7 +191,7 @@ def tag_checker_print(
                 pyclip.detect_clipboard()
                 pyclip.copy(tag)
             else:
-                new_tag = TaxonomyPayload()
+                new_tag = TaxonomyNestedPayload()
                 if tag:
                     console_obj.print(
                         f'Adding new tag: "{tag}" to WordPress...',
@@ -258,10 +258,9 @@ def get_tag_ids(
         taxonomies[0], taxonomies[1]
     )
 
-    clean_tag = lambda tag: " ".join(tag.split(split_char(tag)))  # noqa: E731
-    tag_join = lambda tag: "".join(map(clean_tag, tag))  # noqa: E731
+    clean_tag = lambda tag: WordFilter(delimiter=" ").add_word(tag).filter()  # noqa: E731
     # Result must be: colourful-skies/great -> colourful skies great
-    cl_tags = list(map(tag_join, tag_lst))
+    cl_tags = list(map(clean_tag, tag_lst))
 
     # It is crucial that tags don't have any special characters
     # before processing them with ``tag_tracking``.

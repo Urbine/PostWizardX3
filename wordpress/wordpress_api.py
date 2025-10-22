@@ -535,6 +535,12 @@ class WordPress:
         wp_self: str = wp_self + WPEndpoints.POSTS.value
         request_info = requests.post(wp_self, json=payload, auth=auth_wp)
         request_json = request_info.json()
+        logging.info(f"Post upload result: {request_json}")
+        if request_info.status_code != 201:
+            logging.critical(
+                f"Post upload failed with status code: {request_info.status_code} Reason: {request_info.reason}"
+            )
+            return request_info.status_code
         self.created_posts.append(
             WPost(
                 post_id=request_json["id"],
@@ -694,7 +700,11 @@ class WordPress:
                 )
             else:
                 return upload_request.status_code
-        except (KeyError, requests.exceptions.JSONDecodeError):
+        except (KeyError, requests.exceptions.JSONDecodeError) as ex:
+            logging.error(
+                f"WordPress could not upload thumbnail with path: {file_path} and payload: {payload}"
+            )
+            logging.exception(ex)
             return request.status_code
 
     def get_tags_num_count(self) -> dict[int, int]:

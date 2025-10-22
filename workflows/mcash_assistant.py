@@ -49,9 +49,9 @@ from core.config.config_factories import (
     general_config_factory,
 )
 from core.models.config_model import MCashContentBotConf
+from core.utils.interfaces import WordFilter
 from core.utils.system_shell import clean_console
 from core.utils.file_system import clean_filename
-from core.utils.strings import split_char
 
 from postwizard_sdk.models.client_schema import (
     Ethnicity,
@@ -60,17 +60,19 @@ from postwizard_sdk.models.client_schema import (
     Production,
     HairColor,
 )
-from postwizard_sdk.builders import PostMetaPayload
+from postwizard_sdk.builders import PostMetaNestedPayload
 from postwizard_sdk.utils.auth import PostWizardAuth
 from postwizard_sdk.utils.operations import update_post_meta
-from workflows.builders import WorkflowSlugBuilder
-from workflows.interfaces import WordFilter
+from workflows.builders import (
+    WorkflowSlugBuilder,
+    WorkflowPostPayloadBuilder,
+    WorkflowMediaPayload,
+)
 
 from workflows.utils.checkers import model_checker, tag_checker_print
 from workflows.utils.selectors import slug_getter, pick_classifier
 from workflows.utils.parsing import asset_parser
 from workflows.utils.social import social_sharing_controller
-from workflows.utils.builders import make_payload, make_img_payload
 from workflows.utils.strings import (
     mask_mcash_tracking_link,
     transform_mcash_hosted_link,
@@ -213,10 +215,9 @@ def video_upload_pilot(
             tag_ints = tag_checker_print(console, wp_site, tag_prep, add_missing=True)
 
             try:
-                model_delim = models.split(
-                    spl_ch if (spl_ch := split_char(models)) != " " else "-1"
-                )
-                model_prep = list(map(lambda model: model.strip(), model_delim))
+                model_prep = [
+                    model.strip() for model in re.split(r"(?=\W)\S", models) if model
+                ]
             except AttributeError:
                 model_prep = []
 
@@ -232,7 +233,7 @@ def video_upload_pilot(
 
             console.print("\n--> Making payload...", style=program_action_style)
             general_config = general_config_factory()
-            payload = make_payload(
+            payload = WorkflowPostPayloadBuilder().payload_factory_mcash(
                 wp_slug,
                 general_config.default_status,
                 title,
@@ -272,7 +273,9 @@ def video_upload_pilot(
                     "--> Adding image attributes on WordPress...",
                     style=program_action_style,
                 )
-                img_attrs: dict[str, str] = make_img_payload(title, description)
+                img_attrs: dict[str, str] = WorkflowMediaPayload().payload_factory(
+                    title, description
+                )
                 upload_img: int = wp_site.upload_image(
                     os.path.join(thumbnails_dir.name, thumbnail), img_attrs
                 )
@@ -280,7 +283,7 @@ def video_upload_pilot(
 
                 # Sometimes, the function fetch_thumbnail fetches an element that is not a thumbnail.
                 # upload_thumbnail will report a 500 status code when this is the case.
-                # More information in integrations.wordpress_api.upload_thumbnail docs
+                # More information in WordPress upload_thumbnail docs in this project
 
                 if upload_img == 500:
                     logging.warning("Defective thumbnail - Bot abandoned current flow.")
@@ -292,6 +295,7 @@ def video_upload_pilot(
                         "--> Proceeding to the next post...\n",
                         style=program_action_style,
                     )
+                    time.sleep(5)
                     continue
                 elif upload_img == 200 or upload_img == 201:
                     os.remove(
@@ -316,7 +320,7 @@ def video_upload_pilot(
                         last_post = wp_site.get_last_post()
                         target_video_base_url = "https://video.whoresmen.com/stream/"
                         post_meta_builder = (
-                            PostMetaPayload()
+                            PostMetaNestedPayload()
                             .ethnicity(Ethnicity.ASIAN)
                             .production(Production.PROFESSIONAL)
                             .orientation(Orientation.STRAIGHT)

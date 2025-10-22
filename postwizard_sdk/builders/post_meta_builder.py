@@ -23,10 +23,10 @@ from postwizard_sdk.models.client_schema import (
     Orientation,
 )
 from postwizard_sdk.models import PostMetaKey
-from postwizard_sdk.builders.interfaces import PayloadBuilder
+from postwizard_sdk.builders.interfaces import NestedPayloadBuilder
 
 
-class PostMetaPayload(PayloadBuilder):
+class PostMetaNestedPayload(NestedPayloadBuilder):
     def __init__(self):
         super().__init__()
 

@@ -23,7 +23,7 @@ import stat
 import subprocess
 from collections import deque
 from pathlib import Path
-from typing import Optional, Any, AnyStr, List, Dict, Deque, Union
+from typing import Optional, Any, List, Dict, Deque, Union
 
 
 # Local imports
@@ -63,16 +63,6 @@ def clean_file_cache(cache_folder: str | Path, file_ext: str) -> None:
             except NotADirectoryError:
                 os.remove(item)
     return None
-
-
-def export_client_info() -> Optional[dict[str, dict[str, str]]]:
-    """Help dataclasses set a ``default_factory`` field for the client info function.
-    **Note: No longer used due to core.config_mgr implementation.**
-
-    :return: ``dict[str, dict[str, str]`` Client info loaded ``JSON``
-    """
-    info = get_client_info("client_info")
-    return info
 
 
 def filename_creation_helper(suggestions: list[str], extension: str = "") -> str:
@@ -151,29 +141,6 @@ def export_request_json(
     return f_path
 
 
-def export_to_csv_nt(nmedtpl_lst: list, filename: str, top_row_lst: list[str]) -> None:
-    """Helper function to dump a list of NamedTuples into a ``CSV`` file in current working dir.
-
-    :param nmedtpl_lst: ``list[namedtuple]``
-    :param filename: name **(with or without ``.csv`` extension)**
-    :param top_row_lst: ``list[str]``
-    :return: ``None`` (file in project root)
-    """
-    clean_file = clean_filename(filename, "csv")
-    with open(clean_file, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(
-            csvfile,
-            dialect="excel",
-        )
-        writer.writerow(top_row_lst)
-        for tag in nmedtpl_lst:
-            try:
-                writer.writerow([getattr(tag, f) for f in tag._fields])
-            except IndexError:
-                continue
-    return None
-
-
 def lst_dict_to_csv(lst_dic: list[dict[str, Any]], filename: str) -> None:
     """Helper function to dump a dictionary into a ``CSV`` file in current working dir.
 
@@ -216,32 +183,6 @@ def is_parent_dir_required(parent: bool, relpath: bool = False) -> str:
         return os.path.relpath(return_dir)
     else:
         return return_dir
-
-
-def get_client_info(filename: str, logg_err: bool = False) -> Optional[dict[Any, Any]]:
-    """This function handles API secrets in a way that completely eliminates the need
-    to use them inside the code. It can be any ``JSON`` file that you create for that purpose and,
-    most importantly, placed in **``.gitignore``** to avoid pushing sensitive info to *GitHub* or *GitLab*.
-
-    :param filename: ``JSON`` file where you store your secrets.
-    :param logg_err: ``True`` if you want to print the ``FileNotFoundError`` exception.
-    :return: ``dict[str, [str,str]]`` loaded dictionary from filename ``json.load`` or ``None`` if the file is not found.
-    """
-    f_name = clean_filename(filename, "json")
-    parent = not os.path.exists(
-        os.path.join(is_parent_dir_required(False, relpath=True), f_name)
-    )
-    in_parent = is_parent_dir_required(parent, relpath=True)
-
-    try:
-        with open(os.path.join(in_parent, f_name), "r", encoding="utf-8") as secrets:
-            client_info = json.load(secrets)
-        return dict(client_info)
-    except FileNotFoundError as Errno:
-        if logg_err:
-            print(Errno)
-
-        return None
 
 
 def load_file_path(package: str, filename: str) -> Optional[Path]:
@@ -431,18 +372,6 @@ def write_config_file(
             return False
         else:
             raise ConfigFileNotFound(filename, package)
-
-
-def load_file_package_scope(package: str, filename: str) -> AnyStr:
-    """Load file when the program is executed as a module.
-
-    :param package: package name
-    :param filename: filename
-    :return: AnyStr
-    """
-    with importlib.resources.path(package, filename) as file_path:
-        with open(file_path, "r", encoding="utf-8") as f:
-            return f.read()
 
 
 def goto_project_root(project_root: str, source_path: str) -> Optional[str]:

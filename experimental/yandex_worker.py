@@ -33,7 +33,7 @@ generate_tkn = input("Generate new token? Y/N ")
 if generate_tkn.lower() == ("y" or "yes"):
     core.utils.file_system.export_request_json(
         "token",
-        core.utils.data_acess.get_token_oauth(
+        core.utils.data_access.get_token_oauth(
             client_id, uri_callback, client_secret, authorization_url, token_url
         ),
         4,

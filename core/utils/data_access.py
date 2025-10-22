@@ -9,12 +9,11 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-import json
 import os
 import sqlite3
 import urllib
-from sqlite3 import OperationalError, Connection, Cursor
-from typing import Any, Optional
+from sqlite3 import Connection, Cursor
+from typing import Any, Optional, Dict
 
 from bs4 import BeautifulSoup
 from requests_oauthlib import OAuth2Session
@@ -55,7 +54,7 @@ def access_url(url_raw: str) -> Any:
 
 
 def fetch_data_sql(
-    sql_query: str, db_cursor: sqlite3
+    sql_query: str, db_cursor: sqlite3.Cursor
 ) -> Optional[list[tuple[str | int, ...]]]:
     """Takes a SQL query in string format and returns the data
     in a list of tuples. In case there is no data, the function returns None.
@@ -74,7 +73,7 @@ def get_token_oauth(
     client_secret_: str,
     auth_url_: str,
     token_url_: str,
-) -> json:
+) -> Dict[str, str]:
     """Uses the OAuth2Session module from requests_oauthlib to obtain an
     authentication token for compatible APIs. All parameters are self-explanatory.
 
@@ -101,23 +100,6 @@ def get_token_oauth(
         client_secret=client_secret_,
     )
     return token
-
-
-def get_from_db(
-    cur: sqlite3, field: str, table: str
-) -> Optional[list[tuple[str, ...]]]:
-    """This function gets a field from a table in a ``SQLite3`` database.
-
-    :param cur: database cursor
-    :param field: database column/field
-    :param table: database table
-    :return: ``list[tuple] | None`` List of tuples with the values or None in case of operational error.
-    """
-    qry = f"SELECT {field} from {table}"
-    try:
-        return cur.execute(qry).fetchall()
-    except OperationalError:
-        return None
 
 
 def get_project_db(

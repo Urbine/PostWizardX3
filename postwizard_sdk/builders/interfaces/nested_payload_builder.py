@@ -20,7 +20,7 @@ K = TypeVar("K", str, Enum)
 V = TypeVar("V", bound=Union[str, int, bool])
 
 
-class PayloadBuilder(ABC, Generic[K, V]):
+class NestedPayloadBuilder(ABC, Generic[K, V]):
     def __init__(self):
         """
         Initialize the PayloadBuilder with a blank payload.

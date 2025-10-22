@@ -16,7 +16,7 @@ import os
 import shutil
 import time
 import zipfile
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 
 # Third-party imports
 import requests
@@ -29,9 +29,12 @@ from core.config.config_factories import image_config_factory
 from core.models.secret_model import MongerCashAuth, SecretType
 from core.utils.data_access import get_webdriver
 from core.utils.file_system import search_files_by_ext
+from core.utils.interfaces import WordFilter
 from core.utils.secret_handler import SecretHandler
-from core.utils.strings import clean_filename, split_char
+from core.utils.strings import clean_filename
 from core.utils.system_shell import imagick
+from wordpress import WordPress
+from workflows.builders import WorkflowMediaPayload
 
 
 def fetch_thumbnail(
@@ -50,7 +53,7 @@ def fetch_thumbnail(
     :return: ``int`` (status code from requests)
     """
     thumbnail_dir: str = folder
-    remote_data: requests = requests.get(remote_res)
+    remote_data = requests.get(remote_res)
     cs_conf = image_config_factory()
     if thumbnail_name != "":
         name: str = f"-{thumbnail_name.split('.')[0]}"
@@ -82,8 +85,8 @@ def fetch_thumbnail_file(
     :return: ``tuple[str, int]`` (file name, status code)
     """
     thumbnail_dir: str = folder
-    remote_data: requests = requests.get(remote_res)
-    img_name = (spl_str := remote_res).split(split_char(spl_str))[-1]
+    remote_data = requests.get(remote_res)
+    img_name = WordFilter(delimiter=" ").add_word(remote_res).split()[-1]
     with open(os.path.join(thumbnail_dir, img_name), "wb") as img:
         img.write(remote_data.content)
     return os.path.join(os.path.abspath(folder), img_name), remote_data.status_code
@@ -198,3 +201,82 @@ def extract_zip(zip_path: str, extr_dir: str) -> None:
     except (IndexError, zipfile.BadZipfile) as e:
         logging.error(f"Something went wrong with the archive extraction -> {e!r}")
         return None
+
+
+def upload_image_set(
+    ext: str,
+    folder: str,
+    title: str,
+    wordpress_site: WordPress,
+) -> None:
+    """Upload a set of images to the WordPress Media endpoint.
+
+    :param ext: ``str`` image file extension to look for.
+    :param folder:  ``str`` Your thumbnails folder, just the name is necessary.
+    :param title: ``str`` gallery name
+    :param wordpress_site: ``WordPress`` instance
+    :return: ``None``
+    """
+    thumbnails: List[str] = search_files_by_ext(ext, folder=folder)
+    if len(thumbnails) == 0:
+        # Assumes the thumbnails are contained in a directory
+        # This could be caused by the archive extraction
+        logging.info("Thumbnails contained in directory - Running recursive search")
+        files: List[str] = search_files_by_ext(".jpg", recursive=True, folder=folder)
+
+        get_parent_dir = lambda dr: os.path.split(os.path.split(dr)[-2:][0])[1]  # noqa: E731
+
+        thumbnails: List[str] = [
+            os.path.join(get_parent_dir(path), os.path.basename(path)) for path in files
+        ]
+
+    if len(thumbnails) != 0:
+        logging.info(
+            prnt_imgs
+            := f"--> Uploading set with {len(thumbnails)} images to WordPress Media..."
+        )
+        print(prnt_imgs)
+        print("--> Adding image attributes on WordPress...")
+        thumbnails.sort()
+
+    # Prepare the image new name so that separators are replaced by hyphens.
+    # E.g. this_is_a_cool_pic.jpg => this-is-a-cool-pic.jpg
+
+    for number, image in enumerate(thumbnails, start=1):
+        img_attrs: Dict[str, str] = WorkflowMediaPayload().gallery_payload_factory(
+            title, number
+        )
+
+        img_file = WordFilter(delimiter="-").add_word(os.path.basename(image)).filter()
+
+        os.renames(
+            os.path.join(folder, os.path.basename(image)),
+            img_new := os.path.join(folder, os.path.basename(img_file)),
+        )
+
+        status_code: int = wordpress_site.upload_image(img_new, img_attrs)
+
+        img_now = os.path.basename(img_new)
+        if status_code == 200 or status_code == 201:
+            logging.info(f"Removing --> {img_now}")
+            os.remove(img_new)
+
+        logging.info(
+            img_seq := f"* Image {number} | {img_now} --> Status code: {status_code}"
+        )
+        print(img_seq)
+    try:
+        # Check if I have paths instead of filenames
+        if len(thumbnails[0].split(os.sep)) > 1:
+            try:
+                shutil.rmtree(
+                    remove_dir
+                    := f"{os.path.join(os.path.abspath(folder), thumbnails[0].split(os.sep)[0])}"
+                )
+                logging.info(f"Removed dir -> {remove_dir}")
+            except NotImplementedError:
+                logging.info(
+                    "Incompatible platform - Directory cleaning relies on tempdir logic for now"
+                )
+    except (IndexError, AttributeError):
+        pass

@@ -13,11 +13,11 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
 from typing import Self, Union
-from postwizard_sdk.builders.interfaces import PayloadBuilder
+from postwizard_sdk.builders.interfaces import NestedPayloadBuilder
 from postwizard_sdk.models import PostKey
 
 
-class PostInfoPayload(PayloadBuilder):
+class PostInfoNestedPayload(NestedPayloadBuilder):
     def __init__(self):
         super().__init__()
 

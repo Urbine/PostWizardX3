@@ -18,7 +18,7 @@ import re
 from core.exceptions.config_exceptions import AssetsNotFoundError
 from core.models.config_model import MCashContentBotConf
 from core.utils.parsers import parse_client_config
-from workflows.interfaces import WordFilter
+from core.utils.interfaces import WordFilter
 
 
 def asset_parser(bot_config: MCashContentBotConf, partner: str):

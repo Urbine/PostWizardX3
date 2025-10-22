@@ -12,7 +12,7 @@ __author_email__ = "yohamg@programmer.net"
 
 from typing import Optional, Dict, Union, Callable
 
-from postwizard_sdk.builders import PostInfoPayload, PostMetaPayload
+from postwizard_sdk.builders import PostInfoNestedPayload, PostMetaNestedPayload
 from postwizard_sdk.models import PostMetaKey, PostKey
 
 
@@ -23,7 +23,7 @@ def transform_payload_value(
     new_value: str,
     transform_func: Callable[[str], str],
     result_func: Callable[[str, str], str],
-) -> Optional[Union[PostInfoPayload, PostMetaPayload]]:
+) -> Optional[Union[PostInfoNestedPayload, PostMetaNestedPayload]]:
     """
     Transforms a payload key value based on a match text. In other words, it transforms the value by removing the
     match text and applying a transformation function to it, provided that such text contains relevant information
@@ -42,9 +42,9 @@ def transform_payload_value(
     :return: ``Optional[Union[PostInfoPayload, PostMetaPayload]]`` -> The transformed payload.
     """
     if isinstance(post_key, PostKey):
-        payload_builder = PostInfoPayload()
+        payload_builder = PostInfoNestedPayload()
     else:
-        payload_builder = PostMetaPayload()
+        payload_builder = PostMetaNestedPayload()
 
     if post_instance[post_key.value] is None or not post_instance[
         post_key.value
