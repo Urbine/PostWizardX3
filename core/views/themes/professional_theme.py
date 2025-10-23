@@ -1,3 +1,13 @@
+"""
+Professional theme for views in PostWizard
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import gradio as gr
 from gradio.themes.utils import colors, fonts, sizes
 
