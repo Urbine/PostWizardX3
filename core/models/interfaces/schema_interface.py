@@ -1,3 +1,17 @@
+"""
+SchemaInterface
+
+This module defines the SchemaInterface class, which is a complementary class dealing with
+dynamic SQL schema reading and query creation for embedded content databases.
+SchemaInterface is a type of lightweight implementation of a local Object-Relational Mapping (ORM) system.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import logging
 import sqlite3
 

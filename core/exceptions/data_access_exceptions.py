@@ -1,3 +1,15 @@
+"""
+Data Access exceptions
+
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
+
 class InvalidDB(Exception):
     """
     Catches SQLite3's OperationalError in order to give a useful error message to
