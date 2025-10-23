@@ -1,3 +1,16 @@
+"""
+Secret repository module
+
+This module provides a database interface for managing secrets in the application by
+implementing the SchemaInterface interface in ``core.models.interfaces.schema_interface``.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import logging
 import os
 import re

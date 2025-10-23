@@ -1,3 +1,16 @@
+"""
+Secrets factory module
+
+This module provides configuration functions and a factory for creating a SecretsDBInterface instance
+to be used as a central repository of secrets.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import logging
 import os
 import sqlite3

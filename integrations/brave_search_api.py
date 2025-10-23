@@ -1,3 +1,15 @@
+"""
+Brave Search API wrapper
+
+This module provides a wrapper for the Brave Search API.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import argparse
 import datetime
 import re

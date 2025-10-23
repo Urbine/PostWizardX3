@@ -1,3 +1,15 @@
+"""
+Secret configuration model
+
+This module defines the representation of all the secrets managed in the application.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
