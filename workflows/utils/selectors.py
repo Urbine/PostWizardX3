@@ -117,6 +117,83 @@ def slug_getter(console_obj: Console, slugs: List[str]) -> Optional[str]:
     return slug_getter_persist(slugs)
 
 
+class SlugGetter:
+    def __init__(
+        self,
+        console_obj: Console,
+        slugs: List[str],
+        interactive: bool = True,
+        proposed_slug: Optional[str] = None,
+    ):
+        self._prompt_style = ConsoleStyle.TEXT_STYLE_PROMPT.value
+        self._user_attention_style = ConsoleStyle.TEXT_STYLE_ATTENTION.value
+        self._slug_entry_style = ConsoleStyle.TEXT_STYLE_ACTION.value
+        self._console = console_obj
+        self._slug_list = slugs
+        self._interactive = interactive
+        self._proposed_slug = proposed_slug
+
+    def _print_slugs(self) -> str:
+        self._console.print(
+            "\n--> Available slugs:\n", style=self._user_attention_style
+        )
+
+        for n, slug in enumerate(self._slug_list, start=1):
+            self._console.print(f"{n}. -> {slug}", style=self._slug_entry_style)
+        self._console.print(
+            "--> Provide a custom slug or pick a slug number",
+            style=self._user_attention_style,
+        )
+
+        slug_option = self._console.input(
+            f"[{self._prompt_style}]\nSelect your slug: [/{self._prompt_style}]\n"
+        )
+        return slug_option
+
+    def _slug_getter_loop(self) -> Optional[str]:
+        user_slug = ""
+        while not user_slug:
+            if len(self._slug_list) != 0:
+                user_slug = self._print_slugs()
+                if re.match(r"^\d+$", user_slug):
+                    try:
+                        return self._slug_list[int(user_slug) - 1]
+                    except (IndexError, ValueError):
+                        self._console.print(
+                            "Invalid option! Choosing random slug...",
+                            style=ConsoleStyle.TEXT_STYLE_WARN.value,
+                        )
+                        user_slug = random.choice(self._slug_list)
+                        logging.info(f"Chose random slug: {user_slug} automatically")
+                        return user_slug
+                elif re.match(r"^\w+", user_slug):
+                    logging.info(f"User-provided slug: {user_slug} used")
+                    self._console.print(
+                        f"Using custom slug: {user_slug}",
+                        style=self._user_attention_style,
+                    )
+                    return user_slug
+            else:
+                logging.critical("No slugs were provided in controlling function.")
+                self._console.print(
+                    " -> Provide a custom slug for the post now: \n",
+                    style=self._prompt_style,
+                )
+                user_slug = input()
+                if user_slug:
+                    return user_slug
+                else:
+                    continue
+        return None
+
+    def get(self) -> Optional[str]:
+        if self._interactive:
+            return self._slug_getter_loop()
+        else:
+            logging.info(f"User-proposed slug: {self._proposed_slug} used")
+            return self._proposed_slug
+
+
 def pick_classifier(
     console_obj: Console,
     wordpress_site: WordPress,

@@ -13,9 +13,8 @@ __author_email__ = "yohamg@programmer.net"
 
 import logging
 import os
-import time
 from enum import Enum
-from typing import Tuple, Union, Optional
+from typing import Tuple, Union, Optional, NoReturn
 
 # Third-party imports
 import pyclip
@@ -43,7 +42,8 @@ def terminate_loop_logging(
     time_elapsed: Tuple[Union[int, float], Union[int, float], Union[int, float]],
     exhausted: bool,
     sets: bool = False,
-) -> None:
+    interactive=True,
+) -> NoReturn:
     """Terminate the sequence of the loop by logging messages to the screen and the logs.
 
     :param time_elapsed: ``tuple[int, int, int]`` | Time measurement variables that report elapsed execution time for logging.
@@ -53,6 +53,7 @@ def terminate_loop_logging(
     :param done_count: ``int``  | Total of video elements that were pushed to the WordPress site.
     :param exhausted: ``bool``  | Flag that controls console logging depending on whether elements are exhausted.
     :param sets: ``bool``       | Flag that controls console logging depending on whether elements are sets.
+    :param interactive: ``bool`` | Flag that controls console logging depending on whether the flow is interactive.
     :return: ``None``
     """
     # The terminating parts add this function to avoid
@@ -61,31 +62,34 @@ def terminate_loop_logging(
     pyclip.clear()
     if exhausted:
         logging.info(f"List exhausted. State: num={iter_num} total_elems={total_elems}")
-        console_obj.print(
-            "\nWe have reviewed all posts for this query.",
-            style=ConsoleStyle.TEXT_STYLE_WARN.value,
-        )
-        console_obj.print(
-            "Try a different SQL query or partner. I am ready when you are. ",
-            style=ConsoleStyle.TEXT_STYLE_WARN.value,
-        )
+        if interactive:
+            console_obj.print(
+                "\nWe have reviewed all posts for this query.",
+                style=ConsoleStyle.TEXT_STYLE_WARN.value,
+            )
+            console_obj.print(
+                "Try a different SQL query or partner. I am ready when you are. ",
+                style=ConsoleStyle.TEXT_STYLE_WARN.value,
+            )
     elif not sets:
-        console_obj.print(
-            f"You have created {done_count} posts in this session!",
-            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-        )
+        logging.info(f"List exhausted. State: num={iter_num} total_elems={total_elems}")
+        if interactive:
+            console_obj.print(
+                f"You have created {done_count} posts in this session!",
+                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            )
     else:
-        console_obj.print(
-            f"You have created {done_count} sets in this session!",
-            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-        )
+        if interactive:
+            console_obj.print(
+                f"You have created {done_count} sets in this session!",
+                style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+            )
     h, mins, secs = time_elapsed
     logging.info(
         f"User created {done_count} {'posts' if not sets else 'sets'} in hours: {h} mins: {mins} secs: {secs}"
     )
     logging.info("Cleaning system clipboard and temporary directories. Quitting...")
     logging.shutdown()
-    time.sleep(0.5)
     raise KeyboardInterrupt
 
 
