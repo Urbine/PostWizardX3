@@ -11,9 +11,19 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, TypedDict
+
+
+class WorkflowConfigObject(ABC):
+    def __init__(self):
+        super().__init__()
+
+    @abstractmethod
+    def __repr__(self):
+        return "ConfigObject()"
 
 
 class ConfigOption(Enum):
@@ -190,7 +200,7 @@ class AIServices:
 
 
 @dataclass(frozen=True, kw_only=True)
-class MCashContentBotConf:
+class MCashContentBotConf(WorkflowConfigObject):
     """
     Immutable dataclass responsible for holding content-select
     bot configuration variables and behavioural tweaks.
@@ -211,7 +221,7 @@ class MCashContentBotConf:
 
 
 @dataclass(frozen=True, kw_only=True)
-class MCashGalleryBotConf:
+class MCashGalleryBotConf(WorkflowConfigObject):
     """
     Immutable dataclass responsible for holding gallery-select
     bot configuration variables and behavioural tweaks.
@@ -230,7 +240,7 @@ class MCashGalleryBotConf:
 
 
 @dataclass(frozen=True, kw_only=True)
-class EmbedAssistBotConf:
+class EmbedAssistBotConf(WorkflowConfigObject):
     """
     Immutable dataclass responsible for holding embed-assist
     bot configuration variables and behavioural tweaks.

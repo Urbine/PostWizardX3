@@ -15,13 +15,14 @@ import os
 import re
 import sqlite3
 from sqlite3 import OperationalError, Connection, Cursor
-from typing import Optional, List, Tuple, Union
+from typing import Optional, List, Tuple
 
 # Third-party imports
 from rich.console import Console
 
 # Local imports
 from core.exceptions.util_exceptions import InvalidInput
+from core.models import WorkflowConfigObject
 from core.utils.file_system import search_files_by_ext, is_parent_dir_required
 from core.utils.config_writer import (
     MCashContentBotConfig,
@@ -227,7 +228,7 @@ def get_model_set(db_cursor: sqlite3.Cursor, table: str) -> set[str]:
 
 def query_modifier(
     sql_query: str,
-    bot_config: Union[MCashContentBotConf, MCashGalleryBotConf, EmbedAssistBotConf],
+    bot_config: WorkflowConfigObject,
 ):
     """
     Write a SQL query to the configuration file.

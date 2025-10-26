@@ -14,7 +14,7 @@ email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
-from typing import Self, Iterable
+from typing import Self, Iterable, Optional
 import regex as re
 
 
@@ -83,7 +83,7 @@ class NaiveSlugBuilder:
 
         return self._delim.join(self._buffer)
 
-    def build(self) -> str:
+    def build(self) -> Optional[str]:
         """
         Returns the constructed slug and cleans the builder for reuse.
         Consumers must call this method when the slug is done and no more
@@ -93,6 +93,6 @@ class NaiveSlugBuilder:
         """
         try:
             last_peek = self.peek()
-            return last_peek.strip(self._delim)
+            return last_peek.strip(self._delim) if last_peek else None
         finally:
             self._buffer.clear()

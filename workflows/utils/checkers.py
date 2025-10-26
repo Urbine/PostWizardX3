@@ -69,6 +69,7 @@ def model_checker(
     model_prep: List[str],
     add_missing: bool = False,
     retries: int = 3,
+    interactive=True,
 ) -> Optional[List[int]]:
     """
     Share missing model checking behaviour accross modules.
@@ -78,6 +79,7 @@ def model_checker(
     :param model_prep: ``list[str]`` - Model tag list without delimiters
     :param add_missing: ``bool`` - Whether to add missing models to the WordPress site via PostWizard
     :param retries: ``int`` - Number of retries to attempt when adding a missing model via PostWizard
+    :param interactive: ``bool`` - Whether to interact with the user when adding a missing model
     :return: ``list[int]`` - List of model integer ids in the WordPress site.
     """
     if not model_prep:
@@ -98,28 +100,30 @@ def model_checker(
     else:
         for girl in new_models:
             if not add_missing:
-                console.print(
-                    f"ATTENTION! --> Model: {girl} not on WordPress.",
-                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-                )
-                console.print(
-                    "--> Copying missing model name to your system clipboard.",
-                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-                )
-                console.print(
-                    "Paste it into the Pornstars field as soon as possible...\n",
-                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-                )
+                if interactive:
+                    console.print(
+                        f"ATTENTION! --> Model: {girl} not on WordPress.",
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
+                    console.print(
+                        "--> Copying missing model name to your system clipboard.",
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
+                    console.print(
+                        "Paste it into the Pornstars field as soon as possible...\n",
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
                 logging.warning(f"Missing model: {girl}")
                 pyclip.detect_clipboard()
                 pyclip.copy(girl)
             else:
                 new_model = TaxonomyNestedPayload()
                 if girl:
-                    console.print(
-                        f'Adding new model: "{girl}" to WordPress...',
-                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-                    )
+                    if interactive:
+                        console.print(
+                            f'Adding new model: "{girl}" to WordPress...',
+                            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                        )
                     new_model.term(girl).taxonomy_name(Taxonomy.MODEL)
                     retry_count = 0
                     while True:
@@ -152,6 +156,7 @@ def tag_checker_print(
     wordpress_site: WordPress,
     tag_prep: List[str],
     add_missing: bool = False,
+    interactive=True,
 ) -> List[int]:
     """
     Checks the tags in the given WordPress posts and identifies any missing tags, printing
@@ -161,6 +166,7 @@ def tag_checker_print(
     :param wordpress_site: ``WordPress`` An instance of the WordPress class
     :param tag_prep: ``list[str]`` A list of prepared tags to be checked
     :param add_missing: ``bool`` - Whether to add missing tags to the WordPress site via PostWizard
+    :param interactive: ``bool`` - Whether to print messages for the user to the console
     :return: ``list[int]`` A list of tag IDs corresponding to the provided tags
     """
     tag_ints: List[int] = get_tag_ids(wordpress_site, tag_prep, "tags")
@@ -175,28 +181,30 @@ def tag_checker_print(
     else:
         for tag in tag_check:
             if not add_missing:
-                console_obj.print(
-                    f"ATTENTION --> Tag: {tag} not on WordPress.",
-                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-                )
-                console_obj.print(
-                    "--> Copying missing tag to your system clipboard.",
-                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-                )
-                console_obj.print(
-                    "Paste it into the tags field as soon as possible...\n",
-                    style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-                )
+                if interactive:
+                    console_obj.print(
+                        f"ATTENTION --> Tag: {tag} not on WordPress.",
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
+                    console_obj.print(
+                        "--> Copying missing tag to your system clipboard.",
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
+                    console_obj.print(
+                        "Paste it into the tags field as soon as possible...\n",
+                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                    )
                 logging.warning(f"Missing tag detected: {tag}")
                 pyclip.detect_clipboard()
                 pyclip.copy(tag)
             else:
                 new_tag = TaxonomyNestedPayload()
                 if tag:
-                    console_obj.print(
-                        f'Adding new tag: "{tag}" to WordPress...',
-                        style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
-                    )
+                    if interactive:
+                        console_obj.print(
+                            f'Adding new tag: "{tag}" to WordPress...',
+                            style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
+                        )
                     new_tag.term(tag).taxonomy_name(Taxonomy.TAG)
                     resulting_term_id = add_taxonomy(new_tag)
                     if resulting_term_id != -1:
@@ -205,7 +213,6 @@ def tag_checker_print(
                         f'Called PostWizard to add tag: "{tag}" - Resulting in {resulting_term_id}'
                     )
                     new_tag.clear()
-
     return tag_ints
 
 
