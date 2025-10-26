@@ -35,6 +35,7 @@ from requests.auth import HTTPBasicAuth
 
 # Local implementations
 from core.utils.file_system import load_json_ctx, export_request_json, logging_setup
+from core.models.file_system import ApplicationPath
 from core.utils.strings import clean_filename, match_list_single
 from core.utils.helpers import get_duration
 from wordpress.exceptions.internal_exceptions import (
@@ -78,6 +79,7 @@ class WordPress:
         password: str,
         cache_path: str | Path,
         use_photo_support: bool = False,
+        unique_logging_session: bool = True,
     ):
         """
         Initializes the WordPress API handler with authentication and cache configuration.
@@ -90,9 +92,11 @@ class WordPress:
         :param password: ``str`` -> Application password for WordPress API authentication.
         :param cache_path: ``str | Path`` -> Path to the local cache file, including the filename.
         :param use_photo_support: ``bool`` -> Flag indicating whether to fetch photo posts. Default is False.
+        :param unique_logging_session: ``bool`` -> Flag indicating whether to set up an independent logging session.
         :return: ``None``
         """
-        logging_setup("logs", __file__)
+        if unique_logging_session:
+            logging_setup(ApplicationPath.LOGGING.value, __file__)
         self.session_number = os.environ.get("SESSION_ID")
         self.fq_domain_name = fq_domain_name
         self.api_base_url = f"https://{self.fq_domain_name}/wp-json/wp/v2"

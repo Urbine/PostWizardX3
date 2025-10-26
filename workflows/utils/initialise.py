@@ -112,6 +112,7 @@ def pilot_warm_up(
                     wp_auth.user,
                     wp_auth.app_password,
                     ApplicationPath.WP_POSTS_CACHE.value,
+                    unique_logging_session=False,
                 )
             else:
                 logging.info(
@@ -123,6 +124,7 @@ def pilot_warm_up(
                     wp_auth.app_password,
                     ApplicationPath.WP_PHOTOS_CACHE.value,
                     use_photo_support=True,
+                    unique_logging_session=False,
                 )
 
         with console.status(
@@ -212,6 +214,7 @@ def pilot_warm_up(
                 wp_auth.app_password,
                 ApplicationPath.WP_PHOTOS_CACHE.value,
                 use_photo_support=True,
+                unique_logging_session=False,
             )
             logging.info(
                 f"Reading WordPress Photo Posts cache: {ApplicationPath.WP_PHOTOS_CACHE.value}"

@@ -59,6 +59,7 @@ WP_SITE_INSTANCE = WordPress(
     WP_AUTH.user,
     WP_AUTH.app_password,
     ApplicationPath.WP_POSTS_CACHE.value,
+    unique_logging_session=False,
 )
 
 
