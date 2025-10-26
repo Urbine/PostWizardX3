@@ -1,5 +1,5 @@
 from workflows.interfaces.embeds_multi_schema import EmbedsMultiSchema
-from core.utils.interfaces.naive_slug_builder import NaiveSlugBuilder
-from core.utils.interfaces.word_filter import WordFilter
+from workflows.interfaces.content_bot_runner import ContentBotRunner
+from workflows.interfaces.content_bot_flow import ContentBotFlow
 
-__all__ = ["EmbedsMultiSchema", "NaiveSlugBuilder", "WordFilter"]
+__all__ = ["EmbedsMultiSchema", "ContentBotRunner", "ContentBotFlow"]
