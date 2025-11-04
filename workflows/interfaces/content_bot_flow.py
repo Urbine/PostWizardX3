@@ -2,7 +2,7 @@ import logging
 import time
 import regex as re
 from abc import abstractmethod
-from typing import Generic, TypeVar, Optional, List, Dict
+from typing import Generic, TypeVar, Optional, List, Dict, NoReturn
 
 # Third-party imports
 from requests.exceptions import SSLError, ConnectionError
@@ -29,6 +29,8 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
         re_filter: str = r"(?=\W)\S",
         interactive: bool = True,
         auto_cache_sync: bool = False,
+        post_required: int = 0,
+        exclude_partner_tag=False,
         parent: bool = False,
     ):
         super().__init__(workflow_config, interactive=interactive, parent=parent)
@@ -38,6 +40,14 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
         self._iter_num = 0
         self._default_re_filter = re_filter
         self._auto_cache_sync = auto_cache_sync
+        self._post_add = False
+        self._posts_required = 0
+        self._exclude_partner_tag = exclude_partner_tag
+
+        if not self._interactive and self._posts_required <= 0:
+            from workflows.exceptions import InvalidPostQuantityException
+
+            raise InvalidPostQuantityException(self._posts_required)
 
         # Deferred assignment
         self._time_end = None
@@ -89,7 +99,7 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
             self._console, self._items_uploaded, elem_num=self._increment_iter_num()
         )
 
-    def _session_end_print(self, log_statement: str, exhausted: bool) -> None:
+    def _flow_session_end(self, log_statement: str, exhausted: bool) -> NoReturn:
         logging.info(log_statement)
         self._thumbnails_dir.cleanup()
         self._time_end = time.time()
@@ -106,14 +116,13 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
             )
         except KeyboardInterrupt:
             if self._interactive:
-                logging.critical(
-                    f"KeyboardInterrupt exception handled -> _session_end_print at {__file__}"
-                )
                 print("Goodbye! ಠ‿↼")
-                time.sleep(0.5)
-                # When ``exit`` is called, temp dirs will be automatically cleaned.
-                exit(0)
-            return
+            logging.critical(
+                f"KeyboardInterrupt exception handled -> _session_end_print at {__file__}"
+            )
+            time.sleep(0.5)
+            # When ``exit`` is called, temp dirs will be automatically cleaned.
+            exit(0)
 
     def _parse_assets(self) -> None:
         from workflows.utils.parsing import asset_parser
@@ -142,7 +151,7 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
             if next_post:
                 if (
                     Prompt.ask(
-                        f"[{self._prompt_style}]\nNext post? -> N/ENTER to review next post [/{self._prompt_style}]\n"
+                        f"[{self._prompt_style}]\nNext post? -> N/ENTER to review next post [/{self._prompt_style}]"
                     )
                     == ""
                 ):
@@ -161,12 +170,12 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
                             self._site.cache_sync()
                     return True
                 else:
-                    self._session_end_print(
+                    self._flow_session_end(
                         "User declined further activity with the bot", False
                     )
             else:
                 prompt_flow = Prompt.ask(
-                    f"\n[{self._prompt_style}]Add post to WP? -> Y/N/ENTER to review next post [/{self._prompt_style}]\n",
+                    f"\n[{self._prompt_style}]Add post to WP? -> Y/N/ENTER to review next post [/{self._prompt_style}]",
                     choices=["y", "n", ""],
                     show_choices=False,
                     case_sensitive=False,
@@ -180,13 +189,19 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
                     )
                     return True
                 else:
-                    self._session_end_print(
+                    self._flow_session_end(
                         "User declined further activity with the bot", False
                     )
-
-        if self._auto_cache_sync:
-            self._site.cache_sync()
-        return False
+        else:
+            if self._post_add and self._iter_num >= self._posts_required:
+                self._flow_session_end(
+                    f"Exhausted videos required. Added ({self._iter_num}/{self._posts_required})",
+                    False,
+                )
+            else:
+                if self._auto_cache_sync:
+                    self._site.cache_sync()
+                return True
 
     def _loop_state_check(self) -> Optional[bool]:
         if self._add_post_prompt():
@@ -198,7 +213,7 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
                 )
                 return False
             else:
-                self._session_end_print(
+                self._flow_session_end(
                     f"List of available videos has been exhausted: Iteration: ({self._iter_num}) Total: ({self._total_ready})",
                     exhausted=True,
                 )
@@ -222,7 +237,6 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
                 interactive=False,
                 proposed_slug=random.choice(built_slugs),
             )
-
         self._wp_slug = slug_getter.get()
         return None
 
@@ -236,35 +250,40 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
         )
 
     def _process_tags(self) -> None:
-        self._tag_prep = re.split(self._default_re_filter, self._tags_str)
+        self._tag_prep = [
+            tag for tag in re.split(self._default_re_filter, self._tags_str) if tag
+        ]
         partner_tag = self._process_partner_tag()
-        if partner_tag:
+        if partner_tag and not self._exclude_partner_tag:
             self._tag_prep.append(partner_tag)
         return None
 
-    def _tag_checker(self, add_missing: bool = True) -> None:
+    def _tag_checker(self, add_missing: bool = True, photo_tags: bool = False) -> None:
         from workflows.utils.checkers import tag_checker_print
 
-        self._tag_ints = tag_checker_print(
-            self._console,
-            self._site,
-            self._tag_prep,
-            add_missing=add_missing,
-            interactive=self._interactive,
-        )
+        if self._tag_prep:
+            self._tag_ints = tag_checker_print(
+                self._console,
+                self._site,
+                self._tag_prep,
+                add_missing=add_missing,
+                interactive=self._interactive,
+                photo_tags=photo_tags,
+            )
         return None
 
     def _classify_content(self):
-        from workflows.utils.selectors import pick_classifier
+        from workflows.utils.selectors import ContentClassifier
 
-        self._categ_ints = pick_classifier(
+        self._categ_ints = ContentClassifier(
             self._console,
             self._site,
             self._title,
             self._description,
             self._tags_str,
-            interactive=False,
-        )
+            interactive=self._interactive,
+            aggregate_all=True,
+        ).get()
         return None
 
     @abstractmethod
@@ -301,7 +320,7 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
         return True
 
     @abstractmethod
-    def _build_wp_thumb_payload(self):
+    def _build_wp_thumb_payload(self) -> Dict[str, str]:
         pass
 
     def _wp_post_create(self) -> bool:
@@ -429,28 +448,31 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
             self._site,
         )
 
-    def _flow_start(self) -> None:
+    def _main_flow(self) -> bool:
+        self._process_slug()
+        self._process_partner_tag()
+        self._process_tags()
+        self._tag_checker(add_missing=True)
+        self._classify_content()
+        self._prepare_thumbnail()
+        self._fetch_thumbnail()
+        self._wp_upload_image()
+        self._wp_post_create()
+        self._wp_post_publish()
+        self._submit_meta_payload()
+        self._social_sharing()
+        return self._add_post_prompt(next_post=True)
+
+    def _interactive_flow(self) -> None:
         try:
             import datetime
 
-            self._process_slug()
-            self._process_partner_tag()
-            self._process_tags()
-            self._tag_checker(add_missing=True)
-            self._classify_content()
-            self._prepare_thumbnail()
-            self._fetch_thumbnail()
-            self._wp_upload_image()
-            self._wp_post_create()
-            self._wp_post_publish()
-            self._submit_meta_payload()
-            self._social_sharing()
-            next_post = self._add_post_prompt(next_post=True)
+            next_post = self._main_flow()
             if next_post:
                 self._wp_last_post = None
                 return
             else:
-                self._session_end_print(
+                self._flow_session_end(
                     f"Session Ended at {datetime.datetime.now()}", exhausted=False
                 )
         except (SSLError, ConnectionError) as e:
@@ -469,7 +491,7 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
                     style=self._warning_style,
                 )
                 self._console.print(
-                    f"Post {self._wp_slug} was {'' if is_published else 'NOT'} published!",
+                    f"Post {self._wp_slug if self._wp_slug else ''} was {'' if is_published else 'NOT'} published!",
                     style=self._warning_style,
                 )
 
@@ -480,15 +502,19 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
                     if is_published:
                         self._items_uploaded += 1
                 else:
-                    self._session_end_print(
+                    self._flow_session_end(
                         f"User refused to continue after catching {e!r}",
                         exhausted=False,
                     )
             else:
-                self._session_end_print(
+                self._flow_session_end(
                     f"Headless flow encountered {e!r} and won't continue",
                     exhausted=False,
                 )
+
+    def _flow_start(self):
+        if self._interactive:
+            self._interactive_flow()
 
     @abstractmethod
     def _main_loop(self) -> None:
