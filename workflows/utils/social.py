@@ -3,7 +3,7 @@ Workflows Social Module
 
 This module is responsible for mediating between local social media integrations and workflows
 by providing additional functionality and adapting them to the
-requirements of the bots.
+requirements of the flows.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net
@@ -45,7 +45,7 @@ def x_post_creator(
     want to post without the randon text, the default value is an empty string.
 
     Set the ``x_posting_auto`` option in ``workflows_config.ini`` to ``False`` ,
-    so that you get to type when you interact with the bots.
+    so that you get to type when you interact with the flows.
 
     :param description: ``str`` Video description
     :param post_url: ``str`` Video post url on WordPress

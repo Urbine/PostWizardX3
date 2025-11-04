@@ -61,7 +61,9 @@ def terminate_loop_logging(
     pyclip.detect_clipboard()
     pyclip.clear()
     if exhausted:
-        logging.info(f"List exhausted. State: num={iter_num} total_elems={total_elems}")
+        logging.info(
+            f"List exhausted or required post quantity reached. State: num={iter_num} total_elems={total_elems}"
+        )
         if interactive:
             console_obj.print(
                 "\nWe have reviewed all posts for this query.",
@@ -119,7 +121,7 @@ def iter_session_print(
     )
     if partner:
         console_obj.print(
-            f"\nThere are {video_count} {partner} videos to be published...",
+            f"\nThere are {video_count} {partner} elements to be published...",
             style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
             justify="center",
         )
