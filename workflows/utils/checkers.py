@@ -156,7 +156,8 @@ def tag_checker_print(
     wordpress_site: WordPress,
     tag_prep: List[str],
     add_missing: bool = False,
-    interactive=True,
+    interactive: bool = True,
+    photo_tags: bool = False,
 ) -> List[int]:
     """
     Checks the tags in the given WordPress posts and identifies any missing tags, printing
@@ -167,9 +168,12 @@ def tag_checker_print(
     :param tag_prep: ``list[str]`` A list of prepared tags to be checked
     :param add_missing: ``bool`` - Whether to add missing tags to the WordPress site via PostWizard
     :param interactive: ``bool`` - Whether to print messages for the user to the console
+    :param photo_tags: ``bool`` - Whether to process the tags for a photo set
     :return: ``list[int]`` A list of tag IDs corresponding to the provided tags
     """
-    tag_ints: List[int] = get_tag_ids(wordpress_site, tag_prep, "tags")
+    tag_ints: List[int] = get_tag_ids(
+        wordpress_site, tag_prep, "tags" if not photo_tags else "photos"
+    )
     all_tags_wp: Dict[str, int] = wordpress_site.tag_id_merger_dict()
     tag_check: Optional[List[str]] = identify_missing(
         all_tags_wp, tag_prep, tag_ints, ignore_case=True
@@ -194,9 +198,9 @@ def tag_checker_print(
                         "Paste it into the tags field as soon as possible...\n",
                         style=ConsoleStyle.TEXT_STYLE_ATTENTION.value,
                     )
+                    pyclip.detect_clipboard()
+                    pyclip.copy(tag)
                 logging.warning(f"Missing tag detected: {tag}")
-                pyclip.detect_clipboard()
-                pyclip.copy(tag)
             else:
                 new_tag = TaxonomyNestedPayload()
                 if tag:
@@ -210,7 +214,7 @@ def tag_checker_print(
                     if resulting_term_id != -1:
                         tag_ints.append(resulting_term_id)
                     logging.info(
-                        f'Called PostWizard to add tag: "{tag}" - Resulting in {resulting_term_id}'
+                        f'Called PostWizard to add tag: "{tag}" - Resulting in Term ID: {resulting_term_id}'
                     )
                     new_tag.clear()
     return tag_ints
@@ -276,6 +280,7 @@ def get_tag_ids(
         for wptag in tag_tracking.keys()
         for tag in cl_tags
         if re.fullmatch(tag, wptag, flags=re.IGNORECASE)
+        if tag
     ]
     return list({tag_tracking[tag] for tag in matched_keys})
 
