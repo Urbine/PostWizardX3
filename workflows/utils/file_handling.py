@@ -131,7 +131,7 @@ def fetch_zip(
     )
     logging.info(f"Using {dwn_dir} for downloads as per function params")
 
-    mongercash_auth: MongerCashAuth = SecretHandler().get_secrets(
+    mongercash_auth: MongerCashAuth = SecretHandler().get_secret(
         SecretType.MONGERCASH_PASSWORD
     )[0]
     username: str = mongercash_auth.username
@@ -247,11 +247,15 @@ def upload_image_set(
             title, number
         )
 
-        img_file = WordFilter(delimiter="-").add_word(os.path.basename(image)).filter()
+        img_file = (
+            WordFilter(delimiter="-")
+            .add_word(os.path.basename(image).split(".")[0])
+            .filter()
+        )
 
         os.renames(
             os.path.join(folder, os.path.basename(image)),
-            img_new := os.path.join(folder, os.path.basename(img_file)),
+            img_new := os.path.join(folder, os.path.basename(img_file) + ext),
         )
 
         status_code: int = wordpress_site.upload_image(img_new, img_attrs)

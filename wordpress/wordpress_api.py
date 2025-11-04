@@ -536,7 +536,11 @@ class WordPress:
         :return: ``int`` -> HTTP status code of the request.
         """
         wp_self, auth_wp = self.setup_basic_auth()
-        wp_self: str = wp_self + WPEndpoints.POSTS.value
+        wp_self: str = (
+            wp_self + WPEndpoints.POSTS.value
+            if not self.use_photo_cache
+            else wp_self + WPEndpoints.PHOTOS.value
+        )
         request_info = requests.post(wp_self, json=payload, auth=auth_wp)
         request_json = request_info.json()
         logging.info(f"Post upload result: {request_json}")
@@ -689,22 +693,21 @@ class WordPress:
         wp_self: str = self.api_base_url + WPEndpoints.MEDIA.value
         with open(file_path, "rb") as thumb:
             request = requests.post(wp_self, files={"file": thumb}, auth=auth_wp)
+        status_code = request.status_code
+        image_json = request.json()
+        logging.info(f"WordPress media upload status -> {status_code}")
         try:
-            image_json = request.json()
             upload_request = requests.post(
                 wp_self + "/" + str(image_json["id"]),
                 json=payload,
                 auth=auth_wp,
             )
-            if upload_request == requests.codes.ok:
-                return (
-                    image_json["source_url"]
-                    if return_source_url
-                    else upload_request.status_code
-                )
+            if upload_request == 201:
+                return image_json["source_url"] if return_source_url else status_code
             else:
-                return upload_request.status_code
+                return status_code
         except (KeyError, requests.exceptions.JSONDecodeError) as ex:
+            logging.info(f"WordPress media JSON response -> {image_json}")
             logging.error(
                 f"WordPress could not upload thumbnail with path: {file_path} and payload: {payload}"
             )

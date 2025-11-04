@@ -184,7 +184,7 @@ class ContentBotRunner(ABC, Generic[W_co]):
 
         try:
             self._query_result: List[Tuple[str, ...]] = fetch_data_sql(
-                self._query, self._cursor
+                self._bot_config.sql_query, self._cursor
             )
             logging.info(
                 f"{len(self._query_result)} elements found in database {self._partner_db_name}"

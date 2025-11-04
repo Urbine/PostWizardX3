@@ -3,7 +3,7 @@ Workflows Initialisation module
 
 This module is responsible for initialising the workflows by performing
 common operations such as logging setup, database selection, and WordPress post-handling that
-must take place in all workflow bots.
+must take place in all workflows.
 
 Author: Yoham Gabriel Urbine@GitHub
 Email: yohamg@programmer.net

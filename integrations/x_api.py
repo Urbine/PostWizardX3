@@ -1,6 +1,6 @@
 """
-X Social integration for the content management bots.
-As of now, this integration is capable of interacting with the bots in the ``workflows``
+X Social integration for the content management flows.
+As of now, this integration is capable of interacting with the flows in the ``automation``
 package and configuration files within the ``core`` package.
 This integration includes a single endpoint for retrieving and posting tweets for now.
 

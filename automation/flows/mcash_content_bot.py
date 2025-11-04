@@ -7,8 +7,9 @@ from core.config.config_factories import mcash_content_bot_conf_factory
 
 
 class MCashContentBot(ContentBotFlow):
-    def __init__(self, parent: bool = False):
+    def __init__(self, load_assets: bool = True, parent: bool = False):
         super().__init__(mcash_content_bot_conf_factory(), parent=parent)
+        self._load_assets = load_assets
         self._models = None
         self._models_prep = None
         self._model_ints = None
@@ -39,7 +40,8 @@ class MCashContentBot(ContentBotFlow):
             self._run_query()
             self._filter_published()
             self._thumbnails_dir_setup()
-            self._parse_assets()
+            if self._load_assets:
+                self._parse_assets()
             self.clean_console()
             self._session_start_print()
         except KeyboardInterrupt:
@@ -223,8 +225,7 @@ class MCashContentBot(ContentBotFlow):
                 # In rare occasions, the ``tags`` is None and the real tags are placed in the ``models`` variable
                 # this special handling prevents crashes
                 if not self._tags_str:
-                    self.__tags_str = self._models
-                    self._models = self.__tags_str
+                    self.__tags_str, self._models = self._models, self.__tags_str
 
                 self._find_models()
                 self._flow_start()

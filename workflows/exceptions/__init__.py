@@ -1,5 +1,6 @@
-from workflows.exceptions.validation import IncompatibleLinkException
+from workflows.exceptions.validation import (
+    IncompatibleLinkException,
+    InvalidPostQuantityException,
+)
 
-__all__ = [
-    "IncompatibleLinkException",
-]
+__all__ = ["IncompatibleLinkException", "InvalidPostQuantityException"]
