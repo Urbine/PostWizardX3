@@ -40,7 +40,6 @@ from core.exceptions.config_exceptions import ConfigFileNotFound, InvalidConfigu
 from core.config import create_workflows_config
 from core.models.file_system import ApplicationPath, ProjectFile
 from core.models.config_model import (
-    AIServices,
     ConfigSection,
     ConfigOption,
     GeneralConfigs,
@@ -151,32 +150,6 @@ def image_config_factory() -> ImageConfig:
             ),
             pic_fallback=WORKFLOWS_CONFIG_INI.get(
                 section, ConfigOption.FALLBACK_PICTURE_FORMAT.value
-            ),
-        )
-    except ValueError:
-        raise InvalidConfiguration
-
-
-def ai_config_factory() -> AIServices:
-    """
-    Factory function for dataclass ``AIServices``
-
-    :return: ``AIServices`` or None if configuration is invalid
-    """
-    try:
-        section = ConfigSection.AI_CONFIG.value
-        return AIServices(
-            llm_provider=WORKFLOWS_CONFIG_INI.get(
-                section, ConfigOption.LLM_PROVIDER.value
-            ),
-            llm_model_tag=WORKFLOWS_CONFIG_INI.get(
-                section, ConfigOption.LLM_MODEL_TAG.value
-            ),
-            llm_serve_host=WORKFLOWS_CONFIG_INI.get(
-                section, ConfigOption.LLM_PROVIDER_HOST.value
-            ),
-            llm_serve_port=WORKFLOWS_CONFIG_INI.getint(
-                section, ConfigOption.LLM_PROVIDER_PORT.value
             ),
         )
     except ValueError:

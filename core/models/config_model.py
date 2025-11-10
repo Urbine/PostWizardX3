@@ -36,10 +36,6 @@ class ConfigOption(Enum):
     IMAGE_QUALITY = "image_conversion_quality"
     IMAGE_SEO_ATTRIBUTES = "image_seo_attrs"
     IMAGICK_ENABLED = "imagick_enabled"
-    LLM_MODEL_TAG = "llm_model_tag"
-    LLM_PROVIDER = "llm_provider"
-    LLM_PROVIDER_HOST = "llm_host"
-    LLM_PROVIDER_PORT = "llm_port"
     PICTURE_FORMAT = "picture_format"
     TELEGRAM_SHARING = "telegram_sharing"
     TELEGRAM_SHARING_AUTO = "telegram_sharing_auto"
@@ -66,7 +62,6 @@ class ConfigSection(Enum):
 
     GENERAL_CONFIG = "general_config"
     IMAGE_CONFIG = "image_configs"
-    AI_CONFIG = "ai_configs"
     SOCIAL_POSTING = "social_posting"
     MCASH_CONTENT_BOT = "mcash_content_bot"
     EMBED_ASSIST_BOT = "embed_assist_bot"
@@ -96,11 +91,6 @@ class ConfigModelDict(TypedDict):
     enable_imagick: bool
     img_quality: int
     fallback_img_format: str
-    # ---- AI Config
-    llm_model_tag: str
-    llm_providers: str
-    llm_host: str
-    llm_port: int
     # ---- Adult Next Feed
     anxt_campaign_id: int
     # ---- TubeCorp Feed
@@ -182,21 +172,6 @@ class ImageConfig:
 
     def __repr__(self):
         return "ImageConfig()"
-
-
-@dataclass(frozen=True, kw_only=True)
-class AIServices:
-    """
-    Immutable data class for the configuration of large language model (LLM) providers.
-    """
-
-    llm_provider: str
-    llm_model_tag: str
-    llm_serve_host: str
-    llm_serve_port: int
-
-    def __repr__(self):
-        return "AIServices()"
 
 
 @dataclass(frozen=True, kw_only=True)

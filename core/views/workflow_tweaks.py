@@ -115,26 +115,6 @@ with gr.Blocks(theme=elegant_theme, title="PostWizard - Workflow Tweaks") as con
                     lines=1,
                     interactive=True,
                 )
-                gr.Markdown("## Large Language Model (LLM) Integration")
-                llm_providers = gr.Radio(
-                    label="LLM Providers",
-                    choices=["Ollama", "LMStudio"],
-                )
-                llm_tag = gr.Textbox(
-                    label="Model Tag",
-                    info="Provide the tag of the model you will be using",
-                    interactive=True,
-                )
-                llm_host = gr.Textbox(
-                    label="Provider Host",
-                    info="LLM provider hostname/address",
-                    interactive=True,
-                )
-                llm_port = gr.Number(
-                    label="Provider Port",
-                    info="LLM provider port number",
-                    interactive=True,
-                )
 
             with gr.Tab("Content Providers"):
                 gr.Markdown("## AdultNext")
@@ -269,10 +249,6 @@ with gr.Blocks(theme=elegant_theme, title="PostWizard - Workflow Tweaks") as con
                 enable_imagick,
                 img_quality,
                 fallback_img_format,
-                llm_providers,
-                llm_tag,
-                llm_host,
-                llm_port,
                 anxt_campaign_id,
                 tubecorp_source_id,
                 fp_house_campaign_utm,

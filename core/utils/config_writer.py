@@ -289,67 +289,6 @@ class ImageConfig:
         )
 
 
-class AIConfig:
-    """
-    Class for writing AI provider and model options to the ``workflows_config.ini`` file.
-    """
-
-    def __new__(cls):
-        raise TypeError(f"Class {cls.__name__} cannot be instantiated.")
-
-    @staticmethod
-    def write_llm_model_tag(value: str) -> bool:
-        """
-        Write the LLM model tag to the configuration file.
-
-        :param value: ``str`` -> The tag of the LLM model to set.
-        :return: ``bool`` -> ``True`` if the write operation was successful, ``False`` otherwise.
-        """
-        ConfigWriter.config_validate(AIConfig.write_llm_model_tag, value)
-        return ConfigWriter.write_entry(
-            ConfigSection.AI_CONFIG, ConfigOption.LLM_MODEL_TAG, value
-        )
-
-    @staticmethod
-    def write_llm_provider(value: str) -> bool:
-        """
-        Write the LLM provider to the configuration file.
-
-        :param value: ``str`` -> The name of the LLM provider to set (e.g., ``Ollama``, ``LMStudio``).
-        :return: ``bool`` -> ``True`` if the write operation was successful, ``False`` otherwise.
-        """
-        ConfigWriter.config_validate(AIConfig.write_llm_provider, value)
-        return ConfigWriter.write_entry(
-            ConfigSection.AI_CONFIG, ConfigOption.LLM_PROVIDER, value
-        )
-
-    @staticmethod
-    def write_llm_provider_host(value: str) -> bool:
-        """
-        Write the LLM provider host to the configuration file.
-
-        :param value: ``str`` -> The hostname or address of the LLM provider to set.
-        :return: ``bool`` -> ``True`` if the write operation was successful, False otherwise.
-        """
-        ConfigWriter.config_validate(AIConfig.write_llm_provider_host, value)
-        return ConfigWriter.write_entry(
-            ConfigSection.AI_CONFIG, ConfigOption.LLM_PROVIDER_HOST, value
-        )
-
-    @staticmethod
-    def write_llm_port(value: int) -> bool:
-        """
-        Write the LLM provider port to the configuration file.
-
-        :param value: ``str`` -> The port number of the LLM provider to set.
-        :return: ``bool`` -> ``True`` if the write operation was successful, ``False`` otherwise.
-        """
-        ConfigWriter.config_validate(AIConfig.write_llm_port, value)
-        return ConfigWriter.write_entry(
-            ConfigSection.AI_CONFIG, ConfigOption.LLM_PROVIDER_PORT, value
-        )
-
-
 class MCashContentBotConfig(SocialConfig):
     """
     Class for writing the MongerCash Content Bot configuration options to the ``workflows_config.ini`` file.
