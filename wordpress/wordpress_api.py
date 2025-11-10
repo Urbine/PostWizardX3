@@ -14,6 +14,7 @@ __author__ = "Yoham Gabriel Urbine@GitHub"
 __email__ = "yohamg@programmer.net"
 
 import warnings
+from json import JSONDecodeError
 
 import aiohttp
 import asyncio
@@ -693,26 +694,35 @@ class WordPress:
         wp_self: str = self.api_base_url + WPEndpoints.MEDIA.value
         with open(file_path, "rb") as thumb:
             request = requests.post(wp_self, files={"file": thumb}, auth=auth_wp)
+
         status_code = request.status_code
-        image_json = request.json()
         logging.info(f"WordPress media upload status -> {status_code}")
+
         try:
-            upload_request = requests.post(
-                wp_self + "/" + str(image_json["id"]),
-                json=payload,
-                auth=auth_wp,
+            image_json = request.json()
+        except JSONDecodeError:
+            logging.exception("Failed to decode WordPress media response")
+            return status_code
+
+        media_id = image_json.get("id")
+        if not media_id:
+            logging.error("WordPress upload response missing 'id': %s", image_json)
+            return status_code
+
+        upload_request = requests.post(
+            wp_self + "/" + str(image_json["id"]),
+            json=payload,
+            auth=auth_wp,
+        )
+        if upload_request in (requests.codes.ok, 201):
+            return (
+                image_json["source_url"]
+                if return_source_url
+                else upload_request.status_code
             )
-            if upload_request == 201:
-                return image_json["source_url"] if return_source_url else status_code
-            else:
-                return status_code
-        except (KeyError, requests.exceptions.JSONDecodeError) as ex:
-            logging.info(f"WordPress media JSON response -> {image_json}")
-            logging.error(
-                f"WordPress could not upload thumbnail with path: {file_path} and payload: {payload}"
-            )
-            logging.exception(ex)
-            return request.status_code
+        else:
+            logging.error("Failed to attach metadata to media: %s", upload_request.text)
+            return upload_request.status_code
 
     def get_tags_num_count(self) -> dict[int, int]:
         """

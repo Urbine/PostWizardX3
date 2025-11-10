@@ -249,13 +249,15 @@ def upload_image_set(
 
         img_file = (
             WordFilter(delimiter="-")
-            .add_word(os.path.basename(image).split(".")[0])
+            .add_word(os.path.splitext(os.path.basename(image))[0])
             .filter()
         )
 
         os.renames(
             os.path.join(folder, os.path.basename(image)),
-            img_new := os.path.join(folder, os.path.basename(img_file) + ext),
+            img_new := os.path.join(
+                folder, clean_filename(os.path.basename(img_file), ext)
+            ),
         )
 
         status_code: int = wordpress_site.upload_image(img_new, img_attrs)

@@ -64,17 +64,6 @@ class ClientSecretsNotFound(Exception):
         super().__init__(self.path + self.reason + self.advice)
 
 
-class InvalidAIConfig(Exception):
-    """
-    The InvalidAIConfig class represents an error object used when there is a misconfiguration or lack of AI system's parameters or settings.
-    """
-
-    def __init__(self, message: str = ""):
-        self.message = message
-        self.help = "Double check your AI configuration under the `general_config` section in the workflows_config.ini file."
-        super().__init__(f"{self.message}\n{self.help}")
-
-
 class AssetsNotFoundError(Exception):
     """
     Notifies the user in case there are no assets in the asset config file.
