@@ -1,7 +1,7 @@
 """
 MediaSource Web Automation Module
 
-This module provides web automation functionality for extracting content from MediaSource.
+This module provides web flows functionality for extracting content from MediaSource.
 It contains functions for:
 
 1. Extracting video metadata (titles, descriptions, dates, durations)
