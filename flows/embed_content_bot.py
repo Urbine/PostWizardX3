@@ -1,3 +1,49 @@
+"""
+Embed Content Bot for WordPress Video Integration
+
+A sophisticated CLI tool for managing and embedding video content from various platforms
+into WordPress posts. Implements ContentBotFlow interface to provide a complete workflow
+for video content management, from database querying to WordPress integration.
+
+Key Features:
+- Automated iframe video embedding from multiple sources
+- Intelligent slug generation with multiple fallback options
+- Model and studio metadata management
+- Thumbnail handling and optimization
+- Interactive console interface with progress tracking
+
+Core Functionality:
+- Video metadata extraction and processing
+- Dynamic slug generation with multiple format variations
+- WordPress post and media library integration
+- Model and studio taxonomy management
+- Content validation and sanitization
+
+Technical Details:
+- Implements ContentBotFlow interface for standardized bot operations
+- Uses custom database interface (EmbedsMultiSchema) for data operations
+- Integrates with WordPress REST API
+- Supports custom taxonomies and metadata (via PostWizardREST integration)
+- Handles various video embed formats and providers
+
+Dependencies:
+- postwizard_sdk (PostWizardREST client SDK): For WordPress taxonomy management and metadata injection
+- Custom database implementation (EmbedsMultiSchema)
+- Rich: For enhanced console output
+
+Example:
+    >>> from flows.embed_content_bot import EmbedContentBot
+    >>> bot = EmbedContentBot()
+    >>> bot.run()  # Start interactive embedding process
+tent embedding across various platforms.
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import logging
 import re
 from typing import Dict, List

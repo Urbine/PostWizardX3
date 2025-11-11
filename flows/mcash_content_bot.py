@@ -1,3 +1,40 @@
+"""
+MCash Content Bot for WordPress Content Management
+
+A comprehensive CLI tool for managing and automating the creation of WordPress posts
+for MongerCash affiliate partner offers. This bot integrates video processing, content
+classification, and WordPress publishing into a streamlined workflow.
+
+Key Features:
+- Automated WordPress post creation and management
+- Video content processing and classification
+- Thumbnail management and asset handling
+- Interactive console interface with progress tracking
+- Support for content filtering and synchronization
+
+The bot implements the ContentBotFlow interface and provides methods for:
+- Content selection and database matching
+- Asset management and parsing
+- WordPress synchronization
+- Session management and error handling
+
+Dependencies:
+- postwizard_sdk (PostWizardREST client SDK): For WordPress taxonomy management and metadata injection
+- workflows.interfaces.ContentBotFlow: Base interface for bot operations
+- core.config.config_factories: Configuration management
+
+Example:
+    >>> from flows.mcash_content_bot import MCashContentBot
+    >>> bot = MCashContentBot()
+    >>> bot.run()  # Start interactive session
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import logging
 import re
 from typing import List, Dict

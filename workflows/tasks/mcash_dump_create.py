@@ -2,7 +2,7 @@
 MongerCash Video Dump Creator
 
 This module automates the creation of video information dump files from the MongerCash partner platform.
-Using web automation via Selenium, it logs into the MongerCash interface, navigates through the site,
+Using web flows via Selenium, it logs into the MongerCash interface, navigates through the site,
 and extracts video metadata into structured dump files.
 
 Key features:
@@ -49,7 +49,7 @@ def parse_partner_name(partner_options: list[WebElement], select_num: int) -> st
     ``partner_hint`` parameter in the main driver function. It will join it so that it can be used a filename.
 
     :param partner_options: ``list[WebElement]`` with all the partner options on the site.
-    :param select_num: ``int`` index of the partner offer used by the automation sequence.
+    :param select_num: ``int`` index of the partner offer used by the flows sequence.
     :return: ``str`` partner name joined by `-` (hyphens)
     """
     return "-".join(
@@ -76,7 +76,6 @@ def get_vid_dump_flow(
     web_sources_conf: WebSourcesConf = web_sources_conf_factory()
     with webdrv as driver:
         # Go to URL
-        driver.minimize_window()
         driver.get(web_sources_conf.mcash_dump_url)
         driver.implicitly_wait(30)
 
@@ -89,7 +88,8 @@ def get_vid_dump_flow(
         button_login = driver.find_element(By.ID, "head-login")
         button_login.click()
 
-        website_partner = driver.find_element(By.ID, "link_site")
+        website_partner = driver.find_element(By.XPATH,
+                                              '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[4]/div/select')
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
         if partner_hint:
@@ -166,8 +166,9 @@ def get_vid_dump_flow(
         dump_update.click()
 
         # Extract textarea text
-        dump_txtarea = driver.find_element(By.CLASS_NAME, "display-dump-textarea")
+        dump_txtarea = driver.find_element(By.XPATH, "/html/body/div[1]/div[2]/div[3]/div[2]/div/div/div/textarea")
 
+        driver.implicitly_wait(3)
         while not dump_txtarea.text:
             continue
 

@@ -122,14 +122,9 @@ def get_project_db(
     db_new_cur = db_new_conn.cursor()
     return db_new_conn, db_new_cur, db_filename
 
-
-def get_webdriver(
-    download_folder: str,
-    headless: bool = False,
-    gecko: bool = False,
-    no_imgs: bool = False,
-) -> webdriver:
-    """Get a webdriver with customisable settings via parameters.
+class WebDriverFactory:
+    """
+    Get a webdriver with opinionated defaults and tweaks via constructor parameters.
 
     :param no_imgs: ``bool`` - Disable image loading for scraping performance gain
     :param download_folder: self-explanatory. Works with relative or absolute paths
@@ -137,27 +132,37 @@ def get_webdriver(
     :param gecko: True to obtain a gecko webdriver instance. Default Chrome Webdriver ``gecko=False``.
     :return: Selenium ``webdriver`` instance.
     """
-    if gecko:
+    def __init__(self,
+    download_folder: str,
+    headless: bool = False,
+    gecko: bool = False,
+    no_imgs: bool = False):
+        self._download_folder = download_folder
+        self._headless = headless
+        self._gecko = gecko
+        self._no_imgs = no_imgs
+
+    def _get_gecko_webdriver(self):
         # Configure the Firefox (Gecko) Driver
         gecko_options = webdriver.FirefoxOptions()
         gecko_options.set_preference("browser.download.folderList", 2)
         gecko_options.set_preference("browser.download.manager.showWhenStarting", False)
         gecko_options.set_preference(
-            "browser.download.dir", f"{os.path.abspath(download_folder)}"
+            "browser.download.dir", f"{os.path.abspath(self._download_folder)}"
         )
         gecko_options.set_preference(
             "browser.helperApps.neverAsk.saveToDisk", "application/octet-stream"
         )
         gecko_options.enable_downloads = True
 
-        if headless:
+        if self._headless:
             gecko_options.add_argument("--headless")
-        elif no_imgs:
+        elif self._no_imgs:
             gecko_options.set_preference("permissions.default.image", 2)
 
         return webdriver.Firefox(options=gecko_options)
 
-    else:
+    def _get_chrome_webdriver(self):
         # Configure Chrome's Path and arguments
         # Binary paths should be detected automatically, however, I want to make
         # sure it uses google-chrome stable in posix and not nightly or dev releases.
@@ -173,7 +178,7 @@ def get_webdriver(
 
         prefs = {
             # Replace with your folder path
-            "download.default_directory": f"{os.path.abspath(download_folder)}",
+            "download.default_directory": f"{os.path.abspath(self._download_folder)}",
             # Automatically download without the prompt
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,  # Overwrite if the file exists
@@ -183,9 +188,13 @@ def get_webdriver(
         # ``prefs`` above are experimental options
         chrome_options.add_experimental_option("prefs", prefs)
 
-        if headless:
+        if self._headless:
             chrome_options.add_argument("--headless")
-        elif no_imgs:
+        elif self._no_imgs:
             chrome_options.add_argument("--blink-settings=imagesEnabled=false")
-
         return webdriver.Chrome(options=chrome_options)
+
+    def get_instance(self):
+        if self._gecko:
+            return self._get_gecko_webdriver()
+        return self._get_chrome_webdriver()

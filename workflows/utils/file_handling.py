@@ -20,14 +20,13 @@ from typing import Tuple, List, Dict
 
 # Third-party imports
 import requests
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
 # Local imports
 from core.config.config_factories import image_config_factory
 from core.models.secret_model import MongerCashAuth, SecretType
-from core.utils.data_access import get_webdriver
+from core.utils.data_access import WebDriverFactory
 from core.utils.file_system import search_files_by_ext
 from core.utils.interfaces import WordFilter
 from core.utils.secret_handler import SecretHandler
@@ -123,7 +122,8 @@ def fetch_zip(
     :param m_cash_auth: ``MongerCashAuth`` object with authentication information to access MongerCash.
     :return: ``None``
     """
-    webdrv: webdriver = get_webdriver(dwn_dir, headless=headless, gecko=gecko)
+    webdriver = WebDriverFactory(dwn_dir, headless=headless, gecko=gecko)
+    webdrv = webdriver.get_instance()
 
     webdrv_user_sel = "Gecko" if gecko else "Chrome"
     logging.info(

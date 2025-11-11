@@ -1,7 +1,7 @@
 """
 MongerCash Web Automation Module
 
-This module provides web automation functionality for extracting content from MongerCash.
+This module provides web flows functionality for extracting content from MongerCash.
 It contains functions for:
 
 1. Extracting video metadata (titles, descriptions, dates, durations)

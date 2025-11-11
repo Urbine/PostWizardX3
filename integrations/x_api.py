@@ -1,6 +1,6 @@
 """
 X Social integration for the content management flows.
-As of now, this integration is capable of interacting with the flows in the ``automation``
+As of now, this integration is capable of interacting with the flows in the ``flows``
 package and configuration files within the ``core`` package.
 This integration includes a single endpoint for retrieving and posting tweets for now.
 
@@ -27,13 +27,12 @@ from typing import Optional
 import pyclip
 import requests
 from requests import Response
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 
 # Local implementations
-from core.utils.data_access import get_webdriver
+from core.utils.data_access import WebDriverFactory
 from core.utils.file_system import search_files_by_ext, load_json_ctx
 from core.utils.strings import match_list_single, generate_random_str
 
@@ -219,7 +218,7 @@ def refresh_token_x(
 def authorise_app_x(
     xauth: XAuth, x_endpoints: XEndpoints, headless=True, gecko=False
 ) -> str:
-    """Attempt to emulate user interaction by using webdriver automation with Selenium.
+    """Attempt to emulate user interaction by using webdriver flows with Selenium.
     This authentication flow includes optional clauses that deal with suspicious activity within X
     and tries to bypass them. However, this has proven ineffective in testing because X somehow detects that
     I am automating the flow and imposes MFA measures. As this code does not have access to the actual email server,
@@ -231,9 +230,10 @@ def authorise_app_x(
     :param x_endpoints: ``XEndpoints`` dataclass containing the endpoints used in this application.
     :param headless: ``bool`` CLI parameter for headless webdriver behaviour.
     :param gecko: ``bool`` CLI parameter for switching the webdriver and use Firefox Gecko instead of Chrome.
-    :return: ``str`` Authorization code in case the flow is successful either via automation or error handling.
+    :return: ``str`` Authorization code in case the flow is successful either via flows or error handling.
     """
-    webdrv = get_webdriver(".", headless=headless, gecko=gecko)
+    webdriver = WebDriverFactory(".", headless=headless, gecko=gecko)
+    webdrv = webdriver.get_instance()
     with webdrv as driver:
         url = x_oauth_pkce(xauth, x_endpoints)
         driver.get(url)
@@ -382,7 +382,7 @@ def refresh_flow(xauth: XTokens, x_endpoints: XEndpoints) -> None:
 def main(*args, **kwargs) -> None:
     """
     :param args: ``XEndpoints`` and ``XAuth`` Objects
-    :param kwargs: CLI parameters for headless automation and the gecko webdriver
+    :param kwargs: CLI parameters for headless flows and the gecko webdriver
     :return: ``None``
     """
     ch_code = authorise_app_x(*args, **kwargs)
@@ -412,7 +412,7 @@ if __name__ == "__main__":
     arg.add_argument(
         "--gecko",
         action="store_true",
-        help="Use the Gecko webdriver for the automation.",
+        help="Use the Gecko webdriver for the flows.",
     )
 
     arg.add_argument(

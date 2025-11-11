@@ -1,14 +1,28 @@
-# PostWizardX3
+# 🧙‍♂️ PostWizardX3
+
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: TBD](https://img.shields.io/badge/License-TBD-blue.svg)](LICENSE)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 A comprehensive Python-based SEO toolset featuring machine learning classification, content optimization, and workflow
 automation for WordPress-based adult websites.
 
-## Overview
+## 📌 Project Overview
 
-This project provides a robust suite of tools for webmasters and content managers, leveraging machine learning and
+PostWizardX3 is a powerful automation tool that streamlines the process of creating, managing, and publishing content for WordPress-based affiliate marketing, with a focus on adult partner offers. The system combines content management with machine learning to optimize and automate the content pipeline.
+
+PostWizardX3 is a robust suite of tools for webmasters and content managers, leveraging machine learning and
 natural language processing for automated content classification and optimization.
 
-## Core Features
+## 🌟 Key Features
+
+### 🎯 Content Management
+- **Automated Post Creation**: Streamlined WordPress post generation
+- **Taxonomy Management**: Intelligent category and tag handling
+- **Batch Processing**: Handle multiple content items efficiently
+- **Asset Management**: Automatic thumbnail and media handling
+- **SEO Optimization**: Built-in tools for content optimization
+
 
 ### Machine Learning Classification System
 
@@ -17,78 +31,98 @@ natural language processing for automated content classification and optimizatio
     - NLTK Maxent Classifier
     - Scikit-learn Multinomial NaiveBayes
 - Automated content categorization
-- Smart tag suggestions
-- Continuous learning from user feedback
+- Further model training possible from user feedback and WordPress site cache
 
-### Content Management Tools
+### 🤖 Machine Learning
+- **Multi-model Classification**:
+  - NLTK NaiveBayes Classifier
+  - NLTK Maxent Classifier
+  - Scikit-learn Multinomial NaiveBayes
+- **Continuous Learning**: Improves from user feedback and site data
+- **Content Analysis**: Automatic/Interactive categorization
 
-- Automated title and description analysis
-- Tag optimization and categorization
-- Content embedding assistance
-- SEO optimization workflows
 
-### Integration Support
 
-- WordPress API integration
-- Social media posting (X/Twitter, Telegram)
-- Multiple data source handling
-- External API support (Yandex, Brave Search)
+### ⚙️ Workflow Automation
+- **Interactive & Headless Modes**: Flexible operation options
+- **Content Synchronization**: Keeps local cache in sync with WordPress
+- **Error Handling**: Robust retry mechanisms and logging
+- **Progress Tracking**: Real-time monitoring of operations
+
+### 🔄 Integration Ecosystem
+- **WordPress REST API (Custom Wrapper)**: Seamless content publishing
+- **Social Media**: Direct posting to X/Twitter and Telegram
+- **Content Sources**: Support for multiple adult content providers
+- **Search Integration**: Yandex and Brave Search API support
 
 ## Technical Requirements
-
 - Python 3.11+
 - Virtual environment support
 - Required external services:
     - WordPress installation
     - ImageMagick (optional)
+    - PostWizardREST API (optional)
 
-## Installation
+### Installation
 
-1. Clone the repository:
-```bash
-git clone https://github.com/Urbine/webmaster-seo-tools.git
-cd webmaster-seo-tools
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Urbine/PostDirectorX3.git
+   cd PostDirectorX3
+   ```
+
+2. **Set up the environment**
+   ```bash
+   # Install UV if not already installed
+   pip install uv
+   
+   # Create and activate virtual environment
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   
+   # Install dependencies
+   uv pip install -e .
+   ```
+
+3. **Configure the application**
+   ```bash
+   # Launch configuration wizard
+   python3 -m core.views.workflow_tweaks
+   
+   # Set up API keys and secrets
+   python3 -m core.views.secret_mgr_view
+   ```
+
+## 🏗️ Project Structure
+
 ```
-
-### Setting Up UV Package Manager
-
-This project uses UV for dependency management. To set up UV:
-
-```bash
-# Install UV
-pip install uv
-
-# Create a new virtual environment and install dependencies
-uv venv
-uv pip install -r requirements.txt
+PostWizardX3/
+├── core/               # Core functionality and utilities
+│   ├── config/         # Configuration management
+│   ├── controllers/    # Application controllers
+│   ├── models/         # Data models
+│   └── utils/          # Utility functions
+│
+├── flows/              # Main workflow implementations
+│   ├── mcash_content_bot.py    # Content processing workflow
+│   ├── mcash_gallery_bot.py    # Gallery management
+│   └── mcash_updater.py        # Content updates
+│
+├── integrations/       # Third-party integrations
+├── ml_engine/          # Machine learning models and training
+├── postwizard_sdk/     # PostWizardREST SDK components
+├── wordpress/          # WordPress-specific functionality
+└── workflows/          # Workflow definitions and management
 ```
-
-## Project Structure
-
-<strong> webmaster-seo-tools/ </strong> <br>
-├── core/           <span style="margin-left: 3em;"></span> # Core functionality and utilities <br>
-├── docs/           <span style="margin-left: 3em;"></span> # Documentation <br>
-├── logs/           <span style="margin-left: 3em;"></span> # Application logs <br>
-├── ml_engine/      <span style="margin-left: 3em;"></span> # Machine learning models and training <br>
-│ ├── ml_models/    <span style="margin-left: 3em;"></span> # Trained model files <br>
-│ └── model_train/  <span style="margin-left: 3em;"></span> # Training scripts and utilities <br>
-├── setup/          <span style="margin-left: 3em;"></span> # Setup and configuration scripts <br>
-├── tasks/          <span style="margin-left: 3em;"></span> # Task definitions and scheduling <br>
-├── tests/          <span style="margin-left: 3em;"></span> # Test suite <br>
-├── scripts/        <span style="margin-left: 3em;"></span> # Utility scripts <br>
-├── workflows/      <span style="margin-left: 3em;"></span> # Main application workflows <br>
-└── experimental/   <span style="margin-left: 3em;"></span> # Experimental features and testing <br>
 
 ## Usage
 
 ### Training Models
 Before using the classification features, models need to be trained:
 
-``` python
-from ml_engine.model_train import train_models
+``` bash
+python3 -m ml_engine.model_train
 
-# Train all models
-train_models()
 ```
 
 ### Content Classification
@@ -101,56 +135,53 @@ desc_categories = classify_description("Your content description")
 tag_categories = classify_tags("tag1, tag2, tag3")
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-The project uses a configuration management system located in `core/config/`. Modify the configuration files to adjust:
+### Using the Configuration Wizard
 
-- WordPress site information
-- External integration secrets
-- Logging settings
-- Integration parameters
-- Workflow parameters
-- Data source queries
+```bash
+# Launch interactive configuration
+python3 -m core.views.workflow_tweaks
 
-The project uses various configuration files:
+# Manage API keys and secrets
+python3 -m core.views.secret_mgr_view
+```
 
-- Project metadata and dependencies: `pyproject.toml`
-- Python version specification: `.python-version`
-- Python package dependencies: `requirements.txt`
+### Main Configuration Files
+- `pyproject.toml` - Project metadata and dependencies
+- `workflows_config.ini` - Workflow configurations
+- `.python-version` - Python version specification
 
-### Running Tests
-``` bash
+
+## 🧪 Testing
+
+Run the full test suite:
+```bash
 ./scripts/run_all_tests.sh .
 ```
 
-### Code Style
-This project follows PEP 8 guidelines and uses ruff for linting and formatting:
-``` bash
-ruff check  .
+## 🧹 Code Quality
+
+This project uses `ruff` for linting and formatting:
+
+```bash
+# Check code style
+ruff check .
+
+# Format code
 ruff format .
 ```
-
-## Documentation
-Detailed documentation is available in the directory. Key documentation includes: `docs/`
-- Project overview
-- Quickstart
-- API Reference
-- Machine Learning Model Specifications
-- Workflow Guides
-- Integration Examples
-- Usage Examples
-- Troubleshooting Guides
-- Configuration Management Specifications
-- Tricks & Features
 
 ## License
 TDB - see the LICENSE file for details.
 
-## Author
-Yoham Gabriel B. @Urbine
-- GitHub: [@Urbine](https://github.com/Urbine)
-- Email: yohamg@programmer.net
+## ✉️ Contact
 
-## Status
+For questions or support, please contact:
+- **Yoham Gabriel**
+- Email: yohamg@programmer.net
+- GitHub: [@Urbine](https://github.com/Urbine)
 This project is under active development. Features and documentation are continuously being improved and updated.
-For more information, bug reports, or feature requests, please open an issue on the GitHub repository.
+---
+
+> Built with ❤️ by [Yoham Gabriel](https://github.com/Urbine) | [Report an issue](https://github.com/Urbine/PostDirectorX3/issues)
