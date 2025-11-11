@@ -38,3 +38,14 @@ class InvalidPostQuantityException(Exception):
         self.message = f"Invalid post quantity: {self.post_quantity}"
         self.advice = "Make sure to add the post quantity before running the bot in headless mode."
         super().__init__(f"{self.message}\n{self.advice}")
+
+
+class DataSourceUpdateError(Exception):
+    """
+    Exception raised when an error occurs during an update process
+    that involves data sources in sequential mode.
+    """
+
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
