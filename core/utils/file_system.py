@@ -402,7 +402,7 @@ def logging_setup(
     logging_dirname: str | Path,
     path_to_this: str,
 ) -> None:
-    """Initiate the basic logging configuration for flows in the ``automation`` package.
+    """Initiate the basic logging configuration for flows in the ``flows`` package.
 
     :param logging_dirname: ``str`` - Local logging direactory
     :param path_to_this: ``str`` - Equivalent to __file__ but passed in as a parameter.
