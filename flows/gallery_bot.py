@@ -1,9 +1,46 @@
+"""
+MediaSource Gallery Bot for WordPress Photo Galleries
+
+A specialized CLI tool for managing and automating the creation of WordPress photo galleries
+for MediaSource affiliate partner offers. Extends MediaSourceContentBot to handle photo-specific operations
+including downloading, processing, and uploading photo sets.
+
+Key Features:
+- Automated photo gallery creation and management
+- Bulk photo download and extraction from zip archives
+- Image processing and optimization
+- WordPress media library integration
+- Interactive console interface with progress tracking
+
+The bot extends MediaSourceContentBot and provides additional functionality for:
+- Photo set downloading and extraction
+- Image upload and organization
+- Gallery post creation with proper formatting
+- Tag management for photo content
+
+Dependencies:
+- MediaSourceContentBot: Base class for content management
+- Selenium: For handling authenticated downloads
+- WordPress REST API: For media and post management
+
+Example:
+    >>> from flows.gallery_bot import MediaSourceGalleryBot
+    >>> bot = MediaSourceGalleryBot(gecko_enabled=True, headless_browser=True)
+    >>> bot.run()  # Start interactive gallery creation
+
+Author: Yoham Gabriel Urbine@GitHub
+Email: yohamg@programmer.net
+"""
+
+__author__ = "Yoham Gabriel Urbine@GitHub"
+__author_email__ = "yohamg@programmer.net"
+
 import argparse
 import logging
 from tempfile import TemporaryDirectory
 from typing import Dict
 
-from automation.flows.content_bot import MediaSourceContentBot
+from flows.content_bot import MediaSourceContentBot
 
 from core.config.config_factories import (
     gallery_bot_conf_factory,
@@ -124,7 +161,7 @@ def cli_args_group():
     arg_parser.add_argument(
         "--gecko",
         action="store_true",
-        help="Use the gecko webdriver for the browser automation steps.",
+        help="Use the gecko webdriver for the browser flows steps.",
     )
 
     arg_parser.add_argument(
