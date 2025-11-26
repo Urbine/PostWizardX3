@@ -145,7 +145,7 @@ class EmbedContentBot(ContentBotFlow):
     def _build_slugs(self) -> List[str]:
         from workflows.builders import WorkflowSlugBuilder
 
-        slug_builder = WorkflowSlugBuilder()
+        slug_builder = WorkflowSlugBuilder(stopword_removal=True, enforce_unique=True)
         slugs = [
             f"{slug}" if (slug := self.__db_slug) else "",
             slug_builder.title(self.__title).build(),
