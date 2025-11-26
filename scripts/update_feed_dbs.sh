@@ -1,14 +1,7 @@
 #!/bin/sh
 set -euo pipefail
 
-echo "** Updating PartnerTwo Database... **"
-python3 -m workflows.update_media_source_chain --hint partnertwo --gecko --headless
-echo -e "\n"
-echo "** Updating ASD Database... **"
-python3 -m workflows.update_media_source_chain --hint partnerone --gecko --headless
-echo -e "\n"
-echo "** Updating PartnerThree Database... **"
-python3 -m workflows.update_media_source_chain --hint partner_c --gecko --headless
+python3 -m flows.feed_updater --hint partnerone partnertwo partner_c --gecko --headless
 echo -e "\n"
 echo "** Cleaning old databases... **"
 ./scripts/outdated_clean_smart.sh "./artifacts"
