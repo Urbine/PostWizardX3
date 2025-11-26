@@ -88,8 +88,10 @@ def get_vid_dump_flow(
         button_login = driver.find_element(By.ID, "head-login")
         button_login.click()
 
-        website_partner = driver.find_element(By.XPATH,
-                                              '/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[4]/div/select')
+        website_partner = driver.find_element(
+            By.XPATH,
+            "/html/body/div[1]/div[2]/form/div/div[2]/div/div/div[4]/div/select",
+        )
         website_partner_select = Select(website_partner)
         partner_options = website_partner_select.options
         if partner_hint:
@@ -166,7 +168,9 @@ def get_vid_dump_flow(
         dump_update.click()
 
         # Extract textarea text
-        dump_txtarea = driver.find_element(By.XPATH, "/html/body/div[1]/div[2]/div[3]/div[2]/div/div/div/textarea")
+        dump_txtarea = driver.find_element(
+            By.XPATH, "/html/body/div[1]/div[2]/div[3]/div[2]/div/div/div/textarea"
+        )
 
         driver.implicitly_wait(3)
         while not dump_txtarea.text:
