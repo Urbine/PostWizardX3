@@ -122,6 +122,7 @@ def get_project_db(
     db_new_cur = db_new_conn.cursor()
     return db_new_conn, db_new_cur, db_filename
 
+
 class WebDriverFactory:
     """
     Get a webdriver with opinionated defaults and tweaks via constructor parameters.
@@ -132,11 +133,14 @@ class WebDriverFactory:
     :param gecko: True to obtain a gecko webdriver instance. Default Chrome Webdriver ``gecko=False``.
     :return: Selenium ``webdriver`` instance.
     """
-    def __init__(self,
-    download_folder: str,
-    headless: bool = False,
-    gecko: bool = False,
-    no_imgs: bool = False):
+
+    def __init__(
+        self,
+        download_folder: str,
+        headless: bool = False,
+        gecko: bool = False,
+        no_imgs: bool = False,
+    ):
         self._download_folder = download_folder
         self._headless = headless
         self._gecko = gecko
