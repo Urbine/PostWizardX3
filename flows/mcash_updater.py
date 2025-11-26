@@ -193,7 +193,9 @@ class MCashUpdater:
             gecko=self._cli_args.gecko,
             no_imgs=self._img_optimize,
         )
-        photoset_source = get_set_source_flow(webdriver.get_instance(), partner_hint=hint)
+        photoset_source = get_set_source_flow(
+            webdriver.get_instance(), partner_hint=hint
+        )
         retry_offset = 3
         retries = 0
         while len(photoset_source[0]) == 0:
@@ -299,8 +301,7 @@ class MCashUpdater:
         return False
 
     def _photoset_dump_flow(self, temp_dir, hint: str):
-         return self._fetch_set_source_f(temp_dir, hint)
-
+        return self._fetch_set_source_f(temp_dir, hint)
 
     def _process_hint(self, temp_dir, hint):
         if self._vid_dump_flow(temp_dir, hint):
