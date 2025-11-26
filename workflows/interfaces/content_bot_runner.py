@@ -47,7 +47,7 @@ class ContentBotRunner(ABC, Generic[W_co]):
         self._interactive = interactive
         self._general_config = general_config_factory()
         self._social_config = social_config_factory()
-        self._query = self._bot_config.sql_query
+        self._query = None
         self._action_style = ConsoleStyle.TEXT_STYLE_ACTION.value
         self._attention_style = ConsoleStyle.TEXT_STYLE_ATTENTION.value
         self._warning_style = ConsoleStyle.TEXT_STYLE_WARN.value
@@ -183,8 +183,10 @@ class ContentBotRunner(ABC, Generic[W_co]):
         from core.exceptions import InvalidSQLConfig
 
         try:
+            if self._query is None:
+                self._query = self._bot_config.sql_query
             self._query_result: List[Tuple[str, ...]] = fetch_data_sql(
-                self._bot_config.sql_query, self._cursor
+                self._query, self._cursor
             )
             logging.info(
                 f"{len(self._query_result)} elements found in database {self._partner_db_name}"
