@@ -145,7 +145,7 @@ class EmbedContentBot(ContentBotFlow):
     def _build_slugs(self) -> List[str]:
         from workflows.builders import WorkflowSlugBuilder
 
-        slug_builder = WorkflowSlugBuilder()
+        slug_builder = WorkflowSlugBuilder(stopword_removal=True, enforce_unique=True)
         slugs = [
             f"{slug}" if (slug := self.__db_slug) else "",
             slug_builder.title(self.__title).build(),
@@ -261,7 +261,11 @@ class EmbedContentBot(ContentBotFlow):
 
     def _populate_internal_state(self) -> None:
         self.__title = self.__db_interface.get_title()
-        self.__description = self.__db_interface.get_description()
+        self.__description = (
+            description
+            if (description := self.__db_interface.get_description())
+            else ""
+        )
         self.__embed_code = self.__db_interface.get_embed()
         self.__video_duration = self.__db_interface.get_duration()
         self.__studio = self.__db_interface.get_studio()
@@ -277,6 +281,10 @@ class EmbedContentBot(ContentBotFlow):
             if (categories := self.__db_interface.get_categories())
             else self.__db_interface.get_tags()
         )
+
+    def _empty_model_state(self) -> None:
+        self.__models_prep = None
+        self.__model_ints = None
 
     def _main_loop(self) -> None:
         for num, vid in enumerate(self._ready_posts):
@@ -301,6 +309,7 @@ class EmbedContentBot(ContentBotFlow):
                     )
 
             if self._loop_state_check():
+                self._empty_model_state()
                 self._populate_internal_state()
                 self._prepare_models()
                 self._find_models()
