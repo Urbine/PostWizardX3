@@ -282,6 +282,10 @@ class EmbedContentBot(ContentBotFlow):
             else self.__db_interface.get_tags()
         )
 
+    def _empty_model_state(self) -> None:
+        self.__models_prep = None
+        self.__model_ints = None
+
     def _main_loop(self) -> None:
         for num, vid in enumerate(self._ready_posts):
             self.clean_console()
@@ -305,6 +309,7 @@ class EmbedContentBot(ContentBotFlow):
                     )
 
             if self._loop_state_check():
+                self._empty_model_state()
                 self._populate_internal_state()
                 self._prepare_models()
                 self._find_models()
