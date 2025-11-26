@@ -496,7 +496,7 @@ class ContentBotFlow(ContentBotRunner, Generic[W_co]):
                 )
 
                 if Confirm.ask(
-                    f"\n[{self._prompt_style}] Do you want to continue? Y/ENTER to exit: [{self._prompt_style}]"
+                    f"\n[{self._prompt_style}] Do you want to continue? Y/N to exit: [{self._prompt_style}]"
                 ):
                     logging.info(f"User accepted to continue after catching {e!r}")
                     if is_published:
