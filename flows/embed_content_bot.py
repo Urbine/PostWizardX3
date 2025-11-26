@@ -261,7 +261,11 @@ class EmbedContentBot(ContentBotFlow):
 
     def _populate_internal_state(self) -> None:
         self.__title = self.__db_interface.get_title()
-        self.__description = self.__db_interface.get_description()
+        self.__description = (
+            description
+            if (description := self.__db_interface.get_description())
+            else ""
+        )
         self.__embed_code = self.__db_interface.get_embed()
         self.__video_duration = self.__db_interface.get_duration()
         self.__studio = self.__db_interface.get_studio()
