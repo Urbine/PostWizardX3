@@ -150,21 +150,16 @@ def content_select_db_match(
         select_partner: str = console.input(
             "[bold yellow]\nSelect your partner now: [bold yellow]\n",
         )
-        clean_hint: List[str] = re.split(
-            "(?=\W)\S", hint_lst[(int(select_partner) - 1)]
-        )[0]
-
-        select_file: int = 0
+        clean_hint: List[str] = re.split("\W", hint_lst[(int(select_partner)) - 1])
+        logging.info(f"Clean hint: {clean_hint}")
+        select_file: Optional[int] = None
         for hint in clean_hint:
             rel_content: int = match_list_single(
                 hint, relevant_content, ignore_case=True, re_match=True
             )
-            if hint:
-                if rel_content:
-                    select_file = rel_content
-                    break
-            else:
-                continue
+            logging.info(f"rel content index: {rel_content}")
+            if hint and rel_content is not None:
+                select_file = rel_content
 
         is_parent: str = (
             is_parent_dir_required(parent) if dir == "" else os.path.abspath(dir)
