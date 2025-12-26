@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Help in the construction of API URLs that other modules need to gather information from a remote source.
 Contribute to better organization of the code by providing common elements that some APIs need in this package.

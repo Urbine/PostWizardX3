@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Implementation if the AdultNext public API.
 This module requests, normalises, provides interactivity via CLI and stores information in a SQLite3 format.

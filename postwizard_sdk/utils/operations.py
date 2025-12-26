@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 PostWizard API Utilities - Common Operations
 This module contains utility functions for interacting with the PostWizard API.

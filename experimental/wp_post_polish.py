@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 from core import WP_CLIENT_INFO
 from selenium import webdriver
 from selenium.webdriver.support.select import Select
@@ -22,7 +25,7 @@ password = WP_CLIENT_INFO.app_password
 
 wp_admin_params = {"video_posts": "/edit.php", "new_post": "/post-new.php"}
 
-wp_admin = "https://whoresmen.com/wp-admin"
+wp_admin = "https://yoursite.com/wp-admin"
 
 with web_driver as driver:
     # Go to URL

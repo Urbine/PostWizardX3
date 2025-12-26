@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Tests for the parse_date_to_iso function.
 

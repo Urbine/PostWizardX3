@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Secrets Controller Module
 This module provides functions for updating and storing secrets in the secret vault.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Integrations used throughout the project modules and workflows.
 This package groups modules interacting with external services or APIs.

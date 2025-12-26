@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 import unittest
 from core.models.secret_model import SecretType
 from core.controllers.auth import XAuthController

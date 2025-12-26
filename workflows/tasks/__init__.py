@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 The `Tasks` package guides some workflows in this project, specifically
 those concerned with file/database updates and single-responsibility programs
