@@ -41,7 +41,7 @@ This repository is preserved for reference and educational purposes only.
 
 - **Workflow Automation**
   - Batch processing of content
-  - Scheduled publishing
+  - Automated artifact selection
   - Content synchronization
 
 ## 🛠️ Technical Stack
@@ -72,7 +72,7 @@ applicable to automation-heavy publishing systems.
 ### Original Context
 
 This project was originally built as an internal tool for managing high-volume, automated
-content publishing. The original product or service is no longer active, but the engineering
+content publishing. The original product and service are no longer active, but the engineering
 work remains valuable as:
 
 - A **reference implementation** for similar automation systems
