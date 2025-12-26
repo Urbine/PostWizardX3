@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 MediaSource Content Bot for WordPress Content Management
 
@@ -169,7 +172,7 @@ class MediaSourceContentBot(ContentBotFlow):
             self._general_config.default_status,
             self._title,
             self._description,
-            mask_media_source_tracking_link(self._tracking_link, "https://join.example.com"),
+            mask_media_source_tracking_link(self._tracking_link, "https://join.yoursite.com"),
             self._get_random_asset(),
             # Not the partner name, but a phrase that will be used in the post content payload.
             "Explore this content for free",
@@ -199,7 +202,7 @@ class MediaSourceContentBot(ContentBotFlow):
         from workflows.utils.strings import transform_media_source_hosted_link
 
         digits = re.compile(r"\d+")
-        target_video_base_url = "https://video.example.com/stream/"
+        target_video_base_url = "https://media.example.com/stream/"
         post_meta_builder = (
             PostMetaNestedPayload()
             .content_region(ContentRegion.ASIA)
