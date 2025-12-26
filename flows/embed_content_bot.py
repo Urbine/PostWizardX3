@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Embed Content Bot for WordPress Video Integration
 
@@ -238,7 +241,7 @@ class EmbedContentBot(ContentBotFlow):
         from workflows.utils.strings import transform_partner_iframe
 
         transformed_iframe = transform_partner_iframe(
-            self.__embed_code, "https://video.whoresmen.com"
+            self.__embed_code, "https://video.yoursite.com"
         )
         h, mins, secs = get_duration(int(self.__video_duration))
         post_meta_payload = (
