@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 # This file will be gathering information from the Yandex Webmaster API, and it will be
 # focused specifically in its keyword and impression analysis capabilities.
 import core.utils.data_access

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Gather information from the FeedBeta public APIs, parse it and insert it into a SQLite3 database.
 Provides interactivity via CLI for users.

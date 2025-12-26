@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 WPost
 This module defines the WPost class, which represents a WordPress post with basic information.
