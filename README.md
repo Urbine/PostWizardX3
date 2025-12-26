@@ -1,187 +1,233 @@
 # 🧙‍♂️ PostWizardX3
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: TBD](https://img.shields.io/badge/License-TBD-blue.svg)](LICENSE)
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](./LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-A comprehensive Python-based SEO toolset featuring machine learning classification, content optimization, and workflow
-automation for WordPress-based adult websites.
+> **An Open-Source Proof of Concept for Content Publishing Automation**
+>
+> PostWizardX3 is an open-source **reference implementation** exploring automation patterns for
+> content ingestion, classification, and publishing workflows built around WordPress.
+>
+> The project originated as part of a larger internal system that has since been discontinued.
+> Rather than letting the engineering work disappear, it has been open-sourced as a learning
+> resource and architectural showcase.
+
+---
+
+## 🚦 Project Status
+
+**Status:** Proof of Concept / Reference Implementation
+
+This repository is provided strictly as a **technical proof of concept**.
+
+- ✅ Demonstrates real-world automation and orchestration patterns
+- ✅ Codebase is functional and internally consistent
+- ⚠️ APIs and workflows may change without notice
+- ❌ No production guarantees
+- ❌ No committed roadmap or maintenance promise
+
+The project is **not an actively developed product**. Users are encouraged to fork and adapt the
+codebase for their own needs.
+
+---
+
+## 🎯 Intended Audience
+
+This project is primarily intended for:
+
+- Developers studying automation-heavy system design
+- Engineers exploring WordPress REST–based publishing workflows
+- Readers interested in applied ML within real-world content pipelines
+
+It is **not** intended to be used as a production-ready or supported system.
+
+---
 
 ## 📌 Project Overview
 
-PostWizardX3 is a powerful automation tool that streamlines the process of creating, managing, and publishing content for WordPress-based affiliate marketing, with a focus on adult partner offers. The system combines content management with machine learning to optimize and automate the content pipeline.
+PostWizardX3 is a Python-based automation framework demonstrating how a complex content publishing
+pipeline can be orchestrated around WordPress. While the original use case focused on
+**adult-oriented, age-restricted affiliate content**, the architectural patterns are broadly
+applicable to automation-heavy publishing systems.
 
-PostWizardX3 is a robust suite of tools for webmasters and content managers, leveraging machine learning and
-natural language processing for automated content classification and optimization.
+### What This Project Demonstrates
+
+- End-to-end content automation workflows for WordPress-based sites
+- Modular, bot-driven architectures for different content types
+- Practical use of NLP-based classification in publishing pipelines
+- Multi-source content ingestion and normalization
+- Integration patterns for third-party APIs
+- Configuration-driven extensibility with minimal hardcoding
+
+### Original Context
+
+This project was originally built as an internal tool for managing high-volume, automated
+content publishing. The original product or service is no longer active, but the engineering
+work remains valuable as:
+
+- A **reference implementation** for similar automation systems
+- A **learning resource** for complex workflow orchestration
+- A **proof of concept** demonstrating architectural and integration patterns
+- A **foundation** for experimentation or selective reuse
+
+---
+
+## TL;DR
+
+- 🔬 Proof of concept, not a product
+- 🧠 Demonstrates automation + ML-driven publishing
+- 🧩 Modular, bot-based architecture
+- 🧪 Best used as a reference or experimentation base
+- ❌ No guaranteed maintenance
+
+---
 
 ## 🌟 Key Features
 
-### 🎯 Content Management
-- **Automated Post Creation**: Streamlined WordPress post generation
-- **Taxonomy Management**: Intelligent category and tag handling
-- **Batch Processing**: Handle multiple content items efficiently
-- **Asset Management**: Automatic thumbnail and media handling
-- **SEO Optimization**: Built-in tools for content optimization
+### 🤖 Machine Learning Classification
 
+- Ensemble-based text classification using:
+  - NLTK Naive Bayes
+  - NLTK Maximum Entropy
+  - Scikit-learn Multinomial Naive Bayes (TF-IDF)
+- Category, tag, and description-based predictions
+- Designed for large-scale, semi-automated publishing workflows
+- Supports retraining using corrected classifications
 
-### Machine Learning Classification System
+### 📝 Content Management
 
-- Multi-model classification approach using:
-    - NLTK NaiveBayes Classifier
-    - NLTK Maxent Classifier
-    - Scikit-learn Multinomial NaiveBayes
-- Automated content categorization
-- Further model training possible from user feedback and WordPress site cache
+- WordPress REST API integration with authentication handling
+- Local caching for efficient synchronization
+- Automated category, tag, and media management
+- SQLite-based content repositories for ingestion and staging
 
-### 🤖 Machine Learning
-- **Multi-model Classification**:
-  - NLTK NaiveBayes Classifier
-  - NLTK Maxent Classifier
-  - Scikit-learn Multinomial NaiveBayes
-- **Continuous Learning**: Improves from user feedback and site data
-- **Content Analysis**: Automatic/Interactive categorization
+### 🎬 Specialized Content Workflows
 
+The system includes multiple **bot-style workflows**, each implementing a common interface:
 
+- Video content automation
+- Photo gallery automation
+- Embed-based publishing
+- Database synchronization and updating
 
-### ⚙️ Workflow Automation
-- **Interactive & Headless Modes**: Flexible operation options
-- **Content Synchronization**: Keeps local cache in sync with WordPress
-- **Error Handling**: Robust retry mechanisms and logging
-- **Progress Tracking**: Real-time monitoring of operations
+These workflows are intended to demonstrate architectural and orchestration patterns rather
+than serve as polished end-user tools.
 
-### 🔄 Integration Ecosystem
-- **WordPress REST API (Custom Wrapper)**: Seamless content publishing
-- **Social Media**: Direct posting to X/Twitter and Telegram
-- **Content Sources**: Support for multiple adult content providers
-- **Search Integration**: Yandex and Brave Search API support
+### 🌐 External Integrations
 
-## Technical Requirements
-- Python 3.11+
-- Virtual environment support
-- Required external services:
-    - WordPress installation
-    - ImageMagick (optional)
-    - PostWizardREST API (optional)
+- WordPress REST API
+- Social platforms (X/Twitter, Telegram)
+- Search APIs (multiple providers)
+- Adult content provider feeds
 
-### Installation
+### 🔧 Configuration & Administration
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Urbine/PostDirectorX3.git
-   cd PostDirectorX3
-   ```
+- Interactive Gradio-based configuration UIs
+- File-based configuration and secrets management
+- Support for multiple authentication and API key types
 
-2. **Set up the environment**
-   ```bash
-   # Install UV if not already installed
-   pip install uv
-   
-   # Create and activate virtual environment
-   uv venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   
-   # Install dependencies
-   uv pip install -e .
-   ```
+---
 
-3. **Configure the application**
-   ```bash
-   # Launch configuration wizard
-   python3 -m core.views.workflow_tweaks
-   
-   # Set up API keys and secrets
-   python3 -m core.views.secret_mgr_view
-   ```
+## 🏗️ Architecture Overview
 
-## 🏗️ Project Structure
+### Core Architectural Patterns
+
+- **Factory Pattern** — configuration object creation
+- **MVC-inspired separation** — models, controllers, and Gradio-based views
+- **Strategy Pattern** — interchangeable content bot workflows
+- **Adapter Pattern** — unified interfaces over third-party APIs
+- **Builder Pattern** — payload and request construction
+
+### 🏗️ Project Structure
 
 ```
 PostWizardX3/
-├── core/               # Core functionality and utilities
-│   ├── config/         # Configuration management
-│   ├── controllers/    # Application controllers
-│   ├── models/         # Data models
-│   └── utils/          # Utility functions
+├── core/                          # Core framework and utilities
+│   ├── config/                    # Configuration management
+│   ├── controllers/               # Business logic controllers
+│   ├── models/                    # Data models
+│   ├── views/                     # Gradio-based UIs
+│   ├── utils/                     # Shared utilities and helpers
+│   ├── exceptions/                # Custom exception types
+│   └── logs/                      # Logging infrastructure
 │
-├── flows/              # Main workflow implementations
-│   ├── mcash_content_bot.py    # Content processing workflow
-│   ├── mcash_gallery_bot.py    # Gallery management
-│   └── mcash_updater.py        # Content updates
-│
-├── integrations/       # Third-party integrations
-├── ml_engine/          # Machine learning models and training
-├── postwizard_sdk/     # PostWizardREST SDK components
-├── wordpress/          # WordPress-specific functionality
-└── workflows/          # Workflow definitions and management
+├── flows/                         # Workflow implementations (bot-style automation)
+├── integrations/                  # Third-party service integrations
+├── ml_engine/                     # Machine learning system
+├── postwizard_sdk/                # PostWizard REST SDK (internal client library)
+├── wordpress/                     # WordPress integration layer
+└── workflows/                     # Workflow orchestration and task composition
 ```
 
-## Usage
 
-### Training Models
-Before using the classification features, models need to be trained:
+---
 
-``` bash
-python3 -m ml_engine.model_train
+## 🧠 Machine Learning System (Implementation Notes)
 
-```
+The ML engine uses cached WordPress content as training data to build classifiers that predict
+appropriate categories and tags.
 
-### Content Classification
-``` python
-from ml_engine.classifiers import classify_title, classify_description, classify_tags
+- Tokenization and preprocessing via NLTK
+- Multiple classifiers trained per feature type
+- Serialized models stored locally and loaded at runtime
+- Designed for retraining as category schemes evolve
 
-# Classify content
-title_categories = classify_title("Your content title")
-desc_categories = classify_description("Your content description")
-tag_categories = classify_tags("tag1, tag2, tag3")
-```
+---
 
-## ⚙️ Configuration
+## 🚀 Usage & Workflows
 
-### Using the Configuration Wizard
+> ⚠️ **Note**
+>
+> The workflows in this repository are preserved for demonstration and experimentation purposes.
+> Running them against live sites or third-party services requires careful review, appropriate
+> credentials, and compliance with platform terms.
 
-```bash
-# Launch interactive configuration
-python3 -m core.views.workflow_tweaks
+Implementation details, configuration UIs, and workflow entry points are preserved in the
+repository for reference, but they are not organized as a step-by-step setup guide and may
+require adaptation for modern environments.
 
-# Manage API keys and secrets
-python3 -m core.views.secret_mgr_view
-```
+---
 
-### Main Configuration Files
-- `pyproject.toml` - Project metadata and dependencies
-- `workflows_config.ini` - Workflow configurations
-- `.python-version` - Python version specification
+## 🔒 Maintenance & Contributions
 
+This repository is published as a **read-only reference implementation**.
 
-## 🧪 Testing
+- The project is not under active development
+- Pull requests are unlikely to be reviewed or merged
+- Issues may not receive responses
 
-Run the full test suite:
-```bash
-./scripts/run_all_tests.sh .
-```
+You are encouraged to **fork the repository** and adapt it to your own needs. This repository
+itself should be considered **archived in spirit**, even if not formally archived on GitHub.
 
-## 🧹 Code Quality
+---
 
-This project uses `ruff` for linting and formatting:
+## 📝 License
 
-```bash
-# Check code style
-ruff check .
+This project is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**.
 
-# Format code
-ruff format .
-```
+MPL 2.0 was chosen to allow reuse of individual components while preserving attribution and
+discouraging silent proprietary reuse of the complete system.
 
-## License
-TDB - see the LICENSE file for details.
+---
 
 ## ✉️ Contact
 
-For questions or support, please contact:
-- **Yoham Gabriel**
-- Email: yohamg@programmer.net
-- GitHub: [@Urbine](https://github.com/Urbine)
-This project is under active development. Features and documentation are continuously being improved and updated.
+**Original Author:**  
+**Yoham Gabriel**  
+GitHub: [@Urbine](https://github.com/Urbine)
+
 ---
 
-> Built with ❤️ by [Yoham Gabriel](https://github.com/Urbine) | [Report an issue](https://github.com/Urbine/PostDirectorX3/issues)
+> **Disclaimer**
+>
+> This project is provided as-is for educational and reference purposes. The author makes no
+> guarantees regarding correctness, security, or fitness for any particular use.
+>
+> Users are solely responsible for compliance with applicable laws, platform terms of service,
+> and content regulations, particularly when working with adult-oriented material.
+
+---
+
+**Project Status:** Completed Internal Project — Open-Sourced Reference Implementation  
+**Active Development:** None
