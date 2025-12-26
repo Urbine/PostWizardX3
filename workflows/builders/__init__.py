@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 from workflows.builders.workflow_slug import WorkflowSlugBuilder
 from workflows.builders.workflow_post_payload import WorkflowPostPayloadBuilder
 from workflows.builders.photo_post_payload_builder import PhotoPostPayloadBuilder

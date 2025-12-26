@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 String Manipulation Utilities
 This module provides reusable utility functions that support various operations across the project.

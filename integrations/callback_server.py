@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Functions in this module are able to launch a basic web server
 in case integrations use a callback URI that does not redirect to a browser instance.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 Telegram BotFather integration for ``webmaster-seo-tools``
 In the present application, only ``getMe`` and ``SendMessage`` are needed.

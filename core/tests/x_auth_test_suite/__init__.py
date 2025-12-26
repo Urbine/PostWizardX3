@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 from .test_x_get_secrets import TestGetSecrets
 from .test_x_store_api_secrets import TestStoreAPISecrets
 from .test_x_store_client_id_secret import TestStoreClientIDSecret

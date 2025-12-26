@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2025 Yoham Gabriel B.
+
 """
 X Social integration for the content management flows.
 As of now, this integration is capable of interacting with the flows in the ``flows``
