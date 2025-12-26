@@ -4,50 +4,59 @@
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](./LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-> **An Open-Source Proof of Concept for Content Publishing Automation**
+> **Archived Project: WordPress Content Management System with ML**
 >
-> PostWizardX3 is an open-source **reference implementation** exploring automation patterns for
-> content ingestion, classification, and publishing workflows built around WordPress.
+> PostWizardX3 is a feature-rich content management system designed for WordPress-based content websites.
+> It provides tools for automated content ingestion, machine learning classification, and publishing workflows.
 >
-> The project originated as part of a larger internal system that has since been discontinued.
-> Rather than letting the engineering work disappear, it has been open-sourced as a learning
-> resource and architectural showcase.
+> This project is no longer maintained but remains available as a reference implementation.
 
 ---
 
 ## 🚦 Project Status
 
-**Status:** Proof of Concept / Reference Implementation
+**Status:** Archived / Not Maintained
 
-This repository is provided strictly as a **technical proof of concept**.
+This repository is preserved for reference and educational purposes only.
 
-- ✅ Demonstrates real-world automation and orchestration patterns
-- ✅ Codebase is functional and internally consistent
-- ⚠️ APIs and workflows may change without notice
-- ❌ No production guarantees
-- ❌ No committed roadmap or maintenance promise
-
-The project is **not an actively developed product**. Users are encouraged to fork and adapt the
-codebase for their own needs.
+- ✅ Fully functional codebase with multiple integrated components
+- ⚠️ No longer actively maintained or supported
+- ⚠️ Dependencies may be outdated
+- ❌ No security updates or bug fixes
+- ❌ Not recommended for production use without significant updates
 
 ---
 
-## 🎯 Intended Audience
+## 🎯 Key Features
 
-This project is primarily intended for:
+- **Content Management**
+  - Automated WordPress post creation and management
+  - Video content processing and classification
+  - Thumbnail management and asset handling
 
-- Developers studying automation-heavy system design
-- Engineers exploring WordPress REST–based publishing workflows
-- Readers interested in applied ML within real-world content pipelines
+- **Machine Learning**
+  - Content classification using scikit-learn
+  - Natural language processing for content analysis
+  - Model training and evaluation tools
 
-It is **not** intended to be used as a production-ready or supported system.
+- **Workflow Automation**
+  - Batch processing of content
+  - Scheduled publishing
+  - Content synchronization
+
+## 🛠️ Technical Stack
+
+- **Language**: Python 3.11+
+- **ML Stack**: scikit-learn, NLTK, NumPy, SciPy
+- **Web**: aiohttp, requests, BeautifulSoup4
+- **WordPress**: REST API integration
+- **Build & Tools**: Ruff, uv
 
 ---
 
 ## 📌 Project Overview
 
-PostWizardX3 is a Python-based automation framework demonstrating how a complex content publishing
-pipeline can be orchestrated around WordPress. While the original use case focused on
+PostWizardX3 is a comprehensive content management system designed for WordPress, with a focus on content websites. It provides a complete pipeline for:
 **affiliate content**, the architectural patterns are broadly
 applicable to automation-heavy publishing systems.
 
@@ -68,17 +77,17 @@ work remains valuable as:
 
 - A **reference implementation** for similar automation systems
 - A **learning resource** for complex workflow orchestration
-- A **proof of concept** demonstrating architectural and integration patterns
-- A **foundation** for experimentation or selective reuse
+- A **production-grade system** demonstrating architectural and integration patterns
+- A **foundation** for experimentation or adaptation
 
 ---
 
 ## TL;DR
 
-- 🔬 Proof of concept, not a product
-- 🧠 Demonstrates automation + ML-driven publishing
+- 🏛️ Archived project, not currently maintained
+- 🧠 Complete automation + ML-driven publishing system
 - 🧩 Modular, bot-based architecture
-- 🧪 Best used as a reference or experimentation base
+- ⚠️ Requires updates for production use
 - ❌ No guaranteed maintenance
 
 ---
