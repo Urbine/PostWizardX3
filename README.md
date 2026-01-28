@@ -206,9 +206,6 @@ This repository is published as a **read-only reference implementation**.
 - Pull requests are unlikely to be reviewed or merged
 - Issues may not receive responses
 
-You are encouraged to **fork the repository** and adapt it to your own needs. This repository
-itself should be considered **archived in spirit**, even if not formally archived on GitHub.
-
 ---
 
 ## 📝 License
@@ -217,16 +214,6 @@ This project is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**.
 
 MPL 2.0 was chosen to allow reuse of individual components while preserving attribution and
 discouraging silent proprietary reuse of the complete system.
-
----
-
-## ✉️ Contact
-
-**Original Author:**  
-**Yoham Gabriel**  
-GitHub: [@Urbine](https://github.com/Urbine)
-
----
 
 > **Disclaimer**
 >
