@@ -184,20 +184,6 @@ appropriate categories and tags.
 
 ---
 
-## 🚀 Usage & Workflows
-
-> ⚠️ **Note**
->
-> The workflows in this repository are preserved for demonstration and experimentation purposes.
-> Running them against live sites or third-party services requires careful review, appropriate
-> credentials, and compliance with platform terms.
-
-Implementation details, configuration UIs, and workflow entry points are preserved in the
-repository for reference, but they are not organized as a step-by-step setup guide and may
-require adaptation for modern environments.
-
----
-
 ## 🔒 Maintenance & Contributions
 
 This repository is published as a **read-only reference implementation**.
@@ -211,9 +197,6 @@ This repository is published as a **read-only reference implementation**.
 ## 📝 License
 
 This project is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**.
-
-MPL 2.0 was chosen to allow reuse of individual components while preserving attribution and
-discouraging silent proprietary reuse of the complete system.
 
 > **Disclaimer**
 >
