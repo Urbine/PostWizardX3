@@ -6,7 +6,7 @@
 
 > **Archived Project: WordPress Content Management System with ML**
 >
-> PostWizardX3 is a feature-rich content management system designed for WordPress-based content websites.
+> PostWizardX3 is a feature-rich content management system designed for WordPress-based WordPress-based content publishing.
 > It provides tools for automated content ingestion, machine learning classification, and publishing workflows.
 >
 > This project is no longer maintained but remains available as a reference implementation.
@@ -56,8 +56,8 @@ This repository is preserved for reference and educational purposes only.
 
 ## 📌 Project Overview
 
-PostWizardX3 is a comprehensive content management system designed for WordPress, with a focus on content websites. It provides a complete pipeline for:
-**affiliate content**, the architectural patterns are broadly
+PostWizardX3 is a comprehensive content management system designed for WordPress, with a focus on WordPress-based content publishing. It provides a complete pipeline for:
+**content optimization and workflow orchestration**, the architectural patterns are broadly
 applicable to automation-heavy publishing systems.
 
 ### What This Project Demonstrates
@@ -128,7 +128,7 @@ than serve as polished end-user tools.
 - WordPress REST API
 - Social platforms (X/Twitter, Telegram)
 - Search APIs (multiple providers)
-- Content provider feeds
+- Third-party media provider feeds
 
 ### 🔧 Configuration & Administration
 
@@ -234,7 +234,7 @@ GitHub: [@Urbine](https://github.com/Urbine)
 > guarantees regarding correctness, security, or fitness for any particular use.
 >
 > Users are solely responsible for compliance with applicable laws, platform terms of service,
-> and content regulations, particularly when working with entertainment-oriented material.
+> and content regulations.
 
 ---
 
