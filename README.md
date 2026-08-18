@@ -173,6 +173,7 @@ The ML engine uses cached WordPress content as training data to build classifier
 * Tokenization and preprocessing via NLTK
 * Multiple classifiers trained per feature type
 * Serialized models stored locally and loaded at runtime
+* Trained model artifacts are generated locally via `ml_engine.model_train` and are not distributed with the repository
 * Designed for retraining as category schemes evolve
 
 ## 🔒 Maintenance & Contributions

@@ -30,6 +30,8 @@ Email: yohamg@programmer.net
 __author__ = "Yoham Gabriel Urbine@GitHub"
 __author_email__ = "yohamg@programmer.net"
 
+import logging
+
 from nltk.tokenize import word_tokenize
 import joblib
 
@@ -44,44 +46,31 @@ from ml_engine.model_train import (
 
 ML_ENGINE_PKG = "ml_engine.ml_models"
 
+
+def _load_model(name: str):
+    try:
+        return joblib.load(load_file_path(ML_ENGINE_PKG, name))
+    except OSError:
+        logging.warning(
+            "Model %s not found - run `ml_engine.model_train` to generate it.", name
+        )
+        return None
+
+
 # NLTK NaiveBayesClassifier
-NaiveBayes_titles = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "NaiveBayesTitles.joblib.pkl")
-)
-
-NaiveBayes_descriptions = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "NaiveBayesDescriptions.joblib.pkl")
-)
-
-NaiveBayes_tags = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "NaiveBayesTags.joblib.pkl")
-)
+NaiveBayes_titles = _load_model("NaiveBayesTitles.joblib.pkl")
+NaiveBayes_descriptions = _load_model("NaiveBayesDescriptions.joblib.pkl")
+NaiveBayes_tags = _load_model("NaiveBayesTags.joblib.pkl")
 
 # NLTK Maxent Classifier
-Maxent_titles = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "MaxentClassifierTitles.joblib.pkl")
-)
-
-Maxent_descriptions = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "MaxentClassifierDescriptions.joblib.pkl")
-)
-
-Maxent_tags = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "MaxentClassifierTags.joblib.pkl")
-)
+Maxent_titles = _load_model("MaxentClassifierTitles.joblib.pkl")
+Maxent_descriptions = _load_model("MaxentClassifierDescriptions.joblib.pkl")
+Maxent_tags = _load_model("MaxentClassifierTags.joblib.pkl")
 
 # SciKit-Learn Classifier (Multinomial Naive Bayes)
-Multinomial_titles = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "MultiNBClassifierTitles.joblib.pkl")
-)
-
-Multinomial_descriptions = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "MultiNBClassifierDescriptions.joblib.pkl")
-)
-
-Multinomial_tags = joblib.load(
-    load_file_path(ML_ENGINE_PKG, "MultiNBClassifierTags.joblib.pkl")
-)
+Multinomial_titles = _load_model("MultiNBClassifierTitles.joblib.pkl")
+Multinomial_descriptions = _load_model("MultiNBClassifierDescriptions.joblib.pkl")
+Multinomial_tags = _load_model("MultiNBClassifierTags.joblib.pkl")
 
 
 def categs_to_str(categs: set[str]):
@@ -93,6 +82,21 @@ def categs_to_str(categs: set[str]):
     """
     categ_set = map(lambda categ: str(categ), categs)
     return set(categ_set)
+
+
+def _classify(models: tuple, prep_data: dict[str, bool]) -> set[str]:
+    """Run ``prep_data`` through every available model in ``models``.
+
+    Models that could not be loaded (missing training artifacts) are skipped.
+    Raises ``RuntimeError`` when no model is available to classify with.
+    """
+    available_models = [model for model in models if model is not None]
+    if not available_models:
+        raise RuntimeError(
+            "No classification models available - run `ml_engine.model_train` to generate them."
+        )
+    results = {model.classify(prep_data) for model in available_models}
+    return categs_to_str(results)
 
 
 def classify_title(title: str) -> set[str]:
@@ -108,12 +112,9 @@ def classify_title(title: str) -> set[str]:
         for word in vocabulary_titles
         if word not in stop_words_english
     }
-    results = {
-        NaiveBayes_titles.classify(prep_title),
-        Maxent_titles.classify(prep_title),
-        Multinomial_titles.classify(prep_title),
-    }
-    return categs_to_str(results)
+    return _classify(
+        (NaiveBayes_titles, Maxent_titles, Multinomial_titles), prep_title
+    )
 
 
 def classify_description(description: str) -> set[str]:
@@ -129,12 +130,10 @@ def classify_description(description: str) -> set[str]:
         for word in vocabulary_descriptions
         if word not in stop_words_english
     }
-    results = {
-        NaiveBayes_descriptions.classify(prep_description),
-        Maxent_descriptions.classify(prep_description),
-        Multinomial_descriptions.classify(prep_description),
-    }
-    return categs_to_str(results)
+    return _classify(
+        (NaiveBayes_descriptions, Maxent_descriptions, Multinomial_descriptions),
+        prep_description,
+    )
 
 
 def classify_tags(tag_str: str):
@@ -153,9 +152,6 @@ def classify_tags(tag_str: str):
         for word in vocabulary_tags
         if word not in stop_words_english
     }
-    results = {
-        NaiveBayes_tags.classify(prep_tags),
-        Maxent_tags.classify(prep_tags),
-        Multinomial_tags.classify(prep_tags),
-    }
-    return categs_to_str(results)
+    return _classify(
+        (NaiveBayes_tags, Maxent_tags, Multinomial_tags), prep_tags
+    )
